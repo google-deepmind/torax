@@ -129,7 +129,7 @@ def _update_n_e(
       profile_conditions=dataclasses.replace(
           runtime_params.profile_conditions,
           n_e_right_bc=edge_outputs.n_e_right_bc,
-          n_e_right_bc_is_fGW=False,
+          n_e_right_bc_is_f_gw=False,
       ),
   )
 

@@ -137,10 +137,10 @@ class GettersTest(parameterized.TestCase):
             'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': {0: {0: 1.5e20, 1: 1e20}},
-            'n_e_nbar_is_fGW': False,
-            'n_e_right_bc_is_fGW': False,
-            'nbar': 1e20,
-            'normalize_n_e_to_nbar': False,
+            'n_e_bar_is_f_gw': False,
+            'n_e_right_bc_is_f_gw': False,
+            'n_e_bar': 1e20,
+            'normalize_n_e': False,
         },
     )
     numerics = numerics_lib.NumericsConfig.from_dict({})
@@ -166,9 +166,9 @@ class GettersTest(parameterized.TestCase):
         n_e_right_bc=0.5,
         n_e=value,
         I_p=15e6,
-        n_e_right_bc_is_fGW=False,
-        n_e_nbar_is_fGW=False,
-        normalize_n_e_to_nbar=False,
+        n_e_right_bc_is_f_gw=False,
+        n_e_bar_is_f_gw=False,
+        normalize_n_e=False,
     )
     original_n_e = cell_variable.CellVariable(
         value=jnp.array([1.0, 2.0, 3.0, 4.0]),
@@ -190,100 +190,100 @@ class GettersTest(parameterized.TestCase):
       dict(
           testcase_name='Set from n_e',
           n_e_right_bc=None,
-          normalize_n_e_to_nbar=False,
-          n_e_nbar_is_fGW=False,
-          n_e_right_bc_is_fGW=False,
+          normalize_n_e=False,
+          n_e_bar_is_f_gw=False,
+          n_e_right_bc_is_f_gw=False,
           expected_n_e_right_bc=1.0e20,
       ),
       dict(
           testcase_name='Set and normalize from n_e',
           n_e_right_bc=None,
-          normalize_n_e_to_nbar=True,
-          n_e_nbar_is_fGW=False,
-          n_e_right_bc_is_fGW=False,
+          normalize_n_e=True,
+          n_e_bar_is_f_gw=False,
+          n_e_right_bc_is_f_gw=False,
           expected_n_e_right_bc=0.8050314e20,
       ),
       dict(
-          testcase_name='Set and normalize from n_e in fGW',
+          testcase_name='Set and normalize from n_e in f_gw',
           n_e_right_bc=None,
-          normalize_n_e_to_nbar=True,
-          n_e_nbar_is_fGW=True,
-          n_e_right_bc_is_fGW=True,
+          normalize_n_e=True,
+          n_e_bar_is_f_gw=True,
+          n_e_right_bc_is_f_gw=True,
           expected_n_e_right_bc=0.9609356e20,
       ),
       dict(
           testcase_name='Set from n_e_right_bc',
           n_e_right_bc=0.85e20,
-          normalize_n_e_to_nbar=False,
-          n_e_nbar_is_fGW=False,
-          n_e_right_bc_is_fGW=False,
+          normalize_n_e=False,
+          n_e_bar_is_f_gw=False,
+          n_e_right_bc_is_f_gw=False,
           expected_n_e_right_bc=0.85e20,
       ),
       dict(
           testcase_name='Set from n_e_right_bc absolute, ignore normalize',
           n_e_right_bc=0.5e20,
-          normalize_n_e_to_nbar=True,
-          n_e_nbar_is_fGW=False,
-          n_e_right_bc_is_fGW=False,
+          normalize_n_e=True,
+          n_e_bar_is_f_gw=False,
+          n_e_right_bc_is_f_gw=False,
           expected_n_e_right_bc=0.5e20,
       ),
       dict(
-          testcase_name='Set from n_e in fGW',
+          testcase_name='Set from n_e in f_gw',
           n_e_right_bc=None,
-          normalize_n_e_to_nbar=False,
-          n_e_nbar_is_fGW=True,
-          n_e_right_bc_is_fGW=True,
+          normalize_n_e=False,
+          n_e_bar_is_f_gw=True,
+          n_e_right_bc_is_f_gw=True,
           expected_n_e_right_bc=1.19366207319e20,
       ),
       dict(
-          testcase_name='Set from n_e, ignore n_e_right_bc_is_fGW',
+          testcase_name='Set from n_e, ignore n_e_right_bc_is_f_gw',
           n_e_right_bc=None,
-          normalize_n_e_to_nbar=False,
-          n_e_nbar_is_fGW=False,
-          n_e_right_bc_is_fGW=True,
+          normalize_n_e=False,
+          n_e_bar_is_f_gw=False,
+          n_e_right_bc_is_f_gw=True,
           expected_n_e_right_bc=1.0e20,
       ),
       dict(
-          testcase_name='Set from n_e_right_bc, which is in fGW',
+          testcase_name='Set from n_e_right_bc, which is in f_gw',
           n_e_right_bc=0.5,
-          normalize_n_e_to_nbar=False,
-          n_e_nbar_is_fGW=False,
-          n_e_right_bc_is_fGW=True,
+          normalize_n_e=False,
+          n_e_bar_is_f_gw=False,
+          n_e_right_bc_is_f_gw=True,
           expected_n_e_right_bc=0.59683103659e20,
       ),
       dict(
-          testcase_name='Set from n_e_right_bc, ignore n_e_nbar_is_fGW',
+          testcase_name='Set from n_e_right_bc, ignore n_e_bar_is_f_gw',
           n_e_right_bc=0.5e20,
-          normalize_n_e_to_nbar=False,
-          n_e_nbar_is_fGW=True,
-          n_e_right_bc_is_fGW=False,
+          normalize_n_e=False,
+          n_e_bar_is_f_gw=True,
+          n_e_right_bc_is_f_gw=False,
           expected_n_e_right_bc=0.5e20,
       ),
       dict(
           testcase_name=(
-              'Set from n_e_right_bc, ignore n_e_nbar_is_fGW, ignore normalize'
+              'Set from n_e_right_bc, ignore n_e_bar_is_f_gw, ignore normalize'
           ),
           n_e_right_bc=0.5e20,
-          normalize_n_e_to_nbar=True,
-          n_e_nbar_is_fGW=True,
-          n_e_right_bc_is_fGW=False,
+          normalize_n_e=True,
+          n_e_bar_is_f_gw=True,
+          n_e_right_bc_is_f_gw=False,
           expected_n_e_right_bc=0.5e20,
       ),
   )
   def test_density_boundary_condition_override(
       self,
       n_e_right_bc: float | None,
-      normalize_n_e_to_nbar: bool,
-      n_e_nbar_is_fGW: bool,
-      n_e_right_bc_is_fGW: bool,
+      normalize_n_e: bool,
+      n_e_bar_is_f_gw: bool,
+      n_e_right_bc_is_f_gw: bool,
       expected_n_e_right_bc: float,
   ):
     """Tests that setting n_e right boundary works."""
-    if n_e_nbar_is_fGW:
-      nbar = 1.0
+    if n_e_bar_is_f_gw:
+      n_e_bar = 1.0
       n_e = {0: {0: 1.5, 1: 1}}
     else:
-      nbar = 1.0e20
+      n_e_bar = 1.0e20
       n_e = {0: {0: 1.5e20, 1: 1e20}}
 
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
@@ -291,11 +291,11 @@ class GettersTest(parameterized.TestCase):
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': n_e,
-        'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
-        'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
-        'nbar': nbar,
+        'n_e_bar_is_f_gw': n_e_bar_is_f_gw,
+        'n_e_right_bc_is_f_gw': n_e_right_bc_is_f_gw,
+        'n_e_bar': n_e_bar,
         'n_e_right_bc': n_e_right_bc,
-        'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
+        'normalize_n_e': normalize_n_e,
     })
     numerics = numerics_lib.NumericsConfig.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
@@ -314,17 +314,17 @@ class GettersTest(parameterized.TestCase):
   def test_n_e_core_profile_setter_with_normalization(
       self,
   ):
-    """Tests that normalizing vs. not by nbar gives consistent results."""
-    nbar = 1e20
+    """Tests that normalizing vs. not by n_e_bar gives consistent results."""
+    n_e_bar = 1e20
     numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
-        'n_e_nbar_is_fGW': False,
-        'nbar': nbar,
-        'normalize_n_e_to_nbar': True,
+        'n_e_bar_is_f_gw': False,
+        'n_e_bar': n_e_bar,
+        'normalize_n_e': True,
         'n_e_right_bc': 0.5e20,
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
@@ -334,9 +334,11 @@ class GettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    np.testing.assert_allclose(np.mean(n_e_normalized.value), nbar, rtol=1e-1)
+    np.testing.assert_allclose(
+        np.mean(n_e_normalized.value), n_e_bar, rtol=1e-1
+    )
 
-    profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
+    profile_conditions._update_fields({'normalize_n_e': False})
     n_e_unnormalized = getters.get_updated_electron_density(
         profile_conditions.build_runtime_params(1.0),
         self.geo,
@@ -350,9 +352,9 @@ class GettersTest(parameterized.TestCase):
       True,
       False,
   )
-  def test_n_e_core_profile_setter_with_fGW(
+  def test_n_e_core_profile_setter_with_f_gw(
       self,
-      normalize_n_e_to_nbar: bool,
+      normalize_n_e: bool,
   ):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
     numerics = numerics_lib.NumericsConfig.from_dict({})
@@ -361,22 +363,22 @@ class GettersTest(parameterized.TestCase):
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.5, 1: 1}},
-        'n_e_nbar_is_fGW': True,
-        'nbar': 1.0,
-        'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
+        'n_e_bar_is_f_gw': True,
+        'n_e_bar': 1.0,
+        'normalize_n_e': normalize_n_e,
         'n_e_right_bc': 0.5e20,
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
-    n_e_fGW = getters.get_updated_electron_density(
+    n_e_f_gw = getters.get_updated_electron_density(
         profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     profile_conditions._update_fields(
         {
-            'n_e_nbar_is_fGW': False,
+            'n_e_bar_is_f_gw': False,
             'n_e': {0: {0: 1.5e20, 1: 1e20}},
-            'nbar': 1e20,
+            'n_e_bar': 1e20,
         },
     )
     # Need to reset n_e grid after private _update_fields. Otherwise, the grid
@@ -391,7 +393,7 @@ class GettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    ratio = n_e.value / n_e_fGW.value
+    ratio = n_e.value / n_e_f_gw.value
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
 
@@ -403,10 +405,10 @@ class GettersTest(parameterized.TestCase):
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
-        'n_e_nbar_is_fGW': False,
-        'n_e_right_bc_is_fGW': False,
-        'nbar': 1e20,
-        'normalize_n_e_to_nbar': False,
+        'n_e_bar_is_f_gw': False,
+        'n_e_right_bc_is_f_gw': False,
+        'n_e_bar': 1e20,
+        'normalize_n_e': False,
     }
     config_dict['plasma_composition']['Z_eff'] = 2.0
     torax_config = config.ToraxConfig.from_dict(config_dict)

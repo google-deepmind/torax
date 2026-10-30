@@ -41,10 +41,10 @@ CONFIG = {
         'T_e_right_bc': 0.238,  # boundary condition electron temp at r=a_minor
         'n_e_right_bc': 0.437e20,  # boundary condition density for r=a_minor
         # set initial condition density according to Greenwald fraction.
-        # Otherwise from nbar
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.77,  # original simulation goes up to ~0.92
+        # Otherwise from n_e_bar
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.77,  # original simulation goes up to ~0.92
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },
     'numerics': {

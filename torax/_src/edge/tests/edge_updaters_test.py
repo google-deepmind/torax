@@ -40,7 +40,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
     super().setUp()
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions']['n_e_right_bc'] = 0.5
-    config_dict['profile_conditions']['n_e_right_bc_is_fGW'] = True
+    config_dict['profile_conditions']['n_e_right_bc_is_f_gw'] = True
     config_dict['plasma_composition']['impurity'] = {
         'impurity_mode': 'n_e_ratios',
         'species': {
@@ -109,7 +109,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         params.profile_conditions.T_i_right_bc,
     )
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
-    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_f_gw)
     assert isinstance(
         updated.plasma_composition.impurity,
         electron_density_ratios.RuntimeParams,
@@ -140,7 +140,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
     )
     # Density boundary conditions remain unchanged.
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
-    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_f_gw)
     # Impurity conditions remain unchanged.
     assert isinstance(
         updated.plasma_composition.impurity,
@@ -164,7 +164,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
     np.testing.assert_allclose(updated.profile_conditions.T_i_right_bc, 0.456)
     # Density boundary conditions remain unchanged.
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
-    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_f_gw)
     # Impurity conditions remain unchanged.
     assert isinstance(
         updated.plasma_composition.impurity,
@@ -176,7 +176,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
     updated = updaters.update_runtime_params(params, self.edge_outputs)
 
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 3.45e19)
-    self.assertFalse(updated.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertFalse(updated.profile_conditions.n_e_right_bc_is_f_gw)
     # Electron temperature boundary condition remains unchanged.
     np.testing.assert_allclose(
         updated.profile_conditions.T_e_right_bc,
@@ -298,7 +298,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         params.profile_conditions.T_i_right_bc,
     )
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
-    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_f_gw)
 
 
 if __name__ == '__main__':

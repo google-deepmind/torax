@@ -117,21 +117,21 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       from `toroidal_angular_velocity` at rhon=1. If `toroidal_angular_velocity
       is also `None`, then the boundary condition will be set to zero.
     n_e: Prescribed or evolving values for electron density at different times.
-    normalize_n_e_to_nbar: Whether to renormalize the density profile to have
-      the desired line averaged density `nbar`.
-    nbar: Line averaged density. In units of m^-3 if n_e_nbar_is_fGW = False. In
-      Greenwald fraction if n_e_nbar_is_fGW = True. nGW = I_p/(pi*a^2) with a in
-      m, nGW in 10^20 m-3, I_p in MA
-    n_e_nbar_is_fGW: Toggle units of nbar
+    normalize_n_e: Whether to renormalize the density profile to have the
+      desired line averaged density `n_e_bar`.
+    n_e_bar: Line averaged electron density. In units of m^-3 if n_e_bar_is_f_gw
+      = False. In Greenwald fraction if n_e_bar_is_f_gw = True. nGW =
+      I_p/(pi*a^2) with a in m, nGW in 10^20 m-3, I_p in MA
+    n_e_bar_is_f_gw: Toggle units of n_e_bar
     n_e_right_bc: Density boundary condition for r=a_minor. In units of m^-3 if
-      n_e_right_bc_is_fGW = False. In Greenwald fraction if `n_e_right_bc_is_fGW
-      = True`. If `n_e_right_bc` is `None` then the boundary condition will
-      instead be taken from `n_e` at rho_norm=1. In this case,
-      `n_e_right_bc_is_absolute` in the StaticRuntimeParams will be set to
-      `False` and n_e_right_bc_is_fGW` will be set to `n_e_nbar_is_fGW`. If
+      n_e_right_bc_is_f_gw = False. In Greenwald fraction if
+      `n_e_right_bc_is_f_gw = True`. If `n_e_right_bc` is `None` then the
+      boundary condition will instead be taken from `n_e` at rho_norm=1. In this
+      case, `n_e_right_bc_is_absolute` in the StaticRuntimeParams will be set to
+      `False` and n_e_right_bc_is_f_gw` will be set to `n_e_bar_is_f_gw`. If
       `n_e_right_bc` is not `None` then `n_e_right_bc_is_absolute` will be set
       to `True`.
-    n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
+    n_e_right_bc_is_f_gw: Toggle units of n_e_right_bc.
     internal_boundary_conditions: Config for internal boundary conditions. See
       `InternalBoundaryConditionsConfig` for more details.
     current_profile_nu: Peaking factor of "Ohmic" current: j_toroidal_ohmic =
@@ -174,13 +174,13 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0: {0: 1.2e20, 1: 0.8e20}})
   )
-  normalize_n_e_to_nbar: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  nbar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+  normalize_n_e: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  n_e_bar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.85e20
   )
-  n_e_nbar_is_fGW: bool = False
+  n_e_bar_is_f_gw: bool = False
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
-  n_e_right_bc_is_fGW: bool = False
+  n_e_right_bc_is_f_gw: bool = False
   # TODO(b/495851657): V2 API: move boundary condition attributes to a
   # dedicated nested object, and merge with attributes currently in edge model,
   # e.g. update_temperatures.
@@ -243,9 +243,9 @@ class ProfileConditions(torax_pydantic.ConfigBase):
             'n_e_right_bc_multiplier must be set when'
             ' n_e_right_bc_mode is "density_fraction".'
         )
-      if self.n_e_right_bc_is_fGW:
+      if self.n_e_right_bc_is_f_gw:
         error_messages.append(
-            'n_e_right_bc_is_fGW must be False when n_e_right_bc_mode is'
+            'n_e_right_bc_is_f_gw must be False when n_e_right_bc_mode is'
             ' "density_fraction". The density_fraction mode computes an'
             ' absolute boundary condition in SI units (m^-3).'
         )
@@ -289,31 +289,36 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       )
 
     # Validate plasma density inputs order of magnitude.
-    if not self.n_e_nbar_is_fGW and self.normalize_n_e_to_nbar:
-      if np.any(self.nbar.value < _MIN_DENSITY_M3):
+    if not self.n_e_bar_is_f_gw and self.normalize_n_e:
+      if np.any(self.n_e_bar.value < _MIN_DENSITY_M3):
         failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
-            self.nbar.value, self.nbar.time, lambda x: x < _MIN_DENSITY_M3
+            self.n_e_bar.value,
+            self.n_e_bar.time,
+            lambda x: x < _MIN_DENSITY_M3,
         )
         error_messages.append(
-            'Density inputs set in m^-3 units. Line-averaged density nbar at'
-            f' time {time_at_fail}s is {failed_val:.2e} m^-3  which is below'
+            'Density inputs set in m^-3 units. Line-averaged density n_e_bar'
+            f' at time {time_at_fail}s is {failed_val:.2e} m^-3  which is below'
             f' the minimum threshold of {_MIN_DENSITY_M3:.0e} m^-3. Possible'
-            ' cause: erroneous input nbar in normalized units instead of m^-3.'
+            ' cause: erroneous input n_e_bar in normalized units instead of'
+            ' m^-3.'
         )
 
-    if self.n_e_nbar_is_fGW and self.normalize_n_e_to_nbar:
-      if np.any(self.nbar.value > _MAX_DENSITY_GW):
+    if self.n_e_bar_is_f_gw and self.normalize_n_e:
+      if np.any(self.n_e_bar.value > _MAX_DENSITY_GW):
         failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
-            self.nbar.value, self.nbar.time, lambda x: x > _MAX_DENSITY_GW
+            self.n_e_bar.value,
+            self.n_e_bar.time,
+            lambda x: x > _MAX_DENSITY_GW,
         )
         error_messages.append(
             'Density inputs set in Greenwald fraction. Line-averaged density'
-            f' nbar time {time_at_fail}s is {failed_val:.2e} fGW which is'
-            f' above the maximum threshold of {_MAX_DENSITY_GW:.0e} fGW.'
-            ' Possible cause: erroneous input nbar in m^-3 instead of fGW.'
+            f' n_e_bar time {time_at_fail}s is {failed_val:.2e} f_gw which is'
+            f' above the maximum threshold of {_MAX_DENSITY_GW:.0e} f_gw.'
+            ' Possible cause: erroneous input n_e_bar in m^-3 instead of f_gw.'
         )
 
-    if not self.n_e_nbar_is_fGW and not self.normalize_n_e_to_nbar:
+    if not self.n_e_bar_is_f_gw and not self.normalize_n_e:
       for n_e_time, n_e_value in self.n_e.value.items():
         if np.any(n_e_value[1] < _MIN_DENSITY_M3):
           failed_val, rho_norm_at_fail = (
@@ -330,7 +335,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
           )
         break
 
-    if self.n_e_nbar_is_fGW and not self.normalize_n_e_to_nbar:
+    if self.n_e_bar_is_f_gw and not self.normalize_n_e:
       for n_e_time, n_e_value in self.n_e.value.items():
         if np.any(n_e_value[1] > _MAX_DENSITY_GW):
           (
@@ -343,13 +348,13 @@ class ProfileConditions(torax_pydantic.ConfigBase):
               'Density inputs set in Greenwald fraction. n_e at time'
               f' {n_e_time}s and rho_norm {rho_norm_at_fail} is'
               f' {failed_val:.2e} m^-3  which is above the maximum threshold of'
-              f' {_MAX_DENSITY_GW:.0e} fGW. Possible cause: erroneous input n_e'
-              ' in m^-3 instead of fGW.'
+              f' {_MAX_DENSITY_GW:.0e} f_gw. Possible cause: erroneous input'
+              ' n_e in m^-3 instead of f_gw.'
           )
           break
 
     if self.n_e_right_bc is not None:
-      if not self.n_e_right_bc_is_fGW:
+      if not self.n_e_right_bc_is_f_gw:
         if np.any(self.n_e_right_bc.value < _MIN_DENSITY_M3):
           failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
               self.n_e_right_bc.value,
@@ -372,10 +377,10 @@ class ProfileConditions(torax_pydantic.ConfigBase):
           )
           error_messages.append(
               'Density boundary condition inputs set in Greenwald fraction,'
-              f' n_e_right_bc at time {time_at_fail}s is {failed_val:.2e} fGW'
+              f' n_e_right_bc at time {time_at_fail}s is {failed_val:.2e} f_gw'
               f' which is above the maximum threshold of {_MAX_DENSITY_GW:.0e}'
-              ' fGW. Possible cause: erroneous input n_e_right_bc in m^-3'
-              ' instead of fGW.'
+              ' f_gw. Possible cause: erroneous input n_e_right_bc in m^-3'
+              ' instead of f_gw.'
           )
 
     # Validate temperature inputs order of magnitude.
@@ -502,7 +507,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       runtime_params['n_e_right_bc'] = self.n_e.get_value(
           t, grid_type='face_right'
       )
-      runtime_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
+      runtime_params['n_e_right_bc_is_f_gw'] = self.n_e_bar_is_f_gw
       runtime_params['n_e_right_bc_is_absolute'] = False
     else:
       runtime_params['n_e_right_bc_is_absolute'] = True

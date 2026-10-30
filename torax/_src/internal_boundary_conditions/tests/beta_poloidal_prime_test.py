@@ -47,7 +47,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         beta_poloidal_prime=1.5,
         Ti_Te_ratio=1.0,
     )
-    self.assertFalse(ibc_config.n_e_is_fGW)
+    self.assertFalse(ibc_config.n_e_is_f_gw)
     self.assertIsNone(ibc_config.n_e_edge_multiplier)
     self.assertEqual(ibc_config.mode, beta_poloidal_prime.Mode.CONSTANT)
     self.assertIsNone(ibc_config.P_SOL_scaling)
@@ -100,7 +100,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       n_e_edge_multiplier: float | None = None,
       beta_poloidal_prime_val: float = 1.5,
       ti_te_ratio: float = 1.2,
-      n_e_is_fGW: bool = False,
+      n_e_is_f_gw: bool = False,
       I_p: float = 5e6,
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
       beta_poloidal_prime_min: float = 0.2,
@@ -127,7 +127,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         beta_poloidal_prime_min=beta_poloidal_prime_min,
         P_SOL_scaling=P_SOL_scaling,
         Ti_Te_ratio=ti_te_ratio,
-        n_e_is_fGW=n_e_is_fGW,
+        n_e_is_f_gw=n_e_is_f_gw,
     )
     torax_pydantic.set_grid(ibc_config, geo.torax_mesh)
     ibc_rp = ibc_config.build_runtime_params(t=0.0)
@@ -271,7 +271,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
           Ti_Te_ratio=jnp.asarray(1.2),
           n_e_edge=jnp.asarray(2.5e19),
           n_e_edge_multiplier=None,
-          n_e_is_fGW=False,
+          n_e_is_f_gw=False,
           mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
           beta_poloidal_prime_min=jnp.asarray(0.2),
           P_SOL_scaling=p_sol_scaling,
@@ -331,24 +331,24 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     self.assertFalse(mask[0])
 
   def test_greenwald_density_conversion(self):
-    fgw = 0.4
+    f_gw = 0.4
     I_p = 5e6
-    geo, _, ibc_out_fgw = self._setup_model_and_profiles(
+    geo, _, ibc_out_f_gw = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
-        n_e_edge=fgw,
-        n_e_is_fGW=True,
+        n_e_edge=f_gw,
+        n_e_is_f_gw=True,
         I_p=I_p,
     )
     nGW = (I_p / 1e6) / (np.pi * geo.a_minor**2) * 1e20
     _, _, ibc_out_abs = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
-        n_e_edge=fgw * nGW,
-        n_e_is_fGW=False,
+        n_e_edge=f_gw * nGW,
+        n_e_is_f_gw=False,
         I_p=I_p,
     )
-    np.testing.assert_allclose(ibc_out_fgw.n_e, ibc_out_abs.n_e)
-    np.testing.assert_allclose(ibc_out_fgw.T_e, ibc_out_abs.T_e)
-    np.testing.assert_allclose(ibc_out_fgw.T_i, ibc_out_abs.T_i)
+    np.testing.assert_allclose(ibc_out_f_gw.n_e, ibc_out_abs.n_e)
+    np.testing.assert_allclose(ibc_out_f_gw.T_e, ibc_out_abs.T_e)
+    np.testing.assert_allclose(ibc_out_f_gw.T_i, ibc_out_abs.T_i)
 
   def test_n_e_edge_multiplier_matches_equivalent_n_e_edge(self):
     multiplier = 1.5
@@ -368,8 +368,8 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     np.testing.assert_allclose(ibc_out_mult.T_i, ibc_out_val.T_i)
 
   @parameterized.named_parameters(
-      ('value_m3', {'n_e_edge': 2.0e19, 'n_e_is_fGW': False}),
-      ('value_fgw', {'n_e_edge': 0.3, 'n_e_is_fGW': True}),
+      ('value_m3', {'n_e_edge': 2.0e19, 'n_e_is_f_gw': False}),
+      ('value_f_gw', {'n_e_edge': 0.3, 'n_e_is_f_gw': True}),
       ('multiplier', {'n_e_edge_multiplier': 1.5}),
   )
   def test_solver_step_reconstructs_beta_poloidal_prime(

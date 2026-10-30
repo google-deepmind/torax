@@ -228,11 +228,11 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
           None,
           1.0,
       ],
-      n_e_right_bc_is_fGW=[
+      n_e_right_bc_is_f_gw=[
           True,
           False,
       ],
-      n_e_nbar_is_fGW=[
+      n_e_bar_is_f_gw=[
           True,
           False,
       ],
@@ -240,8 +240,8 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
   def test_profile_conditions_set_electron_density_and_boundary_condition(
       self,
       n_e_right_bc,
-      n_e_right_bc_is_fGW,  # pylint: disable=invalid-name
-      n_e_nbar_is_fGW,  # pylint: disable=invalid-name
+      n_e_right_bc_is_f_gw,  # pylint: disable=invalid-name
+      n_e_bar_is_f_gw,  # pylint: disable=invalid-name
   ):
     """Tests that the profile conditions can set the electron density."""
 
@@ -249,11 +249,11 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
     # Set correct order of magnitudes to pass Pydantic validation.
     if n_e_right_bc is not None:
-      n_e_right_bc = 1.0 if n_e_right_bc_is_fGW else 1.0e20
-    nbar = 1.0 if n_e_nbar_is_fGW else 1.0e20
+      n_e_right_bc = 1.0 if n_e_right_bc_is_f_gw else 1.0e20
+    n_e_bar = 1.0 if n_e_bar_is_f_gw else 1.0e20
     n_e = (
         {0.0: {0.0: 1.5, 1.0: 1.0}}
-        if n_e_nbar_is_fGW
+        if n_e_bar_is_f_gw
         else {0.0: {0.0: 1.5e20, 1.0: 1.0e20}}
     )
 
@@ -263,9 +263,9 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e_right_bc': n_e_right_bc,
-        'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
-        'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
-        'nbar': nbar,
+        'n_e_right_bc_is_f_gw': n_e_right_bc_is_f_gw,
+        'n_e_bar_is_f_gw': n_e_bar_is_f_gw,
+        'n_e_bar': n_e_bar,
         'n_e': n_e,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -276,17 +276,17 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     )
 
     if n_e_right_bc is None:
-      # If the boundary condition was not set, it should inherit the fGW flag.
+      # If the boundary condition was not set, it should inherit the f_gw flag.
       self.assertEqual(
-          profile_condition_params.n_e_right_bc_is_fGW,
-          n_e_nbar_is_fGW,
+          profile_condition_params.n_e_right_bc_is_f_gw,
+          n_e_bar_is_f_gw,
       )
       # If the boundary condition was set check it is not absolute.
       self.assertFalse(profile_condition_params.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
-          profile_condition_params.n_e_right_bc_is_fGW,
-          n_e_right_bc_is_fGW,
+          profile_condition_params.n_e_right_bc_is_f_gw,
+          n_e_right_bc_is_f_gw,
       )
       self.assertTrue(profile_condition_params.n_e_right_bc_is_absolute)
 
@@ -441,7 +441,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       params_provider.update_provider(
           # Attempt to change a bool field.
-          lambda x: (x.profile_conditions.n_e_nbar_is_fGW,),
+          lambda x: (x.profile_conditions.n_e_bar_is_f_gw,),
           (True,),
       )
 
@@ -568,8 +568,8 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0.0: 1.5e20, 1.0: 1.0e20}},
-        'n_e_nbar_is_fGW': False,
-        'normalize_n_e_to_nbar': False,
+        'n_e_bar_is_f_gw': False,
+        'normalize_n_e': False,
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
@@ -605,7 +605,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         rtol=1e-6,
     )
     self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
-    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_f_gw)
 
   def test_ne_bc_density_fraction_from_core_profiles(self):
     """Tests density_fraction mode with a mock CoreProfiles."""
@@ -652,7 +652,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         rtol=1e-6,
     )
     self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
-    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_f_gw)
 
   def test_get_consistent_runtime_params_and_geometry_with_I_p_none(self):
     """Tests that I_p is populated from geometry before density_fraction BC."""
@@ -664,9 +664,9 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     del config_dict['profile_conditions']['I_p']
     config_dict['profile_conditions']['I_p_source'] = 'geometry'
     config_dict['profile_conditions']['n_e'] = {0.0: {0.0: 1.5, 1.0: 1.0}}
-    config_dict['profile_conditions']['nbar'] = 1.0
-    config_dict['profile_conditions']['n_e_nbar_is_fGW'] = True
-    config_dict['profile_conditions']['normalize_n_e_to_nbar'] = True
+    config_dict['profile_conditions']['n_e_bar'] = 1.0
+    config_dict['profile_conditions']['n_e_bar_is_f_gw'] = True
+    config_dict['profile_conditions']['normalize_n_e'] = True
     config_dict['profile_conditions']['n_e_right_bc_mode'] = 'density_fraction'
     config_dict['profile_conditions']['n_e_right_bc_reference_rho'] = 0.5
     config_dict['profile_conditions']['n_e_right_bc_multiplier'] = 0.8

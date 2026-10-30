@@ -33,7 +33,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       T_e_ped=[4, {0.0: 4.0, 1.0: 8.0}],
       n_e_ped=[0.7e20, {0.0: 0.7e20, 1.0: 0.9e20}],
       rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
-      n_e_ped_is_fGW=[False, True],
+      n_e_ped_is_f_gw=[False, True],
       time=[0.0, 1.0],
   )
   def test_build_and_call_pedestal_model(
@@ -42,10 +42,10 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       T_e_ped,
       n_e_ped,
       rho_norm_ped_top,
-      n_e_ped_is_fGW,
+      n_e_ped_is_f_gw,
       time,
   ):
-    if n_e_ped_is_fGW:
+    if n_e_ped_is_f_gw:
       if isinstance(n_e_ped, dict):
         n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
       else:
@@ -58,7 +58,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
             'T_e_ped': T_e_ped,
             'rho_norm_ped_top': rho_norm_ped_top,
             'n_e_ped': n_e_ped,
-            'n_e_ped_is_fGW': n_e_ped_is_fGW,
+            'n_e_ped_is_f_gw': n_e_ped_is_f_gw,
         }
     }
     torax_config = torax_pydantic_config.ToraxConfig.from_dict(config)
@@ -110,7 +110,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       expected_n_e_ped = n_e_ped
     else:
       expected_n_e_ped = n_e_ped[time]
-    if n_e_ped_is_fGW:
+    if n_e_ped_is_f_gw:
       nGW = (
           runtime_params.profile_conditions.I_p
           / 1e6  # Convert to MA.

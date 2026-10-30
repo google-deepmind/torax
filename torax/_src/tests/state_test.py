@@ -54,7 +54,7 @@ class InitialStatesTest(parameterized.TestCase):
         'T_i_right_bc': 27.7,
         'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
         'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
-        'normalize_n_e_to_nbar': False,
+        'normalize_n_e': False,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, _ = core_profile_helpers.make_initial_inputs(torax_config)

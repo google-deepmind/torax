@@ -776,13 +776,13 @@ N_I_LINE_AVG: Final[OutputKey] = OutputKey(
     units=Units.INVERSE_CUBIC_METER,
     grid_type=GridType.SCALAR,
 )
-FGW_N_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
-    "fgw_n_e_volume_avg",
+F_GW_N_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "f_gw_n_e_volume_avg",
     units=Units.DIMENSIONLESS,
     grid_type=GridType.SCALAR,
 )
-FGW_N_E_LINE_AVG: Final[OutputKey] = OutputKey(
-    "fgw_n_e_line_avg",
+F_GW_N_E_LINE_AVG: Final[OutputKey] = OutputKey(
+    "f_gw_n_e_line_avg",
     units=Units.DIMENSIONLESS,
     grid_type=GridType.SCALAR,
 )

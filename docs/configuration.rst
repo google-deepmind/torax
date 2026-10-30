@@ -375,10 +375,10 @@ CHEASE geometry), is shown below. The configuration file is also available in
           # initial condition electron temperature between r=0 and r=a_minor
           'T_e': {0.0: {0.0: 6.0, 1.0: 0.1}},
           'T_e_right_bc': 0.1,  # boundary condition electron temp for r=a_minor
-          'n_e_right_bc_is_fGW': True,
+          'n_e_right_bc_is_f_gw': True,
           'n_e_right_bc': {0: 0.1, 80: 0.3},
-          'n_e_nbar_is_fGW': True,
-          'nbar': 1,
+          'n_e_bar_is_f_gw': True,
+          'n_e_bar': 1,
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
       },
       'numerics': {
@@ -441,7 +441,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
               'T_e_ped': 1.0,
               'n_e_ped': {0: 0.3, 80: 0.7},
               'rho_norm_ped_top': 0.95,
-              'n_e_ped_is_fGW': True,
+              'n_e_ped_is_f_gw': True,
           },
       },
       'solver': {

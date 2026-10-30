@@ -35,9 +35,9 @@ CONFIG = {
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'I_p': {0: 5e6, 4: 15e6, 6: 12e6, 8: 12e6},
         'n_e_right_bc': 0.5e20,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {

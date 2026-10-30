@@ -624,10 +624,10 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``f_non_inductive`` (time)
   Fraction of the total plasma current that is non-inductive [dimensionless].
 
-``fgw_n_e_line_avg`` (time)
+``f_gw_n_e_line_avg`` (time)
   Greenwald fraction from line-averaged electron density [dimensionless].
 
-``fgw_n_e_volume_avg`` (time)
+``f_gw_n_e_volume_avg`` (time)
   Greenwald fraction from volume-averaged electron density [dimensionless].
 
 ``H20`` (time)

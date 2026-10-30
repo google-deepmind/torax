@@ -30,10 +30,10 @@ CONFIG = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'geometry',
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
         'n_e_right_bc': 0.5e20,
-        'nbar': 0.95,  # initial density (Greenwald fraction units)
+        'n_e_bar': 0.95,  # initial density (Greenwald fraction units)
     },
     'numerics': {
         'current_diffusion_time_reduction_factor': 100,

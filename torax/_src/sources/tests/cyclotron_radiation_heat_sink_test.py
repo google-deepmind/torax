@@ -138,8 +138,8 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         "initial_psi_source": "j",
         "T_e": {0.0: te_profile},
         "n_e": {0.0: ne_profile},
-        "n_e_nbar_is_fGW": False,
-        "normalize_n_e_to_nbar": False,
+        "n_e_bar_is_f_gw": False,
+        "normalize_n_e": False,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, runtime_params, geo = (

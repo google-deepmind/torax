@@ -1573,9 +1573,9 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         },
         'profile_conditions.n_e_right_bc': self._N_E_VALUE,
         'profile_conditions.n_e': self._N_E_VALUE,
-        'profile_conditions.n_e_nbar_is_fGW': False,
-        'profile_conditions.n_e_right_bc_is_fGW': False,
-        'profile_conditions.normalize_n_e_to_nbar': False,
+        'profile_conditions.n_e_bar_is_f_gw': False,
+        'profile_conditions.n_e_right_bc_is_f_gw': False,
+        'profile_conditions.normalize_n_e': False,
         'numerics.evolve_density': False,
         'edge': {
             'model_name': 'extended_lengyel',

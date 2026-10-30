@@ -42,7 +42,7 @@ class RuntimeParams(pedestal_runtime_params_lib.StructureRuntimeParams):
   n_e_ped: array_typing.FloatScalar
   T_i_T_e_ratio: array_typing.FloatScalar
   rho_norm_ped_top: array_typing.FloatScalar
-  n_e_ped_is_fGW: array_typing.BoolScalar
+  n_e_ped_is_f_gw: array_typing.BoolScalar
   P_ped_multiplier: array_typing.FloatScalar = 1.0
 
 
@@ -75,7 +75,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         * 1e20
     )
     n_e_ped = jnp.where(
-        structure_params.n_e_ped_is_fGW,
+        structure_params.n_e_ped_is_f_gw,
         structure_params.n_e_ped * nGW,
         structure_params.n_e_ped,
     )

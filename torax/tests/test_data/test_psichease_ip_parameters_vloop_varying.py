@@ -38,9 +38,9 @@ CONFIG = {
         'n_e_right_bc': 0.5e20,
         'use_v_loop_lcfs_boundary_condition': True,
         'v_loop_lcfs': (times, v_loop),
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {

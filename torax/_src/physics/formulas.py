@@ -233,14 +233,14 @@ def calculate_greenwald_fraction(
     geo: Geometry object
 
   Returns:
-    fgw: Greenwald density fraction
+    f_gw: Greenwald density fraction
   """
   # gw_limit is in units of 10^20 m^-3 when I_p is in MA and a_minor is in m.
   gw_limit = (
       core_profiles.I_p_profile_face[-1] * 1e-6 / (jnp.pi * geo.a_minor**2)
   )
-  fgw = n_e_avg / (gw_limit * 1e20)
-  return fgw
+  f_gw = n_e_avg / (gw_limit * 1e20)
+  return f_gw
 
 
 def calculate_betas(

@@ -29,7 +29,7 @@ Tuning of this scenario should be done as follows:
   2. Enable current and heat transport equations and adjust `bgb_multiplier` to
     achieve H98 ≈ 1.1.
   3. Enable all transport equations and adjust pellet fuelling rate to achieve
-    fGW ≈ 0.95.
+    f_gw ≈ 0.95.
 
 Based on:
  1. T.A. Brown, F.J. Casson et al., "OpenSTEP: public data release of the STEP
@@ -87,8 +87,7 @@ CONFIG = {
         core_profiles_ids
     ),
     "profile_conditions": (
-        profile_conditions_from_ids
-        | {
+        profile_conditions_from_ids | {
             "I_p_source": "profile_conditions",
             "use_v_loop_lcfs_boundary_condition": True,
             "v_loop_lcfs": 0.0,
@@ -136,7 +135,7 @@ CONFIG = {
             # TODO(b/323504363): load from IDS?
             "pellet_deposition_location": 0.8,  # from [2] sec 3.4
             "pellet_width": 0.17,  # from [2] sec 3.4
-            "S_total": 3e21,  # [s^-1], tuned to get desired fGW in Table 5
+            "S_total": 3e21,  # [s^-1], tuned to get desired f_gw in Table 5
         },
     },
     "transport": {
