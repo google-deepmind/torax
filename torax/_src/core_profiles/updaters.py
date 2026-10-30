@@ -62,9 +62,12 @@ def update_core_profiles_during_step(
   """Returns the new core profiles after updating the evolving variables.
 
   Intended for use during iterative solves in the step function. Only updates
-  the core profiles which are being evolved by the PDE and directly derivable
-  quantities like q_face, s_face. core_profile calculations which require
-  sources are not updated.
+  the primary evolving profiles and quantities derived directly from them
+  and geometry (e.g., ion density fractions, Z_eff, q_face, s_face,
+  j_toroidal_total, and I_p_profile_face). Secondary quantities that require
+  evaluating source profiles or spatial Ohm's law (such as psidot,
+  j_toroidal_ohmic, and electron-ion heat exchange qei) are not recomputed
+  here during solver iterations.
 
   Args:
     x_new: The new values of the evolving variables.
@@ -84,6 +87,16 @@ def update_core_profiles_during_step(
       updated_core_profiles.T_e,
   )
 
+  (
+      j_toroidal_total,
+      j_toroidal_total_face,
+      I_p_profile_face,
+  ) = psi_calculations.calc_j_toroidal_total(
+      geo,
+      updated_core_profiles.psi,
+      runtime_params.numerics.min_rho_norm,
+  )
+
   return dataclasses.replace(
       updated_core_profiles,
       n_i=ions.n_i,
@@ -101,6 +114,9 @@ def update_core_profiles_during_step(
       Z_eff_face=ions.Z_eff_face,
       q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
       s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
+      j_toroidal_total=j_toroidal_total,
+      j_toroidal_total_face=j_toroidal_total_face,
+      I_p_profile_face=I_p_profile_face,
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
   )
