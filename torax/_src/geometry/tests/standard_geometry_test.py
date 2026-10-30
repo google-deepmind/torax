@@ -608,6 +608,7 @@ class OffAxisGridTest(parameterized.TestCase):
           array_typing.Array,
           array_typing.FloatVectorFace,
           array_typing.FloatVectorCell,
+          array_typing.FloatVector,
       )
       # Poloidal flux profiles are shifted by a constant offset psi[0] (tested
       # below), and iterhybrid.mat2cols has a small non-zero triangularity

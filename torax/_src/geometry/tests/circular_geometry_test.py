@@ -15,11 +15,13 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import trapped_fraction
+from torax._src.torax_pydantic import torax_pydantic
 
 
 class CircularGeometryTest(parameterized.TestCase):
@@ -78,6 +80,29 @@ class CircularGeometryTest(parameterized.TestCase):
     ).build_geometry()
     # Make sure you can call the function with geo as an arg.
     foo(geo)
+
+  def test_build_circular_geometry_jit_and_grad(self):
+    torax_mesh = torax_pydantic.Grid1D(face_centers=np.linspace(0.0, 1.0, 25))
+
+    def loss_fn(r_maj, a_min, b0, elong):
+      geo = circular_geometry._build_circular_geometry(
+          torax_mesh=torax_mesh,
+          elongation_LCFS=elong,
+          R_major=r_maj,
+          a_minor=a_min,
+          B_0=b0,
+          hires_factor=4,
+      )
+      return jnp.sum(geo.vpr) + jnp.sum(geo.Phi) + jnp.sum(geo.volume)
+
+    loss_and_grad_fn = jax.jit(
+        jax.value_and_grad(loss_fn, argnums=(0, 1, 2, 3))
+    )
+    loss, grads = loss_and_grad_fn(6.2, 2.0, 5.3, 1.72)
+    self.assertTrue(np.isfinite(loss))
+    for grad in grads:
+      self.assertTrue(np.isfinite(grad))
+      self.assertNotEqual(grad, 0.0)
 
 
 if __name__ == "__main__":
