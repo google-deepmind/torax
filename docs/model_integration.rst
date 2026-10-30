@@ -80,12 +80,13 @@ field with a unique ``Literal`` type that identifies your model.
 .. code-block:: python
 
     from typing import Annotated, Literal
+    from torax import torax_pydantic
 
     class MyTransportConfig(transport.ComponentTransportConfigBase):
       """Pydantic config for MyTransportModel."""
 
       model_name: Annotated[
-          Literal['my_transport'], torax.JAX_STATIC
+          Literal['my_transport'], torax_pydantic.JAX_STATIC
       ] = 'my_transport'
 
       def build_transport_model(self) -> MyTransportModel:
@@ -202,8 +203,8 @@ Continuing from Step 1 (additional imports only):
     from typing import Annotated, Literal
 
     import jax
+    from torax import torax_pydantic
     from torax._src import array_typing
-    from torax._src.torax_pydantic import torax_pydantic
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
@@ -216,7 +217,7 @@ Continuing from Step 1 (additional imports only):
       """Pydantic config for MyPedestalStructureModel."""
 
       model_name: Annotated[
-          Literal['my_pedestal'], torax.JAX_STATIC
+          Literal['my_pedestal'], torax_pydantic.JAX_STATIC
       ] = 'my_pedestal'
       T_ped: torax_pydantic.TimeVaryingScalar = (
           torax_pydantic.ValidatedDefault(5.0)
@@ -511,8 +512,8 @@ for an unsupported boundary condition.
 .. code-block:: python
 
     from typing import Annotated, ClassVar, Literal
-    import torax
     from torax import edge
+    from torax import torax_pydantic
 
     class MyEdgeConfig(edge.EdgeModelConfig):
       """Pydantic config for MyEdgeModel."""
@@ -524,7 +525,7 @@ for an unsupported boundary condition.
           T_i=True,
       )
       model_name: Annotated[
-          Literal['my_edge'], torax.JAX_STATIC
+          Literal['my_edge'], torax_pydantic.JAX_STATIC
       ] = 'my_edge'
 
       def build_edge_model(self) -> MyEdgeModel:
@@ -614,6 +615,7 @@ parameters, and a ``NeoclassicalConfigBase`` config subclass with a unique
     import jax.numpy as jnp
     import torax
     from torax import neoclassical
+    from torax import torax_pydantic
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
@@ -650,7 +652,7 @@ parameters, and a ``NeoclassicalConfigBase`` config subclass with a unique
       """Pydantic config for MyNeoclassicalModel."""
 
       model_name: Annotated[
-          Literal['my_neoclassical'], torax.JAX_STATIC
+          Literal['my_neoclassical'], torax_pydantic.JAX_STATIC
       ] = 'my_neoclassical'
       sigma_scale: float = 1.0e6
 
@@ -681,7 +683,7 @@ Configuring time-varying parameters and physical bounds
 =======================================================
 
 When defining custom Pydantic config classes for models, TORAX provides several
-type helpers in ``torax._src.torax_pydantic`` to enforce physical constraints
+type helpers in ``torax.torax_pydantic`` to enforce physical constraints
 (such as positivity, non-negativity, intervals, or custom bounds) on
 time-varying scalars and arrays:
 
@@ -705,13 +707,13 @@ Example usage in a custom model config:
 
     from typing import Annotated, Literal
     from torax import sources
-    from torax._src.torax_pydantic import torax_pydantic
+    from torax import torax_pydantic
 
     class MyCustomConfig(sources.SourceConfigBase):
       """Custom source config with bounded parameters."""
 
       model_name: Annotated[
-          Literal['my_custom'], torax.JAX_STATIC
+          Literal['my_custom'], torax_pydantic.JAX_STATIC
       ] = 'my_custom'
       width: torax_pydantic.PositiveTimeVaryingScalar = (
           torax_pydantic.ValidatedDefault(0.1)

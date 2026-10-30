@@ -21,6 +21,7 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import torax
 from torax import pedestal
+from torax import torax_pydantic
 from torax._src.test_utils import default_configs
 
 
@@ -50,9 +51,9 @@ class FakePedestalModel(pedestal.PedestalStructureModel):
 class FakePedestalPydantic(pedestal.StructureConfigBase):
   """Fake pedestal structure model pydantic config."""
 
-  model_name: Annotated[Literal['fake_pedestal'], torax.JAX_STATIC] = (
-      'fake_pedestal'
-  )
+  model_name: Annotated[
+      Literal['fake_pedestal'], torax_pydantic.JAX_STATIC
+  ] = 'fake_pedestal'
 
   def build_structure_model(self) -> FakePedestalModel:
     return FakePedestalModel()

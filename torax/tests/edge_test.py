@@ -24,6 +24,7 @@ import jax.numpy as jnp
 import numpy as np
 import torax
 from torax import edge
+from torax import torax_pydantic
 from torax._src.config import build_runtime_params
 from torax._src.edge import base as edge_base
 from torax._src.test_utils import default_configs
@@ -136,16 +137,18 @@ class _CustomEdgeModelConfig(_BaseCustomEdgeConfig):
           n_impurities=True,
       )
   )
-  model_name: Annotated[Literal['custom_edge'], torax.JAX_STATIC] = (
-      'custom_edge'
-  )
+  model_name: Annotated[
+      Literal['custom_edge'], torax_pydantic.JAX_STATIC
+  ] = 'custom_edge'
 
 
 class _CustomTeConfig(_BaseCustomEdgeConfig):
   supported_boundary_conditions: ClassVar[edge.SupportedBoundaryConditions] = (
       edge.SupportedBoundaryConditions(T_e=True)
   )
-  model_name: Annotated[Literal['custom_te'], torax.JAX_STATIC] = 'custom_te'
+  model_name: Annotated[
+      Literal['custom_te'], torax_pydantic.JAX_STATIC
+  ] = 'custom_te'
   T_e_bc: float = 0.15
 
 

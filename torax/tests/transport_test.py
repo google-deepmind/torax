@@ -21,6 +21,7 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import pydantic
 import torax
+from torax import torax_pydantic
 from torax import transport
 from torax._src import array_typing
 from torax._src.test_utils import default_configs
@@ -57,7 +58,9 @@ class FakeTransportModel(transport.ComponentTransportModel):
 class FakeTransportPydantic(transport.ComponentTransportConfigBase):
   """Fake transport model pydantic config."""
 
-  model_name: Annotated[Literal['fake_api'], torax.JAX_STATIC] = 'fake_api'
+  model_name: Annotated[
+      Literal['fake_api'], torax_pydantic.JAX_STATIC
+  ] = 'fake_api'
 
   def build_transport_model(self) -> FakeTransportModel:
     return FakeTransportModel()
@@ -104,9 +107,9 @@ class TransportTest(absltest.TestCase):
   def test_dynamic_registration_updates_discriminator(self):
 
     class DynamicTransportPydantic(transport.ComponentTransportConfigBase):
-      model_name: Annotated[Literal['dynamic_fake'], torax.JAX_STATIC] = (
-          'dynamic_fake'
-      )
+      model_name: Annotated[
+          Literal['dynamic_fake'], torax_pydantic.JAX_STATIC
+      ] = 'dynamic_fake'
 
       def build_transport_model(self) -> FakeTransportModel:
         return FakeTransportModel()
