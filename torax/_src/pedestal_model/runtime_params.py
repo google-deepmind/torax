@@ -80,7 +80,7 @@ class FormationRuntimeParams:
   """
 
   base_multiplier: array_typing.FloatScalar
-  initial_confinement_mode: ConfinementMode | None
+  initial_confinement_mode: ConfinementMode | None = jax.tree.static()
 
 
 @jax.tree_util.register_dataclass

@@ -54,7 +54,9 @@ class FormationConfigBase(torax_pydantic.ConfigBase):
   base_multiplier: Annotated[
       array_typing.FloatScalar, pydantic.Field(gt=0.0, le=1.0)
   ] = 1e-6
-  initial_confinement_mode: Literal["l_mode", "h_mode"] | None = None
+  initial_confinement_mode: Annotated[
+      Literal["l_mode", "h_mode"] | None, torax_pydantic.JAX_STATIC
+  ] = None
 
   @abc.abstractmethod
   def build_formation_model(
@@ -391,18 +393,18 @@ class SetTpedNpedConfig(StructureConfigBase):
   model_name: Annotated[
       Literal["set_T_ped_n_ped"], torax_pydantic.JAX_STATIC
   ] = "set_T_ped_n_ped"
-  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.7e20
+  n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7e20)
   )
   n_e_ped_is_fGW: bool = False
   # TODO(b/434175938): Consider extending to TimeVaryingArray
-  T_i_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      5.0
+  T_i_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
   )
-  T_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      5.0
+  T_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
   )
-  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+  rho_norm_ped_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
   )
 

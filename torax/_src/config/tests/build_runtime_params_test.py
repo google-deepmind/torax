@@ -105,10 +105,10 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         dict(
             structure_model=dict(
                 model_name='set_T_ped_n_ped',
-                T_i_ped={0.0: 0.0, 1.0: 1.0},
+                T_i_ped={0.0: 0.5, 1.0: 1.0},
                 T_e_ped={0.0: 1.0, 1.0: 2.0},
                 n_e_ped={0.0: 2.0e20, 1.0: 3.0e20},
-                rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
+                rho_norm_ped_top={0.0: 0.85, 1.0: 0.95},
             ),
             formation_model=dict(
                 model_name='prescribed',
@@ -125,10 +125,12 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     )
     np.testing.assert_allclose(pedestal_params.formation.pedestal_active, True)
-    np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 0.0)
+    np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 0.5)
     np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 2.0e20)
-    np.testing.assert_allclose(pedestal_params.structure.rho_norm_ped_top, 3.0)
+    np.testing.assert_allclose(
+        pedestal_params.structure.rho_norm_ped_top, 0.85
+    )
     # And check after the time limit.
     pedestal_params = pedestal.build_runtime_params(t=1.5)
     assert isinstance(pedestal_params.structure, set_tped_nped.RuntimeParams)
@@ -140,7 +142,9 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 2.0)
     np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 3.0e20)
-    np.testing.assert_allclose(pedestal_params.structure.rho_norm_ped_top, 5.0)
+    np.testing.assert_allclose(
+        pedestal_params.structure.rho_norm_ped_top, 0.95
+    )
 
   @parameterized.parameters(
       (
