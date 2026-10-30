@@ -40,6 +40,7 @@ from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
@@ -121,6 +122,7 @@ def update_core_and_source_profiles_after_step(
     state.CoreProfiles,
     source_profiles_lib.SourceProfiles,
     dict[str, source_state_lib.SourceState],
+    neoclassical_intermediates_lib.NeoclassicalIntermediates,
 ]:
   """Updates core profiles, source profiles, and source states after a step.
 
@@ -142,7 +144,8 @@ def update_core_and_source_profiles_after_step(
     source_states: Source state carried over from the previous timestep.
 
   Returns:
-    Updated core profiles, source profiles, and source states.
+    Updated core profiles, source profiles, source states, and neoclassical
+    intermediates.
   """
 
   updated_core_profiles_t_plus_dt = convertors.solver_x_tuple_to_core_profiles(
@@ -219,15 +222,20 @@ def update_core_and_source_profiles_after_step(
       charge_state_info_face=ions.charge_state_info_face,
       fast_ions=core_profiles_t_plus_dt.fast_ions,
   )
-  neoclassical_outputs = neoclassical_model(
+  (
+      conductivity,
+      bootstrap_current,
+      poloidal_velocity,
+      neoclassical_intermediates,
+  ) = neoclassical_model.calculate_conductivity_current_and_rotation(
       runtime_params_t_plus_dt, geo, intermediate_core_profiles
   )
 
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
-      sigma=neoclassical_outputs.conductivity.sigma,
-      sigma_face=neoclassical_outputs.conductivity.sigma_face,
-      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
+      poloidal_velocity=poloidal_velocity.v_pol,
   )
 
   # build_source_profiles calculates the union with explicit + implicit
@@ -240,8 +248,8 @@ def update_core_and_source_profiles_after_step(
           core_profiles=intermediate_core_profiles,
           explicit=False,
           explicit_source_profiles=explicit_source_profiles,
-          conductivity=neoclassical_outputs.conductivity,
-          bootstrap_current=neoclassical_outputs.bootstrap_current,
+          conductivity=conductivity,
+          bootstrap_current=bootstrap_current,
       )
   )
 
@@ -277,6 +285,7 @@ def update_core_and_source_profiles_after_step(
       core_profiles_t_plus_dt,
       total_source_profiles,
       next_source_states,
+      neoclassical_intermediates,
   )
 
 

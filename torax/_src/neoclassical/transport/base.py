@@ -39,7 +39,7 @@ class NeoclassicalTransportModel(abc.ABC):
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Calculates neoclassical transport and applies clipping."""
     neoclassical_transport = self._call_implementation(
@@ -94,7 +94,7 @@ class NeoclassicalTransportModel(abc.ABC):
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Computes raw neoclassical transport coefficients.
 

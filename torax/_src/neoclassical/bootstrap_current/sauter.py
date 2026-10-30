@@ -35,7 +35,7 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
       runtime_params: bootstrap_current_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> bootstrap_current_base.BootstrapCurrent:
     """Calculates bootstrap current according to the Sauter model."""
     return _calculate_bootstrap_current(
@@ -95,15 +95,9 @@ def _calculate_bootstrap_current(
   # pylint: disable=invalid-name
 
   # Terms for analytical fit
-  L31 = sauter_formulas.calculate_L31(
-      f_trap, nu_e_star, Z_eff_face
-  )
-  L32 = sauter_formulas.calculate_L32(
-      f_trap, nu_e_star, Z_eff_face
-  )
-  L34 = sauter_formulas.calculate_L34(
-      f_trap, nu_e_star, Z_eff_face
-  )
+  L31 = sauter_formulas.calculate_L31(f_trap, nu_e_star, Z_eff_face)
+  L32 = sauter_formulas.calculate_L32(f_trap, nu_e_star, Z_eff_face)
+  L34 = sauter_formulas.calculate_L34(f_trap, nu_e_star, Z_eff_face)
   alpha = sauter_formulas.calculate_alpha(f_trap, nu_i_star)
 
   return bootstrap_current_base.calculate_analytic_bootstrap_current(

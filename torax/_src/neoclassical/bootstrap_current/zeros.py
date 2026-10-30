@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Zeros model for bootstrap current."""
+
 from typing import Annotated, Literal
 
 import jax.numpy as jnp
@@ -31,7 +32,7 @@ class ZerosModel(base.BootstrapCurrentModel):
       runtime_params: bootstrap_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
     del runtime_params, core_profiles, neoclassical_intermediates

@@ -43,7 +43,7 @@ class SauterModel(base.ConductivityModel):
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.Conductivity:
     """Calculates conductivity."""
     del geometry

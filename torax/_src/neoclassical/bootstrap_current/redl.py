@@ -47,7 +47,7 @@ class RedlModel(bootstrap_current_base.BootstrapCurrentModel):
       runtime_params: bootstrap_current_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> bootstrap_current_base.BootstrapCurrent:
     """Calculates bootstrap current using the Redl model."""
     return _calculate_bootstrap_current(

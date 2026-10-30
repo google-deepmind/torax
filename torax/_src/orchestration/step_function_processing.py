@@ -165,6 +165,7 @@ def finalize_outputs(
       final_core_profiles,
       final_source_profiles,
       final_source_states,
+      neoclassical_intermediates,
   ) = updaters.update_core_and_source_profiles_after_step(
       dt=dt,
       x_new=x_new,
@@ -186,8 +187,11 @@ def finalize_outputs(
       pedestal_state=model_state_t.pedestal,
       explicit_pedestal_structure=explicit_model_outputs.pedestal,
   )
-  final_neoclassical_outputs = models.neoclassical_model(
-      runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
+  final_neoclassical_transport = models.neoclassical_model.calculate_transport(
+      runtime_params_t_plus_dt,
+      geometry_t_plus_dt,
+      final_core_profiles,
+      neoclassical_intermediates,
   )
   internal_boundary_conditions = (
       ibc_builder.build_internal_boundary_conditions(
@@ -209,7 +213,7 @@ def finalize_outputs(
           core_profiles=final_core_profiles,
           pedestal_model_output=final_pedestal_output,
           transport_state=model_state_t.transport,
-          neoclassical_transport=final_neoclassical_outputs.transport,
+          neoclassical_transport=final_neoclassical_transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geometry_t_plus_dt
           ),

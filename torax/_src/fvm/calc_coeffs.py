@@ -210,15 +210,25 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  neoclassical_outputs = models.neoclassical_model(
+  (
+      conductivity,
+      bootstrap_current,
+      poloidal_velocity,
+      neoclassical_intermediates,
+  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
       runtime_params, geo, core_profiles
   )
-  # Update poloidal_velocity on core_profiles for the current solver iterate;
-  # used by turbulent transport models (for ExB shear) in
-  # calculate_all_transport_coeffs below.
+  # Update sigma, sigma_face, and poloidal_velocity on core_profiles for the
+  # current solver iterate; used by turbulent transport models (for ExB shear)
+  # in calculate_all_transport_coeffs below.
   core_profiles = dataclasses.replace(
       core_profiles,
-      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
+      poloidal_velocity=poloidal_velocity.v_pol,
+  )
+  neoclassical_transport = models.neoclassical_model.calculate_transport(
+      runtime_params, geo, core_profiles, neoclassical_intermediates
   )
 
   # Calculate the implicit source profiles and combine them with the explicit
@@ -232,8 +242,8 @@ def _calc_coeffs_full(
       core_profiles=core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
-      conductivity=neoclassical_outputs.conductivity,
-      bootstrap_current=neoclassical_outputs.bootstrap_current,
+      conductivity=conductivity,
+      bootstrap_current=bootstrap_current,
   )
 
   # --- Transient term coefficients --- #
@@ -246,7 +256,7 @@ def _calc_coeffs_full(
       1.0
       / runtime_params.numerics.current_diffusion_time_reduction_factor
       * geo.rho_norm
-      * neoclassical_outputs.conductivity.sigma
+      * conductivity.sigma
       * consts.mu_0
       * 16
       * jnp.pi**2
@@ -292,7 +302,7 @@ def _calc_coeffs_full(
           core_profiles=core_profiles,
           pedestal_model_output=pedestal_output,
           transport_state=model_state.transport,
-          neoclassical_transport=neoclassical_outputs.transport,
+          neoclassical_transport=neoclassical_transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geo
           ),
@@ -447,7 +457,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
-      * neoclassical_outputs.conductivity.sigma
+      * conductivity.sigma
       / runtime_params.numerics.current_diffusion_time_reduction_factor
       / geo.F**2
       * core_profiles.psi.grad()

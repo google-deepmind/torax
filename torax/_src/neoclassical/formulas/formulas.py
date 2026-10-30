@@ -20,15 +20,17 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.physics import collisions
-
 
 # pylint: disable=invalid-name
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class NeoclassicalIntermediates:
+class AnalyticalNeoclassicalIntermediates(
+    neoclassical_intermediates_lib.NeoclassicalIntermediates
+):
   """Precomputed intermediate quantities for analytical neoclassical models.
 
   Attributes:
@@ -61,7 +63,7 @@ class NeoclassicalIntermediates:
 def compute_neoclassical_intermediates(
     geo: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-) -> NeoclassicalIntermediates:
+) -> AnalyticalNeoclassicalIntermediates:
   """Computes shared quantities for analytical neoclassical models."""
   f_trap = geo.trapped_fraction_face
   log_lambda_ei = collisions.calculate_log_lambda_ei(
@@ -99,7 +101,7 @@ def compute_neoclassical_intermediates(
       log_lambda_ii=log_lambda_ii,
   )
   k_neo = _calculate_neoclassical_k_neo(nu_i_star_main_ion, geo.epsilon_face)
-  return NeoclassicalIntermediates(
+  return AnalyticalNeoclassicalIntermediates(
       f_trap=f_trap,
       log_lambda_ei=log_lambda_ei,
       log_lambda_ii=log_lambda_ii,

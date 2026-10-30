@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Kim model for neoclassical poloidal velocity."""
+
 from typing import Annotated, Literal
 import jax
 import jax.numpy as jnp
@@ -101,7 +102,7 @@ class KimModel(base.PoloidalVelocityModel):
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.PoloidalVelocity:
     """Calculates poloidal velocity according to the Kim (1991) model."""
     B_tor_face = geometry.F_face / geometry.R_major_profile_face

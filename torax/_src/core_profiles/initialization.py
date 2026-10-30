@@ -420,7 +420,14 @@ def _calculate_all_psi_dependent_profiles(
       j_toroidal_total_face=j_toroidal_total_face,
       I_p_profile_face=I_p_profile_face,
   )
-  neoclassical_outputs = neoclassical_model(runtime_params, geo, core_profiles)
+  (
+      conductivity,
+      bootstrap_current,
+      poloidal_velocity,
+      _,
+  ) = neoclassical_model.calculate_conductivity_current_and_rotation(
+      runtime_params, geo, core_profiles
+  )
 
   # Calculate sources if they have not already been calculated.
   if not sources_are_calculated:
@@ -436,7 +443,7 @@ def _calculate_all_psi_dependent_profiles(
     )
     source_profiles = dataclasses.replace(
         source_profiles,
-        bootstrap_current=neoclassical_outputs.bootstrap_current,
+        bootstrap_current=bootstrap_current,
     )
 
   # psidot calculated here with phibdot=0 in geo, since this is initial
@@ -449,7 +456,7 @@ def _calculate_all_psi_dependent_profiles(
   )
   psidot = psi_calculations.calculate_psidot(
       psi=psi,
-      sigma=neoclassical_outputs.conductivity.sigma,
+      sigma=conductivity.sigma,
       psi_sources=source_profiles.total_psi_sources(geo),
       geo=geo,
       evolve_current=runtime_params.numerics.evolve_current,
@@ -459,9 +466,9 @@ def _calculate_all_psi_dependent_profiles(
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot,
-      sigma=neoclassical_outputs.conductivity.sigma,
-      sigma_face=neoclassical_outputs.conductivity.sigma_face,
-      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
+      poloidal_velocity=poloidal_velocity.v_pol,
   )
   return core_profiles
 
@@ -489,11 +496,14 @@ def _iterate_psi_and_sources(
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,
     )
+    _, bootstrap_current, _, _ = (
+        neoclassical_model.calculate_conductivity_current_and_rotation(
+            runtime_params, geo, core_profiles
+        )
+    )
     source_profiles = dataclasses.replace(
         source_profiles,
-        bootstrap_current=neoclassical_model(
-            runtime_params, geo, core_profiles
-        ).bootstrap_current,
+        bootstrap_current=bootstrap_current,
     )
     j_toroidal_total_hires = get_j_toroidal_total_hires_with_external_sources(
         runtime_params,

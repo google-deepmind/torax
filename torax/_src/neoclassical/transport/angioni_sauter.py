@@ -40,7 +40,6 @@ from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs
 
-
 # pylint: disable=invalid-name
 
 
@@ -100,7 +99,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients.
 
@@ -164,7 +163,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 def _calculate_angioni_sauter_transport(
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-    neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+    neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
@@ -731,7 +730,7 @@ def _calculate_shaing_transport(
     runtime_params: RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-    neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+    neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Shaing transport model.
 

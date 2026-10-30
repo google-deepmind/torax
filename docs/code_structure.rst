@@ -206,18 +206,23 @@ The |neoclassical| module contains the models for neoclassical physics:
 bootstrap current, parallel conductivity, neoclassical transport coefficients,
 and poloidal velocity (see :ref:`neoclassical_config` and
 :ref:`physics_neoclassical`). A ``NeoclassicalModel`` evaluates these quantities
-at a given plasma state and returns them in a ``NeoclassicalOutputs`` container.
+in two steps: ``calculate_conductivity_current_and_rotation`` computes parallel
+conductivity, bootstrap current, poloidal velocity, and model-specific
+intermediates, while ``calculate_transport`` computes neoclassical transport
+coefficients once poloidal flux time-derivative (``psidot``) information is
+available.
 
 Neoclassical quantities can be computed either separately via modular
-sub-models or all together in a single evaluation:
+sub-models or with an integrated model:
 
 * **Modular sub-models (default):** ``AnalyticalNeoclassicalModel`` delegates
   to independent analytical sub-models in ``bootstrap_current/``,
   ``conductivity/``, ``transport/``, and ``poloidal_velocity/``, sharing
-  precomputed collisionalities and trapped-particle fractions across sub-models
-  via ``NeoclassicalIntermediates``.
+  precomputed collisionalities and trapped-particle fractions across steps
+  via ``AnalyticalNeoclassicalIntermediates``.
 * **Integrated models:** A single ``NeoclassicalModel`` subclass can compute
-  all four neoclassical outputs together in one pass.
+  custom parallel conductivity, bootstrap current, poloidal velocity, and
+  neoclassical transport across the two steps.
 
 Custom implementations—either a top-level integrated ``NeoclassicalModel`` or
 individual analytical sub-models—can be registered via ``torax.neoclassical``

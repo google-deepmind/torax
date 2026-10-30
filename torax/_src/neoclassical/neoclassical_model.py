@@ -17,11 +17,11 @@
 
 import abc
 import dataclasses
-import jax
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
@@ -31,37 +31,42 @@ from torax._src.neoclassical.transport import base as transport_base
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class NeoclassicalOutputs:
-  """Consolidated outputs from a neoclassical model evaluation."""
-
-  conductivity: conductivity_base.Conductivity
-  bootstrap_current: bootstrap_current_base.BootstrapCurrent
-  transport: transport_coeffs_lib.NeoclassicalTransport
-  poloidal_velocity: poloidal_velocity_base.PoloidalVelocity
-
-
 @dataclasses.dataclass(frozen=True, eq=False)
 class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for neoclassical models.
 
-  A neoclassical model computes all neoclassical quantities (conductivity,
-  bootstrap current, neoclassical transport, and poloidal velocity) and returns
-  a `NeoclassicalOutputs` instance when called. Subclasses can either be
-  composite models that delegate to individual analytical sub-models (see
-  `AnalyticalNeoclassicalModel`) or integrated neoclassical solvers that compute
-  all outputs in a single evaluation.
+  Neoclassical model evaluations are split into two steps. First,
+  `calculate_conductivity_current_and_rotation` computes parallel conductivity,
+  bootstrap current, poloidal velocity, and optional model-specific
+  intermediates (such as collisionalities and trapped-particle fractions for
+  analytical models, or drift-kinetic moments for an integrated solver). Second,
+  `calculate_transport` computes `NeoclassicalTransport` once `psidot` is
+  available.
   """
 
   @abc.abstractmethod
-  def __call__(
+  def calculate_conductivity_current_and_rotation(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> NeoclassicalOutputs:
-    """Evaluates the neoclassical model at the given state."""
+  ) -> tuple[
+      conductivity_base.Conductivity,
+      bootstrap_current_base.BootstrapCurrent,
+      poloidal_velocity_base.PoloidalVelocity,
+      neoclassical_intermediates_lib.NeoclassicalIntermediates,
+  ]:
+    """Calculates current, poloidal velocity, and intermediates."""
+
+  @abc.abstractmethod
+  def calculate_transport(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry_lib.Geometry,
+      core_profiles: state.CoreProfiles,
+      intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
+  ) -> transport_coeffs_lib.NeoclassicalTransport:
+    """Calculates neoclassical transport coefficients."""
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -69,8 +74,8 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
   """Composite neoclassical model delegating to analytical sub-models.
 
   Evaluates individual analytical sub-models for conductivity, bootstrap
-  current, neoclassical transport, and poloidal velocity in a single pass,
-  sharing precomputed intermediate quantities via `NeoclassicalIntermediates`.
+  current, poloidal velocity, and neoclassical transport, sharing precomputed
+  intermediate quantities via `AnalyticalNeoclassicalIntermediates`.
   """
 
   conductivity: conductivity_base.ConductivityModel
@@ -78,13 +83,18 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
   transport: transport_base.NeoclassicalTransportModel
   poloidal_velocity: poloidal_velocity_base.PoloidalVelocityModel
 
-  def __call__(
+  def calculate_conductivity_current_and_rotation(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> NeoclassicalOutputs:
-    """Evaluates all analytical neoclassical sub-models in a single pass."""
+  ) -> tuple[
+      conductivity_base.Conductivity,
+      bootstrap_current_base.BootstrapCurrent,
+      poloidal_velocity_base.PoloidalVelocity,
+      formulas.AnalyticalNeoclassicalIntermediates,
+  ]:
+    """Calculates current, poloidal velocity, and intermediates."""
     assert isinstance(
         runtime_params.neoclassical,
         neoclassical_runtime_params.AnalyticalRuntimeParams,
@@ -105,21 +115,37 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
-    transport = self.transport(
-        analytical_params.transport,
-        geo,
-        core_profiles,
-        neoclassical_intermediates=neoclassical_intermediates,
-    )
     poloidal_velocity = self.poloidal_velocity.calculate_poloidal_velocity(
         analytical_params.poloidal_velocity,
         geo,
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
-    return NeoclassicalOutputs(
-        conductivity=conductivity,
-        bootstrap_current=bootstrap_current,
-        transport=transport,
-        poloidal_velocity=poloidal_velocity,
+    return (
+        conductivity,
+        bootstrap_current,
+        poloidal_velocity,
+        neoclassical_intermediates,
+    )
+
+  def calculate_transport(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry_lib.Geometry,
+      core_profiles: state.CoreProfiles,
+      intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
+  ) -> transport_coeffs_lib.NeoclassicalTransport:
+    """Calculates neoclassical transport coefficients."""
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
+    assert isinstance(
+        intermediates, formulas.AnalyticalNeoclassicalIntermediates
+    )
+    return self.transport(
+        runtime_params.neoclassical.transport,
+        geo,
+        core_profiles,
+        neoclassical_intermediates=intermediates,
     )

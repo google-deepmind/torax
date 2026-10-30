@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Zeros model for neoclassical poloidal velocity."""
+
 from typing import Annotated, Literal
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
@@ -29,7 +30,7 @@ class ZerosModel(base.PoloidalVelocityModel):
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.PoloidalVelocity:
     """Returns zero poloidal velocity."""
     del runtime_params, core_profiles, neoclassical_intermediates

@@ -118,7 +118,12 @@ def _get_initial_state(
       neoclassical_model=models.neoclassical_model,
       source_states=initial_source_states,
   )
-  neoclassical_outputs = models.neoclassical_model(
+  (
+      conductivity,
+      bootstrap_current,
+      _,
+      neoclassical_intermediates,
+  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
       runtime_params, geo, initial_core_profiles
   )
   initial_core_sources, initial_source_states = (
@@ -127,8 +132,8 @@ def _get_initial_state(
           geo=geo,
           core_profiles=initial_core_profiles,
           source_models=models.source_models,
-          conductivity=neoclassical_outputs.conductivity,
-          bootstrap_current=neoclassical_outputs.bootstrap_current,
+          conductivity=conductivity,
+          bootstrap_current=bootstrap_current,
           source_states=initial_source_states,
       )
   )
@@ -187,6 +192,9 @@ def _get_initial_state(
           source_profiles=initial_core_sources,
       )
   )
+  neoclassical_transport = models.neoclassical_model.calculate_transport(
+      runtime_params, geo, initial_core_profiles, neoclassical_intermediates
+  )
   transport_coeffs, initial_transport_state = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
@@ -195,7 +203,7 @@ def _get_initial_state(
           core_profiles=initial_core_profiles,
           pedestal_model_output=initial_pedestal_output,
           transport_state=models.transport_model.initial_state(runtime_params),
-          neoclassical_transport=neoclassical_outputs.transport,
+          neoclassical_transport=neoclassical_transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geo
           ),

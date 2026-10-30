@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Zeros model for neoclassical transport."""
+
 from typing import Annotated, Literal, override
 
 from torax._src import state
@@ -32,7 +33,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport."""
     del runtime_params, core_profiles, neoclassical_intermediates

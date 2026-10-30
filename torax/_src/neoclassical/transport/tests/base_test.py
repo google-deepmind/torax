@@ -125,7 +125,7 @@ class FakeNeoclassicalTransportModel(
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     del runtime_params, neoclassical_intermediates
     chi_face_ion = np.linspace(0.5, 2, geometry.rho_face_norm.shape[0])

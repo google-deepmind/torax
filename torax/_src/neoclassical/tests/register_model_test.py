@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import config as neoclassical_config
+from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import neoclassical_model
 from torax._src.neoclassical import register_model
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params_lib
@@ -48,7 +49,7 @@ class CustomConductivityModel(conductivity_base.ConductivityModel):
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> conductivity_base.Conductivity:
     del runtime_params, core_profiles, neoclassical_intermediates
     return conductivity_base.Conductivity(
@@ -79,7 +80,7 @@ class CustomPoloidalVelocityModel(poloidal_velocity_base.PoloidalVelocityModel):
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+      neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> poloidal_velocity_base.PoloidalVelocity:
     return poloidal_velocity_zeros.ZerosModel().calculate_poloidal_velocity(
         runtime_params, geometry, core_profiles, neoclassical_intermediates
@@ -117,30 +118,47 @@ class CustomNeoclassicalRuntimeParams(
 class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
   """Custom integrated neoclassical model that does not use sub-models."""
 
-  def __call__(
+  def calculate_conductivity_current_and_rotation(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
-      geometry: geometry_lib.Geometry,
+      geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> neoclassical_model.NeoclassicalOutputs:
+  ) -> tuple[
+      conductivity_base.Conductivity,
+      bootstrap_current_base.BootstrapCurrent,
+      poloidal_velocity_base.PoloidalVelocity,
+      neoclassical_intermediates_lib.NeoclassicalIntermediates,
+  ]:
     del core_profiles
     assert isinstance(
         runtime_params.neoclassical, CustomNeoclassicalRuntimeParams
     )
     sigma_val = runtime_params.neoclassical.custom_sigma
-    return neoclassical_model.NeoclassicalOutputs(
-        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
-            geometry
+    return (
+        conductivity_base.Conductivity(
+            sigma=jnp.full_like(geo.rho_norm, sigma_val),
+            sigma_face=jnp.full_like(geo.rho_face_norm, sigma_val),
         ),
-        conductivity=conductivity_base.Conductivity(
-            sigma=jnp.full_like(geometry.rho_norm, sigma_val),
-            sigma_face=jnp.full_like(geometry.rho_face_norm, sigma_val),
-        ),
-        transport=transport_coeffs_lib.NeoclassicalTransport.zeros(geometry),
-        poloidal_velocity=poloidal_velocity_base.PoloidalVelocity.zeros(
-            geometry
-        ),
+        bootstrap_current_base.BootstrapCurrent.zeros(geo),
+        poloidal_velocity_base.PoloidalVelocity.zeros(geo),
+        neoclassical_intermediates_lib.NeoclassicalIntermediates(),
     )
+
+  def calculate_transport(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry_lib.Geometry,
+      core_profiles: state.CoreProfiles,
+      intermediates: (
+          neoclassical_intermediates_lib.NeoclassicalIntermediates
+      ),
+  ) -> transport_coeffs_lib.NeoclassicalTransport:
+    del runtime_params, core_profiles
+    assert isinstance(
+        intermediates,
+        neoclassical_intermediates_lib.NeoclassicalIntermediates,
+    )
+    return transport_coeffs_lib.NeoclassicalTransport.zeros(geo)
 
 
 class CustomTopLevelNeoclassicalConfig(

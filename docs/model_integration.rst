@@ -605,14 +605,14 @@ Registering a custom neoclassical model
 =======================================
 
 Use ``torax.neoclassical.register_neoclassical_model`` to couple a custom
-neoclassical model, for example a single solver that computes all neoclassical
-quantities (bootstrap current, parallel conductivity, neoclassical transport,
-and poloidal velocity) together in one evaluation.
+neoclassical model, for example an integrated solver that computes neoclassical
+currents, rotation, and transport.
 
-Create a ``NeoclassicalModel`` subclass implementing ``__call__`` (returning
-``NeoclassicalOutputs``), an optional ``RuntimeParams`` subclass for dynamic
-parameters, and a ``NeoclassicalConfigBase`` config subclass with a unique
-``model_name`` ``Literal``:
+Create a ``NeoclassicalModel`` subclass implementing
+``calculate_conductivity_current_and_rotation`` and ``calculate_transport``, an optional
+``RuntimeParams`` subclass for dynamic parameters, and a
+``NeoclassicalConfigBase`` config subclass with a unique ``model_name``
+``Literal``:
 
 .. code-block:: python
 
@@ -635,25 +635,39 @@ parameters, and a ``NeoclassicalConfigBase`` config subclass with a unique
     class MyNeoclassicalModel(neoclassical.NeoclassicalModel):
       """Custom integrated neoclassical model."""
 
-      def __call__(
+      def calculate_conductivity_current_and_rotation(
           self,
           runtime_params: torax.RuntimeParams,
-          geometry: torax.Geometry,
+          geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-      ) -> neoclassical.NeoclassicalOutputs:
+      ) -> tuple[
+          neoclassical.Conductivity,
+          neoclassical.BootstrapCurrent,
+          neoclassical.PoloidalVelocity,
+          neoclassical.NeoclassicalIntermediates,
+      ]:
         assert isinstance(
             runtime_params.neoclassical, MyNeoclassicalRuntimeParams
         )
         scale = runtime_params.neoclassical.sigma_scale
-        return neoclassical.NeoclassicalOutputs(
-            bootstrap_current=neoclassical.BootstrapCurrent.zeros(geometry),
-            conductivity=neoclassical.Conductivity(
-                sigma=jnp.ones_like(geometry.rho_norm) * scale,
-                sigma_face=jnp.ones_like(geometry.rho_face_norm) * scale,
-            ),
-            transport=neoclassical.NeoclassicalTransport.zeros(geometry),
-            poloidal_velocity=neoclassical.PoloidalVelocity.zeros(geometry),
+        conductivity = neoclassical.Conductivity(
+            sigma=jnp.ones_like(geo.rho_norm) * scale,
+            sigma_face=jnp.ones_like(geo.rho_face_norm) * scale,
         )
+        bootstrap_current = neoclassical.BootstrapCurrent.zeros(geo)
+        poloidal_velocity = neoclassical.PoloidalVelocity.zeros(geo)
+        intermediates = neoclassical.NeoclassicalIntermediates()
+        return conductivity, bootstrap_current, poloidal_velocity, intermediates
+
+      def calculate_transport(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          intermediates: neoclassical.NeoclassicalIntermediates,
+      ) -> neoclassical.NeoclassicalTransport:
+        del runtime_params, core_profiles, intermediates
+        return neoclassical.NeoclassicalTransport.zeros(geo)
 
     class MyNeoclassicalConfig(neoclassical.NeoclassicalConfigBase):
       """Pydantic config for MyNeoclassicalModel."""
