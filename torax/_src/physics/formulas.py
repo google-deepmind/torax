@@ -16,7 +16,7 @@
 
 Functions:
     - calculate_main_ion_dilution_factor: Calculates the main ion dilution
-      factor based on average impurity charge and Z_eff.
+      factor based on bundled impurity charge and Z_eff.
     - calculate_pressure: Calculates pressure from density and temperatures.
     - calc_dvar_dpsi: Calculates derivative of a CellVariable with respect to
       poloidal flux.
@@ -61,11 +61,11 @@ from torax._src.physics import psi_calculations
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def calculate_main_ion_dilution_factor(
     Z_i: array_typing.FloatScalar,
-    Z_impurity: array_typing.FloatVector,
+    Z_impurity_bundled: array_typing.FloatVector,
     Z_eff: array_typing.FloatVector,
 ) -> array_typing.FloatVector:
-  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
+  """Calculates the main ion dilution factor n_i / n_e from Z_eff."""
+  return (Z_impurity_bundled - Z_eff) / (Z_i * (Z_impurity_bundled - Z_i))
 
 
 def calc_dvar_dpsi(

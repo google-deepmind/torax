@@ -74,7 +74,7 @@ class SolverProfiles:
       SolverProfiles with kinetic, ions, and poloidal_flux.
     """
     ion_composition, n_i, n_impurity = (
-        ion_composition_lib.IonComposition.from_profiles(
+        ion_composition_lib.get_ion_composition_and_density(
             runtime_params.plasma_composition,
             geo,
             solver_state.n_e,
@@ -102,14 +102,14 @@ class SolverProfiles:
     )
 
   @functools.cached_property
-  def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
-    """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
-    return self.ions.Z_impurity / self.ions.charge_state_info.Z_avg
+  def n_impurity_bundled(self) -> cell_variable.CellVariable:
+    """Bundled impurity density for 2-ion models [m^-3].
 
-  @functools.cached_property
-  def impurity_density_scaling_face(self) -> array_typing.FloatVectorFace:
-    """Scaling factor for impurity density on the face grid."""
-    return self.ions.Z_impurity_face / self.ions.charge_state_info_face.Z_avg
+    Scaled by <Z> / (<Z^2>/<Z>) = Z_impurity / Z_impurity_bundled so that the
+    pair (n_impurity_bundled, Z_impurity_bundled) simultaneously satisfies
+    quasineutrality and Z_eff.
+    """
+    return self.ions.get_bundled_impurity_density(self.kinetic.n_impurity)
 
   def get_species_concentration(
       self,
@@ -135,12 +135,9 @@ class SolverProfiles:
 
     if species in self.ions.impurity_fractions:
       fraction = self.ions.impurity_fractions[species]
-      n_imp_species = (
-          fraction
-          * self.kinetic.n_impurity.value
-          * self.impurity_density_scaling
+      return jnp.divide(
+          self.kinetic.n_impurity.value * fraction, self.kinetic.n_e.value
       )
-      return jnp.divide(n_imp_species, self.kinetic.n_e.value)
 
     raise ValueError(
         f'Species {species} not found.'
@@ -236,7 +233,7 @@ class SolverProfiles:
       self,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> cell_variable.CellVariable:
-    """True thermal impurity density without fast ions [m^-3].
+    """Total thermal impurity density without fast ions [m^-3].
 
     TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
     are originally from thermal species. This needs to be updated when we
@@ -272,20 +269,13 @@ class SolverProfiles:
       self,
       n_impurity_thermal: cell_variable.CellVariable,
   ) -> array_typing.FloatVectorFace:
-    return (
-        self.kinetic.n_i.face_value()
-        + n_impurity_thermal.face_value() * self.impurity_density_scaling_face
-    )
+    return self.kinetic.n_i.face_value() + n_impurity_thermal.face_value()
 
   def calculate_n_i_total_thermal_face(
       self,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> array_typing.FloatVectorFace:
     """Total thermal ion particle density (main ions + impurities) [m^-3].
-
-    On the face grid. The bundled impurity density (charge Z_impurity =
-    <Z^2>/<Z>) is rescaled to the true impurity particle density with
-    `impurity_density_scaling_face` before being summed with the main ions.
 
     Args:
       fast_ions: Tuple of fast ion populations.

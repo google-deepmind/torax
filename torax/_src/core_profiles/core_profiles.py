@@ -80,8 +80,13 @@ class CoreProfiles(solver_profiles.SolverProfiles):
 
   @functools.cached_property
   def n_impurity_thermal(self) -> cell_variable.CellVariable:
-    """True thermal impurity density without fast ions [m^-3]."""
+    """Total thermal impurity density without fast ions [m^-3]."""
     return self.calculate_n_impurity_thermal(self.fast_ions)
+
+  @functools.cached_property
+  def n_impurity_bundled_thermal(self) -> cell_variable.CellVariable:
+    """Bundled thermal impurity density for 2-ion models [m^-3]."""
+    return self.ions.get_bundled_impurity_density(self.n_impurity_thermal)
 
   @functools.cached_property
   def n_i_total_thermal_face(self) -> array_typing.FloatVectorFace:

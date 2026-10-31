@@ -139,7 +139,6 @@ class SolverProfilesTest(parameterized.TestCase):
     expected_n_i_face = (
         profiles.kinetic.n_i.face_value()
         + profiles.kinetic.n_impurity.face_value()
-        * profiles.impurity_density_scaling_face
     )
     np.testing.assert_allclose(n_i_face, expected_n_i_face)
 
@@ -195,8 +194,7 @@ class SolverProfilesTest(parameterized.TestCase):
 
     n_i_face = profiles.calculate_n_i_total_thermal_face((fast_ion,))
     expected_n_i_face = (
-        profiles.kinetic.n_i.face_value()
-        + n_imp.face_value() * profiles.impurity_density_scaling_face
+        profiles.kinetic.n_i.face_value() + n_imp.face_value()
     )
     np.testing.assert_allclose(n_i_face, expected_n_i_face)
 

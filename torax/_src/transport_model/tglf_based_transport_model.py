@@ -52,9 +52,7 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   max_normalized_collisionality: float
 
 
-class TGLFBasedTransportModelConfig(
-    config_base.ComponentTransportConfigBase
-):
+class TGLFBasedTransportModelConfig(config_base.ComponentTransportConfigBase):
   """Base config for TGLF-family transport models."""
 
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
@@ -315,7 +313,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         / core_profiles.kinetic.n_e.face_value()
     )
     n_impurity_over_n_e = (
-        core_profiles.kinetic.n_impurity.face_value()
+        core_profiles.n_impurity_bundled.face_value()
         / core_profiles.kinetic.n_e.face_value()
     )
 
@@ -532,7 +530,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         MASS_2=m_i_over_m_D,
         TAUS_2=T_i_over_T_e,
         AS_2=n_i_over_n_e,
-        ZS_3=core_profiles.ions.Z_impurity_face,
+        ZS_3=core_profiles.ions.Z_impurity_bundled_face,
         MASS_3=m_imp_over_m_D,
         TAUS_3=T_imp_over_T_e,
         AS_3=n_impurity_over_n_e,

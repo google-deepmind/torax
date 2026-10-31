@@ -21,7 +21,6 @@ from torax._src.core_profiles import kinetic_profiles
 from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
-from torax._src.physics import charge_states
 from torax._src.physics import collisions
 
 
@@ -135,11 +134,30 @@ class CollisionsTest(parameterized.TestCase):
           n_i=0.92,
           expected=0.5,
       ),
+      # Multi-impurity mixture case where Z_impurity (<Z> = 4) differs from
+      # Z_impurity_bundled (<Z^2>/<Z> = 7).
+      dict(
+          A_impurity=10.0,
+          Z_impurity=4.0,
+          Z_impurity_bundled=7.0,
+          Z_i=1.0,
+          A_i=2.0,
+          n_i=0.8,
+          expected=0.54,
+      ),
   ])
   def test_calculate_weighted_Z_eff(
-      self, A_impurity, Z_impurity, Z_i, A_i, n_i, expected
+      self,
+      A_impurity,
+      Z_impurity,
+      Z_i,
+      A_i,
+      n_i,
+      expected,
+      Z_impurity_bundled=None,
   ):
-    """Compare `_calculate_weighted_Z_eff` to a reference value."""
+    if Z_impurity_bundled is None:
+      Z_impurity_bundled = Z_impurity
     n_e = 1.0
     n_impurity = (n_e - n_i * Z_i) / Z_impurity
     dummy_cv = cell_variable.CellVariable(
@@ -160,18 +178,10 @@ class CollisionsTest(parameterized.TestCase):
         n_impurity=cell_variable.CellVariable(
             value=jnp.array([n_impurity]),
             face_centers=jnp.array([0.0, 1.0]),
+            right_face_constraint=jnp.array(n_impurity),
+            right_face_grad_constraint=None,
         ),
         toroidal_angular_velocity=dummy_cv,
-    )
-    zero_charge_state_info = charge_states.ChargeStateInfo(
-        Z_avg=jnp.zeros(1),
-        Z2_avg=jnp.zeros(1),
-        Z_per_species={},
-    )
-    zero_charge_state_info_face = charge_states.ChargeStateInfo(
-        Z_avg=jnp.zeros(2),
-        Z2_avg=jnp.zeros(2),
-        Z_per_species={},
     )
     ions = ion_composition.IonComposition(
         impurity_fractions={},
@@ -179,14 +189,19 @@ class CollisionsTest(parameterized.TestCase):
         Z_i=jnp.array([Z_i]),
         Z_i_face=jnp.zeros(2),
         Z_impurity=jnp.array([Z_impurity]),
-        Z_impurity_face=jnp.zeros(2),
+        Z_impurity_face=jnp.array([Z_impurity, Z_impurity]),
+        Z_impurity_bundled=jnp.array([Z_impurity_bundled]),
+        Z_impurity_bundled_face=jnp.array([
+            Z_impurity_bundled,
+            Z_impurity_bundled,
+        ]),
+        Z_impurity_per_species={},
+        Z_impurity_per_species_face={},
         A_i=jnp.array(A_i),
         A_impurity=jnp.array([A_impurity]),
         A_impurity_face=jnp.zeros(2),
         Z_eff=jnp.zeros(1),
         Z_eff_face=jnp.zeros(2),
-        charge_state_info=zero_charge_state_info,
-        charge_state_info_face=zero_charge_state_info_face,
     )
     poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles(
         psi=dummy_cv,

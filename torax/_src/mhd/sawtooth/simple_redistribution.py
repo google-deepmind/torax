@@ -132,7 +132,7 @@ class SimpleRedistribution(
           ions_redistributed,
           n_i_redistributed,
           n_impurity_redistributed,
-      ) = ion_composition_lib.IonComposition.from_profiles(
+      ) = ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
           n_e_redistributed,

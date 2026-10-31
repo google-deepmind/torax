@@ -28,7 +28,6 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import state_evaluation
 from torax._src.output_tools import output_keys
-from torax._src.physics import charge_states
 from torax._src.torax_pydantic import config
 
 
@@ -103,18 +102,12 @@ def make_zero_core_profiles(
       name: jnp.zeros_like(geo.rho) for name in impurity_names
   }
   main_ion_fractions_dict = {name: jnp.array(0.0) for name in main_ion_names}
-  zero_charge_state_info = charge_states.ChargeStateInfo(
-      Z_avg=jnp.zeros_like(geo.rho),
-      Z2_avg=jnp.zeros_like(geo.rho),
-      Z_per_species={name: jnp.zeros_like(geo.rho) for name in impurity_names},
-  )
-  zero_charge_state_info_face = charge_states.ChargeStateInfo(
-      Z_avg=jnp.zeros_like(geo.rho_face),
-      Z2_avg=jnp.zeros_like(geo.rho_face),
-      Z_per_species={
-          name: jnp.zeros_like(geo.rho_face) for name in impurity_names
-      },
-  )
+  Z_impurity_per_species = {
+      name: jnp.zeros_like(geo.rho) for name in impurity_names
+  }
+  Z_impurity_per_species_face = {
+      name: jnp.zeros_like(geo.rho_face) for name in impurity_names
+  }
   kinetic = kinetic_profiles.KineticProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
@@ -134,13 +127,19 @@ def make_zero_core_profiles(
       Z_impurity_face=Z_impurity_face
       if Z_impurity_face is not None
       else jnp.zeros_like(geo.rho_face),
+      Z_impurity_bundled=Z_impurity
+      if Z_impurity is not None
+      else jnp.zeros_like(geo.rho),
+      Z_impurity_bundled_face=Z_impurity_face
+      if Z_impurity_face is not None
+      else jnp.zeros_like(geo.rho_face),
+      Z_impurity_per_species=Z_impurity_per_species,
+      Z_impurity_per_species_face=Z_impurity_per_species_face,
       A_i=jnp.zeros(()),
       A_impurity=jnp.zeros_like(geo.rho),
       A_impurity_face=jnp.zeros_like(geo.rho_face),
       Z_eff=jnp.zeros_like(geo.rho),
       Z_eff_face=jnp.zeros_like(geo.rho_face),
-      charge_state_info=zero_charge_state_info,
-      charge_state_info_face=zero_charge_state_info_face,
   )
   poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles(
       psi=zero_cell_variable,

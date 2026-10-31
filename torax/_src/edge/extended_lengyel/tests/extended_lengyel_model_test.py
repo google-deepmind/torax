@@ -352,8 +352,6 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     impurity_params = electron_density_ratios.RuntimeParams(
         n_e_ratios={},  # Only face used in the logic
         n_e_ratios_face={'He': jnp.linspace(0, c_core_edge, n_rho + 1)},
-        A_avg=mock.MagicMock(),
-        A_avg_face=mock.MagicMock(),
         Z_override=None,
     )
 
@@ -490,8 +488,6 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     impurity_params = electron_density_ratios.RuntimeParams(
         n_e_ratios={},
         n_e_ratios_face={'He': np.ones(n_rho + 1) * 0.01},
-        A_avg=mock.MagicMock(),
-        A_avg_face=mock.MagicMock(),
         Z_override=None,
     )
     mock_plasma_composition = mock.MagicMock(
@@ -663,8 +659,6 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     impurity_params = electron_density_ratios.RuntimeParams(
         n_e_ratios={},
         n_e_ratios_face={'He': np.ones(n_rho + 1) * 0.01},
-        A_avg=mock.MagicMock(),
-        A_avg_face=mock.MagicMock(),
         Z_override=None,
     )
     mock_plasma_composition = mock.MagicMock(
@@ -1098,8 +1092,6 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     impurity_params = electron_density_ratios.RuntimeParams(
         n_e_ratios={},
         n_e_ratios_face={'He': np.ones(n_rho + 1) * 0.01},
-        A_avg=mock.MagicMock(),
-        A_avg_face=mock.MagicMock(),
         Z_override=None,
     )
     mock_plasma_composition = mock.MagicMock(

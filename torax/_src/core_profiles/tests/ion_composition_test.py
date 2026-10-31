@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for IonComposition and its from_profiles constructor."""
+"""Unit tests for ion_composition."""
 
 import dataclasses
 from absl.testing import absltest
@@ -78,21 +78,18 @@ class IonCompositionTest(parameterized.TestCase):
         runtime_params.profile_conditions,
         geo,
     )
-    ions, n_i, n_impurity = ion_composition_lib.IonComposition.from_profiles(
+    ions, n_i, n_impurity = ion_composition_lib.get_ion_composition_and_density(
         runtime_params.plasma_composition,
         geo,
         n_e,
         T_e,
     )
 
-    Z_eff = runtime_params.plasma_composition.Z_eff
-
-    dilution_factor = ion_composition_lib._calculate_main_ion_dilution_factor(
-        ions.Z_i, ions.Z_impurity, Z_eff
-    )
+    # For Z_i = 1 (DT), Z_impurity = 10 (fully ionized Ne at 100 keV),
+    # and Z_eff = 2: dilution_factor = (10 - 2) / (1 * (10 - 1)) = 8 / 9.
     np.testing.assert_allclose(
         n_i.value,
-        expected_value * dilution_factor,
+        expected_value * (8.0 / 9.0),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
@@ -114,21 +111,17 @@ class IonCompositionTest(parameterized.TestCase):
     expected_Z_eff = runtime_params.plasma_composition.Z_eff
     expected_Z_eff_edge = runtime_params.plasma_composition.Z_eff_face[-1]
 
-    calculated_Z_eff = ion_composition_lib._calculate_Z_eff(
-        core_profiles.ions.Z_i,
-        core_profiles.ions.Z_impurity,
-        core_profiles.kinetic.n_i.value,
-        core_profiles.kinetic.n_impurity.value,
-        core_profiles.kinetic.n_e.value,
-    )
+    calculated_Z_eff = (
+        core_profiles.ions.Z_i**2 * core_profiles.kinetic.n_i.value
+        + core_profiles.ions.Z_impurity_bundled**2
+        * core_profiles.n_impurity_bundled.value
+    ) / core_profiles.kinetic.n_e.value
 
-    calculated_Z_eff_face = ion_composition_lib._calculate_Z_eff(
-        core_profiles.ions.Z_i_face,
-        core_profiles.ions.Z_impurity_face,
-        core_profiles.kinetic.n_i.face_value(),
-        core_profiles.kinetic.n_impurity.face_value(),
-        core_profiles.kinetic.n_e.face_value(),
-    )
+    calculated_Z_eff_face = (
+        core_profiles.ions.Z_i_face**2 * core_profiles.kinetic.n_i.face_value()
+        + core_profiles.ions.Z_impurity_bundled_face**2
+        * core_profiles.n_impurity_bundled.face_value()
+    ) / core_profiles.kinetic.n_e.face_value()
 
     np.testing.assert_allclose(
         core_profiles.ions.Z_eff,
@@ -219,7 +212,7 @@ class IonCompositionTest(parameterized.TestCase):
         right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
-    ions, n_i, n_impurity = ion_composition_lib.IonComposition.from_profiles(
+    ions, n_i, n_impurity = ion_composition_lib.get_ion_composition_and_density(
         runtime_params.plasma_composition,
         geo,
         n_e_cell_variable,
@@ -232,15 +225,23 @@ class IonCompositionTest(parameterized.TestCase):
     expected_Z2_avg = (
         impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
     )
-    expected_Z_impurity = expected_Z2_avg / expected_Z_avg
-    np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
+    expected_Z_impurity_bundled = expected_Z2_avg / expected_Z_avg
+    np.testing.assert_allclose(ions.Z_impurity, expected_Z_avg, rtol=1e-6)
+    np.testing.assert_allclose(
+        ions.Z_impurity_bundled, expected_Z_impurity_bundled, rtol=1e-6
+    )
 
     calculated_dilution = n_i.value / n_e_cell_variable.value
     np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
+    np.testing.assert_allclose(
+        n_impurity.value / n_e_cell_variable.value,
+        n_e_ratio_w + n_e_ratio_he3,
+        rtol=1e-6,
+    )
 
     reconstructed_zeff = (n_i.value / n_e_cell_variable.value) * ions.Z_i**2 + (
         n_impurity.value / n_e_cell_variable.value
-    ) * ions.Z_impurity**2
+    ) * ions.Z_impurity * ions.Z_impurity_bundled
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
   def test_from_profiles_impurity_mixture_radially_dependent(self):
@@ -313,7 +314,7 @@ class IonCompositionTest(parameterized.TestCase):
         right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
-    ions, n_i, n_impurity = ion_composition_lib.IonComposition.from_profiles(
+    ions, n_i, n_impurity = ion_composition_lib.get_ion_composition_and_density(
         runtime_params.plasma_composition,
         geo,
         n_e_cell_variable,
@@ -326,15 +327,23 @@ class IonCompositionTest(parameterized.TestCase):
     expected_Z2_avg = (
         impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
     )
-    expected_Z_impurity = expected_Z2_avg / expected_Z_avg
-    np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
+    expected_Z_impurity_bundled = expected_Z2_avg / expected_Z_avg
+    np.testing.assert_allclose(ions.Z_impurity, expected_Z_avg, rtol=1e-6)
+    np.testing.assert_allclose(
+        ions.Z_impurity_bundled, expected_Z_impurity_bundled, rtol=1e-6
+    )
 
     calculated_dilution = n_i.value / n_e_cell_variable.value
     np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
+    np.testing.assert_allclose(
+        n_impurity.value / n_e_cell_variable.value,
+        n_e_ratio_w + n_e_ratio_he3,
+        rtol=1e-6,
+    )
 
     reconstructed_zeff = (n_i.value / n_e_cell_variable.value) * ions.Z_i**2 + (
         n_impurity.value / n_e_cell_variable.value
-    ) * ions.Z_impurity**2
+    ) * ions.Z_impurity * ions.Z_impurity_bundled
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
   def test_from_profiles_with_n_e_ratios(self):
@@ -420,7 +429,7 @@ class IonCompositionTest(parameterized.TestCase):
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
-      return ion_composition_lib.IonComposition.from_profiles(
+      return ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
           n_e_cell_variable,
@@ -482,7 +491,7 @@ class IonCompositionTest(parameterized.TestCase):
         right_face_constraint=n_e_val,
         right_face_grad_constraint=None,
     )
-    ions, n_i, _ = ion_composition_lib.IonComposition.from_profiles(
+    ions, n_i, _ = ion_composition_lib.get_ion_composition_and_density(
         runtime_params.plasma_composition,
         geo,
         n_e_cv,
@@ -611,7 +620,7 @@ class IonCompositionTest(parameterized.TestCase):
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
-      return ion_composition_lib.IonComposition.from_profiles(
+      return ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
           n_e_cell_variable,
@@ -623,7 +632,8 @@ class IonCompositionTest(parameterized.TestCase):
 
     chex.assert_trees_all_close(ions_ne_ratios, ions_fractions, rtol=1e-5)
 
-  def test_from_profiles_with_n_e_ratios_Z_eff(self):
+  @parameterized.parameters(None, 8.0)
+  def test_from_profiles_with_n_e_ratios_Z_eff(self, z_override):
     t_e_keV = 10.0
     n_e_val = 1e20
     n_e_ratios = {'C': 0.01, 'Ne': 0.005, 'Ar': 0.001}
@@ -653,6 +663,7 @@ class IonCompositionTest(parameterized.TestCase):
         'impurity': {
             'impurity_mode': 'n_e_ratios',
             'species': n_e_ratios,
+            'Z_override': z_override,
         },
     }
     torax_config_ne_ratios = config.ToraxConfig.from_dict(config_dict_ne_ratios)
@@ -676,15 +687,15 @@ class IonCompositionTest(parameterized.TestCase):
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
-      return ion_composition_lib.IonComposition.from_profiles(
+      return ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
           n_e_cell_variable,
           t_e_cell_variable,
       )
 
-    ions_ne_ratios, _, _ = _run_from_profiles(torax_config_ne_ratios)
-    ground_truth_zeff = ions_ne_ratios.Z_eff
+    result_ne_ratios = _run_from_profiles(torax_config_ne_ratios)
+    ground_truth_zeff = result_ne_ratios[0].Z_eff
 
     config_dict_ne_ratios_zeff = base_config_dict.copy()
     config_dict_ne_ratios_zeff['plasma_composition'] = {
@@ -694,6 +705,7 @@ class IonCompositionTest(parameterized.TestCase):
                 plasma_composition_lib._IMPURITY_MODE_NE_RATIOS_ZEFF
             ),
             'species': {'C': 0.01, 'Ne': None, 'Ar': 0.001},
+            'Z_override': z_override,
         },
         'Z_eff': float(ground_truth_zeff[0]),
     }
@@ -701,9 +713,11 @@ class IonCompositionTest(parameterized.TestCase):
         config_dict_ne_ratios_zeff
     )
 
-    ions_ne_ratios_zeff, _, _ = _run_from_profiles(torax_config_ne_ratios_zeff)
+    result_ne_ratios_zeff = _run_from_profiles(torax_config_ne_ratios_zeff)
 
-    chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
+    chex.assert_trees_all_close(
+        result_ne_ratios, result_ne_ratios_zeff, rtol=1e-5
+    )
 
   def test_from_profiles_with_n_e_ratios_Z_eff_radially_dependent(self):
     t_e_keV = 10.0
@@ -769,7 +783,7 @@ class IonCompositionTest(parameterized.TestCase):
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
-      return ion_composition_lib.IonComposition.from_profiles(
+      return ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
           n_e_cell_variable,
@@ -865,7 +879,7 @@ class IonCompositionTest(parameterized.TestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
 
-    ions, n_i, n_impurity = ion_composition_lib.IonComposition.from_profiles(
+    ions, n_i, n_impurity = ion_composition_lib.get_ion_composition_and_density(
         runtime_params.plasma_composition,
         geo,
         initial_core_profiles.kinetic.n_e,
@@ -897,7 +911,7 @@ class IonCompositionTest(parameterized.TestCase):
         right_face_grad_constraint=jnp.array(0.0),
     )
     with self.assertRaisesRegex(ValueError, 'right_face_constraint'):
-      ion_composition_lib.IonComposition.from_profiles(
+      ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
           n_e_no_bc,

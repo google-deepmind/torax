@@ -63,12 +63,13 @@ class QeiSource(static_dataclass.StaticDataclass):
     return jax.lax.cond(
         runtime_params.sources[self.SOURCE_ID].mode
         == sources_runtime_params_lib.Mode.MODEL_BASED,
-        lambda: _model_based_qei(
-            runtime_params,
-            geo,
-            core_profiles,
+        _model_based_qei,
+        lambda _runtime_params, _geo, _core_profiles: (
+            source_profiles.QeiInfo.zeros(_geo)
         ),
-        lambda: source_profiles.QeiInfo.zeros(geo),
+        runtime_params,
+        geo,
+        core_profiles,
     )
 
 

@@ -434,32 +434,37 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         [0.0, 1.0],
     )
 
-  def test_n_i_total_thermal_face_rescales_impurity_density(self):
+  def test_n_impurity_bundled_and_n_i_total_thermal_face(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     solver_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    # Bundled impurity charge <Z^2>/<Z> = 3 and <Z> = 2, so the true impurity
-    # particle density is 1.5x the bundled one.
+    # True impurity charge <Z> = 2 and bundled impurity charge <Z^2>/<Z> = 3,
+    # so n_impurity_bundled is (2/3) of the true impurity particle density.
     core_profiles = dataclasses.replace(
         solver_profiles,
         kinetic=dataclasses.replace(
             solver_profiles.kinetic,
             n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
             n_impurity=core_profile_helpers.make_constant_core_profile(
-                geo, 0.25e20
+                geo, 0.375e20
             ),
         ),
         ions=dataclasses.replace(
             solver_profiles.ions,
-            Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
-            charge_state_info_face=dataclasses.replace(
-                solver_profiles.ions.charge_state_info_face,
-                Z_avg=jnp.full_like(geo.rho_face, 2.0),
-            ),
+            Z_impurity=jnp.full_like(geo.rho, 2.0),
+            Z_impurity_face=jnp.full_like(geo.rho_face, 2.0),
+            Z_impurity_bundled=jnp.full_like(geo.rho, 3.0),
+            Z_impurity_bundled_face=jnp.full_like(geo.rho_face, 3.0),
         ),
     )
 
     np.testing.assert_allclose(
-        core_profiles.n_i_total_thermal_face, 2.5e20 + 1.5 * 0.25e20
+        core_profiles.n_i_total_thermal_face, 2.5e20 + 0.375e20
+    )
+    np.testing.assert_allclose(
+        core_profiles.n_impurity_bundled.value, 0.25e20
+    )
+    np.testing.assert_allclose(
+        core_profiles.n_impurity_bundled.face_value(), 0.25e20
     )
 
   def test_thermal_densities_with_fast_ions(self):
@@ -884,12 +889,12 @@ class SolverProfilesTest(parameterized.TestCase):
     self.assertFalse(self.base_profiles.below_minimum_temperature(10.0))
 
     np.testing.assert_allclose(
-        self.base_profiles.impurity_density_scaling,
-        self.core_profiles.impurity_density_scaling,
+        self.base_profiles.n_impurity_bundled.value,
+        self.core_profiles.n_impurity_bundled.value,
     )
     np.testing.assert_allclose(
-        self.base_profiles.impurity_density_scaling_face,
-        self.core_profiles.impurity_density_scaling_face,
+        self.base_profiles.n_impurity_bundled.face_value(),
+        self.core_profiles.n_impurity_bundled.face_value(),
     )
     np.testing.assert_allclose(
         self.base_profiles.psi_norm,

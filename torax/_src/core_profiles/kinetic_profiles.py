@@ -31,7 +31,7 @@ class KineticProfiles:
     T_e: Electron temperature [keV].
     n_e: Electron density [m^-3].
     n_i: Main ion density [m^-3].
-    n_impurity: Impurity density of bundled impurity [m^-3].
+    n_impurity: Total impurity particle density [m^-3].
     toroidal_angular_velocity: Toroidal angular velocity [rad/s].
   """
 

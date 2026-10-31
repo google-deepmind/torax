@@ -254,6 +254,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
       )
     else:
       self.assertIsNone(expected_A_override)
+    impurity_params = pc.impurity.build_runtime_params(t=0.0)
+    self.assertEqual(impurity_params.Z_override, expected_Z_override)
+    self.assertEqual(impurity_params.A_override, expected_A_override)
 
   def test_zeff_usage_warning_with_ne_ratios(self):
     """Tests warning when Z_eff is provided with n_e_ratios impurity mode."""
@@ -398,9 +401,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     fractions_params = pc_fractions.impurity.build_runtime_params(t)
     assert isinstance(fractions_params, impurity_fractions.RuntimeParams)
 
-    np.testing.assert_allclose(
-        ne_params.A_avg,
-        fractions_params.A_avg,
+    chex.assert_trees_all_close(
+        ne_params.fractions,
+        fractions_params.fractions,
+        rtol=1e-5,
+    )
+    chex.assert_trees_all_close(
+        ne_params.fractions_face,
+        fractions_params.fractions_face,
         rtol=1e-5,
     )
 
@@ -571,14 +579,17 @@ class IonMixtureTest(parameterized.TestCase):
       ),
   )
   def test_ion_mixture_averaging(self, species, time, expected_Z, expected_A):
-    """Tests the averaging of Z and A for different mixtures."""
     mixture = ion_mixture.IonMixture.model_validate(dict(species=species))
     mixture_params = mixture.build_runtime_params(time)
-    calculated_Z = charge_states.get_average_charge_state(
+    Z_per_species = charge_states.get_average_charge_state_per_species(
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized
-        fractions=mixture_params.fractions,
+        ion_symbols=tuple(mixture_params.fractions.keys()),
         Z_override=mixture_params.Z_override,
-    ).Z_mixture
+    )
+    calculated_Z = charge_states.get_bundled_charge_state(
+        Z_per_species=Z_per_species,
+        fractions=mixture_params.fractions,
+    )
     np.testing.assert_allclose(calculated_Z, expected_Z)
     np.testing.assert_allclose(mixture_params.A_avg, expected_A)
 
@@ -589,8 +600,6 @@ class IonMixtureTest(parameterized.TestCase):
       ('both_override', 3.0, 3.0, 1.0, 2.0141),
   )
   def test_ion_mixture_override(self, Z_override, A_override, Z, A):
-    """Tests overriding the automatic Z/A averaging."""
-
     mixture = ion_mixture.IonMixture.model_validate(
         dict(
             species={'D': {0: 1.0}},
@@ -599,11 +608,15 @@ class IonMixtureTest(parameterized.TestCase):
         )
     )
     mixture_params = mixture.build_runtime_params(t=0.0)
-    calculated_Z = charge_states.get_average_charge_state(
+    Z_per_species = charge_states.get_average_charge_state_per_species(
         T_e=np.array([1.0]),  # arbitrary temperature, won't be used for D
-        fractions=mixture_params.fractions,
+        ion_symbols=tuple(mixture_params.fractions.keys()),
         Z_override=mixture_params.Z_override,
-    ).Z_mixture
+    )
+    calculated_Z = charge_states.get_bundled_charge_state(
+        Z_per_species=Z_per_species,
+        fractions=mixture_params.fractions,
+    )
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override
     np.testing.assert_allclose(calculated_Z, Z_expected)
