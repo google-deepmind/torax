@@ -26,8 +26,6 @@ from torax._src.neoclassical.conductivity import runtime_params as conductivity_
 from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 
-Conductivity = state.Conductivity
-
 
 class ConductivityModel(abc.ABC):
   """Base class for conductivity models."""
