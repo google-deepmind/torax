@@ -309,20 +309,19 @@ def update_core_and_source_profiles_after_step(
   )
 
 
-def provide_core_profiles_t_plus_dt(
-    dt: jax.Array,
+def provide_solver_state_t_plus_dt(
+    dt: array_typing.FloatScalar,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
+) -> state.SolverState:
+  """Provides primary solver state at t + dt with updated BCs and prescribed."""
   numerics = runtime_params_t.numerics
   profile_conditions_t_plus_dt = runtime_params_t_plus_dt.profile_conditions
-  # In each of the following if the profile condition is being evolved then we
-  # only need to update the boundary condition and can get the value from the
-  # previous timestep. Otherwise, we need to update the value and boundary
-  # condition.
+  # If a profile is being evolved, only its boundary condition is updated while
+  # the value is preserved from the previous timestep. Otherwise, both the value
+  # and the boundary condition are updated from prescribed profile conditions.
   time_reduction_factor = (
       runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
   )
@@ -357,14 +356,39 @@ def provide_core_profiles_t_plus_dt(
       profile_conditions_t_plus_dt, geo_t_plus_dt
   )
 
-  # Update Z_face with boundary condition Z, needed for cases where T_
-  # pylint: enable=invalid-name
-  core_profiles_t_plus_dt = dataclasses.replace(
-      core_profiles_t,
+  return state.SolverState(
       T_i=T_i,
       T_e=T_e,
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
   )
-  return core_profiles_t_plus_dt
+
+
+# TODO(b/572586768): Remove when downstream callers migrate.
+def provide_core_profiles_t_plus_dt(
+    dt: array_typing.FloatScalar,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
+    geo_t_plus_dt: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+) -> state.CoreProfiles:
+  """Provides state at t_plus_dt with updated BCs and prescribed profiles."""
+  solver_state = provide_solver_state_t_plus_dt(
+      dt=dt,
+      runtime_params_t=runtime_params_t,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t=core_profiles_t,
+  )
+  return dataclasses.replace(
+      core_profiles_t,
+      T_i=solver_state.T_i,
+      T_e=solver_state.T_e,
+      psi=solver_state.psi,
+      n_e=solver_state.n_e,
+      toroidal_angular_velocity=solver_state.toroidal_angular_velocity,
+  )
+
+
+# pylint: enable=invalid-name

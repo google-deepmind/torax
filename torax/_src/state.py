@@ -39,6 +39,41 @@ from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
+class SolverState:
+  """Primary profiles that can be prescribed or evolved by the PDE solver.
+
+  For a candidate step at t + dt, boundary conditions and prescribed profile
+  values are populated prior to the solver loop, and iterative solvers replace
+  only the cell values of channels in `evolving_names`.
+
+  Attributes:
+    T_i: Ion temperature [keV].
+    T_e: Electron temperature [keV].
+    psi: Poloidal flux [Wb].
+    n_e: Electron density [m^-3].
+    toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+  """
+
+  T_i: cell_variable.CellVariable
+  T_e: cell_variable.CellVariable
+  psi: cell_variable.CellVariable
+  n_e: cell_variable.CellVariable
+  toroidal_angular_velocity: cell_variable.CellVariable
+
+  @classmethod
+  def from_core_profiles(cls, core_profiles: "CoreProfiles") -> Self:
+    """Extracts the primary solvable/prescribed profiles from CoreProfiles."""
+    return cls(
+        T_i=core_profiles.T_i,
+        T_e=core_profiles.T_e,
+        psi=core_profiles.psi,
+        n_e=core_profiles.n_e,
+        toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+    )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class CoreProfiles:
   """Dataclass for holding the evolving core plasma profiles.
 

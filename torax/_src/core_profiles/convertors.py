@@ -26,7 +26,7 @@ orthogonally on the domain (unknowns) and codomain (equations) respectively.
 """
 
 import dataclasses
-from typing import Final, Mapping, Tuple
+from typing import Final, Mapping
 
 import immutabledict
 import jax
@@ -49,10 +49,44 @@ STATE_SCALING_FACTORS: Final[Mapping[str, float]] = (
 )
 
 
+def solver_state_to_solver_x_tuple(
+    solver_state: state.SolverState,
+    evolving_names: tuple[str, ...],
+) -> tuple[cell_variable.CellVariable, ...]:
+  """Converts evolving parts of SolverState to the 'x' tuple for solver.
+
+  Applies state variable scaling to the solution state vector elements
+  for numerical conditioning of the solver. This ensures that the state vector
+  components are of similar order of magnitude (O(1)), corresponding to column
+  equilibration of the Jacobian matrix.
+
+  Args:
+    solver_state: The input SolverState object.
+    evolving_names: Tuple of strings naming the variables to be evolved by the
+      solver.
+
+  Returns:
+    A tuple of CellVariable objects, one for each name in evolving_names,
+    with values state-scaled for the solver.
+  """
+  x_tuple_for_solver_list = []
+
+  for name in evolving_names:
+    original_units_cv = getattr(solver_state, name)
+    solver_x_tuple_cv = apply_state_scaling(
+        cv=original_units_cv,
+        scaling_factor=1 / STATE_SCALING_FACTORS[name],
+    )
+    x_tuple_for_solver_list.append(solver_x_tuple_cv)
+
+  return tuple(x_tuple_for_solver_list)
+
+
+# TODO(b/572586768): Remove when downstream callers migrate.
 def core_profiles_to_solver_x_tuple(
     core_profiles: state.CoreProfiles,
-    evolving_names: Tuple[str, ...],
-) -> Tuple[cell_variable.CellVariable, ...]:
+    evolving_names: tuple[str, ...],
+) -> tuple[cell_variable.CellVariable, ...]:
   """Converts evolving parts of CoreProfiles to the 'x' tuple for the solver.
 
   Applies state variable scaling to the solution state vector elements
@@ -69,19 +103,50 @@ def core_profiles_to_solver_x_tuple(
     A tuple of CellVariable objects, one for each name in evolving_names,
     with values state-scaled for the solver.
   """
-  x_tuple_for_solver_list = []
+  return solver_state_to_solver_x_tuple(
+      solver_state=state.SolverState.from_core_profiles(
+          core_profiles
+      ),
+      evolving_names=evolving_names,
+  )
 
-  for name in evolving_names:
-    original_units_cv = getattr(core_profiles, name)
-    solver_x_tuple_cv = apply_state_scaling(
-        cv=original_units_cv,
-        scaling_factor=1 / STATE_SCALING_FACTORS[name],
+
+def solver_x_tuple_to_solver_state(
+    x_new: tuple[cell_variable.CellVariable, ...],
+    evolving_names: tuple[str, ...],
+    solver_state: state.SolverState,
+) -> state.SolverState:
+  """Gets updated cell variables for evolving state variables in solver state.
+
+  If a variable is in `evolving_names`, its new value is taken from `x_new`.
+  Otherwise, the existing value from `solver_state` is kept.
+  State variables in the solver are state-scaled for solver numerical
+  conditioning, and must be unscaled back to their original physical units
+  before being written to `solver_state`.
+
+  Args:
+    x_new: The state-scaled values of the evolving variables from the solver.
+    evolving_names: The names of the evolving variables.
+    solver_state: The current set of primary profiles.
+
+  Returns:
+    An updated SolverState object with physical-unit values.
+  """
+  updated_vars = {}
+
+  for i, var_name in enumerate(evolving_names):
+    solver_x_tuple_cv = x_new[i]
+    # Unscale state scaling from solver (multiply by state scaling factor).
+    original_units_cv = apply_state_scaling(
+        cv=solver_x_tuple_cv,
+        scaling_factor=STATE_SCALING_FACTORS[var_name],
     )
-    x_tuple_for_solver_list.append(solver_x_tuple_cv)
+    updated_vars[var_name] = original_units_cv
 
-  return tuple(x_tuple_for_solver_list)
+  return dataclasses.replace(solver_state, **updated_vars)
 
 
+# TODO(b/572586768): Remove when downstream callers migrate.
 def solver_x_tuple_to_core_profiles(
     x_new: tuple[cell_variable.CellVariable, ...],
     evolving_names: tuple[str, ...],
@@ -107,7 +172,7 @@ def solver_x_tuple_to_core_profiles(
 
   for i, var_name in enumerate(evolving_names):
     solver_x_tuple_cv = x_new[i]
-    # Unscale state scaling from solver (multiply by state scaling factor)
+    # Unscale state scaling from solver (multiply by state scaling factor).
     original_units_cv = apply_state_scaling(
         cv=solver_x_tuple_cv,
         scaling_factor=STATE_SCALING_FACTORS[var_name],

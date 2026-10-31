@@ -200,6 +200,89 @@ class UpdatersTest(parameterized.TestCase):
     # Since it wasn't updated in provide_..., it should remain 10.0 here.
     np.testing.assert_allclose(core_profiles_t1.psi.value, 10.0)
 
+  def test_provide_solver_state_prescribed_psi(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
+        'psi': {0.0: {0.0: 10.0, 1.0: 10.0}, 2.0: {0.0: 20.0, 1.0: 20.0}},
+        'I_p': 15e6,
+        'initial_psi_source': 'profile_conditions',
+    }
+    config_dict['numerics'] = {
+        'evolve_current': False,
+    }
+
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    core_profiles_t0, runtime_params_t0, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+
+    runtime_params_t1 = provider(t=1.0)
+    result = updaters.provide_solver_state_t_plus_dt(
+        dt=jnp.array(1.0),
+        runtime_params_t=runtime_params_t0,
+        runtime_params_t_plus_dt=runtime_params_t1,
+        geo_t_plus_dt=geo,
+        core_profiles_t=core_profiles_t0,
+    )
+
+    self.assertIsInstance(result, state.SolverState)
+    expected_psi_array = np.full_like(geo.rho_norm, 15.0)
+    np.testing.assert_allclose(result.psi.value, expected_psi_array, rtol=1e-5)
+
+  def test_provide_solver_state_preserves_evolving_and_updates_bcs(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'] = {
+        'evolve_current': True,
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': True,
+    }
+    config_dict['profile_conditions']['T_i_right_bc'] = {0.0: 1.0, 1.0: 2.5}
+    config_dict['profile_conditions']['T_e_right_bc'] = {0.0: 1.0, 1.0: 3.5}
+    config_dict['profile_conditions']['n_e_right_bc'] = {
+        0.0: 1.0e19,
+        1.0: 5.5e19,
+    }
+
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    core_profiles_t0, runtime_params_t0, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+
+    runtime_params_t1 = provider(t=1.0)
+    result = updaters.provide_solver_state_t_plus_dt(
+        dt=jnp.array(1.0),
+        runtime_params_t=runtime_params_t0,
+        runtime_params_t_plus_dt=runtime_params_t1,
+        geo_t_plus_dt=geo,
+        core_profiles_t=core_profiles_t0,
+    )
+
+    self.assertIsInstance(result, state.SolverState)
+    with self.subTest('evolving_values_preserved'):
+      # Evolving channels retain values from t0.
+      np.testing.assert_allclose(result.psi.value, core_profiles_t0.psi.value)
+      np.testing.assert_allclose(result.T_i.value, core_profiles_t0.T_i.value)
+      np.testing.assert_allclose(result.T_e.value, core_profiles_t0.T_e.value)
+      np.testing.assert_allclose(result.n_e.value, core_profiles_t0.n_e.value)
+    with self.subTest('boundary_conditions_updated'):
+      # Boundary conditions are updated to values at t1.
+      assert result.T_i.right_face_constraint is not None
+      np.testing.assert_allclose(result.T_i.right_face_constraint, 2.5)
+
+      assert result.T_e.right_face_constraint is not None
+      np.testing.assert_allclose(result.T_e.right_face_constraint, 3.5)
+
+      assert result.n_e.right_face_constraint is not None
+      np.testing.assert_allclose(result.n_e.right_face_constraint, 5.5e19)
+      self.assertIsNotNone(result.toroidal_angular_velocity)
+
   def test_update_core_and_source_profiles_updates_fast_ions_before_neoclassical(
       self,
   ):
@@ -223,16 +306,14 @@ class UpdatersTest(parameterized.TestCase):
             'is_explicit': False,
         },
     }
-    config_dict['profile_conditions']['fast_ions'] = [
-        {
-            'source': 'icrh',
-            'species': 'He3',
-            'n': {0.0: {0.0: 1e19, 1.0: 1e19}},
-            'T': {0.0: {0.0: 100.0, 1.0: 100.0}},
-            'n_right_bc': 0.0,
-            'T_right_bc': 0.0,
-        }
-    ]
+    config_dict['profile_conditions']['fast_ions'] = [{
+        'source': 'icrh',
+        'species': 'He3',
+        'n': {0.0: {0.0: 1e19, 1.0: 1e19}},
+        'T': {0.0: {0.0: 100.0, 1.0: 100.0}},
+        'n_right_bc': 0.0,
+        'T_right_bc': 0.0,
+    }]
     torax_config = config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -298,9 +379,7 @@ class UpdatersTest(parameterized.TestCase):
     self.assertLen(passed_he3, 1)
     np.testing.assert_allclose(passed_he3[0].n.value, 1e19)
     self.assertNotEmpty(result.fast_ions)
-    final_he3 = [
-        fi for fi in result.fast_ions if fi.species == 'He3'
-    ]
+    final_he3 = [fi for fi in result.fast_ions if fi.species == 'He3']
     self.assertLen(final_he3, 1)
     np.testing.assert_allclose(final_he3[0].n.value, 1e19)
     self.assertIn('icrh', [fi.source for fi in result.fast_ions])

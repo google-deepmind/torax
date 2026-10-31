@@ -56,6 +56,12 @@ class ConvertersTest(parameterized.TestCase):
         right_face_constraint=jnp.array(0.8),
         right_face_grad_constraint=None,
     )
+    toroidal_angular_velocity = cell_variable.CellVariable(
+        value=jnp.ones(self.geo.rho_norm.shape) * 5.0,
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=jnp.array(0.9),
+        right_face_grad_constraint=None,
+    )
 
     self.base_core_profiles = state.CoreProfiles(
         T_i=T_i,
@@ -84,11 +90,14 @@ class ConvertersTest(parameterized.TestCase):
         j_toroidal_total=mock.ANY,
         j_toroidal_total_face=mock.ANY,
         I_p_profile_face=mock.ANY,
-        toroidal_angular_velocity=mock.ANY,
+        toroidal_angular_velocity=toroidal_angular_velocity,
         poloidal_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
         fast_ions=mock.ANY,
+    )
+    self.base_solver_state = (
+        state.SolverState.from_core_profiles(self.base_core_profiles)
     )
 
   def test_core_profiles_to_solver_x_tuple(self):
@@ -191,6 +200,84 @@ class ConvertersTest(parameterized.TestCase):
           getattr(updated_cp, name),
           getattr(self.base_core_profiles, name),
       )
+
+  def test_solver_state_to_x_round_trip(self):
+    evolving_names = ('T_i', 'T_e', 'psi', 'n_e')
+    x_solver_tuple = convertors.solver_state_to_solver_x_tuple(
+        self.base_solver_state,
+        evolving_names,
+    )
+    self.assertLen(x_solver_tuple, len(evolving_names))
+
+    for name, cv in zip(evolving_names, x_solver_tuple):
+      base_cv = getattr(self.base_solver_state, name)
+      scaling = convertors.STATE_SCALING_FACTORS[name]
+      np.testing.assert_allclose(cv.value, base_cv.value / scaling)
+      if base_cv.right_face_constraint is not None:
+        assert cv.right_face_constraint is not None
+        np.testing.assert_allclose(
+            cv.right_face_constraint,
+            base_cv.right_face_constraint / scaling,
+        )
+      if base_cv.right_face_grad_constraint is not None:
+        assert cv.right_face_grad_constraint is not None
+        np.testing.assert_allclose(
+            cv.right_face_grad_constraint,
+            base_cv.right_face_grad_constraint / scaling,
+        )
+
+    result = convertors.solver_x_tuple_to_solver_state(
+        x_solver_tuple,
+        evolving_names,
+        self.base_solver_state,
+    )
+    for name in (
+        'T_i',
+        'T_e',
+        'psi',
+        'n_e',
+        'toroidal_angular_velocity',
+    ):
+      chex.assert_trees_all_close(
+          getattr(result, name),
+          getattr(self.base_solver_state, name),
+      )
+
+  @parameterized.parameters(
+      (('T_e',),),
+      (('T_i', 'T_e', 'n_e'),),
+      (('T_i', 'T_e', 'psi', 'n_e'),),
+  )
+  def test_solver_x_tuple_to_solver_state_updates_evolving(
+      self, evolving_names: tuple[str, ...]
+  ):
+    x_new_solver_tuple = tuple(
+        dataclasses.replace(
+            getattr(self.base_solver_state, name),
+            value=getattr(self.base_solver_state, name).value
+            / convertors.STATE_SCALING_FACTORS[name]
+            * 2.5,
+        )
+        for name in evolving_names
+    )
+    result = convertors.solver_x_tuple_to_solver_state(
+        x_new_solver_tuple,
+        evolving_names,
+        self.base_solver_state,
+    )
+    for name in (
+        'T_i',
+        'T_e',
+        'psi',
+        'n_e',
+        'toroidal_angular_velocity',
+    ):
+      base_cv = getattr(self.base_solver_state, name)
+      updated_cv = getattr(result, name)
+      if name in evolving_names:
+        np.testing.assert_allclose(updated_cv.value, base_cv.value * 2.5)
+      else:
+        chex.assert_trees_all_close(updated_cv, base_cv)
 
   @parameterized.parameters('T_i', 'T_e', 'n_e', 'psi')
   def test_compute_channel_residual_scale(self, channel: str):
