@@ -23,9 +23,9 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
@@ -54,7 +54,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       pedestal_model_output.PedestalModelOutput,
@@ -67,7 +67,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
   ) -> tuple[
@@ -81,7 +81,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
@@ -102,7 +102,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       pedestal_model_output.IBCPedestalModelOutput,
@@ -144,18 +144,18 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
     bc_multiplier = runtime_params.pedestal.initial_L_mode_bc_multiplier
     T_i_ped_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.T_i.value[ped_top_idx],
-        bc_multiplier * core_profiles.T_i.face_value()[-1],
+        core_profiles.kinetic.T_i.value[ped_top_idx],
+        bc_multiplier * core_profiles.kinetic.T_i.face_value()[-1],
     )
     T_e_ped_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.T_e.value[ped_top_idx],
-        bc_multiplier * core_profiles.T_e.face_value()[-1],
+        core_profiles.kinetic.T_e.value[ped_top_idx],
+        bc_multiplier * core_profiles.kinetic.T_e.face_value()[-1],
     )
     n_e_ped_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.n_e.value[ped_top_idx],
-        bc_multiplier * core_profiles.n_e.face_value()[-1],
+        core_profiles.kinetic.n_e.value[ped_top_idx],
+        bc_multiplier * core_profiles.kinetic.n_e.face_value()[-1],
     )
     pedestal_state = pedestal_state_lib.IBCPedestalState(
         structure=structure_state,
@@ -186,7 +186,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
   ) -> tuple[
@@ -242,7 +242,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
@@ -307,7 +307,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       pedestal_model_output.AdaptiveTransportPedestalModelOutput,
@@ -366,7 +366,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
   ) -> tuple[
@@ -428,7 +428,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
@@ -463,7 +463,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
@@ -526,7 +526,7 @@ def _update_ibc_pedestal_state(
     pedestal_state: pedestal_state_lib.IBCPedestalState,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
     trigger_l_to_h: array_typing.BoolScalar,
     trigger_h_to_l: array_typing.BoolScalar,
 ) -> pedestal_state_lib.IBCPedestalState:
@@ -642,17 +642,17 @@ def _update_ibc_pedestal_state(
   )
   new_T_i_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_i.value[ped_top_idx],
+      core_profiles.kinetic.T_i.value[ped_top_idx],
       pedestal_state.T_i_ped_L_mode,
   )
   new_T_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_e.value[ped_top_idx],
+      core_profiles.kinetic.T_e.value[ped_top_idx],
       pedestal_state.T_e_ped_L_mode,
   )
   new_n_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.n_e.value[ped_top_idx],
+      core_profiles.kinetic.n_e.value[ped_top_idx],
       pedestal_state.n_e_ped_L_mode,
   )
 

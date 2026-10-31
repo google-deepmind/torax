@@ -331,17 +331,9 @@ are inherited automatically.
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.CoreProfiles,
-          calculated_source_profiles: sources.SourceProfiles | None,
-          conductivity,
+          core_profiles: torax.SolverProfiles,
           source_state: sources.SourceState,
-          psidot: jnp.ndarray | None = None,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        """Calculates model value for this custom source.
-
-        Args:
-          psidot: Loop voltage profile (unused by this source).
-        """
         # Return a SourceOutput with one profile per affected core profile,
         # plus the updated source_state.
         # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
@@ -639,13 +631,15 @@ Create a ``NeoclassicalModel`` subclass implementing
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.CoreProfiles,
+          core_profiles: torax.SolverProfiles,
+          fast_ions: tuple[Any, ...],
       ) -> tuple[
           neoclassical.Conductivity,
           neoclassical.BootstrapCurrent,
           neoclassical.PoloidalVelocity,
           neoclassical.NeoclassicalIntermediates,
       ]:
+        del core_profiles, fast_ions
         assert isinstance(
             runtime_params.neoclassical, MyNeoclassicalRuntimeParams
         )

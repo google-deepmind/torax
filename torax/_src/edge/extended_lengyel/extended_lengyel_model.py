@@ -23,8 +23,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
 from torax._src.edge import runtime_params as edge_runtime_params_lib
@@ -136,7 +136,7 @@ class ExtendedLengyelModel(base.EdgeModel):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: base.EdgeModelOutputs | None = None,
   ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
@@ -176,15 +176,15 @@ class ExtendedLengyelModel(base.EdgeModel):
     triangularity_psi95 = jnp.interp(0.95, psi_norm_face, geo.delta_face)
 
     # Extract plasma state parameters from CoreProfiles at the LCFS
-    separatrix_electron_density = jnp.asarray(core_profiles.n_e.face_value())[
-        -1
-    ]
+    separatrix_electron_density = jnp.asarray(
+        core_profiles.kinetic.n_e.face_value()
+    )[-1]
 
     # Calculate ion properties
-    n_i_sep = jnp.asarray(core_profiles.n_i.face_value())[-1]
-    n_imp_sep = jnp.asarray(core_profiles.n_impurity.face_value())[-1]
-    A_i_sep = core_profiles.A_i
-    A_imp_sep = core_profiles.A_impurity_face[-1]
+    n_i_sep = jnp.asarray(core_profiles.kinetic.n_i.face_value())[-1]
+    n_imp_sep = jnp.asarray(core_profiles.kinetic.n_impurity.face_value())[-1]
+    A_i_sep = core_profiles.ions.A_i
+    A_imp_sep = core_profiles.ions.A_impurity_face[-1]
     mean_ion_charge_state = separatrix_electron_density / (n_i_sep + n_imp_sep)
     average_ion_mass = (
         A_i_sep * n_i_sep + A_imp_sep * n_imp_sep
@@ -265,10 +265,10 @@ class ExtendedLengyelModel(base.EdgeModel):
         # Dynamic state from TORAX
         power_crossing_separatrix=power_crossing_separatrix,
         separatrix_electron_density=separatrix_electron_density,
-        main_ion_charge=core_profiles.Z_i_face[-1],
+        main_ion_charge=core_profiles.ions.Z_i_face[-1],
         mean_ion_charge_state=mean_ion_charge_state,
         magnetic_field_on_axis=geo.B_0,
-        plasma_current=core_profiles.I_p_profile_face[-1],
+        plasma_current=core_profiles.flux.I_p_profile_face[-1],
         major_radius=geo.R_major,
         minor_radius=geo.a_minor,
         elongation_psi95=elongation_psi95,
@@ -315,7 +315,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
 def _resolve_geometric_parameters(
     geo: standard_geometry.StandardGeometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
     edge_params: RuntimeParams,
     diverted: array_typing.BoolScalar,
 ) -> _ResolvedGeometricParams:
@@ -331,7 +331,7 @@ def _resolve_geometric_parameters(
     geo_flux_exp = None
   if geo.B_pol_OMP is not None:
     bpol_avg_lcfs = jnp.sqrt(
-        psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+        psi_calculations.calc_bpol_squared(geo, core_profiles.flux.psi)
     )[-1]
     geo_ratio_bpol = jnp.abs(geo.B_pol_OMP) / bpol_avg_lcfs
   else:

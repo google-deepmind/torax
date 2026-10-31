@@ -14,20 +14,21 @@
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 import chex
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink
 from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
+from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
@@ -44,7 +45,8 @@ _HEAT_SINK_SOURCE_IDS = frozenset({
 # pylint: disable=invalid-name
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ConstantFractionImpurityRadiationHeatSink(
-    impurity_radiation_heat_sink.ImpurityRadiationHeatSink
+    impurity_radiation_heat_sink.ImpurityRadiationHeatSink,
+    source_lib.FinalSource,
 ):
   """Impurity radiation heat sink with constant fraction of total power."""
 
@@ -52,11 +54,9 @@ class ConstantFractionImpurityRadiationHeatSink(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: profiles.CoreProfiles,
+      calculated_source_profiles: source_profiles_lib.SourceProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles_lib.SourceOutput, source_state_lib.SourceState]:
     """Calculates constant fraction impurity radiation heat sink profile.
 
@@ -67,25 +67,16 @@ class ConstantFractionImpurityRadiationHeatSink(
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del core_profiles, conductivity, psidot
+    del core_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
-
-    if calculated_source_profiles is None:
-      raise ValueError(
-          'calculated_source_profiles is a required argument for'
-          ' ImpurityRadiationConstantFraction._get_model_value. This can occur'
-          ' if this source function is used in an explicit source.'
-      )
 
     # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
     # sources_psi, but only summing over heating *input* sources
@@ -133,6 +124,15 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
   fraction_P_heating: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
+
+  @pydantic.model_validator(mode='after')
+  def _validate_not_explicit(self) -> Self:
+    if self.is_explicit:
+      raise ValueError(
+          f'{type(self).__name__} cannot be configured with is_explicit=True'
+          ' because it depends on source profiles calculated within a step.'
+      )
+    return self
 
   def build_runtime_params(
       self,

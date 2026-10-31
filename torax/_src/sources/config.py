@@ -32,6 +32,7 @@ from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import runtime_params
+from torax._src.sources import source as source_lib
 from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
@@ -181,15 +182,18 @@ class SourcesConfig(torax_pydantic.ConfigBase):
 
   def build_models(self) -> source_models.SourceModels:
     """Builds and returns a container with instantiated source model objects."""
-    standard_sources = {
-        k: v.build_source()
-        for k, v in self.source_model_config.items()
-        if k != 'ei_exchange'
-    }
+    standard_sources: dict[str, source_lib.SourceBase] = {}
+    for k, v in self.source_model_config.items():
+      if k != 'ei_exchange':
+        src = v.build_source()
+        assert isinstance(src, source_lib.SourceBase)
+        standard_sources[k] = src
     # Qei is a special source that is not in standard_sources.
     # It has its own attribute in SourceModels.
+    qei_src = self.ei_exchange.build_source()
+    assert isinstance(qei_src, qei_source_lib.QeiSource)
     return source_models.SourceModels(
-        qei_source=self.ei_exchange.build_source(),
+        qei_source=qei_src,
         standard_sources=immutabledict.immutabledict(standard_sources),
     )
 

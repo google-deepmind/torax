@@ -16,9 +16,9 @@
 
 import abc
 import dataclasses
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model.structure import pedestal_structure
@@ -33,7 +33,7 @@ class SaturationModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       pedestal_output: pedestal_structure.PedestalStructure,
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates the transport increase multipliers.

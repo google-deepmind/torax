@@ -30,9 +30,9 @@ import jaxopt
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src import tridiagonal
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -310,7 +310,7 @@ def theta_method_block_residual(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    solver_state_t_plus_dt: state.SolverState,
+    solver_state_t_plus_dt: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
@@ -401,7 +401,7 @@ def theta_method_block_loss(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    solver_state_t_plus_dt: state.SolverState,
+    solver_state_t_plus_dt: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
@@ -461,7 +461,7 @@ def jaxopt_solver(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
-    solver_state_t_plus_dt: state.SolverState,
+    solver_state_t_plus_dt: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,

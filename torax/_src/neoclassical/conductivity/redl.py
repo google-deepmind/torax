@@ -25,7 +25,8 @@ from typing import Annotated, Literal
 
 import jax
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base
@@ -48,16 +49,16 @@ class RedlModel(base.ConductivityModel):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> state.Conductivity:
+  ) -> profiles.Conductivity:
     """Calculates conductivity using the Redl model."""
     del geometry
     return _calculate_conductivity(
         conductivity_multiplier=runtime_params.conductivity_multiplier,
         neoclassical_correction=runtime_params.neoclassical_correction,
-        Z_eff_face=core_profiles.Z_eff_face,
-        T_e=core_profiles.T_e,
+        Z_eff_face=core_profiles.ions.Z_eff_face,
+        T_e=core_profiles.kinetic.T_e,
         f_trap=neoclassical_intermediates.f_trap,
         log_lambda_ei=neoclassical_intermediates.log_lambda_ei,
         nu_e_star=neoclassical_intermediates.nu_e_star,
@@ -89,7 +90,7 @@ def _calculate_conductivity(
     f_trap: array_typing.FloatVectorFace,
     log_lambda_ei: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
-) -> state.Conductivity:
+) -> profiles.Conductivity:
   """Calculates sigma and sigma_face using the Redl model."""
   # pylint: disable=invalid-name
 
@@ -110,7 +111,7 @@ def _calculate_conductivity(
     )
   sigma_cell = geometry_lib.face_to_cell(sigma_face)
 
-  return state.Conductivity(
+  return profiles.Conductivity(
       sigma=sigma_cell,
       sigma_face=sigma_face,
   )

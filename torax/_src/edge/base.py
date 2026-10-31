@@ -23,9 +23,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -179,7 +179,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> EdgeModelOutputs:
@@ -205,7 +205,7 @@ class CombinedEdgeModel(EdgeModel):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> CombinedEdgeOutputs:

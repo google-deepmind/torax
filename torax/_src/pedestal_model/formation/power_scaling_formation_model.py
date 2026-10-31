@@ -20,8 +20,8 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
@@ -122,7 +122,7 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
   ) -> PowerScalingFormationState:
     """Returns the initial PowerScalingFormationState for this model."""
     assert isinstance(
@@ -147,7 +147,7 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       formation_state: pedestal_state_lib.FormationState,
   ) -> PowerScalingFormationState:
     """Updates PowerScalingFormationState for the current timestep."""
@@ -203,7 +203,7 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
       formation_state: PowerScalingFormationState,
   ) -> tuple[jax.Array, jax.Array]:
@@ -230,7 +230,7 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       formation_state: pedestal_state_lib.FormationState,
   ) -> tuple[
@@ -265,7 +265,7 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar

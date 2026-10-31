@@ -25,6 +25,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import (
     internal_boundary_conditions as internal_boundary_conditions_lib,
@@ -78,7 +79,7 @@ def _pedestal_cell_mask(
 def _tanh_internal_boundary_conditions(
     structure: pedestal_structure.PedestalStructure,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
   """Compute mtanh-shaped internal boundary conditions.
 
@@ -120,9 +121,9 @@ def _tanh_internal_boundary_conditions(
   psi_mid = 1.0 - delta / 2.0
 
   # Separatrix values from the rightmost face of core_profiles.
-  T_i_sep = core_profiles.T_i.right_face_value
-  T_e_sep = core_profiles.T_e.right_face_value
-  n_e_sep = core_profiles.n_e.right_face_value
+  T_i_sep = core_profiles.kinetic.T_i.right_face_value
+  T_e_sep = core_profiles.kinetic.T_e.right_face_value
+  n_e_sep = core_profiles.kinetic.n_e.right_face_value
 
   # A pedestal top at or beyond the LCFS means no pedestal: Δ collapses to eps
   # and would otherwise pin the last cell to a zero-width step at ~q_top.
@@ -231,7 +232,7 @@ class IBCPedestalModelOutput(PedestalModelOutput):
   def to_internal_boundary_conditions(
       self,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
+      core_profiles: profiles.CoreProfiles | None = None,
       pedestal_profile_form: pedestal_runtime_params_lib.PedestalProfileForm = (
           pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
       ),

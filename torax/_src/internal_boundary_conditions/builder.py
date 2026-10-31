@@ -15,8 +15,8 @@
 """Builder for active simulation internal boundary conditions."""
 
 import jax
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import (
@@ -33,7 +33,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 def build_internal_boundary_conditions(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     internal_boundary_condition_model: (
         base_model.InternalBoundaryConditionModel
