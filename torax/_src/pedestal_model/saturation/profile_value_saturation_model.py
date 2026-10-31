@@ -51,10 +51,10 @@ class ProfileValueSaturationModel(base.SaturationModel):
     rho_norm_face_ped_top_idx = jnp.argmin(
         jnp.abs(geo.rho_face_norm - pedestal_output.rho_norm_ped_top)
     )
-    current_T_e_ped_top = core_profiles.T_e.face_value()[
+    current_T_e_ped_top = core_profiles.kinetic.T_e.face_value()[
         rho_norm_face_ped_top_idx
     ]
-    current_T_i_ped_top = core_profiles.T_i.face_value()[
+    current_T_i_ped_top = core_profiles.kinetic.T_i.face_value()[
         rho_norm_face_ped_top_idx
     ]
 
