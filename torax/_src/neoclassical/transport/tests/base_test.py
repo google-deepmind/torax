@@ -63,7 +63,7 @@ class NeoclassicalTransportTest(absltest.TestCase):
         torax_config.neoclassical.transport.build_runtime_params()
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+        geo, core_profiles, fast_ions=()
     )
     neoclassical_transport_coeffs = neoclassical_transport_model(
         transport_params, geo, core_profiles, neoclassical_intermediates

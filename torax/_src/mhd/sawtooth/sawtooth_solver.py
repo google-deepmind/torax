@@ -24,6 +24,7 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
@@ -46,7 +47,7 @@ class SawtoothSolver(solver.Solver):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      solver_state_t_plus_dt: solver_state_lib.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -113,15 +114,17 @@ class SawtoothSolver(solver.Solver):
       # assume that for the short sawtooth time we can use the psidot from the
       # beginning of the step interval. This updates the bulk values. Later, the
       # boundary conditions are also updated at time t_plus_dt when
-      # using `updaters.update_all_core_profiles_after_step`.
+      # post-step physics evaluation is performed via physics_pipeline.
       evolved_psi_redistributed_value = (
-          redistributed_core_profiles.psi.value
+          redistributed_core_profiles.flux.psi.value
           + core_profiles_t.psidot.value
           * runtime_params_t.numerics.current_diffusion_time_reduction_factor
           * dt
       )
-      redistributed_solver_state = state.SolverState.from_core_profiles(
-          redistributed_core_profiles
+      redistributed_solver_state = (
+          solver_state_lib.SolverState.from_core_profiles(
+              redistributed_core_profiles
+          )
       )
       evolved_solver_state = dataclasses.replace(
           redistributed_solver_state,
@@ -147,13 +150,17 @@ class SawtoothSolver(solver.Solver):
           solver_numeric_outputs_post_step,
       )
 
+    solver_state_t = solver_state_lib.SolverState.from_core_profiles(
+        core_profiles_t
+    )
+
     # Return redistributed state attributes if triggered, otherwise return
     # unchanged state attributes.
     return jax.lax.cond(
         trigger_sawtooth,
         _redistribute_state,
         lambda: (
-            tuple([getattr(core_profiles_t, name) for name in evolving_names]),
+            tuple([getattr(solver_state_t, name) for name in evolving_names]),
             state.SolverNumericOutputs(
                 sawtooth_crash=False,
                 solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),

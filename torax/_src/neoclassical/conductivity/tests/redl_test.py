@@ -11,19 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest import mock
+
+import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.conductivity import redl
 from torax._src.neoclassical.conductivity import sauter
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import redl as redl_formulas
+from torax._src.test_utils import core_profile_helpers
 
 
 class RedlConductivityTest(parameterized.TestCase):
@@ -34,36 +35,51 @@ class RedlConductivityTest(parameterized.TestCase):
     self.geo = circular_geometry.CircularConfig(
         n_rho=self.n_rho
     ).build_geometry()
-    self.core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        T_i=cell_variable.CellVariable(
-            value=jnp.linspace(2.0, 0.5, self.n_rho),
-            face_centers=self.geo.rho_face_norm,
+    base = core_profile_helpers.make_zero_core_profiles(self.geo)
+    self.core_profiles = dataclasses.replace(
+        base,
+        kinetic=dataclasses.replace(
+            base.kinetic,
+            T_i=cell_variable.CellVariable(
+                value=jnp.linspace(2.0, 0.5, self.n_rho),
+                face_centers=self.geo.rho_face_norm,
+            ),
+            T_e=cell_variable.CellVariable(
+                value=jnp.linspace(2.0, 0.5, self.n_rho),
+                face_centers=self.geo.rho_face_norm,
+            ),
+            n_e=cell_variable.CellVariable(
+                value=jnp.linspace(1e20, 0.5e20, self.n_rho),
+                face_centers=self.geo.rho_face_norm,
+            ),
+            n_i=cell_variable.CellVariable(
+                value=jnp.linspace(0.8e20, 0.4e20, self.n_rho),
+                face_centers=self.geo.rho_face_norm,
+            ),
+            n_impurity=cell_variable.CellVariable(
+                value=jnp.linspace(0.2e20, 0.1e20, self.n_rho),
+                face_centers=self.geo.rho_face_norm,
+                right_face_constraint=0.1e20,
+                right_face_grad_constraint=None,
+            ),
         ),
-        T_e=cell_variable.CellVariable(
-            value=jnp.linspace(2.0, 0.5, self.n_rho),
-            face_centers=self.geo.rho_face_norm,
+        ions=dataclasses.replace(
+            base.ions,
+            Z_i_face=jnp.ones(self.n_rho + 1),
+            Z_eff_face=jnp.full(self.n_rho + 1, 2.0),
         ),
-        psi=cell_variable.CellVariable(
-            value=jnp.linspace(9000, 4000, self.n_rho),
-            face_centers=self.geo.rho_face_norm,
+        flux=dataclasses.replace(
+            base.flux,
+            psi=cell_variable.CellVariable(
+                value=jnp.linspace(9000, 4000, self.n_rho),
+                face_centers=self.geo.rho_face_norm,
+            ),
+            q_face=jnp.linspace(1.0, 4.0, self.n_rho + 1),
         ),
-        n_e=cell_variable.CellVariable(
-            value=jnp.linspace(1e20, 0.5e20, self.n_rho),
-            face_centers=self.geo.rho_face_norm,
-        ),
-        n_i=cell_variable.CellVariable(
-            value=jnp.linspace(0.8e20, 0.4e20, self.n_rho),
-            face_centers=self.geo.rho_face_norm,
-        ),
-        n_i_total_thermal_face=jnp.linspace(0.85e20, 0.425e20, self.n_rho + 1),
-        Z_i_face=jnp.ones(self.n_rho + 1),
-        Z_eff_face=jnp.full(self.n_rho + 1, 2.0),
-        q_face=jnp.linspace(1.0, 4.0, self.n_rho + 1),
     )
     self.neoclassical_intermediates = (
         formulas.compute_neoclassical_intermediates(
-            self.geo, self.core_profiles
+            self.geo, self.core_profiles, fast_ions=()
         )
     )
 
@@ -135,7 +151,7 @@ class RedlConductivityTest(parameterized.TestCase):
     correction = redl_formulas.calculate_L33(
         f_trap=self.neoclassical_intermediates.f_trap,
         nu_e_star=self.neoclassical_intermediates.nu_e_star,
-        Z_eff=self.core_profiles.Z_eff_face,
+        Z_eff=self.core_profiles.ions.Z_eff_face,
     )
     np.testing.assert_allclose(
         neoclassical.sigma_face, spitzer.sigma_face * correction

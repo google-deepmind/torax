@@ -18,7 +18,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
@@ -101,26 +101,26 @@ class KimModel(base.PoloidalVelocityModel):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.PoloidalVelocity:
     """Calculates poloidal velocity according to the Kim (1991) model."""
     B_tor_face = geometry.F_face / geometry.R_major_profile_face
     B_pol_squared_face = psi_calculations.calc_bpol_squared(
-        geometry, core_profiles.psi
+        geometry, core_profiles.flux.psi
     )
     B_total_squared_face = B_pol_squared_face + B_tor_face**2
 
-    v_pol = _calculate_poloidal_velocity(
-        T_i=core_profiles.T_i,
+    poloidal_velocity = _calculate_poloidal_velocity(
+        T_i=core_profiles.kinetic.T_i,
         k_neo=neoclassical_intermediates.k_neo,
-        Z_i=core_profiles.Z_i_face,
+        Z_i=core_profiles.ions.Z_i_face,
         B_tor=B_tor_face,
         B_total_squared=B_total_squared_face,
         geo=geometry,
         poloidal_velocity_multiplier=runtime_params.poloidal_velocity_multiplier,
     )
-    return base.PoloidalVelocity(v_pol=v_pol)
+    return base.PoloidalVelocity(poloidal_velocity=poloidal_velocity)
 
   def __eq__(self, other) -> bool:
     return isinstance(other, self.__class__)
