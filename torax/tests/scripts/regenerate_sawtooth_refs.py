@@ -183,10 +183,10 @@ def calculate_sawtooth_crash_references() -> Mapping[str, np.ndarray]:
 
   return {
       'post_crash_temperature': np.asarray(
-          output_state.core_profiles.T_e.value
+          output_state.core_profiles.kinetic.T_e.value
       ),
-      'post_crash_n': np.asarray(output_state.core_profiles.n_e.value),
-      'post_crash_psi': np.asarray(output_state.core_profiles.psi.value),
+      'post_crash_n': np.asarray(output_state.core_profiles.kinetic.n_e.value),
+      'post_crash_psi': np.asarray(output_state.core_profiles.flux.psi.value),
   }
 
 

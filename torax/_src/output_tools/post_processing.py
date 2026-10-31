@@ -1064,28 +1064,30 @@ def make_post_processed_outputs(
   H20 = tau_E / tauH20
 
   # Calculate q at 95% of the normalized poloidal flux
-  q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
+  q95 = psi_calculations.calc_q95(
+      psi_norm_face, sim_state.core_profiles.flux.q_face
+  )
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.T_i.value, sim_state.geometry
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_e.value, sim_state.geometry
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_e.value, sim_state.geometry
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_i.value, sim_state.geometry
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -1094,18 +1096,18 @@ def make_post_processed_outputs(
       n_e_line_avg, sim_state.core_profiles, sim_state.geometry
   )
   W_pol = psi_calculations.calc_Wpol(
-      sim_state.geometry, sim_state.core_profiles.psi
+      sim_state.geometry, sim_state.core_profiles.flux.psi
   )
   li3 = psi_calculations.calc_li3(
       sim_state.geometry.R_major,  # pyrefly: ignore[bad-argument-type]
       W_pol,
-      sim_state.core_profiles.I_p_profile_face[-1],
+      sim_state.core_profiles.flux.I_p_profile_face[-1],
   )
 
   safety_factor_fit_outputs = (
       safety_factor_fit.find_min_q_and_q_surface_intercepts(
           sim_state.geometry.rho_face_norm,
-          sim_state.core_profiles.q_face,
+          sim_state.core_profiles.flux.q_face,
       )
   )
 
@@ -1114,7 +1116,7 @@ def make_post_processed_outputs(
   # psi_calculations.calc_j_toroidal_total)
   # Core sources psi are all <j.B>/B0
   j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
-      sim_state.core_profiles.j_toroidal_total,
+      sim_state.core_profiles.flux.j_toroidal_total,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -1198,9 +1200,9 @@ def make_post_processed_outputs(
   )
 
   rotation_output = rotation.calculate_rotation(
-      psi=sim_state.core_profiles.psi,
-      n_i=sim_state.core_profiles.n_i,
-      Z_i_face=sim_state.core_profiles.Z_i_face,
+      psi=sim_state.core_profiles.flux.psi,
+      n_i=sim_state.core_profiles.kinetic.n_i,
+      Z_i_face=sim_state.core_profiles.ions.Z_i_face,
       toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
       poloidal_velocity=sim_state.core_profiles.poloidal_velocity,
       pressure_total_i=sim_state.core_profiles.pressure_total_i,
@@ -1276,12 +1278,12 @@ def make_post_processed_outputs(
       I_non_inductive=I_non_inductive,
       f_non_inductive=math_utils.safe_divide(
           num=I_non_inductive,
-          denom=sim_state.core_profiles.I_p_profile_face[-1],
+          denom=sim_state.core_profiles.flux.I_p_profile_face[-1],
           eps=1e-7,
       ),
       f_bootstrap=math_utils.safe_divide(
           num=I_bootstrap,
-          denom=sim_state.core_profiles.I_p_profile_face[-1],
+          denom=sim_state.core_profiles.flux.I_p_profile_face[-1],
           eps=1e-7,
       ),
       beta_tor=beta_tor,
