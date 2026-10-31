@@ -144,18 +144,18 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
     bc_multiplier = runtime_params.pedestal.initial_L_mode_bc_multiplier
     T_i_ped_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.T_i.value[ped_top_idx],
-        bc_multiplier * core_profiles.T_i.face_value()[-1],
+        core_profiles.kinetic.T_i.value[ped_top_idx],
+        bc_multiplier * core_profiles.kinetic.T_i.face_value()[-1],
     )
     T_e_ped_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.T_e.value[ped_top_idx],
-        bc_multiplier * core_profiles.T_e.face_value()[-1],
+        core_profiles.kinetic.T_e.value[ped_top_idx],
+        bc_multiplier * core_profiles.kinetic.T_e.face_value()[-1],
     )
     n_e_ped_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.n_e.value[ped_top_idx],
-        bc_multiplier * core_profiles.n_e.face_value()[-1],
+        core_profiles.kinetic.n_e.value[ped_top_idx],
+        bc_multiplier * core_profiles.kinetic.n_e.face_value()[-1],
     )
     pedestal_state = pedestal_state_lib.IBCPedestalState(
         structure=structure_state,
@@ -642,17 +642,17 @@ def _update_ibc_pedestal_state(
   )
   new_T_i_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_i.value[ped_top_idx],
+      core_profiles.kinetic.T_i.value[ped_top_idx],
       pedestal_state.T_i_ped_L_mode,
   )
   new_T_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_e.value[ped_top_idx],
+      core_profiles.kinetic.T_e.value[ped_top_idx],
       pedestal_state.T_e_ped_L_mode,
   )
   new_n_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.n_e.value[ped_top_idx],
+      core_profiles.kinetic.n_e.value[ped_top_idx],
       pedestal_state.n_e_ped_L_mode,
   )
 

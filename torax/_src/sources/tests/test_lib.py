@@ -15,12 +15,14 @@
 """Utilities to help with testing sources."""
 
 from collections.abc import Mapping
+import dataclasses
 from typing import Any, ClassVar, Type
 
 from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
@@ -45,6 +47,7 @@ class SourceTestCase(parameterized.TestCase):
   source_name: ClassVar[str]
   source_config_class: ClassVar[Type[base.SourceConfigBase]]
   needs_source_models: ClassVar[bool] = False
+  can_be_explicit: ClassVar[bool] = True
   model_name: ClassVar[str | None] = None
   extra_source_config_kwargs: ClassVar[Mapping[str, Any]] = {}
 
@@ -54,6 +57,7 @@ class SourceTestCase(parameterized.TestCase):
     self._model_name = self.model_name
     self._source_config_class = self.source_config_class
     self._needs_source_models = self.needs_source_models
+    self._can_be_explicit = self.can_be_explicit
 
   def test_build_runtime_params(self):
     source = self._source_config_class.from_dict(
@@ -79,6 +83,14 @@ class SourceTestCase(parameterized.TestCase):
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
     """Tests that the runtime params builds runtime params."""
+    if is_explicit and not self._can_be_explicit:
+      with self.assertRaises(pydantic.ValidationError):
+        self._source_config_class.from_dict({
+            'mode': mode,
+            'is_explicit': is_explicit,
+            **self.extra_source_config_kwargs,
+        })
+      return
     source_config = self._source_config_class.from_dict({
         'mode': mode,
         'is_explicit': is_explicit,
@@ -128,21 +140,33 @@ class SingleProfileSourceTestCase(SourceTestCase):
               runtime_params, geo, core_profiles
           )
       )
-      psidot = core_profiles.psidot.value
+      core_profiles = dataclasses.replace(
+          core_profiles,
+          conductivity=conductivity,
+      )
     else:
       calculated_source_profiles = None
-      conductivity = None
-      psidot = None
     source = source_models.standard_sources[self._source_name]
-    output, _ = source.get_value(
-        runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
-        conductivity=conductivity,
-        source_state=source.initial_state(runtime_params),
-        psidot=psidot,
-    )
+    if isinstance(source, source_lib.FinalSource):
+      assert calculated_source_profiles is not None
+      output, _ = source.get_value(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          calculated_source_profiles=calculated_source_profiles,
+          source_state=source.initial_state(runtime_params),
+      )
+    elif isinstance(
+        source, (source_lib.Source, source_lib.SourceUsingCoreProfiles)
+    ):
+      output, _ = source.get_value(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_state=source.initial_state(runtime_params),
+      )
+    else:
+      raise TypeError(f'Unsupported source type: {type(source)}')
     value = output.profiles[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
@@ -173,8 +197,6 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
     value = output.profiles

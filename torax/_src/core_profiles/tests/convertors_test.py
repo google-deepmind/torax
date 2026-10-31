@@ -21,6 +21,9 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import flux_profiles
+from torax._src.core_profiles import ion_composition
+from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 
@@ -64,14 +67,14 @@ class ConvertersTest(parameterized.TestCase):
     )
 
     self.base_core_profiles = state.CoreProfiles(
-        kinetic=state.KineticProfiles(
+        kinetic=kinetic_profiles.KineticProfiles(
             T_i=T_i,
             T_e=T_e,
             n_e=n_e,
             n_i=mock.ANY,
             n_impurity=mock.ANY,
         ),
-        ions=state.IonComposition(
+        ions=ion_composition.IonComposition(
             impurity_fractions=mock.ANY,
             main_ion_fractions=mock.ANY,
             Z_i=mock.ANY,
@@ -86,7 +89,7 @@ class ConvertersTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        flux=state.FluxProfiles(
+        flux=flux_profiles.FluxProfiles(
             psi=psi,
             q_face=mock.ANY,
             s_face=mock.ANY,

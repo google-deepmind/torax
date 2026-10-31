@@ -113,9 +113,9 @@ class SawtoothSolver(solver.Solver):
       # assume that for the short sawtooth time we can use the psidot from the
       # beginning of the step interval. This updates the bulk values. Later, the
       # boundary conditions are also updated at time t_plus_dt when
-      # using `updaters.update_all_core_profiles_after_step`.
+      # post-step physics evaluation is performed via physics_pipeline.
       evolved_psi_redistributed_value = (
-          redistributed_core_profiles.psi.value
+          redistributed_core_profiles.flux.psi.value
           + core_profiles_t.psidot.value
           * runtime_params_t.numerics.current_diffusion_time_reduction_factor
           * dt
@@ -147,13 +147,15 @@ class SawtoothSolver(solver.Solver):
           solver_numeric_outputs_post_step,
       )
 
+    solver_state_t = state.SolverState.from_core_profiles(core_profiles_t)
+
     # Return redistributed state attributes if triggered, otherwise return
     # unchanged state attributes.
     return jax.lax.cond(
         trigger_sawtooth,
         _redistribute_state,
         lambda: (
-            tuple([getattr(core_profiles_t, name) for name in evolving_names]),
+            tuple([getattr(solver_state_t, name) for name in evolving_names]),
             state.SolverNumericOutputs(
                 sawtooth_crash=False,
                 solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
