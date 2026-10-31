@@ -33,8 +33,446 @@ from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
-
 # pylint: disable=invalid-name
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class Conductivity:
+  """Values returned by a conductivity model."""
+
+  sigma: array_typing.FloatVectorCell
+  sigma_face: array_typing.FloatVectorFace
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> Self:
+    """Returns a Conductivity with all zero profiles."""
+    return cls(
+        sigma=jnp.zeros_like(geo.rho),
+        sigma_face=jnp.zeros_like(geo.rho_face),
+    )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
+class KineticProfiles:
+  """Kinetic profiles.
+
+  Attributes:
+    T_i: Ion temperature [keV].
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
+    n_i: Main ion density [m^-3].
+    n_impurity: Impurity density of bundled impurity [m^-3].
+  """
+
+  T_i: cell_variable.CellVariable
+  T_e: cell_variable.CellVariable
+  n_e: cell_variable.CellVariable
+  n_i: cell_variable.CellVariable
+  n_impurity: cell_variable.CellVariable
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
+class IonComposition:
+  """Ion composition and charge state information.
+
+  Ion density profiles (`n_i`, `n_impurity`) live on `KineticProfiles`, whereas
+  `IonComposition` holds species fractions, atomic masses, and charge states.
+  `Z_i`, `Z_impurity`, and `Z_eff` hold the plasma-level and species-effective
+  charges used across transport, resistivity, and MHD, while
+  `charge_state_info` holds detailed per-impurity coronal charge-state
+  distributions.
+
+  Attributes:
+    impurity_fractions: Fractional abundances of individual impurity species.
+    main_ion_fractions: Fractional abundances of individual main ion species.
+    Z_i: Main ion charge on cell grid [dimensionless].
+    Z_i_face: Main ion charge on face grid [dimensionless].
+    Z_impurity: Impurity charge of bundled impurity on cell grid
+      [dimensionless].
+    Z_impurity_face: Impurity charge of bundled impurity on face grid
+      [dimensionless].
+    A_i: Main ion mass [amu].
+    A_impurity: Impurity mass on cell grid [amu].
+    A_impurity_face: Impurity mass on face grid [amu].
+    Z_eff: Effective charge on cell grid [dimensionless].
+    Z_eff_face: Effective charge on face grid [dimensionless].
+    charge_state_info: Container with averaged and per-species ion charge state
+      information on cell grid.
+    charge_state_info_face: Container with averaged and per-species ion charge
+      state information on face grid.
+  """
+
+  impurity_fractions: Mapping[str, array_typing.FloatVector]
+  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
+  Z_i: array_typing.FloatVectorCell
+  Z_i_face: array_typing.FloatVectorFace
+  Z_impurity: array_typing.FloatVectorCell
+  Z_impurity_face: array_typing.FloatVectorFace
+  A_i: array_typing.FloatScalar
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
+  Z_eff: array_typing.FloatVectorCell
+  Z_eff_face: array_typing.FloatVectorFace
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
+class FluxProfiles:
+  """Magnetic flux and current profiles.
+
+  Attributes:
+    psi: Poloidal flux [Wb].
+    q_face: Safety factor on face grid.
+    s_face: Magnetic shear on face grid.
+    j_toroidal_total: Total current density on cell grid [A/m^2].
+    j_toroidal_total_face: Total current density on face grid [A/m^2].
+    I_p_profile_face: Plasma current profile on face grid [A].
+    v_loop_lcfs: Loop voltage at LCFS [V].
+  """
+
+  psi: cell_variable.CellVariable
+  q_face: array_typing.FloatVectorFace
+  s_face: array_typing.FloatVectorFace
+  j_toroidal_total: array_typing.FloatVectorCell
+  j_toroidal_total_face: array_typing.FloatVectorFace
+  I_p_profile_face: array_typing.FloatVectorFace
+  v_loop_lcfs: array_typing.FloatScalar
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
+class BaseCoreProfiles:
+  """Core plasma profiles derived directly from SolverState.
+
+  Contains the profiles computed algebraically from `SolverState` (along with
+  runtime parameters and geometry), without depending on other TORAX physics
+  models or profiles (such as sources, neoclassical, pedestal, or transport).
+
+  Attributes:
+    kinetic: Kinetic profiles (temperatures and densities).
+    ions: Ion composition and charge state profiles.
+    flux: Magnetic flux, safety factor, and current profiles.
+    toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+  """
+
+  kinetic: KineticProfiles
+  ions: IonComposition
+  flux: FluxProfiles
+  toroidal_angular_velocity: cell_variable.CellVariable
+
+  @functools.cached_property
+  def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
+    """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
+    return self.ions.Z_impurity / self.ions.charge_state_info.Z_avg
+
+  @functools.cached_property
+  def impurity_density_scaling_face(self) -> array_typing.FloatVectorFace:
+    """Scaling factor for impurity density on the face grid."""
+    return self.ions.Z_impurity_face / self.ions.charge_state_info_face.Z_avg
+
+  def get_species_concentration(
+      self,
+      species: str,
+  ) -> array_typing.FloatVectorCell:
+    """Extracts species fractional concentration relative to electron density.
+
+    Args:
+      species: Symbol of the ion species (e.g., 'He3', 'D', 'T', 'Ne').
+
+    Returns:
+      Species fractional concentration relative to electron density (n_s / n_e).
+
+    Raises:
+      ValueError: If species is not found in main_ion_fractions or
+        impurity_fractions.
+    """
+    if species in self.ions.main_ion_fractions:
+      fraction = self.ions.main_ion_fractions[species]
+      return jnp.divide(
+          self.kinetic.n_i.value * fraction, self.kinetic.n_e.value
+      )
+
+    if species in self.ions.impurity_fractions:
+      fraction = self.ions.impurity_fractions[species]
+      n_imp_species = (
+          fraction
+          * self.kinetic.n_impurity.value
+          * self.impurity_density_scaling
+      )
+      return jnp.divide(n_imp_species, self.kinetic.n_e.value)
+
+    raise ValueError(
+        f'Species {species} not found.'
+        f' Available main ions: {tuple(self.ions.main_ion_fractions.keys())},'
+        f' impurities: {tuple(self.ions.impurity_fractions.keys())}'
+    )
+
+  @functools.cached_property
+  def psi_norm(self) -> array_typing.FloatVectorCell:
+    """Normalized poloidal flux on the cell grid."""
+    psi_face = self.flux.psi.face_value()
+    return (self.flux.psi.value - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
+  @functools.cached_property
+  def psi_norm_face(self) -> array_typing.FloatVectorFace:
+    """Normalized poloidal flux on the face grid."""
+    psi_face = self.flux.psi.face_value()
+    return (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
+  @functools.cached_property
+  def pressure_thermal_e(self) -> cell_variable.CellVariable:
+    """Electron thermal pressure [Pa]."""
+    right_face_constraint = (
+        self.kinetic.n_e.get_right_bc()
+        * self.kinetic.T_e.get_right_bc()
+        * constants.CONSTANTS.keV_to_J
+    )
+    return cell_variable.CellVariable(
+        value=(
+            self.kinetic.n_e.value
+            * self.kinetic.T_e.value
+            * constants.CONSTANTS.keV_to_J
+        ),
+        face_centers=self.kinetic.n_e.face_centers,
+        right_face_constraint=right_face_constraint,
+        right_face_grad_constraint=None,
+    )
+
+  @jax.jit
+  def quasineutrality_satisfied(self) -> jax.Array:
+    """Checks if quasineutrality is satisfied."""
+    return jnp.allclose(
+        self.kinetic.n_i.value * self.ions.Z_i
+        + self.kinetic.n_impurity.value * self.ions.Z_impurity,
+        self.kinetic.n_e.value,
+    )
+
+  @jax.jit
+  def negative_temperature_or_density(self) -> jax.Array:
+    """Checks if any temperature or density is negative."""
+    profiles_to_check = (
+        self.kinetic.T_i,
+        self.kinetic.T_e,
+        self.kinetic.n_e,
+        self.kinetic.n_i,
+        self.kinetic.n_impurity,
+        self.ions.impurity_fractions,
+    )
+    # Check if any profile is less than -eps
+    # (allowing for numerical precision errors).
+    leaves: list[jax.Array] = jax.tree.leaves(profiles_to_check)
+    return jnp.any(
+        jnp.stack([
+            jnp.any(jnp.less(x, -float(constants.CONSTANTS.eps)))
+            for x in leaves
+        ])
+    )
+
+  @jax.jit
+  def below_minimum_temperature(self, T_min_eV: float) -> jax.Array:
+    """Return True if T_e or T_i is below the minimum temperature threshold."""
+    # Convert eV -> keV since internal storage is keV.
+    T_min_keV = T_min_eV / 1000.0
+
+    is_low_te = jnp.any(self.kinetic.T_e.value < T_min_keV)
+    is_low_ti = jnp.any(self.kinetic.T_i.value < T_min_keV)
+
+    return is_low_te | is_low_ti
+
+  # Temporary compatibility properties.
+  @property
+  def T_i(self) -> cell_variable.CellVariable:
+    """Returns ion temperature."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.kinetic.T_i
+
+  @property
+  def T_e(self) -> cell_variable.CellVariable:
+    """Returns electron temperature."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.kinetic.T_e
+
+  @property
+  def n_e(self) -> cell_variable.CellVariable:
+    """Returns electron density."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.kinetic.n_e
+
+  @property
+  def n_i(self) -> cell_variable.CellVariable:
+    """Returns ion density."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.kinetic.n_i
+
+  @property
+  def n_impurity(self) -> cell_variable.CellVariable:
+    """Returns impurity density."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.kinetic.n_impurity
+
+  @property
+  def impurity_fractions(self) -> Mapping[str, array_typing.FloatVector]:
+    """Returns impurity fractions mapping."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.impurity_fractions
+
+  @property
+  def main_ion_fractions(self) -> Mapping[str, array_typing.FloatScalar]:
+    """Returns main ion fractions mapping."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.main_ion_fractions
+
+  @property
+  def Z_i(self) -> array_typing.FloatVectorCell:
+    """Returns main ion charge state profile on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.Z_i
+
+  @property
+  def Z_i_face(self) -> array_typing.FloatVectorFace:
+    """Returns main ion charge state profile on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.Z_i_face
+
+  @property
+  def Z_impurity(self) -> array_typing.FloatVectorCell:
+    """Returns impurity charge state profile on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.Z_impurity
+
+  @property
+  def Z_impurity_face(self) -> array_typing.FloatVectorFace:
+    """Returns impurity charge state profile on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.Z_impurity_face
+
+  @property
+  def A_i(self) -> array_typing.FloatScalar:
+    """Returns main ion mass number."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.A_i
+
+  @property
+  def A_impurity(self) -> array_typing.FloatVectorCell:
+    """Returns impurity mass number profile on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.A_impurity
+
+  @property
+  def A_impurity_face(self) -> array_typing.FloatVectorFace:
+    """Returns impurity mass number profile on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.A_impurity_face
+
+  @property
+  def Z_eff(self) -> array_typing.FloatVectorCell:
+    """Returns effective charge profile on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.Z_eff
+
+  @property
+  def Z_eff_face(self) -> array_typing.FloatVectorFace:
+    """Returns effective charge profile on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.Z_eff_face
+
+  @property
+  def charge_state_info(self) -> charge_states.ChargeStateInfo:
+    """Returns charge state information on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.charge_state_info
+
+  @property
+  def charge_state_info_face(self) -> charge_states.ChargeStateInfo:
+    """Returns charge state information on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.ions.charge_state_info_face
+
+  @property
+  def psi(self) -> cell_variable.CellVariable:
+    """Returns poloidal magnetic flux profile."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.psi
+
+  @property
+  def q_face(self) -> array_typing.FloatVectorFace:
+    """Returns safety factor profile on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.q_face
+
+  @property
+  def s_face(self) -> array_typing.FloatVectorFace:
+    """Returns magnetic shear profile on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.s_face
+
+  @property
+  def j_total(self) -> array_typing.FloatVectorCell:
+    """Returns total plasma current density on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.j_toroidal_total
+
+  @property
+  def j_total_face(self) -> array_typing.FloatVectorFace:
+    """Returns total plasma current density on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.j_toroidal_total_face
+
+  @property
+  def j_toroidal_total(self) -> array_typing.FloatVectorCell:
+    """Returns total toroidal plasma current density on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.j_toroidal_total
+
+  @property
+  def j_toroidal_total_face(self) -> array_typing.FloatVectorFace:
+    """Returns total toroidal plasma current density on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.j_toroidal_total_face
+
+  @property
+  def I_p_profile_face(self) -> array_typing.FloatVectorFace:
+    """Returns cumulative plasma current on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.I_p_profile_face
+
+  @property
+  def v_loop_lcfs(self) -> array_typing.FloatScalar:
+    """Returns loop voltage at the last closed flux surface."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.flux.v_loop_lcfs
 
 
 @jax.tree_util.register_dataclass
@@ -61,170 +499,58 @@ class SolverState:
   toroidal_angular_velocity: cell_variable.CellVariable
 
   @classmethod
-  def from_core_profiles(cls, core_profiles: "CoreProfiles") -> Self:
+  def from_core_profiles(cls, core_profiles: BaseCoreProfiles) -> Self:
     """Extracts the primary solvable/prescribed profiles from CoreProfiles."""
     return cls(
-        T_i=core_profiles.T_i,
-        T_e=core_profiles.T_e,
-        psi=core_profiles.psi,
-        n_e=core_profiles.n_e,
+        T_i=core_profiles.kinetic.T_i,
+        T_e=core_profiles.kinetic.T_e,
+        psi=core_profiles.flux.psi,
+        n_e=core_profiles.kinetic.n_e,
         toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
     )
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
-class CoreProfiles:
+class CoreProfiles(BaseCoreProfiles):
   """Dataclass for holding the evolving core plasma profiles.
 
-  This dataclass is inspired by the IMAS `core_profiles` IDS.
+  Extends `BaseCoreProfiles` with physics-model-derived profiles (`fast_ions`,
+  `conductivity`, `poloidal_velocity`, and `psidot`).
 
   Profiles are stored as `CellVariable` or JAX arrays. Array-based profiles
   are on either the cell or face grid; those on the face grid are denoted with a
   `_face` suffix.
 
   Attributes:
-      T_i: Ion temperature [keV].
-      T_e: Electron temperature [keV].
-      psi: Poloidal flux [Wb].
-      psidot: Time derivative of poloidal flux (loop voltage) [V].
-      n_e: Electron density [m^-3].
-      n_i: Main ion density [m^-3].
-      n_impurity: Impurity density of bundled impurity [m^-3].
-      impurity_fractions: Fractional abundances of individual impurity species.
-      main_ion_fractions: Fractional abundances of individual main ion species.
-      q_face: Safety factor.
-      s_face: Magnetic shear.
-      v_loop_lcfs: Loop voltage at LCFS (V).
-      Z_i: Main ion charge on cell grid [dimensionless].
-      Z_i_face: Main ion charge on face grid [dimensionless].
-      A_i: Main ion mass [amu]. # TODO(b/434175938): Remove in V2. Duplication
-        with new charge_state_info.
-      Z_impurity: Impurity charge of bundled impurity on cell grid
-        [dimensionless].
-      Z_impurity_face: Impurity charge of bundled impurity on face grid
-        [dimensionless].
-      Z_eff: Effective charge on cell grid [dimensionless].
-      Z_eff_face: Effective charge on face grid [dimensionless].
-      A_impurity: Impurity mass on cell grid [amu].
-      A_impurity_face: Impurity mass on face grid [amu].
-      sigma: Conductivity on cell grid [S/m].
-      sigma_face: Conductivity on face grid [S/m].
-      j_toroidal_total: Total toroidal current density on the cell grid [A/m^2].
-      j_toroidal_total_face: Total toroidal current density on face grid
-        [A/m^2].
-      I_p_profile_face: Plasma current profile on the face grid [A].
-      toroidal_angular_velocity: Toroidal angular velocity [rad/s].
-      poloidal_velocity: Neoclassical poloidal velocity [m/s].
-      charge_state_info: Container with averaged and per-species ion charge
-        state information. See `charge_states.ChargeStateInfo`. Cell grid.
-      charge_state_info_face: Container with averaged and per-species ion charge
-        state information. See `charge_states.ChargeStateInfo`. Face grid.
-      fast_ions: A tuple of `fast_ion_lib.FastIon` objects. Fast ions are
-        particles that have kinetic energy above the thermal equilibrium
-        distribution of the bulk plasma. Each `FastIon` object contains density
-        and temperature profiles as well as species and source information for a
-        population of fast ions.
+    fast_ions: A tuple of `fast_ion_lib.FastIon` objects. Fast ions are
+      particles that have kinetic energy above the thermal equilibrium
+      distribution of the bulk plasma. Each `FastIon` object contains density
+      and temperature profiles as well as species and source information for a
+      population of fast ions.
+    conductivity: Values returned by a conductivity model.
+    poloidal_velocity: Neoclassical poloidal velocity [m/s].
+    psidot: Time derivative of poloidal flux (loop voltage) [V].
   """
 
-  T_i: cell_variable.CellVariable
-  T_e: cell_variable.CellVariable
-  psi: cell_variable.CellVariable
-  psidot: cell_variable.CellVariable
-  n_e: cell_variable.CellVariable
-  n_i: cell_variable.CellVariable
-  n_impurity: cell_variable.CellVariable
-  impurity_fractions: Mapping[str, array_typing.FloatVector]
-  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
-  q_face: array_typing.FloatVectorFace
-  s_face: array_typing.FloatVectorFace
-  v_loop_lcfs: array_typing.FloatScalar
-  Z_i: array_typing.FloatVectorCell
-  Z_i_face: array_typing.FloatVectorFace
-  A_i: array_typing.FloatScalar
-  Z_impurity: array_typing.FloatVectorCell
-  Z_impurity_face: array_typing.FloatVectorFace
-  A_impurity: array_typing.FloatVectorCell
-  A_impurity_face: array_typing.FloatVectorFace
-  Z_eff: array_typing.FloatVectorCell
-  Z_eff_face: array_typing.FloatVectorFace
-  sigma: array_typing.FloatVectorCell
-  sigma_face: array_typing.FloatVectorFace
-  j_toroidal_total: array_typing.FloatVectorCell
-  j_toroidal_total_face: array_typing.FloatVectorFace
-  I_p_profile_face: array_typing.FloatVectorFace
-  toroidal_angular_velocity: cell_variable.CellVariable
-  poloidal_velocity: cell_variable.CellVariable
-  charge_state_info: charge_states.ChargeStateInfo
-  charge_state_info_face: charge_states.ChargeStateInfo
   fast_ions: tuple[fast_ion_lib.FastIon, ...]
+  conductivity: Conductivity
+  poloidal_velocity: cell_variable.CellVariable
+  psidot: cell_variable.CellVariable
 
-  @functools.cached_property
-  def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
-    """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
-    return self.Z_impurity / self.charge_state_info.Z_avg
+  @property
+  def sigma(self) -> array_typing.FloatVectorCell:
+    """Returns parallel neoclassical conductivity on cell grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.conductivity.sigma
 
-  @functools.cached_property
-  def impurity_density_scaling_face(self) -> array_typing.FloatVectorFace:
-    """Scaling factor for impurity density on face grid: n_imp_true / n_imp_eff."""
-    return self.Z_impurity_face / self.charge_state_info_face.Z_avg
-
-  def get_species_concentration(
-      self,
-      species: str,
-  ) -> array_typing.FloatVectorCell:
-    """Extracts species fractional concentration relative to electron density.
-
-    Args:
-      species: Symbol of the ion species (e.g., 'He3', 'D', 'T', 'Ne').
-
-    Returns:
-      Species fractional concentration relative to electron density (n_s / n_e).
-
-    Raises:
-      ValueError: If species is not found in main_ion_fractions or
-        impurity_fractions.
-    """
-    if species in self.main_ion_fractions:
-      fraction = self.main_ion_fractions[species]
-      return jnp.divide(self.n_i.value * fraction, self.n_e.value)
-
-    if species in self.impurity_fractions:
-      fraction = self.impurity_fractions[species]
-      n_imp_species = (
-          fraction * self.n_impurity.value * self.impurity_density_scaling
-      )
-      return jnp.divide(n_imp_species, self.n_e.value)
-
-    raise ValueError(
-        f"Species {species} not found."
-        f" Available main ions: {tuple(self.main_ion_fractions.keys())},"
-        f" impurities: {tuple(self.impurity_fractions.keys())}"
-    )
-
-  @functools.cached_property
-  def psi_norm(self) -> array_typing.FloatVectorCell:
-    """Normalized poloidal flux on the cell grid."""
-    psi_face = self.psi.face_value()
-    return (self.psi.value - psi_face[0]) / (psi_face[-1] - psi_face[0])
-
-  @functools.cached_property
-  def psi_norm_face(self) -> array_typing.FloatVectorFace:
-    """Normalized poloidal flux on the face grid."""
-    psi_face = self.psi.face_value()
-    return (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
-
-  @functools.cached_property
-  def pressure_thermal_e(self) -> cell_variable.CellVariable:
-    """Electron thermal pressure [Pa]."""
-    return cell_variable.CellVariable(
-        value=self.n_e.value * self.T_e.value * constants.CONSTANTS.keV_to_J,
-        face_centers=self.n_e.face_centers,
-        right_face_constraint=self.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        * self.T_e.right_face_constraint
-        * constants.CONSTANTS.keV_to_J,
-        right_face_grad_constraint=None,
-    )
+  @property
+  def sigma_face(self) -> array_typing.FloatVectorFace:
+    """Returns parallel neoclassical conductivity on face grid."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.conductivity.sigma_face
 
   @functools.cached_property
   def n_impurity_thermal(self) -> cell_variable.CellVariable:
@@ -235,10 +561,10 @@ class CoreProfiles:
     introduce other sources of fast ions that do not deplete thermal species
     (e.g. fusion).
     """
-    n_impurity_thermal_value = self.n_impurity.value
-    n_impurity_thermal_right = self.n_impurity.right_face_constraint
+    n_impurity_thermal_value = self.kinetic.n_impurity.value
+    n_impurity_thermal_right = self.kinetic.n_impurity.right_face_constraint
     for fast_ion in self.fast_ions:
-      if fast_ion.species in self.impurity_fractions:
+      if fast_ion.species in self.ions.impurity_fractions:
         n_impurity_thermal_value -= fast_ion.n.value
         if (
             n_impurity_thermal_right is not None
@@ -247,7 +573,7 @@ class CoreProfiles:
           n_impurity_thermal_right -= fast_ion.n.right_face_constraint
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
-        face_centers=self.n_impurity.face_centers,
+        face_centers=self.kinetic.n_impurity.face_centers,
         right_face_constraint=n_impurity_thermal_right,
         right_face_grad_constraint=None,
     )
@@ -261,7 +587,7 @@ class CoreProfiles:
     `impurity_density_scaling_face` before being summed with the main ions.
     """
     return (
-        self.n_i.face_value()
+        self.kinetic.n_i.face_value()
         + self.n_impurity_thermal.face_value()
         * self.impurity_density_scaling_face
     )
@@ -269,28 +595,36 @@ class CoreProfiles:
   @functools.cached_property
   def pressure_thermal_i(self) -> cell_variable.CellVariable:
     """Ion thermal pressure [Pa]."""
-    return cell_variable.CellVariable(
-        value=self.T_i.value
-        * constants.CONSTANTS.keV_to_J
-        * (self.n_i.value + self.n_impurity_thermal.value),
-        face_centers=self.n_i.face_centers,
-        right_face_constraint=self.T_i.right_face_constraint  # pyrefly: ignore[unsupported-operation]
+    right_face_constraint = (
+        self.kinetic.T_i.get_right_bc()
         * constants.CONSTANTS.keV_to_J
         * (
-            self.n_i.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-            + self.n_impurity_thermal.right_face_constraint
+            self.kinetic.n_i.get_right_bc()
+            + self.n_impurity_thermal.get_right_bc()
+        )
+    )
+    return cell_variable.CellVariable(
+        value=(
+            self.kinetic.T_i.value
+            * constants.CONSTANTS.keV_to_J
+            * (self.kinetic.n_i.value + self.n_impurity_thermal.value)
         ),
+        face_centers=self.kinetic.n_i.face_centers,
+        right_face_constraint=right_face_constraint,
         right_face_grad_constraint=None,
     )
 
   @functools.cached_property
   def pressure_thermal_total(self) -> cell_variable.CellVariable:
     """Total thermal pressure [Pa]."""
+    right_face_constraint = (
+        self.pressure_thermal_e.get_right_bc()
+        + self.pressure_thermal_i.get_right_bc()
+    )
     return cell_variable.CellVariable(
         value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
         face_centers=self.pressure_thermal_e.face_centers,
-        right_face_constraint=self.pressure_thermal_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        + self.pressure_thermal_i.right_face_constraint,
+        right_face_constraint=right_face_constraint,
         right_face_grad_constraint=None,
     )
 
@@ -303,7 +637,7 @@ class CoreProfiles:
     take some average energy to be T. This functionality may be extended in
     future work to include velocity distributions.
     """
-    p_fast = jnp.zeros_like(self.n_e.value)
+    p_fast = jnp.zeros_like(self.kinetic.n_e.value)
     p_fast_right = jnp.array(0.0)
     for fast_ion in self.fast_ions:
       p_fast = (
@@ -315,7 +649,7 @@ class CoreProfiles:
           or fast_ion.T.right_face_constraint is None
       ):
         raise ValueError(
-            "Both fast ion n and T must have a right_face_constraint."
+            'Both fast ion n and T must have a right_face_constraint.'
         )
       p_fast_right = (
           p_fast_right
@@ -325,7 +659,7 @@ class CoreProfiles:
       )
     return cell_variable.CellVariable(
         value=p_fast,
-        face_centers=self.n_e.face_centers,
+        face_centers=self.kinetic.n_e.face_centers,
         right_face_constraint=p_fast_right,
         right_face_grad_constraint=None,
     )
@@ -333,63 +667,30 @@ class CoreProfiles:
   @functools.cached_property
   def pressure_total_i(self) -> cell_variable.CellVariable:
     """Total ion pressure (thermal + fast) [Pa]."""
+    right_face_constraint = (
+        self.pressure_thermal_i.get_right_bc()
+        + self.pressure_fast_i.get_right_bc()
+    )
     return cell_variable.CellVariable(
         value=self.pressure_thermal_i.value + self.pressure_fast_i.value,
         face_centers=self.pressure_thermal_i.face_centers,
-        right_face_constraint=self.pressure_thermal_i.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        + self.pressure_fast_i.right_face_constraint,
+        right_face_constraint=right_face_constraint,
         right_face_grad_constraint=None,
     )
 
   @functools.cached_property
   def pressure_total(self) -> cell_variable.CellVariable:
     """Total pressure (thermal + fast) [Pa]."""
+    right_face_constraint = (
+        self.pressure_thermal_total.get_right_bc()
+        + self.pressure_fast_i.get_right_bc()
+    )
     return cell_variable.CellVariable(
         value=self.pressure_thermal_total.value + self.pressure_fast_i.value,
         face_centers=self.pressure_thermal_total.face_centers,
-        right_face_constraint=self.pressure_thermal_total.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        + self.pressure_fast_i.right_face_constraint,
+        right_face_constraint=right_face_constraint,
         right_face_grad_constraint=None,
     )
-
-  @jax.jit
-  def quasineutrality_satisfied(self) -> jax.Array:
-    """Checks if quasineutrality is satisfied."""
-    return jnp.allclose(
-        self.n_i.value * self.Z_i + self.n_impurity.value * self.Z_impurity,
-        self.n_e.value,
-    )
-
-  @jax.jit
-  def negative_temperature_or_density(self) -> jax.Array:
-    """Checks if any temperature or density is negative."""
-    profiles_to_check = (
-        self.T_i,
-        self.T_e,
-        self.n_e,
-        self.n_i,
-        self.n_impurity,
-        self.impurity_fractions,
-    )
-    # Check if any profile is less than -eps
-    # (allowing for numerical precision errors)
-    return jnp.any(
-        jnp.stack([
-            jnp.any(jnp.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
-            for x in jax.tree.leaves(profiles_to_check)
-        ])
-    )
-
-  @jax.jit
-  def below_minimum_temperature(self, T_min_eV: float) -> jax.Array:
-    """Return True if T_e or T_i is below the minimum temperature threshold."""
-    # Convert eV -> keV since internal storage is keV
-    T_min_keV = T_min_eV / 1000.0
-
-    is_low_te = jnp.any(self.T_e.value < T_min_keV)
-    is_low_ti = jnp.any(self.T_i.value < T_min_keV)
-
-    return is_low_te | is_low_ti
 
   def to_output_dict(
       self,
@@ -399,13 +700,13 @@ class CoreProfiles:
     out_dict = {}
 
     cell_vars = {
-        output_keys.T_I: self.T_i.cell_plus_boundaries(),
-        output_keys.T_E: self.T_e.cell_plus_boundaries(),
-        output_keys.PSI: self.psi.cell_plus_boundaries(),
+        output_keys.T_I: self.kinetic.T_i.cell_plus_boundaries(),
+        output_keys.T_E: self.kinetic.T_e.cell_plus_boundaries(),
+        output_keys.PSI: self.flux.psi.cell_plus_boundaries(),
         output_keys.V_LOOP: self.psidot.cell_plus_boundaries(),
-        output_keys.N_E: self.n_e.cell_plus_boundaries(),
-        output_keys.N_I: self.n_i.cell_plus_boundaries(),
-        output_keys.N_IMPURITY: self.n_impurity.cell_plus_boundaries(),
+        output_keys.N_E: self.kinetic.n_e.cell_plus_boundaries(),
+        output_keys.N_I: self.kinetic.n_i.cell_plus_boundaries(),
+        output_keys.N_IMPURITY: self.kinetic.n_impurity.cell_plus_boundaries(),
         output_keys.TOROIDAL_ANGULAR_VELOCITY: (
             self.toroidal_angular_velocity.cell_plus_boundaries()
         ),
@@ -424,23 +725,33 @@ class CoreProfiles:
         output_keys.PRESSURE_TOTAL_I: (
             self.pressure_total_i.cell_plus_boundaries()
         ),
-        output_keys.PRESSURE_TOTAL: (
-            self.pressure_total.cell_plus_boundaries()
-        ),
+        output_keys.PRESSURE_TOTAL: self.pressure_total.cell_plus_boundaries(),
     }
     for key, cell_val in cell_vars.items():
       out_dict[key] = context.pack(key, cell_val)
 
     cell_face_pairs = [
-        (output_keys.Z_I, self.Z_i, self.Z_i_face),
-        (output_keys.Z_IMPURITY, self.Z_impurity, self.Z_impurity_face),
-        (output_keys.A_IMPURITY, self.A_impurity, self.A_impurity_face),
-        (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
-        (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
+        (output_keys.Z_I, self.ions.Z_i, self.ions.Z_i_face),
+        (
+            output_keys.Z_IMPURITY,
+            self.ions.Z_impurity,
+            self.ions.Z_impurity_face,
+        ),
+        (
+            output_keys.A_IMPURITY,
+            self.ions.A_impurity,
+            self.ions.A_impurity_face,
+        ),
+        (output_keys.Z_EFF, self.ions.Z_eff, self.ions.Z_eff_face),
+        (
+            output_keys.SIGMA_PARALLEL,
+            self.conductivity.sigma,
+            self.conductivity.sigma_face,
+        ),
         (
             output_keys.J_TOROIDAL_TOTAL,
-            self.j_toroidal_total,
-            self.j_toroidal_total_face,
+            self.flux.j_toroidal_total,
+            self.flux.j_toroidal_total_face,
         ),
     ]
     for key, cell_val, face_val in cell_face_pairs:
@@ -450,26 +761,26 @@ class CoreProfiles:
       out_dict[key] = context.pack(key, extended_data)
 
     face_vars = {
-        output_keys.Q: self.q_face,
-        output_keys.MAGNETIC_SHEAR: self.s_face,
-        output_keys.I_P_PROFILE: self.I_p_profile_face,
+        output_keys.Q: self.flux.q_face,
+        output_keys.MAGNETIC_SHEAR: self.flux.s_face,
+        output_keys.I_P_PROFILE: self.flux.I_p_profile_face,
     }
     for key, face_data in face_vars.items():
       out_dict[key] = context.pack(key, face_data)
 
     scalar_vars = {
-        output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
-        output_keys.A_I: self.A_i,
-        output_keys.I_P: self.I_p_profile_face[..., -1],
+        output_keys.V_LOOP_LCFS: self.flux.v_loop_lcfs,
+        output_keys.A_I: self.ions.A_i,
+        output_keys.I_P: self.flux.I_p_profile_face[..., -1],
     }
     for key, scalar_data in scalar_vars.items():
       out_dict[key] = context.pack(key, scalar_data)
 
-    if self.main_ion_fractions:
-      main_ions = np.asarray(sorted(self.main_ion_fractions.keys()))
+    if self.ions.main_ion_fractions:
+      main_ions = np.asarray(sorted(self.ions.main_ion_fractions.keys()))
       context.register_coord(output_keys.MAIN_ION, main_ions)
       data = np.stack(
-          [self.main_ion_fractions[ion] for ion in main_ions],
+          [self.ions.main_ion_fractions[ion] for ion in main_ions],
           axis=0,
       )
       out_dict[output_keys.MAIN_ION_FRACTIONS] = (
@@ -479,7 +790,7 @@ class CoreProfiles:
       )
 
     for fi in self.fast_ions:
-      source_key = f"{fi.source}_{fi.species}"
+      source_key = f'{fi.source}_{fi.species}'
       n_key = output_keys.OutputKey(
           output_keys.n_fast_ion_key(source_key),
           units=output_keys.Units.INVERSE_CUBIC_METER,
@@ -498,13 +809,13 @@ class CoreProfiles:
   def __str__(self) -> str:
     return f"""
       CoreProfiles(
-        T_i={self.T_i},
-        T_e={self.T_e},
-        psi={self.psi},
-        n_e={self.n_e},
-        n_i={self.n_i},
-        n_impurity={self.n_impurity},
-        impurity_fractions={self.impurity_fractions},
+        T_i={self.kinetic.T_i},
+        T_e={self.kinetic.T_e},
+        psi={self.flux.psi},
+        n_e={self.kinetic.n_e},
+        n_i={self.kinetic.n_i},
+        n_impurity={self.kinetic.n_impurity},
+        impurity_fractions={self.ions.impurity_fractions},
       )
     """
 
@@ -650,7 +961,7 @@ class SimError(enum.Enum):
       case SimError.NO_ERROR:
         pass
       case _:
-        raise ValueError(f"Unknown SimError: {self}")
+        raise ValueError(f'Unknown SimError: {self}')
 
 
 class SimStatus(enum.StrEnum):
@@ -659,6 +970,6 @@ class SimStatus(enum.StrEnum):
   This indicates the state of the simulation when the output file was written.
   """
 
-  COMPLETED = "completed"  # Simulation completed successfully to t_final
-  CHECKPOINT = "checkpoint"  # Intermediate checkpoint (not yet used)
-  ERROR = "error"  # Simulation stopped due to an error condition
+  COMPLETED = 'completed'  # Simulation completed successfully to t_final
+  CHECKPOINT = 'checkpoint'  # Intermediate checkpoint (not yet used)
+  ERROR = 'error'  # Simulation stopped due to an error condition

@@ -51,7 +51,7 @@ class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> tuple[
-      conductivity_base.Conductivity,
+      state.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
       poloidal_velocity_base.PoloidalVelocity,
       neoclassical_intermediates_lib.NeoclassicalIntermediates,
@@ -89,7 +89,7 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> tuple[
-      conductivity_base.Conductivity,
+      state.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
       poloidal_velocity_base.PoloidalVelocity,
       formulas.AnalyticalNeoclassicalIntermediates,

@@ -120,16 +120,18 @@ class SawtoothSolver(solver.Solver):
           * runtime_params_t.numerics.current_diffusion_time_reduction_factor
           * dt
       )
-      evolved_core_profiles = dataclasses.replace(
-          redistributed_core_profiles,
+      redistributed_solver_state = state.SolverState.from_core_profiles(
+          redistributed_core_profiles
+      )
+      evolved_solver_state = dataclasses.replace(
+          redistributed_solver_state,
           psi=dataclasses.replace(
-              redistributed_core_profiles.psi,
+              redistributed_solver_state.psi,
               value=evolved_psi_redistributed_value,
           ),
       )
-
       x_post_step = convertors.solver_state_to_solver_x_tuple(
-          state.SolverState.from_core_profiles(evolved_core_profiles),
+          evolved_solver_state,
           evolving_names,
       )
 

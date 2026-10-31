@@ -21,6 +21,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
+from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
@@ -35,28 +36,6 @@ from torax._src.physics import psi_calculations
 _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class Ions:
-  """Helper container for holding ion attributes."""
-
-  n_i: cell_variable.CellVariable
-  n_impurity: cell_variable.CellVariable
-  impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
-  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
-  Z_i: array_typing.FloatVectorCell
-  Z_i_face: array_typing.FloatVectorFace
-  Z_impurity: array_typing.FloatVectorCell
-  Z_impurity_face: array_typing.FloatVectorFace
-  A_i: array_typing.FloatScalar
-  A_impurity: array_typing.FloatVectorCell
-  A_impurity_face: array_typing.FloatVectorFace
-  Z_eff: array_typing.FloatVectorCell
-  Z_eff_face: array_typing.FloatVectorFace
-  charge_state_info: charge_states.ChargeStateInfo
-  charge_state_info_face: charge_states.ChargeStateInfo
 
 
 def get_updated_ion_temperature(
@@ -599,7 +578,9 @@ def get_updated_ions(
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
-) -> Ions:
+) -> tuple[
+    state.IonComposition, cell_variable.CellVariable, cell_variable.CellVariable
+]:
   """Updated ion density, charge state, and mass based on state and config.
 
   Main ion and impurities are each treated as a single effective ion, but could
@@ -618,20 +599,7 @@ def get_updated_ions(
     T_e: Electron temperature profile [keV].
 
   Returns:
-    Ion container with the following attributes:
-      n_i: Ion density profile [m^-3].
-      n_impurity: Impurity density profile [m^-3].
-      Z_i: Average charge state of main ion on cell grid [dimensionless].
-        Typically just the average of the atomic numbers since these are
-        normally low Z ions and can be assumed to be fully ionized.
-      Z_i_face: Average charge state of main ion on face grid [dimensionless].
-      Z_impurity: Average charge state of impurities on cell grid
-      [dimensionless].
-      Z_impurity_face: Average charge state of impurities on face grid
-      [dimensionless].
-      A_i: Average atomic number of main ion [amu].
-      A_impurity: Average atomic number of impurities on cell grid [amu].
-      A_impurity_face: Average atomic number of impurities on face grid [amu].
+    A tuple of (ion_composition, n_i, n_impurity).
   """
 
   Z_i = charge_states.get_average_charge_state(
@@ -751,9 +719,7 @@ def get_updated_ions(
     fraction = runtime_params.plasma_composition.main_ion.fractions[symbol]
     main_ion_fractions_dict[symbol] = fraction
 
-  return Ions(
-      n_i=n_i,
-      n_impurity=n_impurity,
+  ion_composition = state.IonComposition(
       impurity_fractions=impurity_fractions_dict,
       main_ion_fractions=main_ion_fractions_dict,
       Z_i=Z_i,
@@ -768,6 +734,7 @@ def get_updated_ions(
       charge_state_info=ion_properties.charge_state_info,
       charge_state_info_face=ion_properties.charge_state_info_face,
   )
+  return ion_composition, n_i, n_impurity
 
 
 def _calculate_Z_eff(

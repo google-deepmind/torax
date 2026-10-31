@@ -103,6 +103,26 @@ class CellVariableTest(parameterized.TestCase):
           right_face_grad_constraint=jnp.array(1.0),
       )
 
+  def test_get_right_bc_returns_value(self):
+    var = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
+        face_centers=_make_face_centers(0.1, 4),
+        right_face_constraint=jnp.array(4.0),
+        right_face_grad_constraint=None,
+    )
+    np.testing.assert_allclose(var.get_right_bc(), 4.0)
+
+  def test_get_right_bc_raises_when_none(self):
+    var = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
+        face_centers=_make_face_centers(0.1, 4),
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    with self.assertRaisesRegex(
+        ValueError, 'right_face_constraint must be set'
+    ):
+      var.get_right_bc()
+
   def test_face_grad_unconstrained_no_input(self):
     var = cell_variable.CellVariable(
         value=jnp.array([1.0, 2.0, 5.0, 3.0]),

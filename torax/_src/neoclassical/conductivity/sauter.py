@@ -44,7 +44,7 @@ class SauterModel(base.ConductivityModel):
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> base.Conductivity:
+  ) -> state.Conductivity:
     """Calculates conductivity."""
     del geometry
     return _calculate_conductivity(
@@ -83,7 +83,7 @@ def _calculate_conductivity(
     f_trap: array_typing.FloatVectorFace,
     log_lambda_ei: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
-) -> base.Conductivity:
+) -> state.Conductivity:
   """Calculates sigma and sigma_face using the Sauter model."""
   # pylint: disable=invalid-name
 
@@ -105,7 +105,7 @@ def _calculate_conductivity(
 
   sigma_cell = geometry_lib.face_to_cell(sigma_face)
 
-  return base.Conductivity(
+  return state.Conductivity(
       sigma=sigma_cell,
       sigma_face=sigma_face,
   )

@@ -127,30 +127,20 @@ class SimpleRedistribution(
         runtime_params.numerics.evolve_density
         or runtime_params.numerics.evolve_electron_heat
     ):
-      ions_redistributed = getters.get_updated_ions(
+      (
+          ions_redistributed,
+          n_i_redistributed,
+          n_impurity_redistributed,
+      ) = getters.get_updated_ions(
           runtime_params,
           geo,
           n_e_redistributed,
           te_redistributed,
       )
     else:
-      ions_redistributed = getters.Ions(
-          n_i=core_profiles_t.n_i,
-          n_impurity=core_profiles_t.n_impurity,
-          impurity_fractions=core_profiles_t.impurity_fractions,
-          main_ion_fractions=core_profiles_t.main_ion_fractions,
-          Z_i=core_profiles_t.Z_i,
-          Z_i_face=core_profiles_t.Z_i_face,
-          Z_impurity=core_profiles_t.Z_impurity,
-          Z_impurity_face=core_profiles_t.Z_impurity_face,
-          A_i=core_profiles_t.A_i,
-          A_impurity=core_profiles_t.A_impurity,
-          A_impurity_face=core_profiles_t.A_impurity_face,
-          Z_eff=core_profiles_t.Z_eff,
-          Z_eff_face=core_profiles_t.Z_eff_face,
-          charge_state_info=core_profiles_t.charge_state_info,
-          charge_state_info_face=core_profiles_t.charge_state_info_face,
-      )
+      ions_redistributed = core_profiles_t.ions
+      n_i_redistributed = core_profiles_t.n_i
+      n_impurity_redistributed = core_profiles_t.n_impurity
     if runtime_params.numerics.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
@@ -159,7 +149,7 @@ class SimpleRedistribution(
           redistribution_params.flattening_factor,
           core_profiles_t.T_i,
           core_profiles_t.n_i,
-          ions_redistributed.n_i,
+          n_i_redistributed,
           geo,
       )
     else:
@@ -175,24 +165,24 @@ class SimpleRedistribution(
         geo,
     )
 
-    return dataclasses.replace(
-        core_profiles_t,
+    kinetic = state.KineticProfiles(
         T_i=ti_redistributed,
         T_e=te_redistributed,
-        psi=psi_redistributed,
         n_e=n_e_redistributed,
-        n_i=ions_redistributed.n_i,
-        n_impurity=ions_redistributed.n_impurity,
-        Z_i=ions_redistributed.Z_i,
-        Z_i_face=ions_redistributed.Z_i_face,
-        A_impurity=ions_redistributed.A_impurity,
-        A_impurity_face=ions_redistributed.A_impurity_face,
-        Z_impurity=ions_redistributed.Z_impurity,
-        Z_impurity_face=ions_redistributed.Z_impurity_face,
+        n_i=n_i_redistributed,
+        n_impurity=n_impurity_redistributed,
+    )
+    flux = dataclasses.replace(
+        core_profiles_t.flux,
+        psi=psi_redistributed,
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),
         s_face=psi_calculations.calc_s_face(geo, psi_redistributed),
-        charge_state_info=ions_redistributed.charge_state_info,
-        charge_state_info_face=ions_redistributed.charge_state_info_face,
+    )
+    return dataclasses.replace(
+        core_profiles_t,
+        kinetic=kinetic,
+        ions=ions_redistributed,
+        flux=flux,
     )
 
 

@@ -130,7 +130,11 @@ class SawtoothModelTest(parameterized.TestCase):
     initial_state = dataclasses.replace(
         self.initial_state,
         core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles, q_face=raised_q_face
+            self.initial_state.core_profiles,
+            flux=dataclasses.replace(
+                self.initial_state.core_profiles.flux,
+                q_face=raised_q_face,
+            ),
         ),
     )
     output_state, _ = self.step_fn(
@@ -163,7 +167,10 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state0,
         core_profiles=dataclasses.replace(
             self.initial_state.core_profiles,
-            q_face=self.initial_state.core_profiles.q_face,
+            flux=dataclasses.replace(
+                self.initial_state.core_profiles.flux,
+                q_face=self.initial_state.core_profiles.q_face,
+            ),
         ),
     )
 
@@ -173,7 +180,10 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state0,
         core_profiles=dataclasses.replace(
             self.initial_state.core_profiles,
-            q_face=self.initial_state.core_profiles.q_face,
+            flux=dataclasses.replace(
+                self.initial_state.core_profiles.flux,
+                q_face=self.initial_state.core_profiles.q_face,
+            ),
         ),
         solver_numeric_outputs=state.SolverNumericOutputs(
             inner_solver_iterations=np.array(0, np.int64),

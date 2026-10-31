@@ -682,6 +682,8 @@ def _mtanh_core_profiles(
             right_face_grad_constraint=None,
         ),
     )
+  core_profiles.flux = mock.MagicMock()
+  core_profiles.flux.psi = core_profiles.psi
   core_profiles.psi_norm = state.CoreProfiles.psi_norm.func(core_profiles)
   core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
       core_profiles

@@ -71,7 +71,10 @@ class InitialStatesTest(parameterized.TestCase):
     assert core_profiles.quasineutrality_satisfied()
     core_profiles = dataclasses.replace(
         core_profiles,
-        Z_i=core_profiles.Z_i * 2.0,
+        ions=dataclasses.replace(
+            core_profiles.ions,
+            Z_i=core_profiles.ions.Z_i * 2.0,
+        ),
     )
     assert not core_profiles.quasineutrality_satisfied()
 
@@ -83,18 +86,24 @@ class InitialStatesTest(parameterized.TestCase):
     with self.subTest('negative T_i triggers'):
       new_core_profiles = dataclasses.replace(
           core_profiles,
-          T_i=dataclasses.replace(
-              core_profiles.T_i,
-              value=jnp.full_like(core_profiles.T_i.value, -1.0),
+          kinetic=dataclasses.replace(
+              core_profiles.kinetic,
+              T_i=dataclasses.replace(
+                  core_profiles.kinetic.T_i,
+                  value=jnp.full_like(core_profiles.kinetic.T_i.value, -1.0),
+              ),
           ),
       )
       self.assertTrue(new_core_profiles.negative_temperature_or_density())
     with self.subTest('negative psi does not trigger'):
       new_core_profiles = dataclasses.replace(
           core_profiles,
-          psi=dataclasses.replace(
-              core_profiles.psi,
-              value=jnp.full_like(core_profiles.psi.value, -1.0),
+          flux=dataclasses.replace(
+              core_profiles.flux,
+              psi=dataclasses.replace(
+                  core_profiles.flux.psi,
+                  value=jnp.full_like(core_profiles.flux.psi.value, -1.0),
+              ),
           ),
       )
       self.assertFalse(new_core_profiles.negative_temperature_or_density())
@@ -154,8 +163,15 @@ class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
     # Create profiles with constant values across the radius
     core_profiles = dataclasses.replace(
         self.base_profiles,
-        T_e=core_profile_helpers.make_constant_core_profile(self.geo, te_val),
-        T_i=core_profile_helpers.make_constant_core_profile(self.geo, ti_val),
+        kinetic=dataclasses.replace(
+            self.base_profiles.kinetic,
+            T_e=core_profile_helpers.make_constant_core_profile(
+                self.geo, te_val
+            ),
+            T_i=core_profile_helpers.make_constant_core_profile(
+                self.geo, ti_val
+            ),
+        ),
     )
 
     result = core_profiles.below_minimum_temperature(threshold_ev)
@@ -173,8 +189,15 @@ class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
 
     core_profiles = dataclasses.replace(
         self.base_profiles,
-        T_e=dataclasses.replace(self.base_profiles.T_e, value=te_values),
-        T_i=dataclasses.replace(self.base_profiles.T_i, value=ti_values),
+        kinetic=dataclasses.replace(
+            self.base_profiles.kinetic,
+            T_e=dataclasses.replace(
+                self.base_profiles.kinetic.T_e, value=te_values
+            ),
+            T_i=dataclasses.replace(
+                self.base_profiles.kinetic.T_i, value=ti_values
+            ),
+        ),
     )
 
     self.assertTrue(core_profiles.below_minimum_temperature(threshold_ev))
@@ -343,12 +366,19 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     base_core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
         base_core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
-        n_e=core_profile_helpers.make_constant_core_profile(self.geo, 3.0e20),
-        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            self.geo, 0.25e20
+        kinetic=dataclasses.replace(
+            base_core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
+            n_e=core_profile_helpers.make_constant_core_profile(
+                self.geo, 3.0e20
+            ),
+            n_i=core_profile_helpers.make_constant_core_profile(
+                self.geo, 2.5e20
+            ),
+            n_impurity=core_profile_helpers.make_constant_core_profile(
+                self.geo, 0.25e20
+            ),
         ),
     )
 
@@ -377,7 +407,10 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         face_centers=self.geo.rho_face_norm,
         right_face_grad_constraint=jnp.array(2.0),
     )
-    core_profiles = dataclasses.replace(self.core_profiles, psi=psi)
+    core_profiles = dataclasses.replace(
+        self.core_profiles,
+        flux=dataclasses.replace(self.core_profiles.flux, psi=psi),
+    )
     np.testing.assert_allclose(
         [core_profiles.psi_norm_face[0], core_profiles.psi_norm_face[-1]],
         [0.0, 1.0],
@@ -390,14 +423,20 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     # particle density is 1.5x the bundled one.
     core_profiles = dataclasses.replace(
         base_core_profiles,
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            geo, 0.25e20
+        kinetic=dataclasses.replace(
+            base_core_profiles.kinetic,
+            n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
+            n_impurity=core_profile_helpers.make_constant_core_profile(
+                geo, 0.25e20
+            ),
         ),
-        Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
-        charge_state_info_face=dataclasses.replace(
-            base_core_profiles.charge_state_info_face,
-            Z_avg=jnp.full_like(geo.rho_face, 2.0),
+        ions=dataclasses.replace(
+            base_core_profiles.ions,
+            Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
+            charge_state_info_face=dataclasses.replace(
+                base_core_profiles.charge_state_info_face,
+                Z_avg=jnp.full_like(geo.rho_face, 2.0),
+            ),
         ),
     )
 
@@ -418,16 +457,22 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
     core_profiles = dataclasses.replace(
         base_core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            geo, 0.25e20
+        kinetic=dataclasses.replace(
+            base_core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
+            n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
+            n_impurity=core_profile_helpers.make_constant_core_profile(
+                geo, 0.25e20
+            ),
+        ),
+        ions=dataclasses.replace(
+            base_core_profiles.ions,
+            main_ion_fractions={'D': 1.0},
+            impurity_fractions={'He3': jnp.ones(10)},
         ),
         fast_ions=(fast_ion_he3,),
-        main_ion_fractions={'D': 1.0},
-        impurity_fractions={'He3': jnp.ones(10)},
     )
 
     np.testing.assert_allclose(
@@ -451,14 +496,20 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     profiles1 = core_profile_helpers.make_zero_core_profiles(geo)
     profiles1 = dataclasses.replace(
         profiles1,
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
+        kinetic=dataclasses.replace(
+            profiles1.kinetic,
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
+        ),
     )
     profiles2 = core_profile_helpers.make_zero_core_profiles(geo)
     profiles2 = dataclasses.replace(
         profiles2,
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 4.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 1.5e20),
+        kinetic=dataclasses.replace(
+            profiles2.kinetic,
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 4.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 1.5e20),
+        ),
     )
 
     # Get expected values without jit
@@ -480,8 +531,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     profiles_t0 = core_profile_helpers.make_zero_core_profiles(geo)
     profiles_t1 = dataclasses.replace(
         profiles_t0,
-        T_i=core_profile_helpers.make_constant_core_profile(geo, 5.0),
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 4.0),
+        kinetic=dataclasses.replace(
+            profiles_t0.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(geo, 5.0),
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 4.0),
+        ),
     )
     # Stack two time steps.
     stacked_profiles = jax.tree.map(
@@ -598,8 +652,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     # Set non-constant A_impurity across radius.
     profiles = dataclasses.replace(
         profiles,
-        A_impurity=np.arange(10, dtype=np.float32) + 1.0,
-        A_impurity_face=np.arange(11, dtype=np.float32) + 1.0,
+        ions=dataclasses.replace(
+            profiles.ions,
+            A_impurity=np.arange(10, dtype=np.float32) + 1.0,
+            A_impurity_face=np.arange(11, dtype=np.float32) + 1.0,
+        ),
     )
     stacked_profiles = jax.tree.map(
         lambda *xs: np.stack(xs), profiles, profiles
@@ -758,6 +815,92 @@ class SolverNumericOutputsTest(parameterized.TestCase):
     np.testing.assert_array_equal(
         out_dict[output_keys.SAWTOOTH_CRASH][1], np.array([False, True])
     )
+
+
+class BaseCoreProfilesTest(parameterized.TestCase):
+  """Unit tests for BaseCoreProfiles and CoreProfiles."""
+
+  def setUp(self):
+    super().setUp()
+    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    torax_config = config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    core_profiles, self.runtime_params, _ = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    self.base_profiles = state.BaseCoreProfiles(
+        kinetic=core_profiles.kinetic,
+        ions=core_profiles.ions,
+        flux=core_profiles.flux,
+        toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+    )
+    self.core_profiles = core_profiles
+
+  def test_base_core_profiles_properties(self):
+    self.assertTrue(self.base_profiles.quasineutrality_satisfied())
+    self.assertFalse(self.base_profiles.negative_temperature_or_density())
+    self.assertFalse(self.base_profiles.below_minimum_temperature(10.0))
+
+    np.testing.assert_allclose(
+        self.base_profiles.impurity_density_scaling,
+        self.core_profiles.impurity_density_scaling,
+    )
+    np.testing.assert_allclose(
+        self.base_profiles.impurity_density_scaling_face,
+        self.core_profiles.impurity_density_scaling_face,
+    )
+    np.testing.assert_allclose(
+        self.base_profiles.psi_norm,
+        self.core_profiles.psi_norm,
+    )
+    np.testing.assert_allclose(
+        self.base_profiles.psi_norm_face,
+        self.core_profiles.psi_norm_face,
+    )
+    np.testing.assert_allclose(
+        self.base_profiles.pressure_thermal_e.value,
+        self.core_profiles.pressure_thermal_e.value,
+    )
+
+  def test_core_profiles_pressures(self):
+    result = state.CoreProfiles(
+        kinetic=self.base_profiles.kinetic,
+        ions=self.base_profiles.ions,
+        flux=self.base_profiles.flux,
+        toroidal_angular_velocity=self.base_profiles.toroidal_angular_velocity,
+        fast_ions=self.core_profiles.fast_ions,
+        conductivity=self.core_profiles.conductivity,
+        poloidal_velocity=self.core_profiles.poloidal_velocity,
+        psidot=self.core_profiles.psidot,
+    )
+
+    self.assertIsInstance(result, state.CoreProfiles)
+    np.testing.assert_allclose(
+        result.sigma,
+        self.core_profiles.conductivity.sigma,
+    )
+    np.testing.assert_allclose(
+        result.sigma_face,
+        self.core_profiles.conductivity.sigma_face,
+    )
+
+    pressure_attrs = (
+        'pressure_thermal_e',
+        'pressure_thermal_i',
+        'pressure_thermal_total',
+        'pressure_fast_i',
+        'pressure_total_i',
+        'pressure_total',
+    )
+    for attr in pressure_attrs:
+      p1 = getattr(result, attr)
+      p2 = getattr(self.core_profiles, attr)
+      np.testing.assert_allclose(p1.value, p2.value)
+      np.testing.assert_allclose(p1.face_value(), p2.face_value())
+      np.testing.assert_allclose(
+          p1.cell_plus_boundaries(), p2.cell_plus_boundaries()
+      )
 
 
 if __name__ == '__main__':

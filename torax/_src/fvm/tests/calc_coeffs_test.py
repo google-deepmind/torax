@@ -248,20 +248,23 @@ class CalcCoeffsTest(parameterized.TestCase):
       if use_neumann_right_bc:
         core_profiles = dataclasses.replace(
             core_profiles,
-            T_i=dataclasses.replace(
-                core_profiles.T_i,
-                right_face_constraint=None,
-                right_face_grad_constraint=jnp.array(-5.0),
-            ),
-            T_e=dataclasses.replace(
-                core_profiles.T_e,
-                right_face_constraint=None,
-                right_face_grad_constraint=jnp.array(-4.5),
-            ),
-            n_e=dataclasses.replace(
-                core_profiles.n_e,
-                right_face_constraint=None,
-                right_face_grad_constraint=jnp.array(-1.0e20),
+            kinetic=dataclasses.replace(
+                core_profiles.kinetic,
+                T_i=dataclasses.replace(
+                    core_profiles.kinetic.T_i,
+                    right_face_constraint=None,
+                    right_face_grad_constraint=jnp.array(-5.0),
+                ),
+                T_e=dataclasses.replace(
+                    core_profiles.kinetic.T_e,
+                    right_face_constraint=None,
+                    right_face_grad_constraint=jnp.array(-4.5),
+                ),
+                n_e=dataclasses.replace(
+                    core_profiles.kinetic.n_e,
+                    right_face_constraint=None,
+                    right_face_grad_constraint=jnp.array(-1.0e20),
+                ),
             ),
         )
       explicit_src, _ = source_profile_builders.build_source_profiles(
@@ -533,11 +536,14 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     core_profiles_scaled_psi = dataclasses.replace(
         core_profiles_zero_psidot,
-        psi=dataclasses.replace(
-            core_profiles.psi,
-            value=core_profiles.psi.value * 2.0,
-            right_face_constraint=right_face_constraint,
-            right_face_grad_constraint=right_face_grad_constraint,
+        flux=dataclasses.replace(
+            core_profiles_zero_psidot.flux,
+            psi=dataclasses.replace(
+                core_profiles.psi,
+                value=core_profiles.psi.value * 2.0,
+                right_face_constraint=right_face_constraint,
+                right_face_grad_constraint=right_face_grad_constraint,
+            ),
         ),
     )
     coeffs_scaled = calc_coeffs.calc_coeffs(

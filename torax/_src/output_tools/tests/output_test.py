@@ -997,7 +997,10 @@ class StateHistoryTest(parameterized.TestCase):
         t=jnp.array(0.1),
         core_profiles=dataclasses.replace(
             self.sim_state.core_profiles,
-            v_loop_lcfs=jnp.array(5.0),
+            flux=dataclasses.replace(
+                self.sim_state.core_profiles.flux,
+                v_loop_lcfs=jnp.array(5.0),
+            ),
         ),
     )
     history = output.StateHistory(

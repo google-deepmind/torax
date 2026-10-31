@@ -48,6 +48,8 @@ from torax._src.test_utils import sim_test_case
 
 def _set_psi_norm_face(core_profiles: mock.MagicMock) -> None:
   """Sets psi_norm_face on a mocked CoreProfiles from its mocked psi."""
+  core_profiles.flux = mock.MagicMock()
+  core_profiles.flux.psi = core_profiles.psi
   core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
       core_profiles
   )

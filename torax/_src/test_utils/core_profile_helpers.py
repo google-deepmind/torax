@@ -105,42 +105,54 @@ def make_zero_core_profiles(
           name: jnp.zeros_like(geo.rho_face) for name in impurity_names
       },
   )
-  return state.CoreProfiles(
+  kinetic = state.KineticProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
-      psi=zero_cell_variable,
-      psidot=zero_cell_variable,
       n_e=zero_cell_variable,
       n_i=zero_cell_variable,
       n_impurity=zero_cell_variable,
+  )
+  ions = state.IonComposition(
       impurity_fractions=impurity_fractions_dict,
       main_ion_fractions=main_ion_fractions_dict,
-      q_face=jnp.zeros_like(geo.rho_face),
-      s_face=jnp.zeros_like(geo.rho_face),
-      v_loop_lcfs=jnp.array(0.0),
       Z_i=jnp.zeros_like(geo.rho),
       Z_i_face=jnp.zeros_like(geo.rho_face),
-      A_i=jnp.zeros(()),
       Z_impurity=Z_impurity
       if Z_impurity is not None
       else jnp.zeros_like(geo.rho),
       Z_impurity_face=Z_impurity_face
       if Z_impurity_face is not None
       else jnp.zeros_like(geo.rho_face),
+      A_i=jnp.zeros(()),
       A_impurity=jnp.zeros_like(geo.rho),
       A_impurity_face=jnp.zeros_like(geo.rho_face),
       Z_eff=jnp.zeros_like(geo.rho),
       Z_eff_face=jnp.zeros_like(geo.rho_face),
-      sigma=jnp.zeros_like(geo.rho),
-      sigma_face=jnp.zeros_like(geo.rho_face),
+      charge_state_info=zero_charge_state_info,
+      charge_state_info_face=zero_charge_state_info_face,
+  )
+  flux = state.FluxProfiles(
+      psi=zero_cell_variable,
+      q_face=jnp.zeros_like(geo.rho_face),
+      s_face=jnp.zeros_like(geo.rho_face),
       j_toroidal_total=jnp.zeros_like(geo.rho),
       j_toroidal_total_face=jnp.zeros_like(geo.rho_face),
       I_p_profile_face=jnp.zeros_like(geo.rho_face),
+      v_loop_lcfs=jnp.array(0.0),
+  )
+  conductivity = state.Conductivity(
+      sigma=jnp.zeros_like(geo.rho),
+      sigma_face=jnp.zeros_like(geo.rho_face),
+  )
+  return state.CoreProfiles(
+      kinetic=kinetic,
+      ions=ions,
+      flux=flux,
       toroidal_angular_velocity=zero_cell_variable,
-      poloidal_velocity=zero_cell_variable,
-      charge_state_info=zero_charge_state_info,
-      charge_state_info_face=zero_charge_state_info_face,
       fast_ions=(),
+      conductivity=conductivity,
+      poloidal_velocity=zero_cell_variable,
+      psidot=zero_cell_variable,
   )
 
 

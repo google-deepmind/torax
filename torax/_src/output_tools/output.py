@@ -154,10 +154,13 @@ class StateHistory:
       # For the I_p BC case, set v_loop_lcfs[0] to the same value as
       # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
       # underconstrained.
-      v_loop_lcfs = jnp.asarray(core_profiles.v_loop_lcfs)
+      v_loop_lcfs = jnp.asarray(core_profiles.flux.v_loop_lcfs)
       core_profiles = dataclasses.replace(
           core_profiles,
-          v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
+          flux=dataclasses.replace(
+              core_profiles.flux,
+              v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
+          ),
       )
     self._core_profiles: state.CoreProfiles = core_profiles
     self._core_sources: source_profiles_lib.SourceProfiles = (

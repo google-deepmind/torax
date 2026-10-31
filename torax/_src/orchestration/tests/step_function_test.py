@@ -69,9 +69,12 @@ class StepFunctionTest(parameterized.TestCase):
     )
     core_profiles = dataclasses.replace(
         sim_state.core_profiles,
-        T_i=dataclasses.replace(
-            sim_state.core_profiles.T_i,
-            right_face_constraint=jnp.array(jnp.nan),
+        kinetic=dataclasses.replace(
+            sim_state.core_profiles.kinetic,
+            T_i=dataclasses.replace(
+                sim_state.core_profiles.kinetic.T_i,
+                right_face_constraint=jnp.array(jnp.nan),
+            ),
         ),
     )
     new_sim_state_core_profiles = dataclasses.replace(

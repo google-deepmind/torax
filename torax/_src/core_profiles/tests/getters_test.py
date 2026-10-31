@@ -427,7 +427,7 @@ class GettersTest(parameterized.TestCase):
         runtime_params.profile_conditions,
         geo,
     )
-    ions = getters.get_updated_ions(
+    ions, n_i, n_impurity = getters.get_updated_ions(
         runtime_params,
         geo,
         n_e,
@@ -440,13 +440,13 @@ class GettersTest(parameterized.TestCase):
         ions.Z_i, ions.Z_impurity, Z_eff
     )
     np.testing.assert_allclose(
-        ions.n_i.value,
+        n_i.value,
         expected_value * dilution_factor,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        ions.n_impurity.value,
-        (expected_value - ions.n_i.value * ions.Z_i) / ions.Z_impurity,
+        n_impurity.value,
+        (expected_value - n_i.value * ions.Z_i) / ions.Z_impurity,
         rtol=1e-6,
     )
 
@@ -581,7 +581,7 @@ class GettersTest(parameterized.TestCase):
         right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
-    ions = getters.get_updated_ions(
+    ions, n_i, n_impurity = getters.get_updated_ions(
         runtime_params,
         geo,
         n_e_cell_variable,
@@ -600,14 +600,14 @@ class GettersTest(parameterized.TestCase):
     np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
 
     # Check that the calculated dilution factor matches the ground truth.
-    calculated_dilution = ions.n_i.value / n_e_cell_variable.value
+    calculated_dilution = n_i.value / n_e_cell_variable.value
     np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
 
     # Check that Z_eff can be reconstructed correctly.
     reconstructed_zeff = (
-        ions.n_i.value / n_e_cell_variable.value
+        n_i.value / n_e_cell_variable.value
     ) * ions.Z_i**2 + (
-        ions.n_impurity.value / n_e_cell_variable.value
+        n_impurity.value / n_e_cell_variable.value
     ) * ions.Z_impurity**2
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
@@ -689,7 +689,7 @@ class GettersTest(parameterized.TestCase):
         right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
-    ions = getters.get_updated_ions(
+    ions, n_i, n_impurity = getters.get_updated_ions(
         runtime_params,
         geo,
         n_e_cell_variable,
@@ -708,14 +708,14 @@ class GettersTest(parameterized.TestCase):
     np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
 
     # Check that the calculated dilution factor matches the ground truth.
-    calculated_dilution = ions.n_i.value / n_e_cell_variable.value
+    calculated_dilution = n_i.value / n_e_cell_variable.value
     np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
 
     # Check that Z_eff can be reconstructed correctly.
     reconstructed_zeff = (
-        ions.n_i.value / n_e_cell_variable.value
+        n_i.value / n_e_cell_variable.value
     ) * ions.Z_i**2 + (
-        ions.n_impurity.value / n_e_cell_variable.value
+        n_impurity.value / n_e_cell_variable.value
     ) * ions.Z_impurity**2
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
@@ -876,7 +876,7 @@ class GettersTest(parameterized.TestCase):
         right_face_constraint=n_e_val,
         right_face_grad_constraint=None,
     )
-    ions = getters.get_updated_ions(
+    ions, n_i, _ = getters.get_updated_ions(
         runtime_params,
         geo,
         n_e_cv,
@@ -899,7 +899,7 @@ class GettersTest(parameterized.TestCase):
     expected_dilution = (1.0 - total_impurity_charge) / z_main
 
     np.testing.assert_allclose(
-        ions.n_i.value / n_e_cv.value,
+        n_i.value / n_e_cv.value,
         expected_dilution,
         rtol=1e-6,
     )
@@ -1092,7 +1092,7 @@ class GettersTest(parameterized.TestCase):
           t_e_cell_variable,
       )
 
-    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+    ions_ne_ratios, _, _ = _run_get_updated_ions(torax_config_ne_ratios)
     ground_truth_zeff = ions_ne_ratios.Z_eff
 
     # 4. Config 2: n_e_ratios_Z_eff (what we are testing)
@@ -1114,7 +1114,9 @@ class GettersTest(parameterized.TestCase):
     )
 
     # 5. Run get_updated_ions for n_e_ratios_Z_eff
-    ions_ne_ratios_zeff = _run_get_updated_ions(torax_config_ne_ratios_zeff)
+    ions_ne_ratios_zeff, _, _ = _run_get_updated_ions(
+        torax_config_ne_ratios_zeff
+    )
 
     # 6. Assertions
     chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
@@ -1286,16 +1288,16 @@ class GettersTest(parameterized.TestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
 
-    ions = getters.get_updated_ions(
+    ions, n_i, n_impurity = getters.get_updated_ions(
         runtime_params,
         geo,
         initial_core_profiles.n_e,
         initial_core_profiles.T_e,
     )
 
-    np.testing.assert_allclose(ions.n_impurity.value, 0.0)
+    np.testing.assert_allclose(n_impurity.value, 0.0)
     np.testing.assert_allclose(ions.Z_eff, 1.0)
-    np.testing.assert_allclose(ions.n_i.value, initial_core_profiles.n_e.value)
+    np.testing.assert_allclose(n_i.value, initial_core_profiles.n_e.value)
 
     state_history = run_simulation.run_simulation(torax_config, max_steps=100)
     np.testing.assert_equal(

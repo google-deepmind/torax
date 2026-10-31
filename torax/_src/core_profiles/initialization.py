@@ -71,7 +71,9 @@ def initial_core_profiles(
   n_e = getters.get_updated_electron_density(
       runtime_params.profile_conditions, geo
   )
-  ions = getters.get_updated_ions(runtime_params, geo, n_e, T_e)
+  ion_composition, n_i, n_impurity = getters.get_updated_ions(
+      runtime_params, geo, n_e, T_e
+  )
   toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       runtime_params.profile_conditions, geo
   )
@@ -100,31 +102,17 @@ def initial_core_profiles(
       face_centers=geo.rho_face_norm,
   )
 
-  core_profiles = state.CoreProfiles(
+  kinetic = state.KineticProfiles(
       T_i=T_i,
       T_e=T_e,
       n_e=n_e,
-      n_i=ions.n_i,
-      Z_i=ions.Z_i,
-      Z_i_face=ions.Z_i_face,
-      A_i=ions.A_i,
-      n_impurity=ions.n_impurity,
-      impurity_fractions=ions.impurity_fractions,
-      main_ion_fractions=ions.main_ion_fractions,
-      Z_impurity=ions.Z_impurity,
-      Z_impurity_face=ions.Z_impurity_face,
-      A_impurity=ions.A_impurity,
-      A_impurity_face=ions.A_impurity_face,
-      Z_eff=ions.Z_eff,
-      Z_eff_face=ions.Z_eff_face,
-      fast_ions=(),
+      n_i=n_i,
+      n_impurity=n_impurity,
+  )
+  flux = state.FluxProfiles(
       psi=psi,
-      psidot=psidot,
       q_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       s_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-      v_loop_lcfs=v_loop_lcfs,
-      sigma=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      sigma_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       j_toroidal_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       j_toroidal_total_face=jnp.zeros_like(
           geo.rho_face, dtype=jax_utils.get_dtype()
@@ -132,15 +120,26 @@ def initial_core_profiles(
       I_p_profile_face=jnp.zeros_like(
           geo.rho_face, dtype=jax_utils.get_dtype()
       ),
+      v_loop_lcfs=v_loop_lcfs,
+  )
+  conductivity = state.Conductivity(
+      sigma=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+      sigma_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+  )
+  core_profiles = state.CoreProfiles(
+      kinetic=kinetic,
+      ions=ion_composition,
+      flux=flux,
       toroidal_angular_velocity=toroidal_angular_velocity,
+      fast_ions=(),
+      conductivity=conductivity,
       poloidal_velocity=cell_variable.CellVariable(
           value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
           face_centers=geo.rho_face_norm,
           right_face_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
           right_face_grad_constraint=None,
       ),
-      charge_state_info=ions.charge_state_info,
-      charge_state_info_face=ions.charge_state_info_face,
+      psidot=psidot,
   )
 
   return _init_psi_and_psi_derived(
@@ -352,12 +351,15 @@ def _init_psi_and_psi_derived(
         )
         core_profiles_initial = dataclasses.replace(
             core_profiles,
-            psi=psi,
-            q_face=psi_calculations.calc_q_face(geo, psi),
-            s_face=psi_calculations.calc_s_face(geo, psi),
-            j_toroidal_total=j_toroidal_total,
-            j_toroidal_total_face=j_toroidal_total_face,
-            I_p_profile_face=I_p_profile_face,
+            flux=dataclasses.replace(
+                core_profiles.flux,
+                psi=psi,
+                q_face=psi_calculations.calc_q_face(geo, psi),
+                s_face=psi_calculations.calc_s_face(geo, psi),
+                j_toroidal_total=j_toroidal_total,
+                j_toroidal_total_face=j_toroidal_total_face,
+                I_p_profile_face=I_p_profile_face,
+            ),
         )
 
         # TODO(b/440385263): add tunable iteration number or convergence
@@ -389,6 +391,8 @@ def _init_psi_and_psi_derived(
   return core_profiles
 
 
+# TODO(b/572586768): Construct CoreProfiles in one pass once initialization
+# uses SolverState.
 def _calculate_all_psi_dependent_profiles(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -407,12 +411,15 @@ def _calculate_all_psi_dependent_profiles(
 
   core_profiles = dataclasses.replace(
       core_profiles,
-      psi=psi,
-      q_face=psi_calculations.calc_q_face(geo, psi),
-      s_face=psi_calculations.calc_s_face(geo, psi),
-      j_toroidal_total=j_toroidal_total,
-      j_toroidal_total_face=j_toroidal_total_face,
-      I_p_profile_face=I_p_profile_face,
+      flux=dataclasses.replace(
+          core_profiles.flux,
+          psi=psi,
+          q_face=psi_calculations.calc_q_face(geo, psi),
+          s_face=psi_calculations.calc_s_face(geo, psi),
+          j_toroidal_total=j_toroidal_total,
+          j_toroidal_total_face=j_toroidal_total_face,
+          I_p_profile_face=I_p_profile_face,
+      ),
   )
   basic_sources, _ = (
       source_profile_builders.build_basic_sources(
@@ -468,8 +475,7 @@ def _calculate_all_psi_dependent_profiles(
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
+      conductivity=conductivity,
       poloidal_velocity=poloidal_velocity.v_pol,
   )
   return core_profiles
@@ -538,12 +544,15 @@ def _iterate_psi_and_sources(
     )
     core_profiles = dataclasses.replace(
         core_profiles,
-        psi=psi,
-        q_face=psi_calculations.calc_q_face(geo, psi),
-        s_face=psi_calculations.calc_s_face(geo, psi),
-        j_toroidal_total=j_toroidal_total,
-        j_toroidal_total_face=j_toroidal_total_face,
-        I_p_profile_face=I_p_profile_face,
+        flux=dataclasses.replace(
+            core_profiles.flux,
+            psi=psi,
+            q_face=psi_calculations.calc_q_face(geo, psi),
+            s_face=psi_calculations.calc_s_face(geo, psi),
+            j_toroidal_total=j_toroidal_total,
+            j_toroidal_total_face=j_toroidal_total_face,
+            I_p_profile_face=I_p_profile_face,
+        ),
     )
   return core_profiles.psi
 

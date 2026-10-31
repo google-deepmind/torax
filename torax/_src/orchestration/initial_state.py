@@ -340,7 +340,10 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
-      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
+      flux=dataclasses.replace(
+          initial_state.core_profiles.flux,
+          v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
+      ),
   )
   pedestal_state = initial_state.model_state.pedestal
   # TODO(b/434175938): Have model states reconstruct themselves from restart

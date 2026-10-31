@@ -36,6 +36,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import builders
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions
@@ -85,61 +86,27 @@ def update_core_profiles_during_step(
       x_new, evolving_names, solver_state
   )
 
-  ions = getters.get_updated_ions(
-      runtime_params,
-      geo,
-      updated_solver_state.n_e,
-      updated_solver_state.T_e,
+  base = builders.build_base_core_profiles(
+      runtime_params, geo, updated_solver_state
   )
 
-  (
-      j_toroidal_total,
-      j_toroidal_total_face,
-      I_p_profile_face,
-  ) = psi_calculations.calc_j_toroidal_total(
-      geo,
-      updated_solver_state.psi,
-      runtime_params.numerics.min_rho_norm,
-  )
-
+  # TODO(b/572586768): Remove transitional partial CoreProfiles once
+  # physics_pipeline retires updaters.
   return state.CoreProfiles(
-      T_i=updated_solver_state.T_i,
-      T_e=updated_solver_state.T_e,
-      psi=updated_solver_state.psi,
-      psidot=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho_norm),
-          face_centers=geo.rho_face_norm,
-      ),
-      n_e=updated_solver_state.n_e,
-      n_i=ions.n_i,
-      n_impurity=ions.n_impurity,
-      impurity_fractions=ions.impurity_fractions,
-      main_ion_fractions=ions.main_ion_fractions,
-      q_face=psi_calculations.calc_q_face(geo, updated_solver_state.psi),
-      s_face=psi_calculations.calc_s_face(geo, updated_solver_state.psi),
-      v_loop_lcfs=jnp.array(0.0),
-      Z_i=ions.Z_i,
-      Z_i_face=ions.Z_i_face,
-      A_i=ions.A_i,
-      Z_impurity=ions.Z_impurity,
-      Z_impurity_face=ions.Z_impurity_face,
-      A_impurity=ions.A_impurity,
-      A_impurity_face=ions.A_impurity_face,
-      Z_eff=ions.Z_eff,
-      Z_eff_face=ions.Z_eff_face,
-      sigma=jnp.zeros_like(geo.rho_norm),
-      sigma_face=jnp.zeros_like(geo.rho_face_norm),
-      j_toroidal_total=j_toroidal_total,
-      j_toroidal_total_face=j_toroidal_total_face,
-      I_p_profile_face=I_p_profile_face,
-      toroidal_angular_velocity=updated_solver_state.toroidal_angular_velocity,
+      kinetic=base.kinetic,
+      ions=base.ions,
+      flux=base.flux,
+      toroidal_angular_velocity=base.toroidal_angular_velocity,
+      fast_ions=(),
+      conductivity=state.Conductivity.zeros(geo),
       poloidal_velocity=cell_variable.CellVariable(
           value=jnp.zeros_like(geo.rho_norm),
           face_centers=geo.rho_face_norm,
       ),
-      charge_state_info=ions.charge_state_info,
-      charge_state_info_face=ions.charge_state_info_face,
-      fast_ions=(),
+      psidot=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho_norm),
+          face_centers=geo.rho_face_norm,
+      ),
   )
 
 
@@ -188,13 +155,6 @@ def update_core_and_source_profiles_after_step(
       x_new, evolving_names, solver_state_t_plus_dt
   )
 
-  ions = getters.get_updated_ions(
-      runtime_params_t_plus_dt,
-      geo,
-      updated_solver_state.n_e,
-      updated_solver_state.T_e,
-  )
-
   time_reduction_factor = (
       runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
   )
@@ -209,58 +169,29 @@ def update_core_and_source_profiles_after_step(
       )
   )
 
-  j_toroidal_total, j_toroidal_total_face, I_p_profile_face = (
-      psi_calculations.calc_j_toroidal_total(
-          geo,
-          updated_solver_state.psi,
-          runtime_params_t_plus_dt.numerics.min_rho_norm,
-      )
+  base = builders.build_base_core_profiles(
+      runtime_params_t_plus_dt,
+      geo,
+      updated_solver_state,
+      v_loop_lcfs=v_loop_lcfs,
   )
-
-  # A wholly new core profiles object is defined as a guard against neglecting
-  # to update one of the attributes if doing dataclasses.replace
+  # TODO(b/572586768): Remove transitional partial CoreProfiles once
+  # physics_pipeline retires updaters.
   intermediate_core_profiles = state.CoreProfiles(
-      T_i=updated_solver_state.T_i,
-      T_e=updated_solver_state.T_e,
-      psi=updated_solver_state.psi,
-      n_e=updated_solver_state.n_e,
-      n_i=ions.n_i,
-      n_impurity=ions.n_impurity,
-      impurity_fractions=ions.impurity_fractions,
-      main_ion_fractions=ions.main_ion_fractions,
-      Z_i=ions.Z_i,
-      Z_i_face=ions.Z_i_face,
-      Z_impurity=ions.Z_impurity,
-      Z_impurity_face=ions.Z_impurity_face,
+      kinetic=base.kinetic,
+      ions=base.ions,
+      flux=base.flux,
+      toroidal_angular_velocity=base.toroidal_angular_velocity,
+      fast_ions=(),
+      conductivity=state.Conductivity.zeros(geo),
+      poloidal_velocity=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho_norm),
+          face_centers=geo.rho_face_norm,
+      ),
       psidot=cell_variable.CellVariable(
           value=jnp.zeros_like(geo.rho_norm),
           face_centers=geo.rho_face_norm,
       ),
-      q_face=psi_calculations.calc_q_face(
-          geo, updated_solver_state.psi
-      ),
-      s_face=psi_calculations.calc_s_face(
-          geo, updated_solver_state.psi
-      ),
-      A_i=ions.A_i,
-      A_impurity=ions.A_impurity,
-      A_impurity_face=ions.A_impurity_face,
-      Z_eff=ions.Z_eff,
-      Z_eff_face=ions.Z_eff_face,
-      v_loop_lcfs=v_loop_lcfs,
-      sigma=jnp.zeros_like(geo.rho_norm),  # Not yet updated
-      sigma_face=jnp.zeros_like(geo.rho_face_norm),  # Not yet updated
-      j_toroidal_total=j_toroidal_total,
-      j_toroidal_total_face=j_toroidal_total_face,
-      I_p_profile_face=I_p_profile_face,
-      toroidal_angular_velocity=updated_solver_state.toroidal_angular_velocity,
-      poloidal_velocity=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho_norm),
-          face_centers=geo.rho_face_norm,
-      ),  # Not yet updated
-      charge_state_info=ions.charge_state_info,
-      charge_state_info_face=ions.charge_state_info_face,
-      fast_ions=(),
   )
   partial_source_profiles, updated_source_states = (
       source_profile_builders.build_basic_sources(
@@ -306,8 +237,7 @@ def update_core_and_source_profiles_after_step(
   )
   core_profiles_t_plus_dt = dataclasses.replace(
       intermediate_core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
+      conductivity=conductivity,
       poloidal_velocity=poloidal_velocity.v_pol,
       psidot=psidot,
   )

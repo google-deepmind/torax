@@ -50,9 +50,9 @@ class CustomConductivityModel(conductivity_base.ConductivityModel):
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> conductivity_base.Conductivity:
+  ) -> state.Conductivity:
     del runtime_params, core_profiles, neoclassical_intermediates
-    return conductivity_base.Conductivity(
+    return state.Conductivity(
         sigma=jnp.ones_like(geometry.rho_norm),
         sigma_face=jnp.ones_like(geometry.rho_face_norm),
     )
@@ -124,7 +124,7 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> tuple[
-      conductivity_base.Conductivity,
+      state.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
       poloidal_velocity_base.PoloidalVelocity,
       neoclassical_intermediates_lib.NeoclassicalIntermediates,
@@ -135,7 +135,7 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
     )
     sigma_val = runtime_params.neoclassical.custom_sigma
     return (
-        conductivity_base.Conductivity(
+        state.Conductivity(
             sigma=jnp.full_like(geo.rho_norm, sigma_val),
             sigma_face=jnp.full_like(geo.rho_face_norm, sigma_val),
         ),
@@ -149,9 +149,7 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-      intermediates: (
-          neoclassical_intermediates_lib.NeoclassicalIntermediates
-      ),
+      intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     del runtime_params, core_profiles
     assert isinstance(

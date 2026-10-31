@@ -260,13 +260,14 @@ def _calc_coeffs_full(
       prescribed_psidot=runtime_params.profile_conditions.psidot,
       v_loop_lcfs=v_loop_lcfs,
   )
-  # Update sigma, sigma_face, poloidal_velocity, and psidot on core_profiles
+  # Update conductivity, poloidal_velocity, and psidot on core_profiles
   # for the current solver iterate. Used by neoclassical transport (Ware pinch
   # and Onsager heat fluxes) and turbulent transport (ExB shear).
+  # TODO(b/572586768): Replace mixed update once physics_pipeline evaluates
+  # CoreProfiles.
   core_profiles = dataclasses.replace(
       core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
+      conductivity=conductivity,
       poloidal_velocity=poloidal_velocity.v_pol,
       psidot=psidot,
   )
