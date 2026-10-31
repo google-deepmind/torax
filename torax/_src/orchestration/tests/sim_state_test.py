@@ -119,7 +119,7 @@ class SimStateTest(parameterized.TestCase):
   def test_has_nan_detects_nan_in_core_profiles(self):
     geo = self._make_geometry()
     s = self._make_sim_state(geo)
-    T_e = s.core_profiles.T_e
+    T_e = s.core_profiles.kinetic.T_e
     new_value = T_e.value.at[0].set(jnp.nan)  # pyrefly: ignore[missing-attribute]
     new_T_e = dataclasses.replace(T_e, value=new_value)
     new_core_profiles = dataclasses.replace(

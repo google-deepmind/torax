@@ -228,8 +228,10 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       A `TGLFInputs` dataclass containing dimensionless inputs required by
       TGLF-based models.
     """
-    T_e_J = core_profiles.T_e.face_value() * constants.CONSTANTS.keV_to_J
-    n_e = core_profiles.n_e.face_value()
+    T_e_J = (
+        core_profiles.kinetic.T_e.face_value() * constants.CONSTANTS.keV_to_J
+    )
+    n_e = core_profiles.kinetic.n_e.face_value()
 
     # Reference values used for TGLF-specific normalisation
     # - 'a' in TGLF means the minor radius at the LCFS
@@ -251,7 +253,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     # On the magnetic axis (index 0), both r and dpsi/dr vanish (0/0), so use
     # the first off-axis face ratio
     # Use face_grad to correctly handle constraints on the psi CellVariable.
-    dpsi_dr = core_profiles.psi.face_grad(
+    dpsi_dr = core_profiles.flux.psi.face_grad(
         x=geo.r_mid,
         x_left=r[0],
         x_right=r[-1],
@@ -262,15 +264,16 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         dpsi_dr[1:] / r[1:],
     ])
     # Note: psi_TGLF is psi_TORAX/2π
-    B_unit = core_profiles.q_face * dpsi_dr_over_r / (2 * jnp.pi)
+    B_unit = core_profiles.flux.q_face * dpsi_dr_over_r / (2 * jnp.pi)
 
     # Mass profiles.
     n_faces = len(geo.rho_face_norm)
     m_i_over_m_D = (
-        core_profiles.A_i / constants.ION_PROPERTIES_DICT["D"].A
+        core_profiles.ions.A_i / constants.ION_PROPERTIES_DICT["D"].A
     ) * jnp.ones(n_faces)
     m_imp_over_m_D = (
-        core_profiles.A_impurity_face / constants.ION_PROPERTIES_DICT["D"].A
+        core_profiles.ions.A_impurity_face
+        / constants.ION_PROPERTIES_DICT["D"].A
     )
 
     # Ion gyroradius
@@ -292,7 +295,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     normalized_debye = math_utils.safe_divide(
         num=(
             (constants.CONSTANTS.epsilon_0 / constants.CONSTANTS.q_e)
-            * (core_profiles.T_e.face_value() * 1e3)  # keV -> eV
+            * (core_profiles.kinetic.T_e.face_value() * 1e3)  # keV -> eV
             / n_e
         )
         ** 0.5,
@@ -302,15 +305,18 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
 
     # Temperature ratio
     T_i_over_T_e = (
-        core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
+        core_profiles.kinetic.T_i.face_value()
+        / core_profiles.kinetic.T_e.face_value()
     )
 
     # Ion dilution
     n_i_over_n_e = (
-        core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+        core_profiles.kinetic.n_i.face_value()
+        / core_profiles.kinetic.n_e.face_value()
     )
     n_impurity_over_n_e = (
-        core_profiles.n_impurity.face_value() / core_profiles.n_e.face_value()
+        core_profiles.kinetic.n_impurity.face_value()
+        / core_profiles.kinetic.n_e.face_value()
     )
 
     # Dimensionless gradients
@@ -371,8 +377,8 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     #   (https://gacode.io/cgyro/cgyro_list.html#s)
     # - r_mid is zero on axis, so use safe_divide to avoid division by zero.
     q_prime = math_utils.safe_divide(
-        num=psi_calculations.calc_s_rmid(geo, core_profiles.psi)
-        * core_profiles.q_face**2
+        num=psi_calculations.calc_s_rmid(geo, core_profiles.flux.psi)
+        * core_profiles.flux.q_face**2
         * a**2,
         denom=r**2,
         eps=1e-7,
@@ -392,7 +398,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
             x_right=r[-1],
             two_point_mask=two_point_mask,
         )
-        * core_profiles.q_face
+        * core_profiles.flux.q_face
         * a**2,
         denom=r * B_unit**2,
         eps=1e-7,
@@ -444,9 +450,9 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         two_point_mask: array_typing.BoolVectorFace,
     ):
       rotation_output = rotation.calculate_rotation(
-          psi=core_profiles.psi,
-          n_i=core_profiles.n_i,
-          Z_i_face=core_profiles.Z_i_face,
+          psi=core_profiles.flux.psi,
+          n_i=core_profiles.kinetic.n_i,
+          Z_i_face=core_profiles.ions.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
           poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
@@ -456,7 +462,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       # evaluate omega_0 on the off-axis faces [1:] and reuse the first
       # off-axis face value on axis.
       B_pol_off_axis = jnp.sqrt(
-          psi_calculations.calc_bpol_squared(geo, core_profiles.psi)[1:]
+          psi_calculations.calc_bpol_squared(geo, core_profiles.flux.psi)[1:]
       )
       R_B_pol_off_axis = jnp.maximum(
           geo.R_major_profile_face[1:] * B_pol_off_axis,
@@ -479,8 +485,8 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
           two_point_mask=two_point_mask,
       )
       v_ExB_shear = -(
-          jnp.sign(core_profiles.I_p_profile_face)
-          * (r / jnp.abs(core_profiles.q_face))
+          jnp.sign(core_profiles.flux.I_p_profile_face)
+          * (r / jnp.abs(core_profiles.flux.q_face))
           * grad
           * (a / c_s)
       )
@@ -495,13 +501,13 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
           two_point_mask=two_point_mask,
       )
     else:
-      v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
+      v_ExB_shear = jnp.zeros_like(core_profiles.flux.q_face)
 
-    smag = psi_calculations.calc_s_rmid(geo, core_profiles.psi)
+    smag = psi_calculations.calc_s_rmid(geo, core_profiles.flux.psi)
     lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
         smag=smag,
-        q=jnp.asarray(core_profiles.q_face),
+        q=jnp.asarray(core_profiles.flux.q_face),
         normalized_logarithmic_gradients=normalized_log_gradients,
         transport=transport,
     )
@@ -520,11 +526,11 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         MASS_1=m_e_over_m_D,
         TAUS_1=T_e_over_T_e,
         AS_1=n_e_over_n_e,
-        ZS_2=core_profiles.Z_i_face,
+        ZS_2=core_profiles.ions.Z_i_face,
         MASS_2=m_i_over_m_D,
         TAUS_2=T_i_over_T_e,
         AS_2=n_i_over_n_e,
-        ZS_3=core_profiles.Z_impurity_face,
+        ZS_3=core_profiles.ions.Z_impurity_face,
         MASS_3=m_imp_over_m_D,
         TAUS_3=T_imp_over_T_e,
         AS_3=n_impurity_over_n_e,
@@ -537,7 +543,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         RMIN_LOC=r / a,
         RMAJ_LOC=r_major / a,
         DRMAJDX_LOC=dr_major,
-        Q_LOC=core_profiles.q_face,
+        Q_LOC=core_profiles.flux.q_face,
         Q_PRIME_LOC=q_prime,
         XNUE=normalized_nu_ee,
         DEBYE=normalized_debye,
@@ -547,7 +553,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         S_DELTA_LOC=delta_shear,
         BETAE=beta_e,
         P_PRIME_LOC=p_prime,
-        ZEFF=core_profiles.Z_eff_face,
+        ZEFF=core_profiles.ions.Z_eff_face,
         Q_GB=Q_GB,
         GAMMA_GB=Gamma_GB,
         VEXB_SHEAR=v_ExB_shear,
@@ -577,23 +583,23 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     # Convert from power to chi.
     # Note: g1/vpr = ⟨(∇ρₙ)²⟩ ∂V/∂ρₙ, and has units [m].
     dT_e_drhon = (
-        core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
+        core_profiles.kinetic.T_e.face_grad(two_point_mask=two_point_mask)
         * constants.CONSTANTS.keV_to_J
     )
     dT_i_drhon = (
-        core_profiles.T_i.face_grad(two_point_mask=two_point_mask)
+        core_profiles.kinetic.T_i.face_grad(two_point_mask=two_point_mask)
         * constants.CONSTANTS.keV_to_J
     )
     chi_e = math_utils.safe_divide(
         num=-P_e,
-        denom=core_profiles.n_e.face_value()
+        denom=core_profiles.kinetic.n_e.face_value()
         * dT_e_drhon
         * geo.g1_over_vpr_face,
         eps=1e-7,
     )
     chi_i = math_utils.safe_divide(
         num=-P_i,
-        denom=core_profiles.n_i.face_value()
+        denom=core_profiles.kinetic.n_i.face_value()
         * dT_i_drhon
         * geo.g1_over_vpr_face,
         eps=1e-7,
@@ -603,7 +609,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=Gamma_e,
           normalized_particle_flux=electron_particle_flux_GB,
-          n_e=core_profiles.n_e,
+          n_e=core_profiles.kinetic.n_e,
           geo=geo,
           gradient_reference_length=geo.R_major,
           An_min=transport.An_min,
@@ -617,7 +623,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
           particle_flux_SI=Gamma_e,
           chi_face_el=chi_e,
-          n_e=core_profiles.n_e,
+          n_e=core_profiles.kinetic.n_e,
           geo=geo,
           two_point_mask=two_point_mask,
       )

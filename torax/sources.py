@@ -22,19 +22,25 @@ from torax._src.sources.register_model import register_source_config
 from torax._src.sources.runtime_params import Mode
 from torax._src.sources.runtime_params import RuntimeParams
 from torax._src.sources.source import AffectedCoreProfile
+from torax._src.sources.source import FinalSource
 from torax._src.sources.source import Source
+from torax._src.sources.source import SourceBase
+from torax._src.sources.source import SourceUsingCoreProfiles
 from torax._src.sources.source_profiles import SourceOutput
 from torax._src.sources.source_profiles import SourceProfiles
 from torax._src.sources.source_state import SourceState
 
 __all__ = [
     'AffectedCoreProfile',
+    'FinalSource',
     'Mode',
     'RuntimeParams',
     'Source',
+    'SourceBase',
     'SourceConfigBase',
     'SourceOutput',
     'SourceProfiles',
     'SourceState',
+    'SourceUsingCoreProfiles',
     'register_source_config',
 ]
