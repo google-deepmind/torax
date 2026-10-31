@@ -26,13 +26,17 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import psi_calculations
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import config
@@ -102,8 +106,10 @@ class InitializationTest(parameterized.TestCase):
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.time_step_calculator.t_initial,
-            runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
-                torax_config
+            runtime_params_provider=(
+                build_runtime_params.RuntimeParamsProvider.from_config(
+                    torax_config
+                )
             ),
             geometry_provider=torax_config.geometry.build_provider,
             is_initialization=True,
@@ -424,6 +430,317 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
+  def test_initial_core_profiles_fast_ions_with_active_icrh(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
+        'main_ion': {'D': 0.5, 'T': 0.5},
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'He3': 0.03},
+        },
+    }
+    config_dict['numerics']['enable_fast_ions'] = True
+    config_dict['sources'] = {
+        'icrh': {
+            'model_name': 'scaled_profile',
+            'minority_species': 'He3',
+            'P_total': 10e6,
+        },
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.time_step_calculator.t_initial,
+            runtime_params_provider=(
+                build_runtime_params.RuntimeParamsProvider.from_config(
+                    torax_config
+                )
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_states = source_models.initial_state(runtime_params)
+    mock_output = source_profiles.SourceOutput(
+        profiles=(jnp.zeros_like(geo.rho), jnp.zeros_like(geo.rho)),
+        fast_ions=(
+            fast_ion_lib.FastIon(
+                source='icrh',
+                species='He3',
+                n=cell_variable.CellVariable(
+                    value=jnp.full_like(geo.rho, 1e19),
+                    face_centers=geo.rho_face_norm,
+                ),
+                T=cell_variable.CellVariable(
+                    value=jnp.full_like(geo.rho, 50.0),
+                    face_centers=geo.rho_face_norm,
+                ),
+            ),
+        ),
+    )
+    with mock.patch.object(
+        type(source_models.standard_sources['icrh']),
+        'get_value',
+        return_value=(mock_output, source_states['icrh']),
+    ):
+      result = initialization.initial_core_profiles(
+          runtime_params=runtime_params,
+          geo=geo,
+          source_models=source_models,
+          neoclassical_model=neoclassical_model,
+          source_states=source_states,
+      )
+
+      self.assertNotEmpty(result.fast_ions)
+      he3_fast_ions = [
+          fi
+          for fi in result.fast_ions
+          if fi.species == 'He3' and fi.source == 'icrh'
+      ]
+      self.assertLen(he3_fast_ions, 1)
+      self.assertTrue(np.any(he3_fast_ions[0].n.value > 0.0))
+
+      conductivity, bootstrap_current, _, _ = (
+          neoclassical_model.calculate_conductivity_current_and_rotation(
+              runtime_params, geo, result
+          )
+      )
+      all_source_profiles, _ = source_profile_builders.get_all_source_profiles(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=result,
+          source_models=source_models,
+          conductivity=conductivity,
+          bootstrap_current=bootstrap_current,
+          source_states=source_states,
+      )
+      expected_fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
+          sum(all_source_profiles.fast_ions.values(), ()),
+          runtime_params.profile_conditions.prescribed_fast_ions,
+          geo.rho_face_norm,
+      )
+      self.assertEqual(len(result.fast_ions), len(expected_fast_ions))
+      for actual_fi, expected_fi in zip(
+          result.fast_ions, expected_fast_ions, strict=True
+      ):
+        self.assertEqual(actual_fi.species, expected_fi.species)
+        self.assertEqual(actual_fi.source, expected_fi.source)
+        np.testing.assert_allclose(actual_fi.n.value, expected_fi.n.value)
+        np.testing.assert_allclose(actual_fi.T.value, expected_fi.T.value)
+
+  def test_initial_core_profiles_fast_ions_with_prescribed_override(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
+        'main_ion': {'D': 0.5, 'T': 0.5},
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'He3': 0.03},
+        },
+    }
+    config_dict['numerics']['enable_fast_ions'] = True
+    config_dict['sources'] = {
+        'icrh': {
+            'model_name': 'scaled_profile',
+            'minority_species': 'He3',
+            'mode': 'zero',
+        },
+    }
+    prescribed_n = 2.5e19
+    prescribed_t = 80.0
+    config_dict['profile_conditions']['fast_ions'] = [
+        {
+            'source': 'icrh',
+            'species': 'He3',
+            'n': {0.0: {0.0: prescribed_n, 1.0: prescribed_n}},
+            'n_right_bc': {0.0: 0.0},
+            'T': {0.0: {0.0: prescribed_t, 1.0: prescribed_t}},
+            'T_right_bc': {0.0: 0.0},
+        },
+    ]
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.time_step_calculator.t_initial,
+            runtime_params_provider=(
+                build_runtime_params.RuntimeParamsProvider.from_config(
+                    torax_config
+                )
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_states = source_models.initial_state(runtime_params)
+    mock_output = source_profiles.SourceOutput(
+        profiles=(jnp.zeros_like(geo.rho), jnp.zeros_like(geo.rho)),
+        fast_ions=(
+            fast_ion_lib.FastIon(
+                source='icrh',
+                species='He3',
+                n=cell_variable.CellVariable(
+                    value=jnp.zeros_like(geo.rho),
+                    face_centers=geo.rho_face_norm,
+                ),
+                T=cell_variable.CellVariable(
+                    value=jnp.zeros_like(geo.rho),
+                    face_centers=geo.rho_face_norm,
+                ),
+            ),
+            fast_ion_lib.FastIon(
+                source='icrh',
+                species='D',
+                n=cell_variable.CellVariable(
+                    value=jnp.zeros_like(geo.rho),
+                    face_centers=geo.rho_face_norm,
+                ),
+                T=cell_variable.CellVariable(
+                    value=jnp.zeros_like(geo.rho),
+                    face_centers=geo.rho_face_norm,
+                ),
+            ),
+        ),
+    )
+    with mock.patch.object(
+        type(source_models.standard_sources['icrh']),
+        'get_value',
+        return_value=(mock_output, source_states['icrh']),
+    ):
+      result = initialization.initial_core_profiles(
+          runtime_params=runtime_params,
+          geo=geo,
+          source_models=source_models,
+          neoclassical_model=neoclassical_model,
+          source_states=source_states,
+      )
+
+    he3_fast_ions = [
+        fi
+        for fi in result.fast_ions
+        if fi.species == 'He3' and fi.source == 'icrh'
+    ]
+    self.assertLen(he3_fast_ions, 1)
+    np.testing.assert_allclose(he3_fast_ions[0].n.value, prescribed_n)
+    np.testing.assert_allclose(he3_fast_ions[0].T.value, prescribed_t)
+
+    other_fast_ions = [
+        fi
+        for fi in result.fast_ions
+        if fi.species != 'He3' and fi.source == 'icrh'
+    ]
+    self.assertNotEmpty(other_fast_ions)
+    for fi in other_fast_ions:
+      np.testing.assert_allclose(fi.n.value, 0.0)
+      np.testing.assert_allclose(fi.T.value, 0.0)
+
+  def test_initial_core_profiles_psidot_consistent_with_final_psi(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions']['initial_psi_source'] = 'j'
+    config_dict['profile_conditions']['initial_j_is_total_current'] = False
+    config_dict['sources'] = {
+        'generic_current': {
+            'fraction_of_total_current': 0.25,
+            'mode': 'model_based',
+        },
+    }
+    config_dict['neoclassical'] = {
+        'bootstrap_current': {
+            'model_name': 'sauter',
+            'bootstrap_multiplier': 1.0,
+        },
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.time_step_calculator.t_initial,
+            runtime_params_provider=(
+                build_runtime_params.RuntimeParamsProvider.from_config(
+                    torax_config
+                )
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_states = source_models.initial_state(runtime_params)
+    result = initialization.initial_core_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+        source_states=source_states,
+    )
+
+    basic_sources, _ = source_profile_builders.build_basic_sources(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=result,
+        source_models=source_models,
+        source_states=source_states,
+        explicit=True,
+        calculate_anyway=True,
+    )
+    conductivity, bootstrap_current, _, _ = (
+        neoclassical_model.calculate_conductivity_current_and_rotation(
+            runtime_params, geo, result
+        )
+    )
+    final_source_profiles = dataclasses.replace(
+        basic_sources,
+        bootstrap_current=bootstrap_current,
+    )
+    expected_psidot = psi_calculations.calculate_psidot(
+        psi=result.psi,
+        sigma=conductivity.sigma,
+        psi_sources=final_source_profiles.total_psi_sources(geo),
+        geo=geo,
+        evolve_current=runtime_params.numerics.evolve_current,
+        prescribed_psidot=runtime_params.profile_conditions.psidot,
+        v_loop_lcfs=None,
+    )
+    np.testing.assert_allclose(result.psidot.value, expected_psidot.value)
+
+  def test_initial_core_profiles_does_not_mutate_caller_source_states(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions']['initial_psi_source'] = 'j'
+    config_dict['profile_conditions']['initial_j_is_total_current'] = False
+    config_dict['sources'] = {
+        'generic_current': {
+            'fraction_of_total_current': 0.25,
+            'mode': 'model_based',
+        },
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.time_step_calculator.t_initial,
+            runtime_params_provider=(
+                build_runtime_params.RuntimeParamsProvider.from_config(
+                    torax_config
+                )
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_states = source_models.initial_state(runtime_params)
+    source_states_snapshot = dict(source_states)
+    _ = initialization.initial_core_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+        source_states=source_states,
+    )
+    self.assertEqual(source_states, source_states_snapshot)
+
 
 def _get_initial_state(
     torax_config: config.ToraxConfig,
@@ -438,8 +755,10 @@ def _get_initial_state(
   runtime_params, geo = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.time_step_calculator.t_initial,
-          runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
-              torax_config
+          runtime_params_provider=(
+              build_runtime_params.RuntimeParamsProvider.from_config(
+                  torax_config
+              )
           ),
           geometry_provider=torax_config.geometry.build_provider,
           is_initialization=True,
