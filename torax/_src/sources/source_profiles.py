@@ -31,6 +31,18 @@ from torax._src.physics import fast_ion as fast_ion_lib
 # pylint: disable=invalid-name
 
 
+def j_parallel_to_psi_source(
+    j_parallel: array_typing.Array,
+    geo: geometry.Geometry,
+) -> array_typing.Array:
+  """Converts parallel current <j.B>/B_0 to the psi PDE source term."""
+  total_j_dot_B = j_parallel * geo.B_0
+  prefactor = (
+      8 * geo.vpr * jnp.pi**2 * constants.CONSTANTS.mu_0 * geo.Phi_b / geo.F**2
+  )
+  return -total_j_dot_B * prefactor
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class SourceOutput:
@@ -176,19 +188,10 @@ class SourceProfiles:
     """Returns the total psi sources."""
     # All psi sources are assumed to be parallel to the magnetic field, ie
     # self.psi.values() is <j.B> / B0
-    total_j_dot_B_over_B0 = self.bootstrap_current.j_parallel_bootstrap + sum(
-        self.psi.values()
+    total_j_parallel = self.bootstrap_current.j_parallel_bootstrap + sum(
+        self.psi.values(), start=jnp.zeros_like(geo.rho)
     )
-    total_j_dot_B = total_j_dot_B_over_B0 * geo.B_0
-    prefactor = (
-        8
-        * geo.vpr
-        * jnp.pi**2
-        * constants.CONSTANTS.mu_0
-        * geo.Phi_b
-        / geo.F**2
-    )
-    return -total_j_dot_B * prefactor
+    return j_parallel_to_psi_source(total_j_parallel, geo)
 
   def total_sources(
       self,
