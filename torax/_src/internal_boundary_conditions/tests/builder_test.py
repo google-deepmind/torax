@@ -17,8 +17,8 @@
 from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.core_profiles import (
     runtime_params as core_profile_runtime_params,
 )
@@ -45,7 +45,9 @@ class BuilderTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
     self.geo = circular_geometry.CircularConfig(n_rho=20).build_geometry()
-    self.core_profiles = mock.create_autospec(state.CoreProfiles, instance=True)
+    self.core_profiles = mock.create_autospec(
+        profiles.CoreProfiles, instance=True
+    )
     self.source_profiles = mock.create_autospec(
         source_profiles_lib.SourceProfiles, instance=True
     )

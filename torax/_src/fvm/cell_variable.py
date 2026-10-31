@@ -395,6 +395,12 @@ class CellVariable:
     output_string += ')'
     return output_string
 
+  def get_right_bc(self) -> array_typing.FloatScalar:
+    """Returns right_face_constraint, raising ValueError if None."""
+    if self.right_face_constraint is None:
+      raise ValueError('right_face_constraint must be set.')
+    return self.right_face_constraint
+
   def cell_plus_boundaries(self) -> jt.Float[array_typing.Array, '... cell+2']:
     """Returns the value of this variable plus left and right boundaries."""
     right_value = self.right_face_value

@@ -109,28 +109,32 @@ class SawtoothModelTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        output_state.core_profiles.T_e.value,
+        output_state.core_profiles.kinetic.T_e.value,
         self._post_crash_temperature,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.n_e.value,
+        output_state.core_profiles.kinetic.n_e.value,
         self._post_crash_n,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.psi.value,
+        output_state.core_profiles.flux.psi.value,
         self._post_crash_psi,
         rtol=1e-6,
     )
 
   def test_no_sawtooth_crash(self):
     """Tests that if q>1, no crash occurs."""
-    raised_q_face = self.initial_state.core_profiles.q_face * 2
+    raised_q_face = self.initial_state.core_profiles.flux.q_face * 2
     initial_state = dataclasses.replace(
         self.initial_state,
         core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles, q_face=raised_q_face
+            self.initial_state.core_profiles,
+            flux=dataclasses.replace(
+                self.initial_state.core_profiles.flux,
+                q_face=raised_q_face,
+            ),
         ),
     )
     output_state, _ = self.step_fn(
@@ -161,20 +165,14 @@ class SawtoothModelTest(parameterized.TestCase):
     # q is in trigger condition, but sawtooth_crash is True so no crash.
     new_input_state_should_not_crash = dataclasses.replace(
         output_state0,
-        core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles,
-            q_face=self.initial_state.core_profiles.q_face,
-        ),
+        core_profiles=self.initial_state.core_profiles,
     )
 
     # Check that the sawtooth is indeed triggered if sawtooth_crash is
     # set to False.
     new_input_state_should_crash = dataclasses.replace(
         output_state0,
-        core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles,
-            q_face=self.initial_state.core_profiles.q_face,
-        ),
+        core_profiles=self.initial_state.core_profiles,
         solver_numeric_outputs=state.SolverNumericOutputs(
             inner_solver_iterations=np.array(0, np.int64),
             outer_solver_iterations=np.array(0, np.int64),

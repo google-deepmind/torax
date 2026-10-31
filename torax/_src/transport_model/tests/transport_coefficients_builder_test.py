@@ -19,6 +19,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.core_profiles import profiles
 from torax._src.geometry import circular_geometry
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
@@ -41,7 +42,9 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     self.enterContext(jax.disable_jit())
     self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     self.n_face = len(self.geo.rho_face_norm)
-    self.core_profiles = mock.create_autospec(state.CoreProfiles, instance=True)
+    self.core_profiles = mock.create_autospec(
+        profiles.CoreProfiles, instance=True
+    )
 
     # Dummy turbulent transport output.
     self.turbulent_total = transport_coeffs_lib.TransportCoeffs(

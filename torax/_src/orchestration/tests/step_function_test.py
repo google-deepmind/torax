@@ -69,9 +69,12 @@ class StepFunctionTest(parameterized.TestCase):
     )
     core_profiles = dataclasses.replace(
         sim_state.core_profiles,
-        T_i=dataclasses.replace(
-            sim_state.core_profiles.T_i,
-            right_face_constraint=jnp.array(jnp.nan),
+        kinetic=dataclasses.replace(
+            sim_state.core_profiles.kinetic,
+            T_i=dataclasses.replace(
+                sim_state.core_profiles.kinetic.T_i,
+                right_face_constraint=jnp.array(jnp.nan),
+            ),
         ),
     )
     new_sim_state_core_profiles = dataclasses.replace(
@@ -192,7 +195,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
@@ -232,7 +235,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
@@ -271,7 +274,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._adaptive_step(

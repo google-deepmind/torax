@@ -17,8 +17,8 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-from torax._src import state
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import cell_variable
 
 
@@ -38,7 +38,7 @@ def cell_variable_tuple_to_vec(
 
 def vec_to_cell_variable_tuple(
     x_vec: jax.Array,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     evolving_names: tuple[str, ...],
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Converts a flat array of core profile state vars to CellVariable tuple.

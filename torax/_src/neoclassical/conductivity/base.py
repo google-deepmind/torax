@@ -12,31 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base class for conductivity models."""
+"""Base class and interface for neoclassical conductivity models."""
 
 from __future__ import annotations
 
 import abc
-import dataclasses
 from typing import Annotated
 
-import jax
 import pydantic
-from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(kw_only=True, frozen=True)
-class Conductivity:
-  """Values returned by a conductivity model."""
-
-  sigma: array_typing.FloatVectorCell
-  sigma_face: array_typing.FloatVectorFace
 
 
 class ConductivityModel(abc.ABC):
@@ -47,9 +36,9 @@ class ConductivityModel(abc.ABC):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> Conductivity:
+  ) -> profiles.Conductivity:
     """Calculates conductivity."""
 
 

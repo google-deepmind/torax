@@ -23,6 +23,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge.extended_lengyel import config as extended_lengyel_config
@@ -48,7 +49,7 @@ from torax._src.test_utils import sim_test_case
 
 def _set_psi_norm_face(core_profiles: mock.MagicMock) -> None:
   """Sets psi_norm_face on a mocked CoreProfiles from its mocked psi."""
-  core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
+  core_profiles.psi_norm_face = profiles.CoreProfiles.psi_norm_face.func(
       core_profiles
   )
 
@@ -104,28 +105,33 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.diverted = np.bool(True)
 
     # Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    mock_core_profiles.I_p_profile_face = np.linspace(0.0, 1.0e6, (n_rho + 1))
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.array([10.0] * (n_rho + 1))
-    mock_core_profiles.Z_i_face = np.array([1.0] * (n_rho + 1))
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
+    mock_core_profiles.flux.I_p_profile_face = np.linspace(
+        0.0, 1.0e6, (n_rho + 1)
+    )
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.array([10.0] * (n_rho + 1))
+    mock_core_profiles.ions.Z_i_face = np.array([1.0] * (n_rho + 1))
 
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.linspace(0, 1.0, (n_rho + 1))
-    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
 
     mock_n_e = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_n_e.face_value.return_value = np.array([3.3e19] * (n_rho + 1))
-    mock_core_profiles.n_e = mock_n_e
+    mock_core_profiles.kinetic.n_e = mock_n_e
 
     mock_n_i = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_n_i.face_value.return_value = np.array([3.3e19] * (n_rho + 1))
-    mock_core_profiles.n_i = mock_n_i
+    mock_core_profiles.kinetic.n_i = mock_n_i
 
     mock_n_impurity = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_n_impurity.face_value.return_value = np.zeros((n_rho + 1))
-    mock_core_profiles.n_impurity = mock_n_impurity
+    mock_core_profiles.kinetic.n_impurity = mock_n_impurity
 
     # Set up CoreSources to give P_SOL_total = 5.5e6 W.
     target_P_SOL = 5.5e6
@@ -284,7 +290,10 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.ones(n_rho)
 
     # 2. Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_n_e = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_n_i = mock.MagicMock(spec=cell_variable.CellVariable)
@@ -293,15 +302,15 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_n_e.face_value.return_value = np.ones(n_rho + 1) * 1e19
     mock_n_i.face_value.return_value = np.ones(n_rho + 1) * 1e19
     mock_n_impurity.face_value.return_value = np.zeros(n_rho + 1)
-    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.n_e = mock_n_e
-    mock_core_profiles.n_i = mock_n_i
-    mock_core_profiles.n_impurity = mock_n_impurity
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 4.0
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.kinetic.n_e = mock_n_e
+    mock_core_profiles.kinetic.n_i = mock_n_i
+    mock_core_profiles.kinetic.n_impurity = mock_n_impurity
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 4.0
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     # 3. Mock CoreSources
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
@@ -395,16 +404,22 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.ones(n_rho)
 
     # 2. Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
+    for attr in ['n_e', 'n_i', 'n_impurity']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
-      setattr(mock_core_profiles, attr, m)
+      setattr(mock_core_profiles.kinetic, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.ones(n_rho + 1)
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1)
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
@@ -569,16 +584,22 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.delta_face = np.array([0.3] * (n_rho + 1))
     mock_geo.vpr = np.ones(n_rho)
 
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
+    for attr in ['n_e', 'n_i', 'n_impurity']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
-      setattr(mock_core_profiles, attr, m)
+      setattr(mock_core_profiles.kinetic, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.ones(n_rho + 1)
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1)
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1)
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
@@ -725,19 +746,22 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     n_rho = 10
     geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
 
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
     for attr in ['n_e', 'n_i', 'n_impurity']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
-      setattr(mock_core_profiles, attr, m)
+      setattr(mock_core_profiles.kinetic, attr, m)
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.linspace(0.0, 1.0, n_rho + 1)
-    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
@@ -861,19 +885,22 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     n_rho = 10
     geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
 
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
     for attr in ['n_e', 'n_i', 'n_impurity']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
-      setattr(mock_core_profiles, attr, m)
+      setattr(mock_core_profiles.kinetic, attr, m)
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.linspace(0.0, 1.0, n_rho + 1)
-    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
@@ -1009,17 +1036,23 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.ones(n_rho)
 
     # 2. Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
     # Setup minimal profiles to avoid index errors
-    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
-      setattr(mock_core_profiles, attr, m)
+      setattr(mock_core_profiles.kinetic, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.ones(n_rho + 1)
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1)
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
@@ -1091,11 +1124,12 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
     super().setUp()
     self.model = extended_lengyel_model.ExtendedLengyelModel()
 
-    self.mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    self.mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    self.mock_core_profiles.flux = mock.MagicMock()
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.array([0.0, 0.5, 1.0])
     mock_psi.face_grad.return_value = np.array([0.0, 0.5, 1.0])
-    self.mock_core_profiles.psi = mock_psi
+    self.mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(self.mock_core_profiles)
 
     self.mock_runtime_params = mock.MagicMock(
@@ -1426,26 +1460,36 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
     if update_T_e:
       expected_Te_bc = final_edge_output.T_e_right_bc
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-          final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5
+          final_state.kinetic.T_e.right_face_constraint,
+          expected_Te_bc,
+          rtol=1e-5,
       )
       # Sanity check that it actually changed from initial
       with self.assertRaises(AssertionError):
         np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-            final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
+            final_state.kinetic.T_e.right_face_constraint,
+            initial_Te_bc,
+            rtol=1e-5,
         )
     else:
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-          final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
+          final_state.kinetic.T_e.right_face_constraint,
+          initial_Te_bc,
+          rtol=1e-5,
       )
 
     if update_T_i:
       expected_Ti_bc = final_edge_output.T_i_right_bc
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-          final_state.T_i.right_face_constraint, expected_Ti_bc, rtol=1e-5
+          final_state.kinetic.T_i.right_face_constraint,
+          expected_Ti_bc,
+          rtol=1e-5,
       )
     else:
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-          final_state.T_i.right_face_constraint, initial_Ti_bc, rtol=1e-5
+          final_state.kinetic.T_i.right_face_constraint,
+          initial_Ti_bc,
+          rtol=1e-5,
       )
 
   def test_inverse_mode_updates_impurities(self):
@@ -1707,16 +1751,22 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
       )
 
   def _make_mock_core_profiles_and_sources(self, n_rho: int):
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+    mock_core_profiles = mock.MagicMock(spec=profiles.CoreProfiles)
+    mock_core_profiles.flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
+    for attr in ['n_e', 'n_i', 'n_impurity']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
-      setattr(mock_core_profiles, attr, m)
+      setattr(mock_core_profiles.kinetic, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.ones(n_rho + 1) * 1e19
+    mock_core_profiles.flux.psi = mock_psi
     _set_psi_norm_face(mock_core_profiles)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6

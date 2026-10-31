@@ -20,8 +20,8 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import (
@@ -57,7 +57,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       structure_state: pedestal_state_lib.StructureState,
   ) -> tuple[
       pedestal_structure.PedestalStructure,
@@ -82,11 +82,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
 
     # Calculate T_e_ped.
     temperature_ratio = structure_params.T_i_T_e_ratio
-    Z_impurity = core_profiles.Z_impurity
-    Z_i = core_profiles.Z_i
+    Z_impurity = core_profiles.ions.Z_impurity
+    Z_i = core_profiles.ions.Z_i
     # Find the value of Z_eff at the pedestal top.
     rho_norm_ped_top = structure_params.rho_norm_ped_top
-    Z_eff = core_profiles.Z_eff
+    Z_eff = core_profiles.ions.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
     Z_eff_ped = jnp.take(Z_eff, ped_idx)

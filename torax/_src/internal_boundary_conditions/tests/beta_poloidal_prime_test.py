@@ -111,11 +111,17 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        I_p_profile_face=jnp.linspace(0.0, I_p, geo.rho_face.shape[0]),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+            n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        ),
+        flux=dataclasses.replace(
+            core_profiles.flux,
+            I_p_profile_face=jnp.linspace(0.0, I_p, geo.rho_face.shape[0]),
+        ),
     )
 
     ibc_config = ibc_config_lib.BetaPoloidalPrimeIBCConfig(
@@ -256,11 +262,17 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        I_p_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+            n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        ),
+        flux=dataclasses.replace(
+            core_profiles.flux,
+            I_p_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+        ),
     )
     model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
 
@@ -357,7 +369,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         n_e_edge=None,
         n_e_edge_multiplier=multiplier,
     )
-    n_e_sep = core_profiles.n_e.right_face_value.item()
+    n_e_sep = core_profiles.kinetic.n_e.right_face_value.item()
     _, _, ibc_out_val = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
         n_e_edge=multiplier * n_e_sep,

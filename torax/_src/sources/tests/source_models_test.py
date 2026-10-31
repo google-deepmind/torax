@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
+from typing import ClassVar
 from absl.testing import absltest
 from absl.testing import parameterized
+import immutabledict
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.sources import config as sources_config
+from torax._src.sources import qei_source as qei_source_lib
+from torax._src.sources import source as source_lib
+from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_sources
 
 
@@ -95,7 +101,7 @@ class SourceModelsTest(parameterized.TestCase):
     self.assertNotIn('ohmic', basic)
     self.assertNotIn('impurity_radiation', basic)
 
-  def test_remaining_and_final_sources(self):
+  def test_source_partitioning(self):
     sources_dict = default_sources.get_default_source_config()
     sources_dict['ecrh'] = {}
     sources_dict['icrh'] = {
@@ -111,17 +117,70 @@ class SourceModelsTest(parameterized.TestCase):
     ).build_models()
 
     basic = configured_models.basic_sources
-    remaining_and_final = configured_models.remaining_and_final_sources
+    core_profiles_sources = configured_models.core_profiles_sources
+    final_sources = configured_models.final_sources
 
+    self.assertTrue(set(basic.keys()).isdisjoint(core_profiles_sources.keys()))
+    self.assertTrue(set(basic.keys()).isdisjoint(final_sources.keys()))
     self.assertTrue(
-        set(basic.keys()).isdisjoint(remaining_and_final.keys())
+        set(core_profiles_sources.keys()).isdisjoint(final_sources.keys())
     )
+
     self.assertEqual(
-        set(basic.keys()) | set(remaining_and_final.keys()),
+        set(basic.keys())
+        | set(core_profiles_sources.keys())
+        | set(final_sources.keys()),
         set(configured_models.standard_sources.keys()),
     )
-    self.assertIn('ohmic', remaining_and_final)
-    self.assertEqual(list(remaining_and_final.keys())[-1], 'impurity_radiation')
+
+    self.assertIn('ohmic', core_profiles_sources)
+    self.assertIn('impurity_radiation', final_sources)
+    self.assertNotIn('ohmic', basic)
+    self.assertNotIn('impurity_radiation', basic)
+
+  def test_mavrin_fit_partitioned_into_basic_sources(self):
+    sources_dict = default_sources.get_default_source_config()
+    sources_dict['impurity_radiation'] = {
+        'model_name': 'mavrin_fit',
+    }
+    configured_models = sources_config.SourcesConfig.from_dict(
+        sources_dict
+    ).build_models()
+
+    self.assertIn('impurity_radiation', configured_models.basic_sources)
+    self.assertNotIn('impurity_radiation', configured_models.final_sources)
+
+  def test_multiple_final_sources_raises_error(self):
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class DummyFinalSource(source_lib.FinalSource):
+      SOURCE_ID: ClassVar[str] = 'final1'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class DummyFinalSource2(source_lib.FinalSource):
+      SOURCE_ID: ClassVar[str] = 'final2'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.TEMP_ION,)
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
+
+    with self.assertRaisesRegex(
+        ValueError, 'At most one FinalSource may be configured in SourceModels'
+    ):
+      source_models_lib.SourceModels(
+          qei_source=qei_source_lib.QeiSource(),
+          standard_sources=immutabledict.immutabledict({
+              'f1': DummyFinalSource(),
+              'f2': DummyFinalSource2(),
+          }),
+      )
 
 
 if __name__ == '__main__':

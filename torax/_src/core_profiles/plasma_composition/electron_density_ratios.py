@@ -23,7 +23,7 @@ from jax import lax
 from jax import numpy as jnp
 import pydantic
 from torax._src import array_typing
-from torax._src import constants
+from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -114,33 +114,18 @@ class ElectronDensityRatios(torax_pydantic.ConfigBase):
         for ion_symbol, ratio in self.species.items()
     }
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
+    A_override = None if not self.A_override else self.A_override.get_value(t)
     fractions = calculate_fractions_from_ratios(n_e_ratios)
     fractions_face = calculate_fractions_from_ratios(n_e_ratios_face)
-
-    if not self.A_override:
-      A_avg = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions.items()
-          ]),
-          axis=0,
-      )
-      A_avg_face = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions_face.items()
-          ]),
-          axis=0,
-      )
-    else:
-      A_override = self.A_override.get_value(t)
-      A_avg = jnp.ones_like(list(fractions.values())[0]) * A_override
-      A_avg_face = jnp.ones_like(list(fractions_face.values())[0]) * A_override
+    A_avg = impurity_fractions.calculate_average_mass(fractions, A_override)
+    A_avg_face = impurity_fractions.calculate_average_mass(
+        fractions_face, A_override
+    )
 
     return RuntimeParams(
         n_e_ratios=n_e_ratios,
         n_e_ratios_face=n_e_ratios_face,
         A_avg=A_avg,
-        Z_override=Z_override,
         A_avg_face=A_avg_face,
+        Z_override=Z_override,
     )

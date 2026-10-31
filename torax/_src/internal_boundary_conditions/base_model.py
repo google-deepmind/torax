@@ -16,9 +16,9 @@
 
 import abc
 
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -32,7 +32,7 @@ class InternalBoundaryConditionModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> internal_boundary_conditions.InternalBoundaryConditions:
     """Returns active InternalBoundaryConditions container."""

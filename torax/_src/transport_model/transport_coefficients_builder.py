@@ -19,6 +19,7 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
@@ -42,7 +43,7 @@ def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     transport_state: transport_state_lib.TransportState,
     neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,

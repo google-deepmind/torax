@@ -24,8 +24,8 @@ diffusion equation with a stiff transport", Computer Physics Communications 179
 import jax
 import jax.numpy as jnp
 from torax._src import constants
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import transport_coeffs
@@ -59,7 +59,7 @@ def _midpoint_face_value(var: cell_variable.CellVariable) -> jax.Array:
 def calculate_pereverzev_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
 ) -> transport_coeffs.PereverzevTransport:
   """Calculates Pereverzev-Corrigan transport coefficients.
 
@@ -95,18 +95,18 @@ def calculate_pereverzev_transport(
   # face averages (`_midpoint_face_value`) to match `diffusion_terms` and
   # zero-Péclet `convection_terms` on non-uniform meshes.
   full_v_heat_face_per_ion = (
-      core_profiles.T_i.face_grad(two_point_mask=all_two_point)
-      / _midpoint_face_value(core_profiles.T_i)
+      core_profiles.kinetic.T_i.face_grad(two_point_mask=all_two_point)
+      / _midpoint_face_value(core_profiles.kinetic.T_i)
       * geo.g1_over_vpr_face
-      * core_profiles.n_i.face_value()
+      * core_profiles.kinetic.n_i.face_value()
       * consts.keV_to_J
       * runtime_params.solver.chi_pereverzev
   )
   full_v_heat_face_per_el = (
-      core_profiles.T_e.face_grad(two_point_mask=all_two_point)
-      / _midpoint_face_value(core_profiles.T_e)
+      core_profiles.kinetic.T_e.face_grad(two_point_mask=all_two_point)
+      / _midpoint_face_value(core_profiles.kinetic.T_e)
       * geo.g1_over_vpr_face
-      * core_profiles.n_e.face_value()
+      * core_profiles.kinetic.n_e.face_value()
       * consts.keV_to_J
       * runtime_params.solver.chi_pereverzev
   )
@@ -124,8 +124,8 @@ def calculate_pereverzev_transport(
   # term
   v_face_per_el = (
       g1_over_vpr_g0
-      * core_profiles.n_e.face_grad(two_point_mask=all_two_point)
-      / _midpoint_face_value(core_profiles.n_e)
+      * core_profiles.kinetic.n_e.face_grad(two_point_mask=all_two_point)
+      / _midpoint_face_value(core_profiles.kinetic.n_e)
       * runtime_params.solver.D_pereverzev
   )
 

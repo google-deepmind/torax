@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -42,20 +43,20 @@ class SourceTest(parameterized.TestCase):
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
 
-    with self.assertRaisesRegex(ValueError, 'Source ID must be set.'):
+    with self.assertRaisesRegex(ValueError, "Source ID must be set."):
       BadSource()
 
   def test_missing_affected_core_profiles_raises_error(self):
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
-      SOURCE_ID: ClassVar[str] = 'bad'
+      SOURCE_ID: ClassVar[str] = "bad"
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
 
     with self.assertRaisesRegex(
-        ValueError, 'Affected core profiles must be set.'
+        ValueError, "Affected core profiles must be set."
     ):
       BadSource()
 
@@ -82,8 +83,6 @@ class SourceTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
     np.testing.assert_allclose(profile.profiles[0], np.zeros_like(geo.rho_norm))
@@ -107,7 +106,7 @@ class SourceTest(parameterized.TestCase):
 
       def _get_model_value(self, *args, **kwargs):
         source_state = kwargs.get(
-            'source_state',
+            "source_state",
             args[-1] if args else source_state_lib.SourceState(),
         )
         return (
@@ -137,8 +136,6 @@ class SourceTest(parameterized.TestCase):
         runtime_params=dynamic_slice,
         geo=geo,
         core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
     np.testing.assert_allclose(
@@ -167,8 +164,6 @@ class SourceTest(parameterized.TestCase):
         runtime_params=dynamic_slice,
         geo=mock.ANY,
         core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
     self.assertLen(profile.profiles, 2)
@@ -202,17 +197,122 @@ class SourceTest(parameterized.TestCase):
     )
     with self.assertRaisesRegex(
         ValueError,
-        'the number of prescribed values must match the number of affected',
+        "the number of prescribed values must match the number of affected",
     ):
       source.get_value(
           runtime_params=dynamic_slice,
           geo=mock.ANY,
           core_profiles=mock.ANY,
-          calculated_source_profiles=None,
-          conductivity=None,
+          source_state=source_state_lib.SourceState(),
+      )
+
+  def test_source_using_core_profiles_rejects_psi(self):
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class BadSource(source_lib.SourceUsingCoreProfiles):
+      SOURCE_ID: ClassVar[str] = "bad_core_profile_source"
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.PSI,)
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
+
+    with self.assertRaisesRegex(ValueError, "cannot affect.*PSI"):
+      BadSource()
+
+  def test_final_source_rejects_psi(self):
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class BadSource(source_lib.FinalSource):
+      SOURCE_ID: ClassVar[str] = "bad_final_source"
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.PSI,)
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
+
+    with self.assertRaisesRegex(ValueError, "cannot affect.*PSI"):
+      BadSource()
+
+  def test_source_using_core_profiles_rejects_fast_ions_output(self):
+    dummy_fi = mock.create_autospec(
+        fast_ion_lib.FastIon, instance=True, species="D"
+    )
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class FastIonCoreProfilesSource(source_lib.SourceUsingCoreProfiles):
+      SOURCE_ID: ClassVar[str] = "fast_ion_core_source"
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+
+      def _get_model_value(self, *args, **kwargs):
+        return (
+            source_profiles.SourceOutput(
+                profiles=(np.zeros(4),), fast_ions=(dummy_fi,)
+            ),
+            source_state_lib.SourceState(),
+        )
+
+    src = FastIonCoreProfilesSource()
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        sources={
+            "fast_ion_core_source": sources_runtime_params_lib.RuntimeParams(
+                prescribed_values=(),
+                mode=sources_runtime_params_lib.Mode.MODEL_BASED,
+                is_explicit=False,
+            )
+        },
+    )
+    with self.assertRaisesRegex(ValueError, "cannot produce fast_ions"):
+      src.get_value(
+          runtime_params=runtime_params,
+          geo=mock.ANY,
+          core_profiles=mock.ANY,
+          source_state=source_state_lib.SourceState(),
+      )
+
+  def test_final_source_rejects_fast_ions_output(self):
+    dummy_fi = mock.create_autospec(
+        fast_ion_lib.FastIon, instance=True, species="D"
+    )
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class FastIonFinalSource(source_lib.FinalSource):
+      SOURCE_ID: ClassVar[str] = "fast_ion_final_source"
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+
+      def _get_model_value(self, *args, **kwargs):
+        return (
+            source_profiles.SourceOutput(
+                profiles=(np.zeros(4),), fast_ions=(dummy_fi,)
+            ),
+            source_state_lib.SourceState(),
+        )
+
+    src = FastIonFinalSource()
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        sources={
+            "fast_ion_final_source": sources_runtime_params_lib.RuntimeParams(
+                prescribed_values=(),
+                mode=sources_runtime_params_lib.Mode.MODEL_BASED,
+                is_explicit=False,
+            )
+        },
+    )
+    with self.assertRaisesRegex(ValueError, "cannot produce fast_ions"):
+      src.get_value(
+          runtime_params=runtime_params,
+          geo=mock.ANY,
+          core_profiles=mock.ANY,
+          calculated_source_profiles=mock.ANY,
           source_state=source_state_lib.SourceState(),
       )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()

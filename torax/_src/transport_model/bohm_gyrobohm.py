@@ -20,8 +20,8 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
@@ -102,7 +102,7 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
@@ -139,21 +139,25 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
     # Bohm term of heat transport
     chi_e_B = (
         geo.r_mid_face
-        * core_profiles.q_face**2
+        * core_profiles.flux.q_face**2
         / (
             constants_module.CONSTANTS.q_e
             * geo.B_0
-            * core_profiles.n_e.face_value()
+            * core_profiles.kinetic.n_e.face_value()
         )
         * (
             jnp.abs(
-                core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
+                core_profiles.kinetic.n_e.face_grad(
+                    two_point_mask=two_point_mask
+                )
             )
-            * core_profiles.T_e.face_value()
+            * core_profiles.kinetic.T_e.face_value()
             + jnp.abs(
-                core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
+                core_profiles.kinetic.T_e.face_grad(
+                    two_point_mask=two_point_mask
+                )
             )
-            * core_profiles.n_e.face_value()
+            * core_profiles.kinetic.n_e.face_value()
         )
         * constants_module.CONSTANTS.keV_to_J
         / geo.rho_b
@@ -166,10 +170,11 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
     # Gyrobohm term of heat transport
     chi_e_gB = (
         jnp.sqrt(runtime_params.plasma_composition.main_ion.A_avg / 2)
-        * jnp.sqrt(core_profiles.T_e.face_value() * 1e3)
+        * jnp.sqrt(core_profiles.kinetic.T_e.face_value() * 1e3)
         / geo.B_0**2
         * jnp.abs(
-            core_profiles.T_e.face_grad(two_point_mask=two_point_mask) * 1e3
+            core_profiles.kinetic.T_e.face_grad(two_point_mask=two_point_mask)
+            * 1e3
         )
         / geo.rho_b
     )

@@ -39,14 +39,24 @@ class FormulasTest(parameterized.TestCase):
     self.core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
         self.core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
-        n_e=core_profile_helpers.make_constant_core_profile(self.geo, 3.0e20),
-        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            self.geo, 0.25e20
+        kinetic=dataclasses.replace(
+            self.core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
+            n_e=core_profile_helpers.make_constant_core_profile(
+                self.geo, 3.0e20
+            ),
+            n_i=core_profile_helpers.make_constant_core_profile(
+                self.geo, 2.5e20
+            ),
+            n_impurity=core_profile_helpers.make_constant_core_profile(
+                self.geo, 0.25e20
+            ),
         ),
-        I_p_profile_face=[np.pi * 1e6],  # pyrefly: ignore[bad-argument-type]
+        flux=dataclasses.replace(
+            self.core_profiles.flux,
+            I_p_profile_face=np.array([np.pi * 1e6]),
+        ),
     )
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -216,9 +226,10 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        psi=psi_var,
-        n_e=n_e_val,
-        T_e=T_e_val,
+        flux=dataclasses.replace(core_profiles.flux, psi=psi_var),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
+        ),
     )
 
     with self.subTest('beta_pol_profile'):
@@ -266,9 +277,10 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        n_e=n_e_val,
-        T_e=T_e_val,
-        q_face=q_face,
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
+        ),
+        flux=dataclasses.replace(core_profiles.flux, q_face=q_face),
     )
 
     alpha_mhd = formulas.calculate_alpha_mhd(core_profiles, geo)
@@ -328,10 +340,12 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        psi=psi_var,
-        n_e=n_e_val,
-        T_e=T_e_val,
-        q_face=q_face,
+        flux=dataclasses.replace(
+            core_profiles.flux, psi=psi_var, q_face=q_face
+        ),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
+        ),
     )
 
     alpha_mhd_miller = formulas.calculate_alpha_mhd_miller(core_profiles, geo)

@@ -28,6 +28,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
+from torax._src.core_profiles import profiles
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -154,12 +155,15 @@ class StateHistory:
       # For the I_p BC case, set v_loop_lcfs[0] to the same value as
       # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
       # underconstrained.
-      v_loop_lcfs = jnp.asarray(core_profiles.v_loop_lcfs)
+      v_loop_lcfs = jnp.asarray(core_profiles.flux.v_loop_lcfs)
       core_profiles = dataclasses.replace(
           core_profiles,
-          v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
+          flux=dataclasses.replace(
+              core_profiles.flux,
+              v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
+          ),
       )
-    self._core_profiles: state.CoreProfiles = core_profiles
+    self._core_profiles: profiles.CoreProfiles = core_profiles
     self._core_sources: source_profiles_lib.SourceProfiles = (
         state_history.core_sources
     )
@@ -231,7 +235,7 @@ class StateHistory:
     return _unstack_pytree(self._geometry)
 
   @functools.cached_property
-  def core_profiles(self) -> Sequence[state.CoreProfiles]:
+  def core_profiles(self) -> Sequence[profiles.CoreProfiles]:
     """Returns the core profiles."""
     return _unstack_pytree(self._core_profiles)
 

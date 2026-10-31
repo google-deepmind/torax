@@ -383,9 +383,12 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(0.1))
     modified_core_profiles = dataclasses.replace(
         self.initial_state.core_profiles,
-        T_e=dataclasses.replace(
-            self.initial_state.core_profiles.T_e,
-            value=self.initial_state.core_profiles.T_e.value * 2.0,
+        kinetic=dataclasses.replace(
+            self.initial_state.core_profiles.kinetic,
+            T_e=dataclasses.replace(
+                self.initial_state.core_profiles.kinetic.T_e,
+                value=self.initial_state.core_profiles.kinetic.T_e.value * 2.0,
+            ),
         ),
     )
     # When dt > 0.0, update_state advances state.

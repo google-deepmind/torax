@@ -18,7 +18,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
+from torax._src.core_profiles import flux_profiles
+from torax._src.core_profiles import ion_composition
+from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import scaling_laws
@@ -37,46 +40,47 @@ class ScalingLawsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
 
-    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
-    # property needed in calculate_P_LH.
-    core_profiles = state.CoreProfiles(
-        n_e=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.rho_norm) * 2e20,
-            left_face_grad_constraint=jnp.zeros(()),
-            right_face_grad_constraint=None,
-            right_face_constraint=jnp.array(2.0e20),
-            face_centers=geo.rho_face_norm,
+    # Uses mock.ANY instead of mock.create_autospec to satisfy required
+    # properties in calculate_P_LH.
+    core_profiles = solver_profiles.SolverProfiles(
+        kinetic=kinetic_profiles.KineticProfiles(
+            n_e=cell_variable.CellVariable(
+                value=jnp.ones_like(geo.rho_norm) * 2e20,
+                left_face_grad_constraint=jnp.zeros(()),
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.array(2.0e20),
+                face_centers=geo.rho_face_norm,
+            ),
+            n_i=mock.ANY,
+            n_impurity=mock.ANY,
+            T_i=mock.ANY,
+            T_e=mock.ANY,
         ),
-        n_i=mock.ANY,
-        n_impurity=mock.ANY,
-        impurity_fractions=mock.ANY,
-        main_ion_fractions=mock.ANY,
-        T_i=mock.ANY,
-        T_e=mock.ANY,
-        psi=mock.ANY,
-        psidot=mock.ANY,
-        v_loop_lcfs=mock.ANY,
-        q_face=mock.ANY,
-        s_face=mock.ANY,
-        Z_i=mock.ANY,
-        Z_i_face=mock.ANY,
-        A_i=3.0,
-        Z_impurity=mock.ANY,
-        Z_impurity_face=mock.ANY,
-        A_impurity=mock.ANY,
-        A_impurity_face=mock.ANY,
-        Z_eff=mock.ANY,
-        Z_eff_face=mock.ANY,
-        sigma=mock.ANY,
-        sigma_face=mock.ANY,
-        j_toroidal_total=mock.ANY,
-        j_toroidal_total_face=mock.ANY,
-        I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        ions=ion_composition.IonComposition(
+            impurity_fractions=mock.ANY,
+            main_ion_fractions=mock.ANY,
+            Z_i=mock.ANY,
+            Z_i_face=mock.ANY,
+            A_i=3.0,
+            Z_impurity=mock.ANY,
+            Z_impurity_face=mock.ANY,
+            A_impurity=mock.ANY,
+            A_impurity_face=mock.ANY,
+            Z_eff=mock.ANY,
+            Z_eff_face=mock.ANY,
+            charge_state_info=mock.ANY,
+            charge_state_info_face=mock.ANY,
+        ),
+        flux=flux_profiles.FluxProfiles(
+            psi=mock.ANY,
+            q_face=mock.ANY,
+            s_face=mock.ANY,
+            j_toroidal_total=mock.ANY,
+            j_toroidal_total_face=mock.ANY,
+            I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+            v_loop_lcfs=mock.ANY,
+        ),
         toroidal_angular_velocity=mock.ANY,
-        poloidal_velocity=mock.ANY,
-        charge_state_info=mock.ANY,
-        charge_state_info_face=mock.ANY,
-        fast_ions=mock.ANY,
     )
     return geo, core_profiles
 
@@ -175,46 +179,47 @@ class ScalingLawsTest(parameterized.TestCase):
         a_minor=2.0,
         B_0=5.0,
     ).build_geometry()
-    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
-    # property needed in calculate_plh_delabie.
-    core_profiles = state.CoreProfiles(
-        n_e=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.rho_norm) * 2e20,
-            left_face_grad_constraint=jnp.zeros(()),
-            right_face_grad_constraint=None,
-            right_face_constraint=jnp.array(2.0e20),
-            face_centers=geo.rho_face_norm,
+    # Uses mock.ANY instead of mock.create_autospec to satisfy required
+    # properties in calculate_plh_delabie.
+    core_profiles = solver_profiles.SolverProfiles(
+        kinetic=kinetic_profiles.KineticProfiles(
+            n_e=cell_variable.CellVariable(
+                value=jnp.ones_like(geo.rho_norm) * 2e20,
+                left_face_grad_constraint=jnp.zeros(()),
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.array(2.0e20),
+                face_centers=geo.rho_face_norm,
+            ),
+            n_i=mock.ANY,
+            n_impurity=mock.ANY,
+            T_i=mock.ANY,
+            T_e=mock.ANY,
         ),
-        n_i=mock.ANY,
-        n_impurity=mock.ANY,
-        impurity_fractions=mock.ANY,
-        main_ion_fractions=mock.ANY,
-        T_i=mock.ANY,
-        T_e=mock.ANY,
-        psi=mock.ANY,
-        psidot=mock.ANY,
-        v_loop_lcfs=mock.ANY,
-        q_face=mock.ANY,
-        s_face=mock.ANY,
-        Z_i=mock.ANY,
-        Z_i_face=mock.ANY,
-        A_i=3.0,
-        Z_impurity=mock.ANY,
-        Z_impurity_face=mock.ANY,
-        A_impurity=mock.ANY,
-        A_impurity_face=mock.ANY,
-        Z_eff=mock.ANY,
-        Z_eff_face=mock.ANY,
-        sigma=mock.ANY,
-        sigma_face=mock.ANY,
-        j_toroidal_total=mock.ANY,
-        j_toroidal_total_face=mock.ANY,
-        I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        ions=ion_composition.IonComposition(
+            impurity_fractions=mock.ANY,
+            main_ion_fractions=mock.ANY,
+            Z_i=mock.ANY,
+            Z_i_face=mock.ANY,
+            A_i=3.0,
+            Z_impurity=mock.ANY,
+            Z_impurity_face=mock.ANY,
+            A_impurity=mock.ANY,
+            A_impurity_face=mock.ANY,
+            Z_eff=mock.ANY,
+            Z_eff_face=mock.ANY,
+            charge_state_info=mock.ANY,
+            charge_state_info_face=mock.ANY,
+        ),
+        flux=flux_profiles.FluxProfiles(
+            psi=mock.ANY,
+            q_face=mock.ANY,
+            s_face=mock.ANY,
+            j_toroidal_total=mock.ANY,
+            j_toroidal_total_face=mock.ANY,
+            I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+            v_loop_lcfs=mock.ANY,
+        ),
         toroidal_angular_velocity=mock.ANY,
-        poloidal_velocity=mock.ANY,
-        charge_state_info=mock.ANY,
-        charge_state_info_face=mock.ANY,
-        fast_ions=mock.ANY,
     )
     Ploss = jnp.array(50e6)
 

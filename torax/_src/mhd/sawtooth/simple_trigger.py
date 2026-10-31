@@ -22,9 +22,9 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import trigger_base
@@ -41,7 +41,7 @@ class SimpleTrigger(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
   ) -> tuple[array_typing.BoolScalar, array_typing.FloatScalar]:
     """Checks if the simple critical shear condition for a sawtooth is met.
 
@@ -61,8 +61,8 @@ class SimpleTrigger(
     minimum_radius = sawtooth_params.trigger_params.minimum_radius
     s_critical = sawtooth_params.trigger_params.s_critical
 
-    q_face = core_profiles.q_face
-    s_face = core_profiles.s_face
+    q_face = core_profiles.flux.q_face
+    s_face = core_profiles.flux.s_face
     rho_face_norm = geo.rho_face_norm
     eps = constants.CONSTANTS.eps
 

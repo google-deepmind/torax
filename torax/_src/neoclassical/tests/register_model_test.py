@@ -21,8 +21,9 @@ import jax
 import jax.numpy as jnp
 import pydantic
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
@@ -36,6 +37,7 @@ from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
 from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.poloidal_velocity import zeros as poloidal_velocity_zeros
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
@@ -48,11 +50,11 @@ class CustomConductivityModel(conductivity_base.ConductivityModel):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> conductivity_base.Conductivity:
+  ) -> profiles.Conductivity:
     del runtime_params, core_profiles, neoclassical_intermediates
-    return conductivity_base.Conductivity(
+    return profiles.Conductivity(
         sigma=jnp.ones_like(geometry.rho_norm),
         sigma_face=jnp.ones_like(geometry.rho_face_norm),
     )
@@ -79,7 +81,7 @@ class CustomPoloidalVelocityModel(poloidal_velocity_base.PoloidalVelocityModel):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> poloidal_velocity_base.PoloidalVelocity:
     return poloidal_velocity_zeros.ZerosModel().calculate_poloidal_velocity(
@@ -122,20 +124,21 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...] = (),
   ) -> tuple[
-      conductivity_base.Conductivity,
+      profiles.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
       poloidal_velocity_base.PoloidalVelocity,
       neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ]:
-    del core_profiles
+    del core_profiles, fast_ions
     assert isinstance(
         runtime_params.neoclassical, CustomNeoclassicalRuntimeParams
     )
     sigma_val = runtime_params.neoclassical.custom_sigma
     return (
-        conductivity_base.Conductivity(
+        profiles.Conductivity(
             sigma=jnp.full_like(geo.rho_norm, sigma_val),
             sigma_face=jnp.full_like(geo.rho_face_norm, sigma_val),
         ),
@@ -148,10 +151,8 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
-      intermediates: (
-          neoclassical_intermediates_lib.NeoclassicalIntermediates
-      ),
+      core_profiles: profiles.CoreProfiles,
+      intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     del runtime_params, core_profiles
     assert isinstance(

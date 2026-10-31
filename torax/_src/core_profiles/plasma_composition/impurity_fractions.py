@@ -106,6 +106,23 @@ ImpurityMapping: TypeAlias = Annotated[
 ]
 
 
+def calculate_average_mass(
+    fractions: Mapping[str, array_typing.FloatVector],
+    A_override: array_typing.FloatScalar | None = None,
+) -> array_typing.FloatVector:
+  """Calculates the average atomic mass of an ion mixture."""
+  if A_override is not None:
+    first_fraction = next(iter(fractions.values()))
+    return jnp.ones_like(first_fraction) * A_override
+  return jnp.sum(
+      jnp.array([
+          constants.ION_PROPERTIES_DICT[ion].A * fraction
+          for ion, fraction in fractions.items()
+      ]),
+      axis=0,
+  )
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
@@ -151,28 +168,9 @@ class ImpurityFractions(torax_pydantic.ConfigBase):
         for ion, value in self.species.items()
     }
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
-
-    if not self.A_override:
-      A_avg = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions.items()
-          ]),
-          axis=0,
-      )
-      A_avg_face = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions_face.items()
-          ]),
-          axis=0,
-      )
-    else:
-      ion_key = list(self.species.keys())[0]
-      A_avg = jnp.full_like(fractions[ion_key], self.A_override.get_value(t))
-      A_avg_face = jnp.full_like(
-          fractions_face[ion_key], self.A_override.get_value(t)
-      )
+    A_override = None if not self.A_override else self.A_override.get_value(t)
+    A_avg = calculate_average_mass(fractions, A_override)
+    A_avg_face = calculate_average_mass(fractions_face, A_override)
 
     return RuntimeParams(
         fractions=fractions,
