@@ -21,7 +21,7 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
@@ -34,18 +34,18 @@ from torax._src.torax_pydantic import torax_pydantic
 class PoloidalVelocity:
   """Values returned by a poloidal velocity model."""
 
-  v_pol: cell_variable.CellVariable
+  poloidal_velocity: cell_variable.CellVariable
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'PoloidalVelocity':
     """Returns a PoloidalVelocity with all values set to zero."""
-    v_pol = cell_variable.CellVariable(
+    poloidal_velocity = cell_variable.CellVariable(
         value=jnp.zeros_like(geometry.rho_norm),
         face_centers=geometry.rho_face_norm,
         right_face_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
     )
-    return cls(v_pol=v_pol)
+    return cls(poloidal_velocity=poloidal_velocity)
 
 
 class PoloidalVelocityModel(abc.ABC):
@@ -56,7 +56,7 @@ class PoloidalVelocityModel(abc.ABC):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> PoloidalVelocity:
     """Calculates neoclassical poloidal velocity."""
