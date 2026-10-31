@@ -30,6 +30,7 @@ from torax._src.neoclassical.bootstrap_current import runtime_params as bootstra
 from torax._src.neoclassical.formulas import formulas
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -130,8 +131,9 @@ class BootstrapCurrentModel(abc.ABC):
       self,
       runtime_params: bootstrap_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: state.BaseCoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...] = (),
   ) -> BootstrapCurrent:
     """Calculates bootstrap current."""
 

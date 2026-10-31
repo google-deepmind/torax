@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -459,33 +460,33 @@ class GettersTest(parameterized.TestCase):
     )
 
     # runtime_params.plasma_composition.Z_eff_face is not
-    # expected to match core_profiles.Z_eff_face, since the main ion dilution
-    # does not scale linearly with Z_eff, and thus Z_eff calculated from the
-    # face values of the core profiles will not match the interpolated
-    # Z_eff_face from plasma_composition. Only the cell grid Z_eff and
-    # edge Z_eff should match exactly, since those were actually used to
-    # calculate n_i and n_impurity.
+    # expected to match core_profiles.ions.Z_eff_face, since the main ion
+    # dilution does not scale linearly with Z_eff, and thus Z_eff calculated
+    # from the face values of the core profiles will not match the
+    # interpolated Z_eff_face from plasma_composition. Only the cell grid
+    # Z_eff and edge Z_eff should match exactly, since those were actually used
+    # to calculate n_i and n_impurity.
     expected_Z_eff = runtime_params.plasma_composition.Z_eff
     expected_Z_eff_edge = runtime_params.plasma_composition.Z_eff_face[-1]
 
     calculated_Z_eff = getters._calculate_Z_eff(
-        core_profiles.Z_i,
-        core_profiles.Z_impurity,
-        core_profiles.n_i.value,
-        core_profiles.n_impurity.value,
-        core_profiles.n_e.value,
+        core_profiles.ions.Z_i,
+        core_profiles.ions.Z_impurity,
+        core_profiles.kinetic.n_i.value,
+        core_profiles.kinetic.n_impurity.value,
+        core_profiles.kinetic.n_e.value,
     )
 
     calculated_Z_eff_face = getters._calculate_Z_eff(
-        core_profiles.Z_i_face,
-        core_profiles.Z_impurity_face,
-        core_profiles.n_i.face_value(),
-        core_profiles.n_impurity.face_value(),
-        core_profiles.n_e.face_value(),
+        core_profiles.ions.Z_i_face,
+        core_profiles.ions.Z_impurity_face,
+        core_profiles.kinetic.n_i.face_value(),
+        core_profiles.kinetic.n_impurity.face_value(),
+        core_profiles.kinetic.n_e.face_value(),
     )
 
     np.testing.assert_allclose(
-        core_profiles.Z_eff,
+        core_profiles.ions.Z_eff,
         expected_Z_eff,
         err_msg=(
             'Calculated Z_eff does not match expectation from config.\n'
@@ -496,7 +497,7 @@ class GettersTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        core_profiles.Z_eff_face[-1],
+        core_profiles.ions.Z_eff_face[-1],
         expected_Z_eff_edge,
         err_msg=(
             'Calculated Z_eff edge does not match expectation from config.\n'
@@ -1291,13 +1292,15 @@ class GettersTest(parameterized.TestCase):
     ions, n_i, n_impurity = getters.get_updated_ions(
         runtime_params,
         geo,
-        initial_core_profiles.n_e,
-        initial_core_profiles.T_e,
+        initial_core_profiles.kinetic.n_e,
+        initial_core_profiles.kinetic.T_e,
     )
 
     np.testing.assert_allclose(n_impurity.value, 0.0)
     np.testing.assert_allclose(ions.Z_eff, 1.0)
-    np.testing.assert_allclose(n_i.value, initial_core_profiles.n_e.value)
+    np.testing.assert_allclose(
+        n_i.value, initial_core_profiles.kinetic.n_e.value
+    )
 
     state_history = run_simulation.run_simulation(torax_config, max_steps=100)
     np.testing.assert_equal(
@@ -1305,6 +1308,25 @@ class GettersTest(parameterized.TestCase):
         state.SimError.NO_ERROR,
         err_msg='Simulation resulted in an unexpected error.',
     )
+
+  def test_get_updated_ions_without_right_face_constraint_raises(self):
+    config_dict = default_configs.get_default_config_dict()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    n_e_no_bc = dataclasses.replace(
+        initial_core_profiles.kinetic.n_e,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    with self.assertRaisesRegex(ValueError, 'right_face_constraint'):
+      getters.get_updated_ions(
+          runtime_params,
+          geo,
+          n_e_no_bc,
+          initial_core_profiles.kinetic.T_e,
+      )
 
 
 if __name__ == '__main__':
