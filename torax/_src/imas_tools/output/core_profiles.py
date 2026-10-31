@@ -140,8 +140,8 @@ def _fill_global_quantities(
   t_e_volume_average = []
   n_e_volume_average = []
   for cp_slice in core_profiles:
-    I_p.append(-1 * cp_slice.I_p_profile_face[-1])
-    v_loop.append(cp_slice.v_loop_lcfs)
+    I_p.append(-1 * cp_slice.flux.I_p_profile_face[-1])
+    v_loop.append(cp_slice.flux.v_loop_lcfs)
   for ppo_slice in post_processed_outputs:
     I_bootstrap.append(-1 * ppo_slice.I_bootstrap)
     li_3.append(ppo_slice.li3)
@@ -206,14 +206,14 @@ def _fill_profiles_1d(
         geometry_slice,
     )
     # Temperatures are converted from keV to eV(IMAS standard unit).
-    T_i = cp_state.T_i.cell_plus_boundaries() * 1e3
-    n_e = cp_state.n_e.cell_plus_boundaries()
-    n_i = cp_state.n_i.cell_plus_boundaries()
-    n_impurity = cp_state.n_impurity.cell_plus_boundaries()
+    T_i = cp_state.kinetic.T_i.cell_plus_boundaries() * 1e3
+    n_e = cp_state.kinetic.n_e.cell_plus_boundaries()
+    n_i = cp_state.kinetic.n_i.cell_plus_boundaries()
+    n_impurity = cp_state.kinetic.n_impurity.cell_plus_boundaries()
     pressure_thermal_i = cp_state.pressure_thermal_i.cell_plus_boundaries()
     ids.profiles_1d[i].t_i_average = T_i
     ids.profiles_1d[i].electrons.temperature = (
-        cp_state.T_e.cell_plus_boundaries() * 1e3
+        cp_state.kinetic.T_e.cell_plus_boundaries() * 1e3
     )
     ids.profiles_1d[i].electrons.density = n_e
     ids.profiles_1d[i].electrons.density_thermal = n_e
@@ -239,7 +239,9 @@ def _fill_profiles_1d(
         n_impurity,
         pressure_thermal_i,
     )
-    ids.profiles_1d[i].zeff = extend(cp_state.Z_eff, cp_state.Z_eff_face)
+    ids.profiles_1d[i].zeff = extend(
+        cp_state.ions.Z_eff, cp_state.ions.Z_eff_face
+    )
 
 
 # TODO(b/323504363): b/424190851 - Map impurity quantities in PostProcessedOutputs on
@@ -261,8 +263,8 @@ def _calculate_impurity_density_scaling_and_charge_states(
       cell_plus_boundaries grid.
   """
   extend = output_grid_context.extend_cell_grid_to_boundaries
-  charge_state_info = core_profiles.charge_state_info
-  charge_state_info_face = core_profiles.charge_state_info_face
+  charge_state_info = core_profiles.ions.charge_state_info
+  charge_state_info_face = core_profiles.ions.charge_state_info_face
   Z_per_species = {
       species: extend(
           charge_state_info.Z_per_species[species],
@@ -291,12 +293,16 @@ def _fill_profiles_1d_grid(
   ids.profiles_1d[i].grid.rho_tor = np.concatenate(
       [np.array([0.0]), geometry_slice.rho, np.array([geometry_slice.rho_b])]
   )
-  ids.profiles_1d[i].grid.psi = cp_state.psi.cell_plus_boundaries()
-  ids.profiles_1d[i].grid.psi_magnetic_axis = cp_state.psi.left_face_value[0]
-  ids.profiles_1d[i].grid.psi_boundary = cp_state.psi.right_face_value[0]
+  ids.profiles_1d[i].grid.psi = cp_state.flux.psi.cell_plus_boundaries()
+  ids.profiles_1d[i].grid.psi_magnetic_axis = cp_state.flux.psi.left_face_value[
+      0
+  ]
+  ids.profiles_1d[i].grid.psi_boundary = cp_state.flux.psi.right_face_value[0]
+  psi_axis = cp_state.flux.psi.left_face_value[0]
+  psi_edge = cp_state.flux.psi.right_face_value[0]
   ids.profiles_1d[i].grid.rho_pol_norm = np.sqrt(
-      (cp_state.psi.cell_plus_boundaries() - cp_state.psi.left_face_value[0])
-      / (cp_state.psi.right_face_value[0] - cp_state.psi.left_face_value[0])
+      (cp_state.flux.psi.cell_plus_boundaries() - psi_axis)
+      / (psi_edge - psi_axis)
   )
   ids.profiles_1d[i].grid.volume = extend(
       geometry_slice.volume, geometry_slice.volume_face
@@ -316,15 +322,17 @@ def _fill_profiles_1d_currents(
 ) -> None:
   """Fills `currents` section of `profiles_1d` in-place for the IDS."""
   extend = output_grid_context.extend_cell_grid_to_boundaries
-  q_cell = geometry_lib.face_to_cell(cp_state.q_face)
-  s_cell = geometry_lib.face_to_cell(cp_state.s_face)
-  ids.profiles_1d[i].q = extend(q_cell, cp_state.q_face)
-  ids.profiles_1d[i].magnetic_shear = extend(s_cell, cp_state.s_face)
+  q_cell = geometry_lib.face_to_cell(cp_state.flux.q_face)
+  s_cell = geometry_lib.face_to_cell(cp_state.flux.s_face)
+  ids.profiles_1d[i].q = extend(q_cell, cp_state.flux.q_face)
+  ids.profiles_1d[i].magnetic_shear = extend(s_cell, cp_state.flux.s_face)
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
   # Total toroidal current density
-  j_phi = extend(cp_state.j_toroidal_total, cp_state.j_toroidal_total_face)
+  j_phi = extend(
+      cp_state.flux.j_toroidal_total, cp_state.flux.j_toroidal_total_face
+  )
   ids.profiles_1d[i].j_phi = -1 * j_phi
   # Parallel current densities
   j_bootstrap = extend(
@@ -352,7 +360,7 @@ def _fill_profiles_1d_currents(
       j_non_inductive, j_non_inductive_face
   )
   ids.profiles_1d[i].conductivity_parallel = extend(
-      cp_state.sigma, cp_state.sigma_face
+      cp_state.conductivity.sigma, cp_state.conductivity.sigma_face
   )
 
 
@@ -369,13 +377,13 @@ def _fill_profiles_1d_ions(
     pressure_thermal_i: array_typing.FloatVector,
 ) -> None:
   """Fills `ion` section of `profiles_1d` in-place for the IDS."""
-  main_ion_fractions = cp_state.main_ion_fractions
-  impurity_symbols = list(cp_state.impurity_fractions.keys())
+  main_ion_fractions = cp_state.ions.main_ion_fractions
+  impurity_symbols = list(cp_state.ions.impurity_fractions.keys())
   # Extend to cell_plus_boundaries grid by copying neighboring values.
   # TODO(b/323504363): b/459479939 - i/2212 Fix extrapolation once we do multi-ion transport.
   impurity_fractions_arr = [
       np.pad(impurity_fraction, (1, 1), mode='edge')
-      for impurity_fraction in cp_state.impurity_fractions.values()
+      for impurity_fraction in cp_state.ions.impurity_fractions.values()
   ]
   impurities = list(zip(impurity_symbols, impurity_fractions_arr, strict=True))
   # Computes impurity quantities on cell_plus_boundaries grid
@@ -393,8 +401,8 @@ def _fill_profiles_1d_ions(
   ids.profiles_1d[i].ion.resize(num_ions)
   # Use the true n_impurity to get the real total ion density.
   ids.profiles_1d[i].n_i_total_over_n_e = (n_i + n_impurity_true) / n_e
-  for ion, symbol in enumerate(cp_state.main_ion_fractions.keys()):
-    frac = cp_state.main_ion_fractions[symbol]
+  for ion, symbol in enumerate(cp_state.ions.main_ion_fractions.keys()):
+    frac = cp_state.ions.main_ion_fractions[symbol]
     _fill_main_ions(
         ids,
         i,

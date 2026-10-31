@@ -630,7 +630,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         2.0e20, 1.0e20, geo.rho_face_norm.shape[0]
     )
     mock_core_profiles = mock.MagicMock()
-    mock_core_profiles.n_e.face_value.return_value = n_e_face_profile
+    mock_core_profiles.kinetic.n_e.face_value.return_value = n_e_face_profile
 
     runtime_params, _ = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
