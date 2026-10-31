@@ -132,6 +132,8 @@ html_theme_options = {
     'repository_url': 'https://github.com/google-deepmind/torax',
     'use_repository_button': True,
     'navigation_with_keys': False,
+    'pygments_light_style': 'xcode',
+    'pygments_dark_style': 'monokai',
 }
 
 enable_logo = True
