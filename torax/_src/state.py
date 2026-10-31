@@ -284,196 +284,6 @@ class BaseCoreProfiles:
 
     return is_low_te | is_low_ti
 
-  # Temporary compatibility properties.
-  @property
-  def T_i(self) -> cell_variable.CellVariable:
-    """Returns ion temperature."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.kinetic.T_i
-
-  @property
-  def T_e(self) -> cell_variable.CellVariable:
-    """Returns electron temperature."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.kinetic.T_e
-
-  @property
-  def n_e(self) -> cell_variable.CellVariable:
-    """Returns electron density."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.kinetic.n_e
-
-  @property
-  def n_i(self) -> cell_variable.CellVariable:
-    """Returns ion density."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.kinetic.n_i
-
-  @property
-  def n_impurity(self) -> cell_variable.CellVariable:
-    """Returns impurity density."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.kinetic.n_impurity
-
-  @property
-  def impurity_fractions(self) -> Mapping[str, array_typing.FloatVector]:
-    """Returns impurity fractions mapping."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.impurity_fractions
-
-  @property
-  def main_ion_fractions(self) -> Mapping[str, array_typing.FloatScalar]:
-    """Returns main ion fractions mapping."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.main_ion_fractions
-
-  @property
-  def Z_i(self) -> array_typing.FloatVectorCell:
-    """Returns main ion charge state profile on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.Z_i
-
-  @property
-  def Z_i_face(self) -> array_typing.FloatVectorFace:
-    """Returns main ion charge state profile on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.Z_i_face
-
-  @property
-  def Z_impurity(self) -> array_typing.FloatVectorCell:
-    """Returns impurity charge state profile on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.Z_impurity
-
-  @property
-  def Z_impurity_face(self) -> array_typing.FloatVectorFace:
-    """Returns impurity charge state profile on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.Z_impurity_face
-
-  @property
-  def A_i(self) -> array_typing.FloatScalar:
-    """Returns main ion mass number."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.A_i
-
-  @property
-  def A_impurity(self) -> array_typing.FloatVectorCell:
-    """Returns impurity mass number profile on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.A_impurity
-
-  @property
-  def A_impurity_face(self) -> array_typing.FloatVectorFace:
-    """Returns impurity mass number profile on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.A_impurity_face
-
-  @property
-  def Z_eff(self) -> array_typing.FloatVectorCell:
-    """Returns effective charge profile on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.Z_eff
-
-  @property
-  def Z_eff_face(self) -> array_typing.FloatVectorFace:
-    """Returns effective charge profile on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.Z_eff_face
-
-  @property
-  def charge_state_info(self) -> charge_states.ChargeStateInfo:
-    """Returns charge state information on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.charge_state_info
-
-  @property
-  def charge_state_info_face(self) -> charge_states.ChargeStateInfo:
-    """Returns charge state information on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.ions.charge_state_info_face
-
-  @property
-  def psi(self) -> cell_variable.CellVariable:
-    """Returns poloidal magnetic flux profile."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.psi
-
-  @property
-  def q_face(self) -> array_typing.FloatVectorFace:
-    """Returns safety factor profile on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.q_face
-
-  @property
-  def s_face(self) -> array_typing.FloatVectorFace:
-    """Returns magnetic shear profile on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.s_face
-
-  @property
-  def j_total(self) -> array_typing.FloatVectorCell:
-    """Returns total plasma current density on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.j_toroidal_total
-
-  @property
-  def j_total_face(self) -> array_typing.FloatVectorFace:
-    """Returns total plasma current density on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.j_toroidal_total_face
-
-  @property
-  def j_toroidal_total(self) -> array_typing.FloatVectorCell:
-    """Returns total toroidal plasma current density on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.j_toroidal_total
-
-  @property
-  def j_toroidal_total_face(self) -> array_typing.FloatVectorFace:
-    """Returns total toroidal plasma current density on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.j_toroidal_total_face
-
-  @property
-  def I_p_profile_face(self) -> array_typing.FloatVectorFace:
-    """Returns cumulative plasma current on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.I_p_profile_face
-
-  @property
-  def v_loop_lcfs(self) -> array_typing.FloatScalar:
-    """Returns loop voltage at the last closed flux surface."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.flux.v_loop_lcfs
-
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -510,6 +320,99 @@ class SolverState:
     )
 
 
+def calculate_n_i_total_thermal_face(
+    base_profiles: BaseCoreProfiles,
+    fast_ions: tuple[fast_ion_lib.FastIon, ...],
+) -> array_typing.FloatVectorFace:
+  """Total thermal ion particle density (main ions + impurities) [m^-3].
+
+  On the face grid. The bundled impurity density (charge Z_impurity =
+  <Z^2>/<Z>) is rescaled to the true impurity particle density with
+  `impurity_density_scaling_face` before being summed with the main ions.
+
+  Args:
+    base_profiles: Base core profiles.
+    fast_ions: Tuple of fast ion populations.
+
+  Returns:
+    Total thermal ion particle density on face grid.
+  """
+  n_impurity_thermal = fast_ion_lib.calculate_n_impurity_thermal(
+      base_profiles.kinetic.n_impurity,
+      base_profiles.ions.impurity_fractions,
+      fast_ions,
+  )
+  return (
+      base_profiles.kinetic.n_i.face_value()
+      + n_impurity_thermal.face_value()
+      * base_profiles.impurity_density_scaling_face
+  )
+
+
+def calculate_pressure_thermal_i(
+    base_profiles: BaseCoreProfiles,
+    fast_ions: tuple[fast_ion_lib.FastIon, ...],
+) -> cell_variable.CellVariable:
+  """Ion thermal pressure [Pa].
+
+  Args:
+    base_profiles: Base core profiles.
+    fast_ions: Tuple of fast ion populations.
+
+  Returns:
+    Ion thermal pressure CellVariable.
+  """
+  n_impurity_thermal = fast_ion_lib.calculate_n_impurity_thermal(
+      base_profiles.kinetic.n_impurity,
+      base_profiles.ions.impurity_fractions,
+      fast_ions,
+  )
+  right_face_constraint = (
+      base_profiles.kinetic.T_i.get_right_bc()
+      * constants.CONSTANTS.keV_to_J
+      * (
+          base_profiles.kinetic.n_i.get_right_bc()
+          + n_impurity_thermal.get_right_bc()
+      )
+  )
+  return cell_variable.CellVariable(
+      value=(
+          base_profiles.kinetic.T_i.value
+          * constants.CONSTANTS.keV_to_J
+          * (base_profiles.kinetic.n_i.value + n_impurity_thermal.value)
+      ),
+      face_centers=base_profiles.kinetic.n_i.face_centers,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=None,
+  )
+
+
+def calculate_pressure_thermal_total(
+    base_profiles: BaseCoreProfiles,
+    fast_ions: tuple[fast_ion_lib.FastIon, ...],
+) -> cell_variable.CellVariable:
+  """Total thermal pressure [Pa].
+
+  Args:
+    base_profiles: Base core profiles.
+    fast_ions: Tuple of fast ion populations.
+
+  Returns:
+    Total thermal pressure CellVariable.
+  """
+  p_th_i = calculate_pressure_thermal_i(base_profiles, fast_ions)
+  right_face_constraint = (
+      base_profiles.pressure_thermal_e.get_right_bc()
+      + p_th_i.get_right_bc()
+  )
+  return cell_variable.CellVariable(
+      value=base_profiles.pressure_thermal_e.value + p_th_i.value,
+      face_centers=base_profiles.pressure_thermal_e.face_centers,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=None,
+  )
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
 class CoreProfiles(BaseCoreProfiles):
@@ -538,95 +441,27 @@ class CoreProfiles(BaseCoreProfiles):
   poloidal_velocity: cell_variable.CellVariable
   psidot: cell_variable.CellVariable
 
-  @property
-  def sigma(self) -> array_typing.FloatVectorCell:
-    """Returns parallel neoclassical conductivity on cell grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.conductivity.sigma
-
-  @property
-  def sigma_face(self) -> array_typing.FloatVectorFace:
-    """Returns parallel neoclassical conductivity on face grid."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.conductivity.sigma_face
-
   @functools.cached_property
   def n_impurity_thermal(self) -> cell_variable.CellVariable:
-    """True thermal impurity density without fast ions [m^-3].
-
-    TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
-    are originally from thermal species. This needs to be updated when we
-    introduce other sources of fast ions that do not deplete thermal species
-    (e.g. fusion).
-    """
-    n_impurity_thermal_value = self.kinetic.n_impurity.value
-    n_impurity_thermal_right = self.kinetic.n_impurity.right_face_constraint
-    for fast_ion in self.fast_ions:
-      if fast_ion.species in self.ions.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value
-        if (
-            n_impurity_thermal_right is not None
-            and fast_ion.n.right_face_constraint is not None
-        ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
-    return cell_variable.CellVariable(
-        value=n_impurity_thermal_value,
-        face_centers=self.kinetic.n_impurity.face_centers,
-        right_face_constraint=n_impurity_thermal_right,
-        right_face_grad_constraint=None,
+    """True thermal impurity density without fast ions [m^-3]."""
+    return fast_ion_lib.calculate_n_impurity_thermal(
+        self.kinetic.n_impurity, self.ions.impurity_fractions, self.fast_ions
     )
 
   @functools.cached_property
   def n_i_total_thermal_face(self) -> array_typing.FloatVectorFace:
-    """Total thermal ion particle density (main ions + impurities) [m^-3].
-
-    On the face grid. The bundled impurity density (charge Z_impurity =
-    <Z^2>/<Z>) is rescaled to the true impurity particle density with
-    `impurity_density_scaling_face` before being summed with the main ions.
-    """
-    return (
-        self.kinetic.n_i.face_value()
-        + self.n_impurity_thermal.face_value()
-        * self.impurity_density_scaling_face
-    )
+    """Total thermal ion particle density (main ions + impurities) [m^-3]."""
+    return calculate_n_i_total_thermal_face(self, self.fast_ions)
 
   @functools.cached_property
   def pressure_thermal_i(self) -> cell_variable.CellVariable:
     """Ion thermal pressure [Pa]."""
-    right_face_constraint = (
-        self.kinetic.T_i.get_right_bc()
-        * constants.CONSTANTS.keV_to_J
-        * (
-            self.kinetic.n_i.get_right_bc()
-            + self.n_impurity_thermal.get_right_bc()
-        )
-    )
-    return cell_variable.CellVariable(
-        value=(
-            self.kinetic.T_i.value
-            * constants.CONSTANTS.keV_to_J
-            * (self.kinetic.n_i.value + self.n_impurity_thermal.value)
-        ),
-        face_centers=self.kinetic.n_i.face_centers,
-        right_face_constraint=right_face_constraint,
-        right_face_grad_constraint=None,
-    )
+    return calculate_pressure_thermal_i(self, self.fast_ions)
 
   @functools.cached_property
   def pressure_thermal_total(self) -> cell_variable.CellVariable:
     """Total thermal pressure [Pa]."""
-    right_face_constraint = (
-        self.pressure_thermal_e.get_right_bc()
-        + self.pressure_thermal_i.get_right_bc()
-    )
-    return cell_variable.CellVariable(
-        value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
-        face_centers=self.pressure_thermal_e.face_centers,
-        right_face_constraint=right_face_constraint,
-        right_face_grad_constraint=None,
-    )
+    return calculate_pressure_thermal_total(self, self.fast_ions)
 
   @functools.cached_property
   def pressure_fast_i(self) -> cell_variable.CellVariable:

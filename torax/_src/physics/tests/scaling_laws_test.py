@@ -37,9 +37,9 @@ class ScalingLawsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
 
-    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
-    # property needed in calculate_P_LH.
-    core_profiles = state.CoreProfiles(
+    # Uses mock.ANY instead of mock.create_autospec to satisfy required
+    # properties in calculate_P_LH.
+    core_profiles = state.BaseCoreProfiles(
         kinetic=state.KineticProfiles(
             n_e=cell_variable.CellVariable(
                 value=jnp.ones_like(geo.rho_norm) * 2e20,
@@ -78,13 +78,6 @@ class ScalingLawsTest(parameterized.TestCase):
             v_loop_lcfs=mock.ANY,
         ),
         toroidal_angular_velocity=mock.ANY,
-        fast_ions=mock.ANY,
-        conductivity=state.Conductivity(
-            sigma=mock.ANY,
-            sigma_face=mock.ANY,
-        ),
-        poloidal_velocity=mock.ANY,
-        psidot=mock.ANY,
     )
     return geo, core_profiles
 
@@ -183,9 +176,9 @@ class ScalingLawsTest(parameterized.TestCase):
         a_minor=2.0,
         B_0=5.0,
     ).build_geometry()
-    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
-    # property needed in calculate_plh_delabie.
-    core_profiles = state.CoreProfiles(
+    # Uses mock.ANY instead of mock.create_autospec to satisfy required
+    # properties in calculate_plh_delabie.
+    core_profiles = state.BaseCoreProfiles(
         kinetic=state.KineticProfiles(
             n_e=cell_variable.CellVariable(
                 value=jnp.ones_like(geo.rho_norm) * 2e20,
@@ -224,13 +217,6 @@ class ScalingLawsTest(parameterized.TestCase):
             v_loop_lcfs=mock.ANY,
         ),
         toroidal_angular_velocity=mock.ANY,
-        fast_ions=mock.ANY,
-        conductivity=state.Conductivity(
-            sigma=mock.ANY,
-            sigma_face=mock.ANY,
-        ),
-        poloidal_velocity=mock.ANY,
-        psidot=mock.ANY,
     )
     Ploss = jnp.array(50e6)
 

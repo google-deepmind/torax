@@ -195,7 +195,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
@@ -235,7 +235,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
@@ -274,7 +274,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._adaptive_step(

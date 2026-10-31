@@ -27,16 +27,19 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.orchestration import physics_pipeline
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import psi_calculations
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import config
@@ -72,8 +75,6 @@ class InitializationTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
     (j_parallel_external,) = output.profiles
@@ -188,7 +189,7 @@ class InitializationTest(parameterized.TestCase):
     core_profiles, _, _ = _get_initial_state(torax_config)
 
     np.testing.assert_allclose(
-        core_profiles.psi.value, expected_psi, atol=1e-6, rtol=1e-6
+        core_profiles.flux.psi.value, expected_psi, atol=1e-6, rtol=1e-6
     )
 
   def test_initial_psi_from_geo(self):
@@ -201,7 +202,7 @@ class InitializationTest(parameterized.TestCase):
 
     # The `psi_from_I_p` attribute of the geometry is the ground truth here.
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
-    np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_I_p)
+    np.testing.assert_allclose(core_profiles.flux.psi.value, geo.psi_from_I_p)
 
   def test_initial_psi_from_config(self):
     config_dict = default_configs.get_default_config_dict()
@@ -219,7 +220,7 @@ class InitializationTest(parameterized.TestCase):
     expected_psi = np.interp(
         geo.rho_norm, np.array([0.0, 1.0]), np.array([42.0, 43.0])
     )
-    np.testing.assert_allclose(core_profiles.psi.value, expected_psi)
+    np.testing.assert_allclose(core_profiles.flux.psi.value, expected_psi)
 
   @parameterized.parameters([
       dict(geometry_name='circular'),
@@ -480,18 +481,26 @@ class InitializationTest(parameterized.TestCase):
             ),
         ),
     )
+    models = torax_config.build_models()
     with mock.patch.object(
         type(source_models.standard_sources['icrh']),
         'get_value',
         return_value=(mock_output, source_states['icrh']),
     ):
-      result = initialization.initial_core_profiles(
+      solver_state = initialization.initial_solver_state(
           runtime_params=runtime_params,
           geo=geo,
           source_models=source_models,
           neoclassical_model=neoclassical_model,
           source_states=source_states,
       )
+      physics_outputs, _ = physics_pipeline.evaluate_initial_physics(
+          runtime_params=runtime_params,
+          geo=geo,
+          solver_state=solver_state,
+          models=models,
+      )
+      result = physics_outputs.core_profiles
 
       self.assertNotEmpty(result.fast_ions)
       he3_fast_ions = [
@@ -502,22 +511,17 @@ class InitializationTest(parameterized.TestCase):
       self.assertLen(he3_fast_ions, 1)
       self.assertTrue(np.any(he3_fast_ions[0].n.value > 0.0))
 
-      conductivity, bootstrap_current, _, _ = (
-          neoclassical_model.calculate_conductivity_current_and_rotation(
-              runtime_params, geo, result
-          )
-      )
-      all_source_profiles, _ = source_profile_builders.get_all_source_profiles(
+      basic_source_outputs, _ = source_profile_builders.build_basic_sources(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=result,
           source_models=source_models,
-          conductivity=conductivity,
-          bootstrap_current=bootstrap_current,
           source_states=source_states,
+          explicit=True,
+          calculate_anyway=True,
       )
       expected_fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-          sum(all_source_profiles.fast_ions.values(), ()),
+          source_profiles.extract_fast_ions(basic_source_outputs),
           runtime_params.profile_conditions.prescribed_fast_ions,
           geo.rho_face_norm,
       )
@@ -604,18 +608,26 @@ class InitializationTest(parameterized.TestCase):
             ),
         ),
     )
+    models = torax_config.build_models()
     with mock.patch.object(
         type(source_models.standard_sources['icrh']),
         'get_value',
         return_value=(mock_output, source_states['icrh']),
     ):
-      result = initialization.initial_core_profiles(
+      solver_state = initialization.initial_solver_state(
           runtime_params=runtime_params,
           geo=geo,
           source_models=source_models,
           neoclassical_model=neoclassical_model,
           source_states=source_states,
       )
+      physics_outputs, _ = physics_pipeline.evaluate_initial_physics(
+          runtime_params=runtime_params,
+          geo=geo,
+          solver_state=solver_state,
+          models=models,
+      )
+      result = physics_outputs.core_profiles
 
     he3_fast_ions = [
         fi
@@ -653,30 +665,14 @@ class InitializationTest(parameterized.TestCase):
         },
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
+    result, runtime_params, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
+    )
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
-    runtime_params, geo = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.time_step_calculator.t_initial,
-            runtime_params_provider=(
-                build_runtime_params.RuntimeParamsProvider.from_config(
-                    torax_config
-                )
-            ),
-            geometry_provider=torax_config.geometry.build_provider,
-            is_initialization=True,
-        )
-    )
     source_states = source_models.initial_state(runtime_params)
-    result = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-        source_states=source_states,
-    )
 
-    basic_sources, _ = source_profile_builders.build_basic_sources(
+    basic_source_outputs, _ = source_profile_builders.build_basic_sources(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=result,
@@ -687,17 +683,16 @@ class InitializationTest(parameterized.TestCase):
     )
     conductivity, bootstrap_current, _, _ = (
         neoclassical_model.calculate_conductivity_current_and_rotation(
-            runtime_params, geo, result
+            runtime_params, geo, result, fast_ions=result.fast_ions
         )
     )
-    final_source_profiles = dataclasses.replace(
-        basic_sources,
-        bootstrap_current=bootstrap_current,
+    expected_psi_sources = source_profiles.sum_total_psi_sources(
+        basic_source_outputs, source_models, bootstrap_current, geo
     )
     expected_psidot = psi_calculations.calculate_psidot(
-        psi=result.psi,
+        psi=result.flux.psi,
         sigma=conductivity.sigma,
-        psi_sources=final_source_profiles.total_psi_sources(geo),
+        psi_sources=expected_psi_sources,
         geo=geo,
         evolve_current=runtime_params.numerics.evolve_current,
         prescribed_psidot=runtime_params.profile_conditions.psidot,
@@ -732,7 +727,7 @@ class InitializationTest(parameterized.TestCase):
     )
     source_states = source_models.initial_state(runtime_params)
     source_states_snapshot = dict(source_states)
-    _ = initialization.initial_core_profiles(
+    _ = initialization.initial_solver_state(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
@@ -740,6 +735,59 @@ class InitializationTest(parameterized.TestCase):
         source_states=source_states,
     )
     self.assertEqual(source_states, source_states_snapshot)
+
+  @parameterized.parameters([
+      dict(
+          initial_psi_source=(
+              core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+          )
+      ),
+      dict(
+          initial_psi_source=(
+              core_profile_runtime_params.InitialPsiSource.GEOMETRY
+          )
+      ),
+      dict(initial_psi_source=core_profile_runtime_params.InitialPsiSource.J),
+  ])
+  def test_initial_solver_state_modes(
+      self,
+      initial_psi_source: core_profile_runtime_params.InitialPsiSource,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry']['geometry_type'] = 'chease'
+    config_dict['profile_conditions'][
+        'initial_psi_source'
+    ] = initial_psi_source.value
+    if (
+        initial_psi_source
+        == core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+    ):
+      config_dict['profile_conditions']['psi'] = {0.0: {0.0: 10.0, 1.0: 20.0}}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.time_step_calculator.t_initial,
+            runtime_params_provider=provider,
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_states = source_models.initial_state(runtime_params)
+    result = initialization.initial_solver_state(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+        source_states=source_states,
+    )
+    self.assertIsInstance(result, state.SolverState)
+    self.assertEqual(result.psi.value.shape, geo.rho.shape)
+    self.assertFalse(np.allclose(result.psi.value, 0.0))
 
 
 def _get_initial_state(
@@ -749,52 +797,35 @@ def _get_initial_state(
     geometry.Geometry,
     _Currents,
 ]:
-  """Returns initial core profiles, sources, geometry and currents for a config."""
+  """Returns initial core profiles, sources, geometry, currents for a config."""
+  core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
+      torax_config
+  )
   source_models = torax_config.sources.build_models()
   neoclassical_model = torax_config.neoclassical.build_model()
-  runtime_params, geo = (
-      build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=torax_config.time_step_calculator.t_initial,
-          runtime_params_provider=(
-              build_runtime_params.RuntimeParamsProvider.from_config(
-                  torax_config
-              )
-          ),
-          geometry_provider=torax_config.geometry.build_provider,
-          is_initialization=True,
-      )
-  )
   source_states = source_models.initial_state(runtime_params)
-  core_profiles = initialization.initial_core_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      source_models=source_models,
-      neoclassical_model=neoclassical_model,
-      source_states=source_states,
-  )
-  conductivity, bootstrap_current, _, _ = (
+  _, bootstrap_current, _, _ = (
       neoclassical_model.calculate_conductivity_current_and_rotation(
-          runtime_params, geo, core_profiles
+          runtime_params, geo, core_profiles, fast_ions=core_profiles.fast_ions
       )
   )
-  core_sources, _ = source_profile_builders.get_all_source_profiles(
+  psi_sources, _ = source_profile_builders.build_psi_sources(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      conductivity=conductivity,
-      bootstrap_current=bootstrap_current,
       source_states=source_states,
+      calculate_anyway=True,
   )
-  j_toroidal_total = core_profiles.j_toroidal_total
-  j_toroidal_total_face = core_profiles.j_toroidal_total_face
+  j_toroidal_total = core_profiles.flux.j_toroidal_total
+  j_toroidal_total_face = core_profiles.flux.j_toroidal_total_face
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      sum(core_sources.psi.values(), start=jnp.zeros_like(geo.rho)),
+      sum(psi_sources.values(), start=jnp.zeros_like(geo.rho)),
       geo,
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
-      core_sources.bootstrap_current.j_parallel_bootstrap,
+      bootstrap_current.j_parallel_bootstrap,
       geo,
       runtime_params.numerics.min_rho_norm,
   )

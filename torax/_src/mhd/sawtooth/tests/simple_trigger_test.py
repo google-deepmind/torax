@@ -38,12 +38,13 @@ class SimpleTriggerTest(parameterized.TestCase):
   def _get_mock_core_profiles(
       self, q_face: np.ndarray, s_face: np.ndarray
   ) -> state.CoreProfiles:
-    return mock.create_autospec(
+    core_profiles = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
-        q_face=jnp.asarray(q_face),
-        s_face=jnp.asarray(s_face),
     )
+    core_profiles.flux.q_face = jnp.asarray(q_face)
+    core_profiles.flux.s_face = jnp.asarray(s_face)
+    return core_profiles
 
   @parameterized.named_parameters(
       dict(
