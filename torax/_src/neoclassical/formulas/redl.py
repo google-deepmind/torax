@@ -25,6 +25,7 @@ presence of impurities.
 
 import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import math_utils
 
 # pylint: disable=invalid-name
 
@@ -150,8 +151,10 @@ def calculate_alpha(
   )
 
   # Equation 21
+  # Avoid a singular square-root gradient at the magnetic axis.
+  sqrt_f_trap = math_utils.sqrt_with_zero_gradient_at_zero(f_trap)
   alpha = (
-      (alpha_0 + 0.7 * Z_eff * f_trap**0.5 * jnp.sqrt(nu_i_star))
+      (alpha_0 + 0.7 * Z_eff * sqrt_f_trap * jnp.sqrt(nu_i_star))
       / (1 + 0.18 * jnp.sqrt(nu_i_star))
       - 0.002 * nu_i_star**2 * f_trap**6
   ) / (1 + 0.004 * nu_i_star**2 * f_trap**6)
