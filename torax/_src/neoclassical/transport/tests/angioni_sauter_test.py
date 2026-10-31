@@ -16,8 +16,8 @@ import dataclasses
 
 from absl.testing import absltest
 import numpy as np
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
@@ -36,7 +36,9 @@ class AngioniSauterTest(absltest.TestCase):
   def _get_reference_runtime_params_geo_and_core_profiles(
       self,
   ) -> tuple[
-      runtime_params_lib.RuntimeParams, geometry.Geometry, state.CoreProfiles
+      runtime_params_lib.RuntimeParams,
+      geometry.Geometry,
+      profiles.CoreProfiles,
   ]:
     torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {

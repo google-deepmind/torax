@@ -26,6 +26,7 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -54,8 +55,8 @@ def optimizer_solve_block(
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    solver_state_t: state.SolverState,
-    solver_state_t_plus_dt: state.SolverState,
+    solver_state_t: solver_state_lib.SolverState,
+    solver_state_t_plus_dt: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_callback: calc_coeffs.CoeffsCallback,

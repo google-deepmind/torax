@@ -19,11 +19,10 @@ from absl.testing import parameterized
 import chex
 import jax
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import config_loader
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base_pydantic_model
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import register_model
@@ -50,11 +49,8 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: solver_profiles.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[
       source_profiles.SourceOutput,
       source_state_lib.SourceState,
@@ -63,10 +59,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
-        conductivity=conductivity,
         source_state=source_state,
-        psidot=psidot,
     )
     return (
         source_profiles.SourceOutput(

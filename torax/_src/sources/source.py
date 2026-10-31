@@ -14,53 +14,38 @@
 
 """Module for a single source/sink term.
 
-This module contains all the base classes for defining source terms. Other files
-in this folder use these classes to define specific types of sources/sinks.
-
-See Source class docstring for more details on what a TORAX source is and how to
-use it.
+This module contains base classes for defining source terms. Other files in this
+folder use these classes to define specific types of sources/sinks.
 """
+
 import abc
+from collections.abc import Callable
 import dataclasses
-import enum
-from typing import ClassVar
+from typing import ClassVar, TypeAlias
 
 from jax import numpy as jnp
-from torax._src import array_typing
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 
-@enum.unique
-class AffectedCoreProfile(enum.IntEnum):
-  """Defines which part of the core profiles the source helps evolve.
+AffectedCoreProfile = source_profiles.AffectedCoreProfile
 
-  The profiles of each source/sink are terms included in equations evolving
-  different core profiles. This enum maps a source to those equations.
-  """
 
-  # Current density equation.
-  PSI = 1
-  # Electron density equation.
-  NE = 2
-  # Ion temperature equation.
-  TEMP_ION = 3
-  # Electron temperature equation.
-  TEMP_EL = 4
+_ModelFn: TypeAlias = Callable[
+    [],
+    tuple[source_profiles.SourceOutput, source_state_lib.SourceState],
+]
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class Source(static_dataclass.StaticDataclass, abc.ABC):
-  """Base class for a single source/sink term.
-
-  Sources are used to compute source profiles (see source_profiles.py), which
-  are in turn used to compute coeffs in sim.py.
+class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
+  """Shared base class for all TORAX source and sink terms.
 
   Attributes:
     SOURCE_ID: Identifier for the source type (e.g. `'ecrh'`, `'icrh'`,
@@ -69,14 +54,13 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       `SourceModels.standard_sources`.
     AFFECTED_CORE_PROFILES: Core profiles affected by this source's profile(s).
       This attribute defines which equations the source profiles are terms for.
-      By default, the number of affected core profiles should equal the rank of
-      the output shape returned by `output_shape`.
   """
 
   SOURCE_ID: ClassVar[str]
   AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]]
 
   def __post_init__(self):
+    super().__post_init__()
     if not hasattr(self, 'SOURCE_ID'):
       raise ValueError('Source ID must be set.')
     if not getattr(self, 'AFFECTED_CORE_PROFILES', None):
@@ -90,88 +74,20 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
     del runtime_params
     return source_state_lib.SourceState()
 
-  @abc.abstractmethod
-  def _get_model_value(
+  def _evaluate_with_mode(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
+      model_fn: _ModelFn,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
-    """Returns the model-based value and updated state for this source.
-
-    Args:
-      runtime_params: Slice of the general TORAX config for this timestep.
-      geo: Magnetic geometry.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Already-calculated source profiles.
-      conductivity: Conductivity profile if it exists.
-      source_state: Source state carried over from the previous timestep.
-      psidot: Loop voltage profile on the cell grid if provided. Transitional
-        argument for implicit non-psi sources (OhmicHeatSource) prior to the
-        downstream source hierarchy split.
-
-    Returns:
-      A tuple of (SourceOutput, source_state).
-    """
-
-  def get_value(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
-      source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
-    """Returns the cell grid profile and updated state for this source.
-
-    Args:
-      runtime_params: Slice of the general TORAX config that can be used as
-        input for this time step.
-      geo: Geometry of the torus.
-      core_profiles: Core plasma profiles. May be the profiles at the start of
-        the time step or a "live" set of core profiles being actively updated
-        depending on whether this source is explicit or implicit. Explicit
-        sources get the core profiles at the start of the time step, implicit
-        sources get the "live" profiles that is updated through the course of
-        the time step as the solver converges.
-      calculated_source_profiles: The source profiles which have already been
-        calculated for this time step if they exist. This is used to avoid
-        recalculating profiles that are used as inputs to other sources. These
-        profiles will only exist for Source instances that are implicit. i.e.
-        explicit sources cannot depend on other calculated source profiles. In
-        addition, different source types will have different availability of
-        specific calculated_source_profiles since the calculation order matters.
-        See source_profile_builders.py for more details.
-      conductivity: Conductivity profile if it exists. It is only provided for
-        implicit sources.
-      source_state: Source state carried over from the previous timestep.
-      psidot: Loop voltage profile on the cell grid if provided. Transitional
-        argument for implicit non-psi sources (OhmicHeatSource) prior to the
-        downstream source hierarchy split.
-
-    Returns:
-      A tuple of (SourceOutput, updated_source_state).
-    """
+    """Evaluates the source according to its configured runtime mode."""
     source_params = runtime_params.sources[self.SOURCE_ID]
 
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        output, source_state = self._get_model_value(
-            runtime_params,
-            geo,
-            core_profiles,
-            calculated_source_profiles,
-            conductivity,
-            source_state=source_state,
-            psidot=psidot,
-        )
+        output, source_state = model_fn()
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         if len(source_params.prescribed_values) != len(
             self.AFFECTED_CORE_PROFILES
@@ -193,4 +109,152 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       case _:
         raise ValueError(f'Unknown mode: {mode}')
 
+    return output, source_state
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class Source(SourceBase):
+  """Standard source model depending on SolverProfiles."""
+
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: solver_profiles.SolverProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+    """Returns the model-based value and updated state for this source."""
+
+  def get_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: solver_profiles.SolverProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+    """Returns the cell grid profile and updated state for this source."""
+    return self._evaluate_with_mode(
+        runtime_params,
+        geo,
+        source_state,
+        lambda: self._get_model_value(
+            runtime_params, geo, core_profiles, source_state
+        ),
+    )
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class SourceUsingCoreProfiles(SourceBase):
+  """Source requiring full CoreProfiles (such as conductivity and psidot)."""
+
+  def __post_init__(self):
+    super().__post_init__()
+    if AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+      raise ValueError(
+          f'{type(self).__name__} cannot affect PSI, but got'
+          f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
+      )
+
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: profiles.CoreProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+    """Returns the model-based value and updated state for this source."""
+
+  def get_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: profiles.CoreProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+    """Returns the cell grid profile and updated state for this source."""
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    if source_params.is_explicit:
+      raise ValueError(
+          f'{type(self).__name__} requires implicit CoreProfiles (such as'
+          ' conductivity and psidot) and cannot be configured with'
+          ' is_explicit=True.'
+      )
+    output, source_state = self._evaluate_with_mode(
+        runtime_params,
+        geo,
+        source_state,
+        lambda: self._get_model_value(
+            runtime_params, geo, core_profiles, source_state
+        ),
+    )
+    if output.fast_ions:
+      raise ValueError(
+          f'{type(self).__name__} consumes CoreProfiles and cannot produce'
+          ' fast_ions.'
+      )
+    return output, source_state
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class FinalSource(SourceBase):
+  """Final source model evaluated after all other sources are computed.
+
+  FinalSource aggregates already-computed source profiles. It cannot affect
+  PSI, and at most one FinalSource may be registered in SourceModels so
+  evaluation order is unambiguous.
+  """
+
+  def __post_init__(self):
+    super().__post_init__()
+    if AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+      raise ValueError(
+          f'{type(self).__name__} cannot affect PSI, but got'
+          f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
+      )
+
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: profiles.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+    """Returns the model-based value and updated state for this source."""
+
+  def get_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: profiles.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+    """Returns the cell grid profile and updated state for this source."""
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    if source_params.is_explicit:
+      raise ValueError(
+          f'{type(self).__name__} aggregates other source profiles and cannot'
+          ' be configured with is_explicit=True.'
+      )
+    output, source_state = self._evaluate_with_mode(
+        runtime_params,
+        geo,
+        source_state,
+        lambda: self._get_model_value(
+            runtime_params,
+            geo,
+            core_profiles,
+            calculated_source_profiles,
+            source_state,
+        ),
+    )
+    if output.fast_ions:
+      raise ValueError(
+          f'{type(self).__name__} consumes CoreProfiles and cannot produce'
+          ' fast_ions.'
+      )
     return output, source_state

@@ -19,8 +19,8 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -52,7 +52,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
@@ -93,23 +93,23 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
-    s = core_profiles.s_face
-    q = core_profiles.q_face
+    s = core_profiles.flux.s_face
+    q = core_profiles.flux.q_face
 
     # very basic sawtooth model
     s = jnp.where(q < 1, 0, s)
     q = jnp.where(q < 1, 1, q)
 
-    T_i_face = core_profiles.T_i.face_value()
+    T_i_face = core_profiles.kinetic.T_i.face_value()
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    T_i_face_grad = core_profiles.T_i.face_grad(
+    T_i_face_grad = core_profiles.kinetic.T_i.face_grad(
         x=geo.r_mid,
         x_left=geo.r_mid_face[0],
         x_right=geo.r_mid_face[-1],
         two_point_mask=two_point_mask,
     )
-    T_e_face = core_profiles.T_e.face_value()
+    T_e_face = core_profiles.kinetic.T_e.face_value()
 
     # set critical gradient
     rlti_crit = (

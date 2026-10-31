@@ -15,7 +15,7 @@ from unittest import mock
 
 from absl.testing import absltest
 import numpy as np
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
@@ -31,31 +31,57 @@ class SauterTest(absltest.TestCase):
     bootstrap_params = bootstrap_current_runtime_params.RuntimeParams(
         bootstrap_multiplier=1.0
     )
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
+    kinetic = mock.MagicMock(
         T_i=cell_variable.CellVariable(
-            value=np.linspace(400, 700, n_rho), face_centers=geo.rho_face_norm
+            value=np.linspace(400, 700, n_rho),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=700.0,
+            right_face_grad_constraint=None,
         ),
         T_e=cell_variable.CellVariable(
-            value=np.linspace(4000, 7000, n_rho), face_centers=geo.rho_face_norm
+            value=np.linspace(4000, 7000, n_rho),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=7000.0,
+            right_face_grad_constraint=None,
         ),
+        n_e=cell_variable.CellVariable(
+            value=np.linspace(100, 200, n_rho),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=200.0,
+            right_face_grad_constraint=None,
+        ),
+        n_i=cell_variable.CellVariable(
+            value=np.linspace(100, 200, n_rho),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=200.0,
+            right_face_grad_constraint=None,
+        ),
+        n_impurity=cell_variable.CellVariable(
+            value=np.linspace(10, 20, n_rho),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=20.0,
+            right_face_grad_constraint=None,
+        ),
+    )
+    ions = mock.MagicMock(
+        Z_i_face=np.linspace(1000, 2000, n_rho + 1),
+        Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
+        impurity_fractions={},
+    )
+    flux = mock.MagicMock(
         psi=cell_variable.CellVariable(
             value=np.linspace(9000, 4000, n_rho), face_centers=geo.rho_face_norm
         ),
-        n_e=cell_variable.CellVariable(
-            value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
-        ),
-        n_i=cell_variable.CellVariable(
-            value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
-        ),
-        n_i_total_thermal_face=np.linspace(110, 230, n_rho + 1),
-        Z_i_face=np.linspace(1000, 2000, n_rho + 1),
-        Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
         q_face=np.linspace(1, 5, n_rho + 1),
+    )
+    core_profiles = mock.create_autospec(
+        solver_profiles.SolverProfiles,
+        instance=True,
+        kinetic=kinetic,
+        ions=ions,
+        flux=flux,
+        impurity_density_scaling_face=np.ones(n_rho + 1),
         pressure_thermal_e=cell_variable.CellVariable(
-            value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
-        ),
-        pressure_thermal_i=cell_variable.CellVariable(
             value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
         ),
     )

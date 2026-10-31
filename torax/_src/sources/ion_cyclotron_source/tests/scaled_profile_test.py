@@ -53,6 +53,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     icrh_source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
+    assert isinstance(icrh_source, icrh_base.IonCyclotronSource)
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
@@ -60,8 +61,6 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         runtime_params,
         geo,
         core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=icrh_source.initial_state(runtime_params),
     )
     return output, geo

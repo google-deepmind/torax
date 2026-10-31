@@ -39,14 +39,14 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
 
 # pylint: disable=invalid-name
 
 
 def coll_exchange(
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     Qei_multiplier: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient (equipartion).
@@ -60,13 +60,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   log_lambda_ei = calculate_log_lambda_ei(
-      core_profiles.T_e.value, core_profiles.n_e.value
+      core_profiles.kinetic.T_e.value, core_profiles.kinetic.n_e.value
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.value,
-      core_profiles.n_e.value,
+      core_profiles.kinetic.T_e.value,
+      core_profiles.kinetic.n_e.value,
       log_lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -74,7 +74,7 @@ def coll_exchange(
   weighted_Z_eff = _calculate_weighted_Z_eff(core_profiles)
 
   log_Qei_coef = (
-      jnp.log(Qei_multiplier * 1.5 * core_profiles.n_e.value)
+      jnp.log(Qei_multiplier * 1.5 * core_profiles.kinetic.n_e.value)
       + jnp.log(constants.CONSTANTS.keV_to_J / constants.CONSTANTS.m_amu)
       + jnp.log(2 * constants.CONSTANTS.m_e)
       + jnp.log(weighted_Z_eff)
@@ -86,7 +86,7 @@ def coll_exchange(
 
 def calc_nu_star(
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     collisionality_multiplier: float,
 ) -> jax.Array:
   """Calculates nustar.
@@ -105,32 +105,32 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   log_lambda_ei_face = calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(),
-      core_profiles.n_e.face_value(),
+      core_profiles.kinetic.T_e.face_value(),
+      core_profiles.kinetic.n_e.face_value(),
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.face_value(),
-      core_profiles.n_e.face_value(),
+      core_profiles.kinetic.T_e.face_value(),
+      core_profiles.kinetic.n_e.face_value(),
       log_lambda_ei_face,
   )
 
   nu_e = (
       1
       / jnp.exp(log_tau_e_Z1)
-      * core_profiles.Z_eff_face
+      * core_profiles.ions.Z_eff_face
       * collisionality_multiplier
   )
 
   # calculate bounce time
   tau_bounce = (
-      core_profiles.q_face
+      core_profiles.flux.q_face
       * geo.R_major_profile_face
       / (
           jnp.clip(geo.epsilon_face, constants.CONSTANTS.eps) ** 1.5
           * jnp.sqrt(
-              core_profiles.T_e.face_value()
+              core_profiles.kinetic.T_e.face_value()
               * constants.CONSTANTS.keV_to_J
               / constants.CONSTANTS.m_e
           )
@@ -310,15 +310,17 @@ def calculate_tau_ii(
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def _calculate_weighted_Z_eff(
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
 ) -> jax.Array:
   """Calculates ion mass weighted Z_eff. Used for collisional heat exchange."""
   return (  # pyrefly: ignore[bad-return]
-      core_profiles.n_i.value * core_profiles.Z_i**2 / core_profiles.A_i
-      + core_profiles.n_impurity.value
-      * core_profiles.Z_impurity**2
-      / core_profiles.A_impurity
-  ) / core_profiles.n_e.value
+      core_profiles.kinetic.n_i.value
+      * core_profiles.ions.Z_i**2
+      / core_profiles.ions.A_i
+      + core_profiles.kinetic.n_impurity.value
+      * core_profiles.ions.Z_impurity**2
+      / core_profiles.ions.A_impurity
+  ) / core_profiles.kinetic.n_e.value
 
 
 def _calculate_log_tau_e_Z1(

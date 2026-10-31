@@ -19,27 +19,21 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
-from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.internal_boundary_conditions import (
-    builder as internal_boundary_conditions_builder,
-)
+from torax._src.orchestration import physics_pipeline
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model.formation import power_scaling_formation_model
-from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import file_restart as file_restart_config
-from torax._src.transport_model import transport_coefficients_builder
 import xarray as xr
 
 
@@ -110,111 +104,34 @@ def _get_initial_state(
 ) -> sim_state.SimState:
   """Returns the initial state to be used by run_simulation()."""
   models = step_fn.solver.models
-  initial_source_states = models.source_models.initial_state(runtime_params)
-  initial_core_profiles = initialization.initial_core_profiles(
-      runtime_params,
-      geo,
+  solver_state = initialization.initial_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
-      source_states=initial_source_states,
+      source_states=models.source_models.initial_state(runtime_params),
   )
-  (
-      conductivity,
-      bootstrap_current,
-      _,
-      neoclassical_intermediates,
-  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, initial_core_profiles
-  )
-  initial_core_sources, initial_source_states = (
-      source_profile_builders.get_all_source_profiles(
+  physics_outputs, initial_model_state = (
+      physics_pipeline.evaluate_initial_physics(
           runtime_params=runtime_params,
           geo=geo,
-          core_profiles=initial_core_profiles,
-          source_models=models.source_models,
-          conductivity=conductivity,
-          bootstrap_current=bootstrap_current,
-          source_states=initial_source_states,
+          solver_state=solver_state,
+          models=models,
       )
   )
 
-  if runtime_params.numerics.enable_fast_ions:
-    fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        sum(initial_core_sources.fast_ions.values(), ()),
-        runtime_params.profile_conditions.prescribed_fast_ions,
-        geo.rho_face_norm,
-    )
-  else:
-    fast_ions = ()
-  initial_core_profiles = dataclasses.replace(
-      initial_core_profiles,
-      fast_ions=fast_ions,
-  )
-
   if models.edge_model is not None:
-    # If `runtime_params.edge.use_enrichment_model` is True, then the
-    # `runtime_params.edge.enrichment_factor`
-    # in this initialization step was calculated with a guess for the divertor
-    # neutral pressure. This is only used to set edge fixed impurities if
-    # PlasmaComposition.impurity_source_of_truth == CORE. All subsequent
-    # calls to the edge model will use the divertor neutral pressure from a
-    # previous calculation.
     assert runtime_params.edge is not None
     edge_outputs = models.edge_model(
         runtime_params.edge,
         runtime_params,
         geo,
-        initial_core_profiles,
-        initial_core_sources,
+        physics_outputs.core_profiles,
+        physics_outputs.core_sources,
         previous_edge_outputs=None,
     )
   else:
     edge_outputs = None
-
-  initial_pedestal_output, initial_pedestal_state = (
-      models.pedestal_model.initialize(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=initial_core_profiles,
-          source_profiles=initial_core_sources,
-      )
-  )
-
-  internal_boundary_conditions = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=initial_core_profiles,
-          pedestal_model_output=initial_pedestal_output,
-          internal_boundary_condition_model=(
-              models.internal_boundary_condition_model
-          ),
-          source_profiles=initial_core_sources,
-      )
-  )
-  neoclassical_transport = models.neoclassical_model.calculate_transport(
-      runtime_params, geo, initial_core_profiles, neoclassical_intermediates
-  )
-  transport_coeffs, initial_transport_state = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=initial_core_profiles,
-          pedestal_model_output=initial_pedestal_output,
-          transport_state=models.transport_model.initial_state(runtime_params),
-          neoclassical_transport=neoclassical_transport,
-          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
-              geo
-          ),
-      )
-  )
-
-  initial_model_state = model_state_lib.ModelState(
-      pedestal=initial_pedestal_state,
-      transport=initial_transport_state,
-      sources=initial_source_states,
-  )
 
   return sim_state.SimState(
       t=jnp.array(
@@ -222,9 +139,9 @@ def _get_initial_state(
           dtype=jax_utils.get_dtype(),
       ),
       dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
-      core_profiles=initial_core_profiles,
-      core_sources=initial_core_sources,
-      core_transport=transport_coeffs,
+      core_profiles=physics_outputs.core_profiles,
+      core_sources=physics_outputs.core_sources,
+      core_transport=physics_outputs.core_transport,
       solver_numeric_outputs=state.SolverNumericOutputs(
           solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
@@ -233,7 +150,7 @@ def _get_initial_state(
       ),
       geometry=geo,
       edge_outputs=edge_outputs,
-      pedestal_output=initial_pedestal_output,
+      pedestal_output=physics_outputs.pedestal_output,
       model_state=initial_model_state,
       time_step_calculator_state=step_fn.time_step_calculator.initial_state(
           runtime_params
@@ -340,7 +257,10 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
-      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
+      flux=dataclasses.replace(
+          initial_state.core_profiles.flux,
+          v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
+      ),
   )
   pedestal_state = initial_state.model_state.pedestal
   # TODO(b/434175938): Have model states reconstruct themselves from restart

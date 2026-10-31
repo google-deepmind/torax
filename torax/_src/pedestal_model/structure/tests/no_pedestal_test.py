@@ -13,9 +13,9 @@
 # limitations under the License.
 from absl.testing import absltest
 from jax import numpy as jnp
-from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import source_helpers
 from torax._src.torax_pydantic import config as torax_pydantic_config
 
 
@@ -33,14 +33,11 @@ class NoPedestalTest(absltest.TestCase):
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(runtime_params)
-    source_profiles, _ = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,

@@ -22,8 +22,8 @@ a standard linear solution.
 
 import jax
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -44,7 +44,7 @@ def fixed_point_method(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],
-    solver_state_t_plus_dt: state.SolverState,
+    solver_state_t_plus_dt: solver_state_lib.SolverState,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,

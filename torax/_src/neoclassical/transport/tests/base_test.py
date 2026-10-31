@@ -16,7 +16,7 @@ from typing import Annotated, Literal
 
 from absl.testing import absltest
 import numpy as np
-from torax._src import state
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import register_model
 from torax._src.neoclassical.formulas import formulas
@@ -124,7 +124,7 @@ class FakeNeoclassicalTransportModel(
       self,
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     del runtime_params, neoclassical_intermediates

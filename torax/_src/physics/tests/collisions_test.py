@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.physics import collisions
 
@@ -140,9 +140,7 @@ class CollisionsTest(parameterized.TestCase):
     """Compare `_calculate_weighted_Z_eff` to a reference value."""
     n_e = 1.0
     n_impurity = (n_e - n_i * Z_i) / Z_impurity
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
+    kinetic = mock.MagicMock(
         n_e=cell_variable.CellVariable(
             value=jnp.array([n_e]),
             face_centers=jnp.array([0.0, 1.0]),
@@ -155,10 +153,18 @@ class CollisionsTest(parameterized.TestCase):
             value=jnp.array([n_impurity]),
             face_centers=jnp.array([0.0, 1.0]),
         ),
+    )
+    ions = mock.MagicMock(
         Z_i=Z_i,
         A_i=A_i,
         Z_impurity=Z_impurity,
         A_impurity=A_impurity,
+    )
+    core_profiles = mock.create_autospec(
+        solver_profiles.SolverProfiles,
+        instance=True,
+        kinetic=kinetic,
+        ions=ions,
     )
     np.testing.assert_allclose(
         collisions._calculate_weighted_Z_eff(core_profiles), expected
