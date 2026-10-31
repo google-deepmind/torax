@@ -21,6 +21,8 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import enums
@@ -63,8 +65,8 @@ class NonlinearThetaMethod(solver.Solver):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      core_profiles_t: profiles.CoreProfiles,
+      solver_state_t_plus_dt: solver_state_lib.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -108,8 +110,8 @@ class NonlinearThetaMethod(solver.Solver):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      core_profiles_t: profiles.CoreProfiles,
+      solver_state_t_plus_dt: solver_state_lib.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
@@ -164,8 +166,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      core_profiles_t: profiles.CoreProfiles,
+      solver_state_t_plus_dt: solver_state_lib.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
@@ -177,7 +179,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
     assert isinstance(solver_params, OptimizerRuntimeParams)
-    solver_state_t = state.SolverState.from_core_profiles(core_profiles_t)
+    solver_state_t = solver_state_lib.SolverState.from_core_profiles(
+        core_profiles_t
+    )
     (
         x_new,
         solver_numeric_outputs,
@@ -220,8 +224,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      core_profiles_t: profiles.CoreProfiles,
+      solver_state_t_plus_dt: solver_state_lib.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
@@ -233,7 +237,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
     assert isinstance(solver_params, NewtonRaphsonRuntimeParams)
-    solver_state_t = state.SolverState.from_core_profiles(core_profiles_t)
+    solver_state_t = solver_state_lib.SolverState.from_core_profiles(
+        core_profiles_t
+    )
 
     (
         x_new,

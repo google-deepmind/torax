@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base class for conductivity models."""
+"""Base class and interface for neoclassical conductivity models."""
 
 from __future__ import annotations
 
@@ -20,13 +20,12 @@ import abc
 from typing import Annotated
 
 import pydantic
-from torax._src import state
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
-
-Conductivity = state.Conductivity
 
 
 class ConductivityModel(abc.ABC):
@@ -37,9 +36,9 @@ class ConductivityModel(abc.ABC):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> state.Conductivity:
+  ) -> profiles.Conductivity:
     """Calculates conductivity."""
 
 

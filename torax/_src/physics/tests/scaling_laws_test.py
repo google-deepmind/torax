@@ -18,7 +18,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
+from torax._src.core_profiles import flux_profiles
+from torax._src.core_profiles import ion_composition
+from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import scaling_laws
@@ -37,10 +40,8 @@ class ScalingLawsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
 
-    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
-    # property needed in calculate_P_LH.
-    core_profiles = state.CoreProfiles(
-        kinetic=state.KineticProfiles(
+    core_profiles = solver_profiles.SolverProfiles(
+        kinetic=kinetic_profiles.KineticProfiles(
             n_e=cell_variable.CellVariable(
                 value=jnp.ones_like(geo.rho_norm) * 2e20,
                 left_face_grad_constraint=jnp.zeros(()),
@@ -53,7 +54,7 @@ class ScalingLawsTest(parameterized.TestCase):
             T_i=mock.ANY,
             T_e=mock.ANY,
         ),
-        ions=state.IonComposition(
+        ions=ion_composition.IonComposition(
             impurity_fractions=mock.ANY,
             main_ion_fractions=mock.ANY,
             Z_i=mock.ANY,
@@ -68,7 +69,7 @@ class ScalingLawsTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        flux=state.FluxProfiles(
+        flux=flux_profiles.FluxProfiles(
             psi=mock.ANY,
             q_face=mock.ANY,
             s_face=mock.ANY,
@@ -78,13 +79,6 @@ class ScalingLawsTest(parameterized.TestCase):
             v_loop_lcfs=mock.ANY,
         ),
         toroidal_angular_velocity=mock.ANY,
-        fast_ions=mock.ANY,
-        conductivity=state.Conductivity(
-            sigma=mock.ANY,
-            sigma_face=mock.ANY,
-        ),
-        poloidal_velocity=mock.ANY,
-        psidot=mock.ANY,
     )
     return geo, core_profiles
 
@@ -183,10 +177,8 @@ class ScalingLawsTest(parameterized.TestCase):
         a_minor=2.0,
         B_0=5.0,
     ).build_geometry()
-    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
-    # property needed in calculate_plh_delabie.
-    core_profiles = state.CoreProfiles(
-        kinetic=state.KineticProfiles(
+    core_profiles = solver_profiles.SolverProfiles(
+        kinetic=kinetic_profiles.KineticProfiles(
             n_e=cell_variable.CellVariable(
                 value=jnp.ones_like(geo.rho_norm) * 2e20,
                 left_face_grad_constraint=jnp.zeros(()),
@@ -199,7 +191,7 @@ class ScalingLawsTest(parameterized.TestCase):
             T_i=mock.ANY,
             T_e=mock.ANY,
         ),
-        ions=state.IonComposition(
+        ions=ion_composition.IonComposition(
             impurity_fractions=mock.ANY,
             main_ion_fractions=mock.ANY,
             Z_i=mock.ANY,
@@ -214,7 +206,7 @@ class ScalingLawsTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        flux=state.FluxProfiles(
+        flux=flux_profiles.FluxProfiles(
             psi=mock.ANY,
             q_face=mock.ANY,
             s_face=mock.ANY,
@@ -224,13 +216,6 @@ class ScalingLawsTest(parameterized.TestCase):
             v_loop_lcfs=mock.ANY,
         ),
         toroidal_angular_velocity=mock.ANY,
-        fast_ions=mock.ANY,
-        conductivity=state.Conductivity(
-            sigma=mock.ANY,
-            sigma_face=mock.ANY,
-        ),
-        poloidal_velocity=mock.ANY,
-        psidot=mock.ANY,
     )
     Ploss = jnp.array(50e6)
 

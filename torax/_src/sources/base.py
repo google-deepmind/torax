@@ -17,6 +17,7 @@ import abc
 from typing import Annotated
 
 import chex
+from torax._src import static_dataclass
 from torax._src.sources import runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -60,7 +61,9 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
   )
 
   @abc.abstractmethod
-  def build_source(self) -> source_lib.Source:
+  def build_source(
+      self,
+  ) -> source_lib.SourceBase | static_dataclass.StaticDataclass:
     """Builds a source object from the model config."""
 
   def build_runtime_params(

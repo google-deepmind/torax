@@ -20,8 +20,8 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 import pydantic
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import config as ibc_config_lib
@@ -122,7 +122,9 @@ class PrescribedIBCTest(parameterized.TestCase):
     res = model(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        core_profiles=mock.create_autospec(
+            profiles.CoreProfiles, instance=True
+        ),
         source_profiles=mock.create_autospec(
             source_profiles_lib.SourceProfiles, instance=True
         ),
@@ -150,7 +152,9 @@ class NoIBCTest(absltest.TestCase):
             runtime_params_lib.RuntimeParams, instance=True
         ),
         geo=geo,
-        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        core_profiles=mock.create_autospec(
+            profiles.CoreProfiles, instance=True
+        ),
         source_profiles=mock.create_autospec(
             source_profiles_lib.SourceProfiles, instance=True
         ),

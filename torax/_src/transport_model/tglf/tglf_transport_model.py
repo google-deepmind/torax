@@ -24,8 +24,8 @@ import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -109,7 +109,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[

@@ -21,10 +21,9 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
@@ -51,11 +50,8 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: solver_profiles.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Compute ICRH heating from prescribed profiles with B-field shift.
 
@@ -70,17 +66,14 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
       runtime_params: Full simulation runtime parameters.
       geo: Magnetic geometry.
       core_profiles: Core plasma profiles (unused by this model).
-      calculated_source_profiles: Unused.
-      conductivity: Unused.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(ion_heat_profile,
       electron_heat_profile)), source_state).
     """
-    del core_profiles, calculated_source_profiles, conductivity, psidot
+    del core_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
 
