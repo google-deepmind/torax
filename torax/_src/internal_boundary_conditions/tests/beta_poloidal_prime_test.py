@@ -369,7 +369,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         n_e_edge=None,
         n_e_edge_multiplier=multiplier,
     )
-    n_e_sep = core_profiles.n_e.right_face_value.item()
+    n_e_sep = core_profiles.kinetic.n_e.right_face_value.item()
     _, _, ibc_out_val = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
         n_e_edge=multiplier * n_e_sep,

@@ -292,7 +292,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     # (a_minor).
     pfe_SI = (
         pfe
-        * core_profiles.n_e.face_value()
+        * core_profiles.kinetic.n_e.face_value()
         * qualikiz_inputs.chiGB
         / geo.a_minor
     )
@@ -315,7 +315,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=pfe_SI,
           normalized_particle_flux=pfe,
-          n_e=core_profiles.n_e,
+          n_e=core_profiles.kinetic.n_e,
           geo=geo,
           gradient_reference_length=geo.R_major,
           An_min=transport.An_min,
@@ -330,7 +330,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
           particle_flux_SI=pfe_SI,
           chi_face_el=chi_face_el,
-          n_e=core_profiles.n_e,
+          n_e=core_profiles.kinetic.n_e,
           geo=geo,
           two_point_mask=two_point_mask,
       )
@@ -377,9 +377,9 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     rmid_face = geo.r_mid_face
 
     chiGB = quasilinear_utils.calculate_chiGB(
-        reference_temperature=core_profiles.T_i.face_value(),
+        reference_temperature=core_profiles.kinetic.T_i.face_value(),
         reference_magnetic_field=geo.B_0,
-        reference_mass=core_profiles.A_i,
+        reference_mass=core_profiles.ions.A_i,
         reference_length=geo.a_minor,
     )
 
@@ -393,17 +393,20 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         )
     )
 
-    q = core_profiles.q_face
+    q = core_profiles.flux.q_face
     smag = psi_calculations.calc_s_rmid(
         geo,
-        core_profiles.psi,
+        core_profiles.flux.psi,
     )
 
     epsilon = geo.epsilon_face
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
 
-    Ti_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
+    Ti_Te = (
+        core_profiles.kinetic.T_i.face_value()
+        / core_profiles.kinetic.T_e.face_value()
+    )
 
     nu_star = collisions.calc_nu_star(
         geo=geo,
@@ -451,7 +454,10 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         alpha - 0.2,
         smag,
     )
-    normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+    normni = (
+        core_profiles.kinetic.n_i.face_value()
+        / core_profiles.kinetic.n_e.face_value()
+    )
 
     lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
@@ -462,14 +468,14 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     )
 
     if transport.rotation_mode == RotationMode.OFF:
-      v_ExB = jnp.zeros_like(core_profiles.q_face)
-      v_ExB_poloidal_and_pressure = jnp.zeros_like(core_profiles.q_face)
-      v_ExB_toroidal = jnp.zeros_like(core_profiles.q_face)
+      v_ExB = jnp.zeros_like(core_profiles.flux.q_face)
+      v_ExB_poloidal_and_pressure = jnp.zeros_like(core_profiles.flux.q_face)
+      v_ExB_toroidal = jnp.zeros_like(core_profiles.flux.q_face)
     else:
       rotation_output = rotation.calculate_rotation(
-          psi=core_profiles.psi,
-          n_i=core_profiles.n_i,
-          Z_i_face=core_profiles.Z_i_face,
+          psi=core_profiles.flux.psi,
+          n_i=core_profiles.kinetic.n_i,
+          Z_i_face=core_profiles.ions.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
           poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
@@ -536,9 +542,9 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     mach_toroidal = mach_toroidal * transport.rotation_multiplier
 
     c_sou = jnp.sqrt(
-        core_profiles.T_e.face_value()
+        core_profiles.kinetic.T_e.face_value()
         * constants.keV_to_J
-        / (core_profiles.A_i * constants.m_amu)
+        / (core_profiles.ions.A_i * constants.m_amu)
     )
     gamma_E_GB_poloidal_and_pressure = gamma_E_SI_poloidal_and_pressure * (
         geo.a_minor / c_sou
@@ -546,7 +552,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     gamma_E_GB_toroidal = gamma_E_SI_toroidal * (geo.a_minor / c_sou)
 
     return QualikizInputs(
-        Z_eff_face=core_profiles.Z_eff_face,
+        Z_eff_face=core_profiles.ions.Z_eff_face,
         lref_over_lti=lref_over_lti,
         lref_over_lte=normalized_logarithmic_gradients.lref_over_lte,
         lref_over_lne=normalized_logarithmic_gradients.lref_over_lne,
