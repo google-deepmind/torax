@@ -46,7 +46,7 @@ class SawtoothSolver(solver.Solver):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t_plus_dt: state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -70,8 +70,8 @@ class SawtoothSolver(solver.Solver):
       geo_t: Geometry at time t.
       geo_t_plus_dt: Geometry at time t + crash_dt.
       core_profiles_t: Core profiles at time t.
-      core_profiles_t_plus_dt: Core profiles containing boundary conditions and
-        prescribed profiles at time t + crash_dt.
+      solver_state_t_plus_dt: Primary profiles containing boundary
+        conditions and prescribed profiles at time t + crash_dt.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       evolving_names: Names of evolving variables.
       model_state: State of models across timesteps.
@@ -128,8 +128,9 @@ class SawtoothSolver(solver.Solver):
           ),
       )
 
-      x_post_step = convertors.core_profiles_to_solver_x_tuple(
-          evolved_core_profiles, evolving_names
+      x_post_step = convertors.solver_state_to_solver_x_tuple(
+          state.SolverState.from_core_profiles(evolved_core_profiles),
+          evolving_names,
       )
 
       solver_numeric_outputs_post_step = state.SolverNumericOutputs(

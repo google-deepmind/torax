@@ -82,35 +82,6 @@ def solver_state_to_solver_x_tuple(
   return tuple(x_tuple_for_solver_list)
 
 
-# TODO(b/572586768): Remove when downstream callers migrate.
-def core_profiles_to_solver_x_tuple(
-    core_profiles: state.CoreProfiles,
-    evolving_names: tuple[str, ...],
-) -> tuple[cell_variable.CellVariable, ...]:
-  """Converts evolving parts of CoreProfiles to the 'x' tuple for the solver.
-
-  Applies state variable scaling to the solution state vector elements
-  for numerical conditioning of the solver. This ensures that the state vector
-  components are of similar order of magnitude (O(1)), corresponding to column
-  equilibration of the Jacobian matrix.
-
-  Args:
-    core_profiles: The input CoreProfiles object.
-    evolving_names: Tuple of strings naming the variables to be evolved by the
-      solver.
-
-  Returns:
-    A tuple of CellVariable objects, one for each name in evolving_names,
-    with values state-scaled for the solver.
-  """
-  return solver_state_to_solver_x_tuple(
-      solver_state=state.SolverState.from_core_profiles(
-          core_profiles
-      ),
-      evolving_names=evolving_names,
-  )
-
-
 def solver_x_tuple_to_solver_state(
     x_new: tuple[cell_variable.CellVariable, ...],
     evolving_names: tuple[str, ...],
@@ -144,42 +115,6 @@ def solver_x_tuple_to_solver_state(
     updated_vars[var_name] = original_units_cv
 
   return dataclasses.replace(solver_state, **updated_vars)
-
-
-# TODO(b/572586768): Remove when downstream callers migrate.
-def solver_x_tuple_to_core_profiles(
-    x_new: tuple[cell_variable.CellVariable, ...],
-    evolving_names: tuple[str, ...],
-    core_profiles: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Gets updated cell variables for evolving state variables in core_profiles.
-
-  If a variable is in `evolving_names`, its new value is taken from `x_new`.
-  Otherwise, the existing value from `core_profiles` is kept.
-  State variables in the solver are state-scaled for solver numerical
-  conditioning, and must be unscaled back to their original physical units
-  before being written to `core_profiles`.
-
-  Args:
-    x_new: The state-scaled values of the evolving variables from the solver.
-    evolving_names: The names of the evolving variables.
-    core_profiles: The current set of core plasma profiles.
-
-  Returns:
-    An updated CoreProfiles object with physical-unit values.
-  """
-  updated_vars = {}
-
-  for i, var_name in enumerate(evolving_names):
-    solver_x_tuple_cv = x_new[i]
-    # Unscale state scaling from solver (multiply by state scaling factor).
-    original_units_cv = apply_state_scaling(
-        cv=solver_x_tuple_cv,
-        scaling_factor=STATE_SCALING_FACTORS[var_name],
-    )
-    updated_vars[var_name] = original_units_cv
-
-  return dataclasses.replace(core_profiles, **updated_vars)
 
 
 def apply_state_scaling(

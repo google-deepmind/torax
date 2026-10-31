@@ -23,6 +23,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import model_state as model_state_lib
+from torax._src import state
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
@@ -378,8 +379,9 @@ class CalcCoeffsTest(parameterized.TestCase):
         use_pereverzev=False,
         model_state=model_state,
     )
-    x = convertors.core_profiles_to_solver_x_tuple(
-        core_profiles, evolving_names
+    x = convertors.solver_state_to_solver_x_tuple(
+        state.SolverState.from_core_profiles(core_profiles),
+        evolving_names,
     )
     c_mat, c_vec = discrete_system.calc_c(x, coeffs)
     rhs = c_mat.matvec(jnp.stack([v.value for v in x], axis=-1)) + c_vec

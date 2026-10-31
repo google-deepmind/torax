@@ -68,7 +68,7 @@ class CoeffsCallback:
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_state: state.SolverState,
       x: tuple[cell_variable.CellVariable, ...],
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
@@ -87,7 +87,7 @@ class CoeffsCallback:
         potentially time-dependent and should correspond to the time step of the
         state x.
       geo: The geometry of the system at this time step.
-      core_profiles: The core profiles of the system at this time step.
+      solver_state: The primary profiles of the system at this time step.
       x: The state with cell-grid values of the evolving variables.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       model_state: State of models across timesteps.
@@ -106,12 +106,12 @@ class CoeffsCallback:
       coeffs: The diffusion, convection, etc. coefficients for this state.
     """
 
-    # Update core_profiles with the subset of new values of evolving variables
+    # Update core_profiles with the subset of new values of evolving variables.
     core_profiles = updaters.update_core_profiles_during_step(
         x,
         runtime_params,
         geo,
-        core_profiles=core_profiles,
+        solver_state=solver_state,
         evolving_names=self.evolving_names,
     )
     if allow_pereverzev:

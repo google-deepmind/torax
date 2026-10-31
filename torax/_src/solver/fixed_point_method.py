@@ -44,7 +44,7 @@ def fixed_point_method(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t_plus_dt: state.CoreProfiles,
+    solver_state_t_plus_dt: state.SolverState,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
@@ -61,7 +61,7 @@ def fixed_point_method(
       time t.
     x_new_guess: Tuple of CellVariables corresponding to the initial guess for
       the next time step.
-    core_profiles_t_plus_dt: Core profiles at the next time step.
+    solver_state_t_plus_dt: Primary profiles at the next time step.
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep.
     coeffs_callback: coefficient callback function.
     explicit_model_outputs: Explicit model outputs evaluated at time t.
@@ -78,7 +78,7 @@ def fixed_point_method(
     coeffs_new = coeffs_callback(
         runtime_params_t_plus_dt,
         geo_t_plus_dt,
-        core_profiles_t_plus_dt,
+        solver_state_t_plus_dt,
         x=x_new_guess,
         explicit_model_outputs=explicit_model_outputs,
         model_state=model_state,

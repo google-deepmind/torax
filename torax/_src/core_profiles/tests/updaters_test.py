@@ -102,7 +102,7 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t1 = provider(t=1.0)
 
     # Simulate a step update where prescribed values are applied
-    core_profiles_t1 = updaters.provide_core_profiles_t_plus_dt(
+    solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(dt),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -113,7 +113,7 @@ class UpdatersTest(parameterized.TestCase):
     # Check psi value
     expected_psi_array = np.full_like(geo.rho_norm, expected_psi_val_t1)
     np.testing.assert_allclose(
-        core_profiles_t1.psi.value, expected_psi_array, rtol=1e-5
+        solver_state.psi.value, expected_psi_array, rtol=1e-5
     )
 
   def test_psi_not_updated_if_not_prescribed(self):
@@ -145,7 +145,7 @@ class UpdatersTest(parameterized.TestCase):
         prof_cond, 'psi', None
     )  # Hack to set frozen field for test
 
-    core_profiles_t1 = updaters.provide_core_profiles_t_plus_dt(
+    solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -155,7 +155,7 @@ class UpdatersTest(parameterized.TestCase):
 
     # Should be same as t0 since not evolved and not prescribed
     np.testing.assert_allclose(
-        core_profiles_t1.psi.value, core_profiles_t0.psi.value
+        solver_state.psi.value, core_profiles_t0.psi.value
     )
 
   def test_psi_not_updated_if_evolve_current_true(self):
@@ -186,7 +186,7 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t1 = provider(t=1.0)
     # At t=1, prescribed is 20.0. But evolve_current=True.
 
-    core_profiles_t1 = updaters.provide_core_profiles_t_plus_dt(
+    solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -195,10 +195,10 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     # Expect psi value to NOT be updated to 20.0 (it should stay as t0 value
-    # because provide_core_profiles_t_plus_dt only updates prescribed/BCs,
-    # and evolving vars are handled by the solver).
+    # because provide_solver_state_t_plus_dt only updates prescribed/BCs, and
+    # evolving vars are handled by the solver).
     # Since it wasn't updated in provide_..., it should remain 10.0 here.
-    np.testing.assert_allclose(core_profiles_t1.psi.value, 10.0)
+    np.testing.assert_allclose(solver_state.psi.value, 10.0)
 
   def test_provide_solver_state_prescribed_psi(self):
     config_dict = default_configs.get_default_config_dict()
@@ -362,7 +362,9 @@ class UpdatersTest(parameterized.TestCase):
             runtime_params_t_plus_dt=runtime_params_t1,
             geo=geo,
             core_profiles_t=core_profiles_t0,
-            core_profiles_t_plus_dt=stale_core_profiles,
+            solver_state_t_plus_dt=state.SolverState.from_core_profiles(
+                stale_core_profiles
+            ),
             explicit_source_profiles=explicit_source_profiles,
             source_models=models.source_models,
             neoclassical_model=models.neoclassical_model,

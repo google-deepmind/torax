@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import state
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -301,14 +302,17 @@ class FVMTest(parameterized.TestCase):
       # When the coefficients are kept constant, the loss
       # should just be a quadratic bowl with the linear
       # solution as the minimum with approximately zero residual
-      # core_profiles_t_plus_dt is not updated since coeffs stay constant here
+      # solver_state_t_plus_dt is not updated since coeffs stay
+      # constant here.
       loss = residual_and_loss.theta_method_block_loss(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params,
           geo_t_plus_dt=sim_state.geometry,
           x_old=x_old,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
-          core_profiles_t_plus_dt=sim_state.core_profiles,
+          solver_state_t_plus_dt=state.SolverState.from_core_profiles(
+              sim_state.core_profiles
+          ),
           models=step_fn.solver.models,
           explicit_model_outputs=explicit_model_outputs,
           coeffs_old=coeffs,
@@ -322,7 +326,9 @@ class FVMTest(parameterized.TestCase):
           geo_t_plus_dt=sim_state.geometry,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
-          core_profiles_t_plus_dt=sim_state.core_profiles,
+          solver_state_t_plus_dt=state.SolverState.from_core_profiles(
+              sim_state.core_profiles
+          ),
           models=step_fn.solver.models,
           explicit_model_outputs=explicit_model_outputs,
           coeffs_old=coeffs,
@@ -409,8 +415,8 @@ class FVMTest(parameterized.TestCase):
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(0.0),
     )
-    core_profiles_t_plus_dt = dataclasses.replace(
-        sim_state.core_profiles,
+    solver_state_t_plus_dt = dataclasses.replace(
+        state.SolverState.from_core_profiles(sim_state.core_profiles),
         T_i=x_0,
     )
     # When the boundary conditions are not time-dependent and stay at 0,
@@ -422,7 +428,7 @@ class FVMTest(parameterized.TestCase):
         geo_t_plus_dt=sim_state.geometry,
         x_old=(x_0,),
         x_new_guess_vec=x_0.value,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         models=step_fn.solver.models,
         explicit_model_outputs=explicit_model_outputs,
         coeffs_old=coeffs_old,
@@ -452,8 +458,8 @@ class FVMTest(parameterized.TestCase):
         explicit_model_outputs,
         coeffs_old,
     ) = self._build_fvm_test_inputs(num_cells=num_cells, theta_implicit=0.0)
-    core_profiles_t_plus_dt = dataclasses.replace(
-        sim_state.core_profiles,
+    solver_state_t_plus_dt = dataclasses.replace(
+        state.SolverState.from_core_profiles(sim_state.core_profiles),
         T_i=x_1,
     )
     residual_theta0 = residual_and_loss.theta_method_block_residual(
@@ -462,7 +468,7 @@ class FVMTest(parameterized.TestCase):
         geo_t_plus_dt=sim_state.geometry,
         x_old=(x_0,),
         x_new_guess_vec=x_0.value,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         evolving_names=evolving_names,
         models=step_fn.solver.models,
         explicit_model_outputs=explicit_model_outputs,
@@ -480,7 +486,7 @@ class FVMTest(parameterized.TestCase):
         runtime_params_t_plus_dt=runtime_params_theta05,
         geo_t_plus_dt=sim_state.geometry,
         x_old=(x_0,),
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         x_new_guess_vec=x_0.value,
         models=step_fn.solver.models,
         explicit_model_outputs=explicit_model_outputs,

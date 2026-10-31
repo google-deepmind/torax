@@ -33,7 +33,6 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src import tridiagonal
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -311,7 +310,7 @@ def theta_method_block_residual(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t_plus_dt: state.CoreProfiles,
+    solver_state_t_plus_dt: state.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
@@ -327,7 +326,7 @@ def theta_method_block_residual(
     runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+    solver_state_t_plus_dt: Primary plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
@@ -341,32 +340,21 @@ def theta_method_block_residual(
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
   """
-  # Prepare core_profiles_t_plus_dt for calc_coeffs. Explanation:
-  # 1. The original (before iterative solving) core_profiles_t_plus_dt contained
-  #    updated boundary conditions and prescribed profiles.
-  # 2. Before calling calc_coeffs, we need to update the evolving subset of the
-  #    core_profiles_t_plus_dt CellVariables with the current x_new_guess.
-  # 3. Ion and impurity density and charge states are also updated here, since
-  #    they are state dependent (on n_e and T_e).
   x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
-      x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
+      x_new_guess_vec, solver_state_t_plus_dt, evolving_names
   )
-  core_profiles_t_plus_dt = updaters.update_core_profiles_during_step(
-      x_new_guess,
-      runtime_params_t_plus_dt,
-      geo_t_plus_dt,
-      core_profiles_t_plus_dt,
-      evolving_names=evolving_names,
-  )
-  coeffs_new = calc_coeffs.calc_coeffs(
-      runtime_params=runtime_params_t_plus_dt,
-      geo=geo_t_plus_dt,
-      core_profiles=core_profiles_t_plus_dt,
-      explicit_model_outputs=explicit_model_outputs,
+  coeffs_callback = calc_coeffs.CoeffsCallback(
       models=models,
       evolving_names=evolving_names,
+  )
+  coeffs_new = coeffs_callback(
+      runtime_params_t_plus_dt,
+      geo_t_plus_dt,
+      solver_state_t_plus_dt,
+      x_new_guess,
+      explicit_model_outputs=explicit_model_outputs,
       model_state=model_state,
-      use_pereverzev=False,
+      allow_pereverzev=False,
   )
 
   solver_params = runtime_params_t_plus_dt.solver
@@ -413,7 +401,7 @@ def theta_method_block_loss(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t_plus_dt: state.CoreProfiles,
+    solver_state_t_plus_dt: state.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
@@ -429,7 +417,7 @@ def theta_method_block_loss(
     runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+    solver_state_t_plus_dt: Primary plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
@@ -450,7 +438,7 @@ def theta_method_block_loss(
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      solver_state_t_plus_dt=solver_state_t_plus_dt,
       explicit_model_outputs=explicit_model_outputs,
       models=models,
       coeffs_old=coeffs_old,
@@ -473,7 +461,7 @@ def jaxopt_solver(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
-    core_profiles_t_plus_dt: state.CoreProfiles,
+    solver_state_t_plus_dt: state.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
@@ -491,7 +479,7 @@ def jaxopt_solver(
     x_old: The starting x defined as a tuple of CellVariables.
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
       core profiles.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+    solver_state_t_plus_dt: Primary plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
@@ -516,7 +504,7 @@ def jaxopt_solver(
       runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      solver_state_t_plus_dt=solver_state_t_plus_dt,
       explicit_model_outputs=explicit_model_outputs,
       models=models,
       coeffs_old=coeffs_old,

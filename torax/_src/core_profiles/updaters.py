@@ -32,6 +32,7 @@ from collections.abc import Mapping
 import dataclasses
 
 import jax
+from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -51,12 +52,13 @@ from torax._src.sources import source_state as source_state_lib
 # pylint: disable=invalid-name
 
 
+# TODO(b/572586768): Remove once calc_coeffs accepts SolverState directly.
 @jax.jit(static_argnames='evolving_names')
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    solver_state: state.SolverState,
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
   """Returns the new core profiles after updating the evolving variables.
@@ -73,18 +75,21 @@ def update_core_profiles_during_step(
     x_new: The new values of the evolving variables.
     runtime_params: The runtime params slice.
     geo: Magnetic geometry.
-    core_profiles: The old set of core plasma profiles for this timestep.
+    solver_state: The primary profiles for this timestep.
     evolving_names: The names of the evolving variables.
+
+  Returns:
+    A newly constructed CoreProfiles object.
   """
-  updated_core_profiles = convertors.solver_x_tuple_to_core_profiles(
-      x_new, evolving_names, core_profiles
+  updated_solver_state = convertors.solver_x_tuple_to_solver_state(
+      x_new, evolving_names, solver_state
   )
 
   ions = getters.get_updated_ions(
       runtime_params,
       geo,
-      updated_core_profiles.n_e,
-      updated_core_profiles.T_e,
+      updated_solver_state.n_e,
+      updated_solver_state.T_e,
   )
 
   (
@@ -93,32 +98,48 @@ def update_core_profiles_during_step(
       I_p_profile_face,
   ) = psi_calculations.calc_j_toroidal_total(
       geo,
-      updated_core_profiles.psi,
+      updated_solver_state.psi,
       runtime_params.numerics.min_rho_norm,
   )
 
-  return dataclasses.replace(
-      updated_core_profiles,
+  return state.CoreProfiles(
+      T_i=updated_solver_state.T_i,
+      T_e=updated_solver_state.T_e,
+      psi=updated_solver_state.psi,
+      psidot=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho_norm),
+          face_centers=geo.rho_face_norm,
+      ),
+      n_e=updated_solver_state.n_e,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
       main_ion_fractions=ions.main_ion_fractions,
+      q_face=psi_calculations.calc_q_face(geo, updated_solver_state.psi),
+      s_face=psi_calculations.calc_s_face(geo, updated_solver_state.psi),
+      v_loop_lcfs=jnp.array(0.0),
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
+      A_i=ions.A_i,
       Z_impurity=ions.Z_impurity,
       Z_impurity_face=ions.Z_impurity_face,
-      A_i=ions.A_i,
       A_impurity=ions.A_impurity,
       A_impurity_face=ions.A_impurity_face,
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
-      q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
-      s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
+      sigma=jnp.zeros_like(geo.rho_norm),
+      sigma_face=jnp.zeros_like(geo.rho_face_norm),
       j_toroidal_total=j_toroidal_total,
       j_toroidal_total_face=j_toroidal_total_face,
       I_p_profile_face=I_p_profile_face,
+      toroidal_angular_velocity=updated_solver_state.toroidal_angular_velocity,
+      poloidal_velocity=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho_norm),
+          face_centers=geo.rho_face_norm,
+      ),
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
+      fast_ions=(),
   )
 
 
@@ -128,7 +149,7 @@ def update_core_and_source_profiles_after_step(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
-    core_profiles_t_plus_dt: state.CoreProfiles,
+    solver_state_t_plus_dt: state.SolverState,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
@@ -150,9 +171,8 @@ def update_core_and_source_profiles_after_step(
     runtime_params_t_plus_dt: The runtime params slice at t=t_plus_dt.
     geo: Magnetic geometry.
     core_profiles_t: The old set of core plasma profiles.
-    core_profiles_t_plus_dt: The partially new set of core plasma profiles. On
-      input into this function, all prescribed profiles and used boundary
-      conditions are already set. But evolving values are not.
+    solver_state_t_plus_dt: The primary profiles at t + dt with prescribed
+      quantities and boundary conditions.
     explicit_source_profiles: The explicit source profiles.
     source_models: The source models.
     neoclassical_model: The neoclassical model.
@@ -164,15 +184,15 @@ def update_core_and_source_profiles_after_step(
     intermediates.
   """
 
-  updated_core_profiles_t_plus_dt = convertors.solver_x_tuple_to_core_profiles(
-      x_new, evolving_names, core_profiles_t_plus_dt
+  updated_solver_state = convertors.solver_x_tuple_to_solver_state(
+      x_new, evolving_names, solver_state_t_plus_dt
   )
 
   ions = getters.get_updated_ions(
       runtime_params_t_plus_dt,
       geo,
-      updated_core_profiles_t_plus_dt.n_e,
-      updated_core_profiles_t_plus_dt.T_e,
+      updated_solver_state.n_e,
+      updated_solver_state.T_e,
   )
 
   time_reduction_factor = (
@@ -183,7 +203,7 @@ def update_core_and_source_profiles_after_step(
       if runtime_params_t_plus_dt.profile_conditions.use_v_loop_lcfs_boundary_condition
       else psi_calculations.calculate_v_loop_lcfs_from_psi(
           core_profiles_t.psi,
-          updated_core_profiles_t_plus_dt.psi,
+          updated_solver_state.psi,
           dt,
           current_diffusion_time_reduction_factor=time_reduction_factor,
       )
@@ -192,7 +212,7 @@ def update_core_and_source_profiles_after_step(
   j_toroidal_total, j_toroidal_total_face, I_p_profile_face = (
       psi_calculations.calc_j_toroidal_total(
           geo,
-          updated_core_profiles_t_plus_dt.psi,
+          updated_solver_state.psi,
           runtime_params_t_plus_dt.numerics.min_rho_norm,
       )
   )
@@ -200,10 +220,10 @@ def update_core_and_source_profiles_after_step(
   # A wholly new core profiles object is defined as a guard against neglecting
   # to update one of the attributes if doing dataclasses.replace
   intermediate_core_profiles = state.CoreProfiles(
-      T_i=updated_core_profiles_t_plus_dt.T_i,
-      T_e=updated_core_profiles_t_plus_dt.T_e,
-      psi=updated_core_profiles_t_plus_dt.psi,
-      n_e=updated_core_profiles_t_plus_dt.n_e,
+      T_i=updated_solver_state.T_i,
+      T_e=updated_solver_state.T_e,
+      psi=updated_solver_state.psi,
+      n_e=updated_solver_state.n_e,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
@@ -212,12 +232,15 @@ def update_core_and_source_profiles_after_step(
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
       Z_impurity_face=ions.Z_impurity_face,
-      psidot=core_profiles_t_plus_dt.psidot,
+      psidot=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho_norm),
+          face_centers=geo.rho_face_norm,
+      ),
       q_face=psi_calculations.calc_q_face(
-          geo, updated_core_profiles_t_plus_dt.psi
+          geo, updated_solver_state.psi
       ),
       s_face=psi_calculations.calc_s_face(
-          geo, updated_core_profiles_t_plus_dt.psi
+          geo, updated_solver_state.psi
       ),
       A_i=ions.A_i,
       A_impurity=ions.A_impurity,
@@ -225,18 +248,19 @@ def update_core_and_source_profiles_after_step(
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
       v_loop_lcfs=v_loop_lcfs,
-      sigma=core_profiles_t_plus_dt.sigma,  # Not yet updated
-      sigma_face=core_profiles_t_plus_dt.sigma_face,  # Not yet updated
+      sigma=jnp.zeros_like(geo.rho_norm),  # Not yet updated
+      sigma_face=jnp.zeros_like(geo.rho_face_norm),  # Not yet updated
       j_toroidal_total=j_toroidal_total,
       j_toroidal_total_face=j_toroidal_total_face,
       I_p_profile_face=I_p_profile_face,
-      toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
-      poloidal_velocity=(
-          core_profiles_t_plus_dt.poloidal_velocity
+      toroidal_angular_velocity=updated_solver_state.toroidal_angular_velocity,
+      poloidal_velocity=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho_norm),
+          face_centers=geo.rho_face_norm,
       ),  # Not yet updated
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
-      fast_ions=core_profiles_t_plus_dt.fast_ions,
+      fast_ions=(),
   )
   partial_source_profiles, updated_source_states = (
       source_profile_builders.build_basic_sources(
@@ -362,32 +386,6 @@ def provide_solver_state_t_plus_dt(
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
-  )
-
-
-# TODO(b/572586768): Remove when downstream callers migrate.
-def provide_core_profiles_t_plus_dt(
-    dt: array_typing.FloatScalar,
-    runtime_params_t: runtime_params_lib.RuntimeParams,
-    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-    geo_t_plus_dt: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Provides state at t_plus_dt with updated BCs and prescribed profiles."""
-  solver_state = provide_solver_state_t_plus_dt(
-      dt=dt,
-      runtime_params_t=runtime_params_t,
-      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-      geo_t_plus_dt=geo_t_plus_dt,
-      core_profiles_t=core_profiles_t,
-  )
-  return dataclasses.replace(
-      core_profiles_t,
-      T_i=solver_state.T_i,
-      T_e=solver_state.T_e,
-      psi=solver_state.psi,
-      n_e=solver_state.n_e,
-      toroidal_angular_velocity=solver_state.toroidal_angular_velocity,
   )
 
 

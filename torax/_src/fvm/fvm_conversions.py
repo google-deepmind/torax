@@ -38,17 +38,17 @@ def cell_variable_tuple_to_vec(
 
 def vec_to_cell_variable_tuple(
     x_vec: jax.Array,
-    core_profiles: state.CoreProfiles,
+    solver_state: state.SolverState,
     evolving_names: tuple[str, ...],
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Converts a flat array of core profile state vars to CellVariable tuple.
 
-  Requires an input CoreProfiles to provide boundary condition information.
+  Requires an input SolverState to provide boundary condition information.
 
   Args:
     x_vec: A flat array of evolving core profile state variables. The order of
       the variables in the array must match the order of the evolving_names.
-    core_profiles: CoreProfiles containing all CellVariables with appropriate
+    solver_state: SolverState containing all CellVariables with appropriate
       boundary conditions.
     evolving_names: The names of the evolving cell variables.
 
@@ -61,7 +61,7 @@ def vec_to_cell_variable_tuple(
   # update the values in the scaled core profiles with new values from x_split.
   scaled_evolving_cp_list = [
       convertors.apply_state_scaling(
-          getattr(core_profiles, name),
+          getattr(solver_state, name),
           scaling_factor=1 / convertors.STATE_SCALING_FACTORS[name],
       )
       for name in evolving_names

@@ -63,8 +63,8 @@ def newton_raphson_solve_block(
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t: state_module.CoreProfiles,
-    core_profiles_t_plus_dt: state_module.CoreProfiles,
+    solver_state_t: state_module.SolverState,
+    solver_state_t_plus_dt: state_module.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_callback: calc_coeffs.CoeffsCallback,
@@ -118,11 +118,8 @@ def newton_raphson_solve_block(
     geo_t_plus_dt: Geometry at time t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    core_profiles_t: Core plasma profiles which contain all available prescribed
-      quantities at the start of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+    solver_state_t: Primary solver profiles at the start of the time step.
+    solver_state_t_plus_dt: Primary plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
@@ -165,7 +162,7 @@ def newton_raphson_solve_block(
   coeffs_old = coeffs_callback(
       runtime_params_t,
       geo_t,
-      core_profiles_t,
+      solver_state_t,
       x=x_old,
       explicit_model_outputs=explicit_model_outputs,
       explicit_call=True,
@@ -182,7 +179,7 @@ def newton_raphson_solve_block(
       coeffs_exp_linear = coeffs_callback(
           runtime_params_t,
           geo_t,
-          core_profiles=core_profiles_t,
+          solver_state=solver_state_t,
           x=x_old,
           explicit_model_outputs=explicit_model_outputs,
           allow_pereverzev=True,
@@ -191,8 +188,8 @@ def newton_raphson_solve_block(
       )
 
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_guess = convertors.core_profiles_to_solver_x_tuple(
-          core_profiles_t_plus_dt, evolving_names
+      x_new_guess = convertors.solver_state_to_solver_x_tuple(
+          solver_state_t_plus_dt, evolving_names
       )
       init_x_new = fixed_point_method.fixed_point_method(
           dt=dt,
@@ -200,7 +197,7 @@ def newton_raphson_solve_block(
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
           x_new_guess=x_new_guess,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          solver_state_t_plus_dt=solver_state_t_plus_dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           explicit_model_outputs=explicit_model_outputs,
@@ -215,7 +212,7 @@ def newton_raphson_solve_block(
       )
   # Create a residual() function with only one argument: x_new.
   # The other arguments (dt, x_old, etc.) are fixed.
-  # Note that core_profiles_t_plus_dt only contains the known quantities at
+  # Note that solver_state_t_plus_dt only contains the known quantities at
   # t_plus_dt, e.g. boundary conditions and prescribed profiles.
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
@@ -223,7 +220,7 @@ def newton_raphson_solve_block(
       runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      solver_state_t_plus_dt=solver_state_t_plus_dt,
       models=models,
       explicit_model_outputs=explicit_model_outputs,
       coeffs_old=coeffs_old,
@@ -255,10 +252,10 @@ def newton_raphson_solve_block(
 
   x_root, metadata = root_finder(x0=init_x_new_vec)
 
-  # Create updated CellVariable instances based on state_plus_dt which has
-  # updated boundary conditions and prescribed profiles.
+  # Create updated CellVariable instances based on solver_state_t_plus_dt which
+  # has updated boundary conditions and prescribed profiles.
   x_new = fvm_conversions.vec_to_cell_variable_tuple(
-      x_root, core_profiles_t_plus_dt, evolving_names
+      x_root, solver_state_t_plus_dt, evolving_names
   )
   solver_numeric_outputs = state_module.SolverNumericOutputs(
       inner_solver_iterations=jnp.array(

@@ -46,7 +46,7 @@ class LinearThetaMethod(solver_lib.Solver):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t_plus_dt: state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -56,11 +56,14 @@ class LinearThetaMethod(solver_lib.Solver):
   ]:
     """See Solver._x_new docstring."""
 
-    x_old = convertors.core_profiles_to_solver_x_tuple(
-        core_profiles_t, evolving_names
+    solver_state_t = state.SolverState.from_core_profiles(
+        core_profiles_t
     )
-    x_new_guess = convertors.core_profiles_to_solver_x_tuple(
-        core_profiles_t_plus_dt, evolving_names
+    x_old = convertors.solver_state_to_solver_x_tuple(
+        solver_state_t, evolving_names
+    )
+    x_new_guess = convertors.solver_state_to_solver_x_tuple(
+        solver_state_t_plus_dt, evolving_names
     )
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
@@ -73,7 +76,7 @@ class LinearThetaMethod(solver_lib.Solver):
     coeffs_exp = coeffs_callback(
         runtime_params_t,
         geo_t,
-        core_profiles_t,
+        solver_state_t,
         x=x_old,
         explicit_model_outputs=explicit_model_outputs,
         allow_pereverzev=True,
@@ -91,7 +94,7 @@ class LinearThetaMethod(solver_lib.Solver):
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=x_old,
         x_new_guess=x_new_guess,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         coeffs_exp=coeffs_exp,
         coeffs_callback=coeffs_callback,
         explicit_model_outputs=explicit_model_outputs,

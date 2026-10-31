@@ -54,8 +54,8 @@ def optimizer_solve_block(
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t: state.CoreProfiles,
-    core_profiles_t_plus_dt: state.CoreProfiles,
+    solver_state_t: state.SolverState,
+    solver_state_t_plus_dt: state.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_callback: calc_coeffs.CoeffsCallback,
@@ -89,11 +89,8 @@ def optimizer_solve_block(
       t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    core_profiles_t: Core plasma profiles which contain all available prescribed
-      quantities at the start of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+    solver_state_t: Primary solver profiles at the start of the time step.
+    solver_state_t_plus_dt: Primary plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
@@ -122,7 +119,7 @@ def optimizer_solve_block(
   coeffs_old = coeffs_callback(
       runtime_params_t,
       geo_t,
-      core_profiles_t,
+      solver_state_t,
       x=x_old,
       explicit_model_outputs=explicit_model_outputs,
       explicit_call=True,
@@ -140,7 +137,7 @@ def optimizer_solve_block(
       coeffs_exp_linear = coeffs_callback(
           runtime_params_t,
           geo_t,
-          core_profiles_t,
+          solver_state_t,
           x=x_old,
           explicit_model_outputs=explicit_model_outputs,
           allow_pereverzev=True,
@@ -148,8 +145,8 @@ def optimizer_solve_block(
           model_state=model_state,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_guess = convertors.core_profiles_to_solver_x_tuple(
-          core_profiles_t_plus_dt, evolving_names
+      x_new_guess = convertors.solver_state_to_solver_x_tuple(
+          solver_state_t_plus_dt, evolving_names
       )
       init_x_new = fixed_point_method.fixed_point_method(
           dt=dt,
@@ -157,7 +154,7 @@ def optimizer_solve_block(
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
           x_new_guess=x_new_guess,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          solver_state_t_plus_dt=solver_state_t_plus_dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           explicit_model_outputs=explicit_model_outputs,
@@ -182,7 +179,7 @@ def optimizer_solve_block(
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      solver_state_t_plus_dt=solver_state_t_plus_dt,
       explicit_model_outputs=explicit_model_outputs,
       models=models,
       coeffs_old=coeffs_old,
@@ -192,10 +189,10 @@ def optimizer_solve_block(
       tol=tol,
   )
 
-  # Create updated CellVariable instances based on core_profiles_t_plus_dt which
+  # Create updated CellVariable instances based on solver_state_t_plus_dt which
   # has updated boundary conditions and prescribed profiles.
   x_new = fvm_conversions.vec_to_cell_variable_tuple(
-      x_new_vec, core_profiles_t_plus_dt, evolving_names
+      x_new_vec, solver_state_t_plus_dt, evolving_names
   )
 
   # Tell the caller whether or not x_new successfully reduces the loss below

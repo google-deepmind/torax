@@ -100,107 +100,6 @@ class ConvertersTest(parameterized.TestCase):
         state.SolverState.from_core_profiles(self.base_core_profiles)
     )
 
-  def test_core_profiles_to_solver_x_tuple(self):
-    evolving_names = ('T_e', 'n_e', 'psi')
-    solver_x_tuple = convertors.core_profiles_to_solver_x_tuple(
-        self.base_core_profiles,
-        evolving_names,
-    )
-    self.assertLen(solver_x_tuple, 3)
-
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[0].value, self.base_core_profiles.T_e.value, decimal=10
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[0].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-        self.base_core_profiles.T_e.right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[1].value,
-        self.base_core_profiles.n_e.value
-        / convertors.STATE_SCALING_FACTORS['n_e'],
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[1].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-        self.base_core_profiles.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        / convertors.STATE_SCALING_FACTORS['n_e'],
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[2].value, self.base_core_profiles.psi.value, decimal=10
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[2].right_face_grad_constraint,  # pyrefly: ignore[bad-argument-type]
-        self.base_core_profiles.psi.right_face_grad_constraint,  # pyrefly: ignore[bad-argument-type]
-        decimal=10,
-    )
-
-  def test_solver_x_tuple_to_core_profiles(self):
-    evolving_names = ('T_e', 'n_e', 'psi')
-
-    # Simulate solver output
-    x_new_T_e_val = self.base_core_profiles.T_e.value * 1.5
-    x_new_n_e_val = self.base_core_profiles.n_e.value * 2.0
-    x_new_psi_val = self.base_core_profiles.psi.value * 3.0
-
-    x_new_solver_tuple = (
-        dataclasses.replace(
-            self.base_core_profiles.T_e,
-            value=x_new_T_e_val,
-        ),
-        dataclasses.replace(
-            self.base_core_profiles.n_e,
-            value=x_new_n_e_val,
-        ),
-        dataclasses.replace(
-            self.base_core_profiles.psi,
-            value=x_new_psi_val,
-        ),
-    )
-
-    updated_cp = convertors.solver_x_tuple_to_core_profiles(
-        x_new_solver_tuple,
-        evolving_names,
-        self.base_core_profiles,
-    )
-
-    np.testing.assert_array_almost_equal(
-        updated_cp.T_e.value, x_new_T_e_val, decimal=10
-    )
-    np.testing.assert_array_almost_equal(
-        updated_cp.n_e.value,
-        x_new_n_e_val * convertors.STATE_SCALING_FACTORS['n_e'],
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        updated_cp.psi.value, x_new_psi_val, decimal=10
-    )
-
-    # Check non-evolving variables are untouched from the template
-    np.testing.assert_array_almost_equal(
-        updated_cp.T_i.value, self.base_core_profiles.T_i.value, decimal=10
-    )
-
-  def test_core_profiles_to_x_round_trip(self):
-    evolving_names = ('T_e', 'n_e', 'psi')
-    checked_names = ('T_e', 'T_i', 'n_e', 'psi')
-    x_solver_tuple = convertors.core_profiles_to_solver_x_tuple(
-        self.base_core_profiles,
-        evolving_names,
-    )
-    updated_cp = convertors.solver_x_tuple_to_core_profiles(
-        x_solver_tuple,
-        evolving_names,
-        self.base_core_profiles,
-    )
-    for name in checked_names:
-      chex.assert_trees_all_close(
-          getattr(updated_cp, name),
-          getattr(self.base_core_profiles, name),
-      )
-
   def test_solver_state_to_x_round_trip(self):
     evolving_names = ('T_i', 'T_e', 'psi', 'n_e')
     x_solver_tuple = convertors.solver_state_to_solver_x_tuple(
@@ -302,14 +201,14 @@ class ConvertersTest(parameterized.TestCase):
 
   def test_compute_residual_scaling_vector(self):
     evolving_names = ('T_e', 'n_e', 'psi')
-    n_cells = len(self.base_core_profiles.T_e.value)
+    n_cells = len(self.base_solver_state.T_e.value)
     psi = dataclasses.replace(
-        self.base_core_profiles.psi,
+        self.base_solver_state.psi,
         value=jnp.linspace(0.0, 5.0, n_cells),
     )
     x_old = (
-        self.base_core_profiles.T_e,
-        self.base_core_profiles.n_e,
+        self.base_solver_state.T_e,
+        self.base_solver_state.n_e,
         psi,
     )
     scales = convertors.compute_residual_scaling_vector(evolving_names, x_old)

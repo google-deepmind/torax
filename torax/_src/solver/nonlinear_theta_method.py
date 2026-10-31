@@ -64,7 +64,7 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t_plus_dt: state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -88,7 +88,7 @@ class NonlinearThetaMethod(solver.Solver):
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         explicit_model_outputs=explicit_model_outputs,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
@@ -109,7 +109,7 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t_plus_dt: state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
@@ -134,10 +134,10 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t: Magnetic geometry at time t.
       geo_t_plus_dt: Magnetic geometry at time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
-      core_profiles_t_plus_dt: Core plasma profiles which contain all available
-        prescribed quantities at the end of the time step. This includes
-        evolving boundary conditions and prescribed time-dependent profiles that
-        are not being evolved by the PDE system.
+      solver_state_t_plus_dt: Primary plasma profiles which contain all
+        available prescribed quantities at the end of the time step. This
+        includes evolving boundary conditions and prescribed time-dependent
+        profiles that are not being evolved by the PDE system.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       coeffs_callback: Calculates diffusion, convection etc. coefficients given
         a core_profiles, geometry, runtime_params. Repeatedly called by the
@@ -165,7 +165,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t_plus_dt: state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
@@ -177,6 +177,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
     assert isinstance(solver_params, OptimizerRuntimeParams)
+    solver_state_t = state.SolverState.from_core_profiles(core_profiles_t)
     (
         x_new,
         solver_numeric_outputs,
@@ -186,11 +187,12 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
-        x_old=convertors.core_profiles_to_solver_x_tuple(
-            core_profiles_t, evolving_names
+        x_old=convertors.solver_state_to_solver_x_tuple(
+            solver_state_t,
+            evolving_names,
         ),
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t=solver_state_t,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         models=self.models,
         explicit_model_outputs=explicit_model_outputs,
         coeffs_callback=coeffs_callback,
@@ -219,7 +221,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t_plus_dt: state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
@@ -231,6 +233,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
     assert isinstance(solver_params, NewtonRaphsonRuntimeParams)
+    solver_state_t = state.SolverState.from_core_profiles(core_profiles_t)
 
     (
         x_new,
@@ -241,11 +244,12 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
-        x_old=convertors.core_profiles_to_solver_x_tuple(
-            core_profiles_t, evolving_names
+        x_old=convertors.solver_state_to_solver_x_tuple(
+            solver_state_t,
+            evolving_names,
         ),
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t=solver_state_t,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         explicit_model_outputs=explicit_model_outputs,
         models=self.models,
         coeffs_callback=coeffs_callback,

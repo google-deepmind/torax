@@ -43,7 +43,7 @@ class AdaptiveStepState:
   solver_numeric_outputs: state.SolverNumericOutputs
   runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
-  core_profiles: state.CoreProfiles
+  solver_state: state.SolverState
 
 
 def create_initial_state(
@@ -54,8 +54,11 @@ def create_initial_state(
     geo_t: geometry.Geometry,
 ) -> AdaptiveStepState:
   """Creates the initial state for the adaptive step."""
-  initial_x_new = convertors.core_profiles_to_solver_x_tuple(
-      input_state.core_profiles, evolving_names
+  solver_state_t = state.SolverState.from_core_profiles(
+      input_state.core_profiles
+  )
+  initial_x_new = convertors.solver_state_to_solver_x_tuple(
+      solver_state_t, evolving_names
   )
   initial_solver_numeric_outputs = state.SolverNumericOutputs(
       # The solver has not converged yet as we have not performed
@@ -71,7 +74,7 @@ def create_initial_state(
       solver_numeric_outputs=initial_solver_numeric_outputs,
       runtime_params=runtime_params_t,
       geo=geo_t,
-      core_profiles=input_state.core_profiles,
+      solver_state=solver_state_t,
   )
 
 
@@ -105,12 +108,14 @@ def compute_state(
           core_profiles=input_state.core_profiles,
       )
   )
-  core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
-      dt=dt,  # pyrefly: ignore[bad-argument-type]
-      runtime_params_t=runtime_params_t,
-      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-      geo_t_plus_dt=geo_t_plus_dt,
-      core_profiles_t=input_state.core_profiles,
+  solver_state_t_plus_dt = (
+      updaters.provide_solver_state_t_plus_dt(
+          dt=dt,
+          runtime_params_t=runtime_params_t,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+          geo_t_plus_dt=geo_t_plus_dt,
+          core_profiles_t=input_state.core_profiles,
+      )
   )
   x_new, solver_numeric_outputs = solver(
       t=input_state.t,
@@ -120,7 +125,7 @@ def compute_state(
       geo_t=geo_t,
       geo_t_plus_dt=geo_t_plus_dt,
       core_profiles_t=input_state.core_profiles,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      solver_state_t_plus_dt=solver_state_t_plus_dt,
       explicit_model_outputs=explicit_model_outputs,
       model_state=model_state_t,
   )
@@ -135,7 +140,7 @@ def compute_state(
           solver_numeric_outputs,
           runtime_params_t_plus_dt,
           geo_t_plus_dt,
-          core_profiles_t_plus_dt,
+          solver_state_t_plus_dt,
       ),
       loop_statistics,
   )
