@@ -22,10 +22,10 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics.radiation import radiation
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
+from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
@@ -68,7 +68,8 @@ def calculate_total_impurity_radiation(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class MavrinImpurityRadiationHeatSink(
-    impurity_radiation_heat_sink.ImpurityRadiationHeatSink
+    impurity_radiation_heat_sink.ImpurityRadiationHeatSink,
+    source_lib.Source,
 ):
   """Impurity radiation heat sink based on Mavrin polynomial fit."""
 
@@ -76,11 +77,8 @@ class MavrinImpurityRadiationHeatSink(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: state.BaseCoreProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates Mavrin fit impurity radiation heat sink profile.
 
@@ -90,17 +88,14 @@ class MavrinImpurityRadiationHeatSink(
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del geo, calculated_source_profiles, conductivity, psidot
+    del geo
     # Reconstruct array from mapping for DynamicIonMixture and effective LZ
     # calculations.
     ion_symbols = runtime_params.plasma_composition.impurity_names

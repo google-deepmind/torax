@@ -29,7 +29,6 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
@@ -248,11 +247,8 @@ class CyclotronRadiationHeatSink(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: state.BaseCoreProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates cyclotron radiation heat sink for electron heat equation.
 
@@ -278,17 +274,13 @@ class CyclotronRadiationHeatSink(source.Source):
       runtime_params: A slice of runtime parameters.
       geo: The geometry object.
       core_profiles: The core profiles object.
-      calculated_source_profiles: Unused.
-      conductivity: Unused.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
 
