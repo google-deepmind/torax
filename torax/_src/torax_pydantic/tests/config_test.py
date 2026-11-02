@@ -763,6 +763,7 @@ class ConfigTest(parameterized.TestCase):
         "icrh": {
             "model_name": "scaled_profile",
             "minority_species": minority_species,
+            "P_total": 10e6,
         }
     }
 

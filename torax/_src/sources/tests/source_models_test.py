@@ -73,6 +73,7 @@ class SourceModelsTest(parameterized.TestCase):
     sources_dict['icrh'] = {
         'model_name': 'scaled_profile',
         'minority_species': 'He3',
+        'P_total': 10e6,
     }
     sources_dict['pellet'] = {}
     sources_dict['impurity_radiation'] = {
@@ -101,6 +102,7 @@ class SourceModelsTest(parameterized.TestCase):
     sources_dict['icrh'] = {
         'model_name': 'scaled_profile',
         'minority_species': 'He3',
+        'P_total': 10e6,
     }
     sources_dict['pellet'] = {}
     sources_dict['impurity_radiation'] = {

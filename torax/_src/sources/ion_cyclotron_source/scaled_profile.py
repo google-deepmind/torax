@@ -83,6 +83,10 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
     del core_profiles, calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.P_total is None:
+      raise ValueError(
+          'ScaledProfileIonCyclotronSource requires `P_total` to be set.'
+      )
 
     ref_ion = source_params.heat_profile_ion
     ref_el = source_params.heat_profile_electron

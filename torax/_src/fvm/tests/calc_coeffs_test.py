@@ -584,6 +584,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             'model_name': 'scaled_profile',
             'minority_species': 'He3',
             'is_explicit': False,
+            'P_total': 10e6,
         },
     }
     config_dict['profile_conditions']['fast_ions'] = [

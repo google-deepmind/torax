@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -304,7 +303,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='reference_B0',
           initial_value=12.2,
           updated_value=8.71,
-          extra_fields={'minority_species': 'He3'},
+          extra_fields={'minority_species': 'He3', 'P_total': 10e6},
       ),
       dict(
           testcase_name='impurity_radiation_mavrin_fit',
@@ -378,6 +377,65 @@ class SourcesConfigTest(parameterized.TestCase):
       sources_config.SourcesConfig.from_dict(
           {'generic_current': {'model_name': 'invalid_name'}}
       )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='icrh_scaled_profile',
+          source_name='icrh',
+          source_kwargs={
+              'model_name': 'scaled_profile',
+              'minority_species': 'He3',
+          },
+          expected_error="P_total must be provided when mode is 'model_based'",
+      ),
+  )
+  def test_missing_amplitude_raises_in_model_based_mode(
+      self,
+      source_name: str,
+      source_kwargs: dict[str, Any],
+      expected_error: str,
+  ):
+    for mode_kwargs in ({}, {'mode': 'model_based'}):
+      with self.subTest(mode_kwargs=mode_kwargs):
+        with self.assertRaisesRegex(pydantic.ValidationError, expected_error):
+          sources_config.SourcesConfig.from_dict(
+              {source_name: {**source_kwargs, **mode_kwargs}}
+          )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='icrh_scaled_profile',
+          source_name='icrh',
+          source_kwargs={
+              'model_name': 'scaled_profile',
+              'minority_species': 'He3',
+          },
+          zero_fields=('P_total',),
+      ),
+  )
+  def test_missing_amplitude_allowed_in_zero_and_prescribed_modes(
+      self,
+      source_name: str,
+      source_kwargs: dict[str, Any],
+      zero_fields: tuple[str, ...],
+  ):
+    mesh = torax_pydantic.Grid1D(
+        face_centers=interpolated_param_2d.get_face_centers(nx=4)
+    )
+    for mode in (
+        source_runtime_params_lib.Mode.ZERO,
+        source_runtime_params_lib.Mode.PRESCRIBED,
+    ):
+      with self.subTest(mode=mode):
+        sources = sources_config.SourcesConfig.from_dict(
+            {source_name: {**source_kwargs, 'mode': mode}}
+        )
+        torax_pydantic.set_grid(sources, mesh)
+        source_cfg = sources.source_model_config[source_name]
+        runtime_params = source_cfg.build_runtime_params(t=0.0)
+        self.assertEqual(runtime_params.mode, mode)
+        for field in zero_fields:
+          self.assertIsNone(getattr(runtime_params, field))
 
 
 if __name__ == '__main__':
