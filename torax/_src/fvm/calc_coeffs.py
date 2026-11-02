@@ -209,7 +209,7 @@ def _calc_coeffs_full(
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
-  explicit_source_profiles = explicit_model_outputs.sources
+  explicit_source_outputs = explicit_model_outputs.sources
 
   consts = constants.CONSTANTS
 
@@ -217,20 +217,20 @@ def _calc_coeffs_full(
   # ions are applied to core_profiles before neoclassical calculations so that
   # bootstrap current and downstream models observe the updated fast ion
   # population.
-  partial_source_profiles, updated_source_states = (
-      source_profile_builders.build_basic_sources(
+  basic_source_outputs, updated_source_states = (
+      source_profile_builders.evaluate_basic_sources(
           runtime_params=runtime_params,
           geo=geo,
-          core_profiles=core_profiles,
+          solver_profiles=core_profiles,
           source_models=models.source_models,
           source_states=model_state.sources,
           explicit=False,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_source_outputs=explicit_source_outputs,
       )
   )
   if runtime_params.numerics.enable_fast_ions:
     fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        sum(partial_source_profiles.fast_ions.values(), ()),
+        source_profile_builders.extract_fast_ions(basic_source_outputs),
         runtime_params.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
@@ -255,9 +255,9 @@ def _calc_coeffs_full(
   psidot = psi_calculations.calculate_psidot(
       psi=core_profiles.psi,
       sigma=conductivity.sigma,
-      psi_sources=dataclasses.replace(
-          partial_source_profiles, bootstrap_current=bootstrap_current
-      ).total_psi_sources(geo),
+      psi_sources=source_profile_builders.sum_total_psi_sources(
+          basic_source_outputs, models.source_models, bootstrap_current, geo
+      ),
       geo=geo,
       evolve_current=runtime_params.numerics.evolve_current,
       prescribed_psidot=runtime_params.profile_conditions.psidot,
@@ -281,16 +281,16 @@ def _calc_coeffs_full(
   # Calculate the remaining implicit source profiles and combine them with the
   # explicit source profiles. These are needed for the pedestal model, so are
   # computed here rather than in the source terms section.
-  merged_source_profiles, _ = source_profile_builders.build_remaining_sources(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=models.source_models,
-      source_states=updated_source_states,
-      partial_source_profiles=partial_source_profiles,
-      explicit=False,
-      conductivity=conductivity,
-      bootstrap_current=bootstrap_current,
+  merged_source_profiles, _ = (
+      source_profile_builders.evaluate_dependent_sources(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_models=models.source_models,
+          source_states=updated_source_states,
+          basic_source_outputs=basic_source_outputs,
+          bootstrap_current=bootstrap_current,
+      )
   )
 
   # --- Transient term coefficients --- #

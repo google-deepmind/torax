@@ -439,20 +439,18 @@ def _calculate_all_psi_dependent_profiles(
           I_p_profile_face=I_p_profile_face,
       ),
   )
-  basic_sources, _ = (
-      source_profile_builders.build_basic_sources(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          source_models=source_models,
-          source_states=source_states,
-          explicit=True,
-          calculate_anyway=True,
-      )
+  basic_source_outputs, _ = source_profile_builders.evaluate_basic_sources(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_profiles=core_profiles,
+      source_models=source_models,
+      source_states=source_states,
+      explicit=True,
+      calculate_anyway=True,
   )
   if runtime_params.numerics.enable_fast_ions:
     fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-        sum(basic_sources.fast_ions.values(), ()),
+        source_profile_builders.extract_fast_ions(basic_source_outputs),
         runtime_params.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
@@ -468,11 +466,6 @@ def _calculate_all_psi_dependent_profiles(
       runtime_params, geo, core_profiles
   )
 
-  source_profiles = dataclasses.replace(
-      basic_sources,
-      bootstrap_current=bootstrap_current,
-  )
-
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
@@ -486,7 +479,9 @@ def _calculate_all_psi_dependent_profiles(
   psidot = psi_calculations.calculate_psidot(
       psi=psi,
       sigma=conductivity.sigma,
-      psi_sources=source_profiles.total_psi_sources(geo),
+      psi_sources=source_profile_builders.sum_total_psi_sources(
+          basic_source_outputs, source_models, bootstrap_current, geo
+      ),
       geo=geo,
       evolve_current=runtime_params.numerics.evolve_current,
       prescribed_psidot=runtime_params.profile_conditions.psidot,
@@ -513,11 +508,11 @@ def _iterate_psi_and_sources(
   """Iterates psi and sources to converge to a consistent state."""
 
   for _ in range(iterations):
-    basic_sources, source_states = (
-        source_profile_builders.build_basic_sources(
+    basic_source_outputs, source_states = (
+        source_profile_builders.evaluate_basic_sources(
             runtime_params=runtime_params,
             geo=geo,
-            core_profiles=core_profiles,
+            solver_profiles=core_profiles,
             source_models=source_models,
             source_states=source_states,
             explicit=True,
@@ -526,7 +521,7 @@ def _iterate_psi_and_sources(
     )
     if runtime_params.numerics.enable_fast_ions:
       fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-          sum(basic_sources.fast_ions.values(), ()),
+          source_profile_builders.extract_fast_ions(basic_source_outputs),
           runtime_params.profile_conditions.prescribed_fast_ions,
           geo.rho_face_norm,
       )
@@ -538,18 +533,19 @@ def _iterate_psi_and_sources(
             runtime_params, geo, core_profiles
         )
     )
+    psi_sources = source_profile_builders.extract_psi_sources(
+        basic_source_outputs, source_models
+    )
+    j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
+        sum(psi_sources.values(), start=jnp.zeros_like(geo.rho)),
+        geo,
+        runtime_params.numerics.min_rho_norm,
+    )
     j_toroidal_total_hires = get_j_toroidal_total_hires_with_external_sources(
         runtime_params,
         geo,
         bootstrap_current,
-        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
-            sum(
-                basic_sources.psi.values(),
-                start=jnp.zeros_like(geo.rho),
-            ),
-            geo,
-            runtime_params.numerics.min_rho_norm,
-        ),
+        j_toroidal_external=j_toroidal_external,
     )
     psi = update_psi_from_j(
         runtime_params.profile_conditions.I_p,

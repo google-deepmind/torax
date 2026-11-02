@@ -46,7 +46,7 @@ from torax._src.geometry import geometry
 
 
 def coll_exchange(
-    core_profiles: state.CoreProfiles,
+    core_profiles: state.BaseCoreProfiles,
     Qei_multiplier: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient (equipartion).
@@ -310,15 +310,18 @@ def calculate_tau_ii(
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def _calculate_weighted_Z_eff(
-    core_profiles: state.CoreProfiles,
+    core_profiles: state.BaseCoreProfiles,
 ) -> jax.Array:
   """Calculates ion mass weighted Z_eff. Used for collisional heat exchange."""
-  return (  # pyrefly: ignore[bad-return]
-      core_profiles.n_i.value * core_profiles.Z_i**2 / core_profiles.A_i
-      + core_profiles.n_impurity.value
-      * core_profiles.Z_impurity**2
-      / core_profiles.A_impurity
-  ) / core_profiles.n_e.value
+  return jnp.asarray(
+      (
+          core_profiles.n_i.value * core_profiles.Z_i**2 / core_profiles.A_i
+          + core_profiles.n_impurity.value
+          * core_profiles.Z_impurity**2
+          / core_profiles.A_impurity
+      )
+      / core_profiles.n_e.value
+  )
 
 
 def _calculate_log_tau_e_Z1(

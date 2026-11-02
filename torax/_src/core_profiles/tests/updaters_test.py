@@ -325,12 +325,12 @@ class UpdatersTest(parameterized.TestCase):
     )
     runtime_params_t1 = provider(t=1.0)
     source_states = models.source_models.initial_state(runtime_params_t0)
-    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+    explicit_source_outputs, _ = source_profile_builders.evaluate_basic_sources(
         source_models=models.source_models,
         source_states=source_states,
         runtime_params=runtime_params_t0,
         geo=geo,
-        core_profiles=core_profiles_t0,
+        solver_profiles=core_profiles_t0,
         explicit=True,
     )
 
@@ -366,7 +366,7 @@ class UpdatersTest(parameterized.TestCase):
             solver_state_t_plus_dt=state.SolverState.from_core_profiles(
                 stale_core_profiles
             ),
-            explicit_source_profiles=explicit_source_profiles,
+            explicit_source_outputs=explicit_source_outputs,
             source_models=models.source_models,
             neoclassical_model=models.neoclassical_model,
             evolving_names=('psi',),

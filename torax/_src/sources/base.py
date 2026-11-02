@@ -60,7 +60,9 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
   )
 
   @abc.abstractmethod
-  def build_source(self) -> source_lib.Source:
+  def build_source(
+      self,
+  ) -> source_lib.SourceBase:
     """Builds a source object from the model config."""
 
   def build_runtime_params(

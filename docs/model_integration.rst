@@ -272,7 +272,8 @@ Registering a custom source model
 To integrate a custom source model (e.g. a new heat source, particle source,
 or current source), you need to:
 
-1. Define a custom ``Source`` subclass implementing ``_get_model_value``.
+1. Define a custom source subclass (``Source``, ``SourceUsingCoreProfiles``,
+   or ``FinalSource``) implementing ``_get_model_value``.
 2. Define a pydantic config class for your model that builds your source in
    ``build_source()``.
 3. Register the config class with TORAX.
@@ -283,7 +284,7 @@ etc.). This allows multiple source model implementations to exist for the same
 physical source. The special source ``'ei_exchange'`` (ion-electron heat
 exchange) does not support custom registration.
 
-Step 1: Implement the custom Source subclass
+Step 1: Implement the custom source subclass
 --------------------------------------------
 
 Subclass ``torax.sources.Source`` (or an existing source class) and implement
@@ -331,17 +332,9 @@ are inherited automatically.
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.CoreProfiles,
-          calculated_source_profiles: sources.SourceProfiles | None,
-          conductivity,
+          solver_profiles: torax.BaseCoreProfiles,
           source_state: sources.SourceState,
-          psidot: jnp.ndarray | None = None,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        """Calculates model value for this custom source.
-
-        Args:
-          psidot: Loop voltage profile (unused by this source).
-        """
         # Return a SourceOutput with one profile per affected core profile,
         # plus the updated source_state.
         # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
@@ -353,13 +346,84 @@ are inherited automatically.
         )
 
 
+Dependent and final sources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Subclass ``torax.sources.SourceUsingCoreProfiles`` for dependent sources
+evaluated after neoclassical and transport models that require full
+``torax.CoreProfiles`` (such as ``core_profiles.conductivity`` or
+``core_profiles.psidot``, e.g. Ohmic heating). Constraints: cannot affect
+``AffectedCoreProfile.PSI``, cannot return ``fast_ions``, and cannot be
+configured with ``is_explicit=True``.
+
+.. code-block:: python
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyDependentHeatSource(sources.SourceUsingCoreProfiles):
+      """Custom heat source using full CoreProfiles."""
+
+      SOURCE_ID: ClassVar[str] = 'ohmic'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[sources.AffectedCoreProfile, ...]
+      ] = (sources.AffectedCoreProfile.TEMP_EL,)
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          source_state: sources.SourceState,
+      ) -> tuple[sources.SourceOutput, sources.SourceState]:
+        el_heat = core_profiles.conductivity.sigma * 1e-3
+        return (
+            sources.SourceOutput(profiles=(el_heat,)),
+            source_state,
+        )
+
+Subclass ``torax.sources.FinalSource`` for a final source or sink evaluated
+after all ``Source`` and ``SourceUsingCoreProfiles`` models have been
+aggregated into ``sources.SourceProfiles`` (for example, a radiation sink
+scaling with total input heating). Constraints: at most one ``FinalSource``
+can be active in a simulation, cannot affect ``AffectedCoreProfile.PSI``,
+cannot return ``fast_ions``, and cannot be configured with
+``is_explicit=True``.
+
+.. code-block:: python
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyFinalHeatSink(sources.FinalSource):
+      """Custom sink depending on aggregated SourceProfiles."""
+
+      SOURCE_ID: ClassVar[str] = 'impurity_radiation'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[sources.AffectedCoreProfile, ...]
+      ] = (sources.AffectedCoreProfile.TEMP_EL,)
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          calculated_source_profiles: sources.SourceProfiles,
+          source_state: sources.SourceState,
+      ) -> tuple[sources.SourceOutput, sources.SourceState]:
+        total_el_heat = calculated_source_profiles.total_sources(
+            'T_e', geo
+        )
+        return (
+            sources.SourceOutput(profiles=(-0.1 * total_el_heat,)),
+            source_state,
+        )
+
+
 Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
 ``torax.sources.SourceConfigBase``:
 
-- Implement ``build_source``: returns the ``Source`` instance.
+- Implement ``build_source``: returns the source instance (a subclass of
+  ``SourceBase``).
 - Override ``build_runtime_params`` if your source requires custom
   ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 

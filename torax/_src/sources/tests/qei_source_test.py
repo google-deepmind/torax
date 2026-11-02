@@ -12,24 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
+import pydantic
 from torax._src.sources import qei_source
-from torax._src.sources.tests import test_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
 
-class QeiSourceTest(test_lib.SourceTestCase):
+class QeiSourceTest(absltest.TestCase):
   """Tests for QeiSource."""
 
-  source_name = qei_source.QeiSource.SOURCE_ID
-  source_config_class = qei_source.QeiSourceConfig
-  needs_source_models = False
+  def test_build_runtime_params(self):
+    cfg = qei_source.QeiSourceConfig(
+        mode=sources_runtime_params_lib.Mode.MODEL_BASED,
+        Qei_multiplier=1.5,
+    )
+    runtime_params = cfg.build_runtime_params(t=0.0)
+    self.assertEqual(
+        runtime_params.mode, sources_runtime_params_lib.Mode.MODEL_BASED
+    )
+    self.assertEqual(runtime_params.Qei_multiplier, 1.5)
+    self.assertFalse(runtime_params.is_explicit)
 
   def test_source_value(self):
     """Checks that the default implementation from Sources gives values."""
     config_dict = default_configs.get_default_config_dict()
-    config_dict["sources"] = {self._source_name: {}}
+    config_dict['sources'] = {qei_source.QeiSource.SOURCE_ID: {}}
     torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.qei_source
@@ -45,6 +54,11 @@ class QeiSourceTest(test_lib.SourceTestCase):
     self.assertIsNotNone(qei.p_ei)
     self.assertEqual(qei.p_ei.shape, geo.rho_norm.shape)
 
+  def test_prescribed_mode_disallowed(self):
+    """Checks that Mode.PRESCRIBED is disallowed for QeiSource."""
+    with self.assertRaisesRegex(pydantic.ValidationError, 'Mode.PRESCRIBED'):
+      qei_source.QeiSourceConfig.from_dict({'mode': 'prescribed'})
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
   absltest.main()

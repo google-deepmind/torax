@@ -20,7 +20,6 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -45,11 +44,8 @@ class PelletSource(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: state.BaseCoreProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[
       source_profiles.SourceOutput,
       source_state_lib.SourceState,
@@ -61,18 +57,15 @@ class PelletSource(source.Source):
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_density_profile,)),
       source_state).
     """
-    del core_profiles, calculated_source_profiles, conductivity, psidot
+    del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     profile = formulas.gaussian_profile(

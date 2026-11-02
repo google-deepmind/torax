@@ -184,7 +184,7 @@ class SourcesConfig(torax_pydantic.ConfigBase):
     standard_sources = {
         k: v.build_source()
         for k, v in self.source_model_config.items()
-        if k != 'ei_exchange'
+        if isinstance(v, base.SourceConfigBase)
     }
     # Qei is a special source that is not in standard_sources.
     # It has its own attribute in SourceModels.
@@ -194,9 +194,13 @@ class SourcesConfig(torax_pydantic.ConfigBase):
     )
 
   @property
-  def source_model_config(self) -> dict[str, base.SourceConfigBase]:
+  def source_model_config(
+      self,
+  ) -> dict[str, base.SourceConfigBase | qei_source_lib.QeiSourceConfig]:
     return {
         k: v
         for k, v in self.__dict__.items()
-        if isinstance(v, base.SourceConfigBase)
+        if isinstance(
+            v, (base.SourceConfigBase, qei_source_lib.QeiSourceConfig)
+        )
     }

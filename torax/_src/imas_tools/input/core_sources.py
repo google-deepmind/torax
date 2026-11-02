@@ -24,6 +24,7 @@ from imas import ids_toplevel
 import numpy as np
 from torax._src.imas_tools import sources_mapping
 from torax._src.imas_tools.input import loader
+from torax._src.sources import qei_source
 from torax._src.sources import source as source_module
 
 
@@ -142,6 +143,17 @@ def sources_from_IMAS(
           imas_source_name
       ]
       if load_only_external_sources and not source_mapping.is_external:
+        continue
+      if source_mapping.torax_source_name == qei_source.QeiSource.SOURCE_ID:
+        # TODO(b/572586768): Support or decouple IMAS collisional_equipartition
+        # input; QeiSource computes coupled QeiInfo terms and disallows
+        # Mode.PRESCRIBED.
+        logging.warning(
+            "Skipping IMAS source %s (%s): QeiSource does not support"
+            " prescribed mode.",
+            imas_source_name,
+            source_mapping.torax_source_name,
+        )
         continue
       source_data = _extract_source_profiles(
           source, source_mapping.affected_core_profiles, t_initial

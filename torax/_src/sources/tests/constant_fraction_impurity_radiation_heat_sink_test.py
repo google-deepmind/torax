@@ -40,6 +40,7 @@ class ImpurityRadiationConstantFractionTest(
   )
   model_name = 'P_in_scaled_flat_profile'
   needs_source_models = True
+  can_be_explicit = False
 
   def test_source_value(self):
     heat_name = (
@@ -84,8 +85,6 @@ class ImpurityRadiationConstantFractionTest(
         runtime_params,
         geo,
         mock.ANY,
-        None,
-        None,
         source_state=source_state_lib.SourceState(),
     )
     el, ion = heat_source_output.profiles
@@ -108,7 +107,6 @@ class ImpurityRadiationConstantFractionTest(
             },
             T_i={'foo_source': jnp.asarray(ion)},
         ),
-        conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
 

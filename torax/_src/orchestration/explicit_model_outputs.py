@@ -13,6 +13,7 @@
 # limitations under the License.
 """Container for physics model outputs evaluated explicitly at time t."""
 
+from collections.abc import Mapping
 import dataclasses
 import jax
 from torax._src.pedestal_model.structure import pedestal_structure
@@ -28,10 +29,10 @@ class ExplicitModelOutputs:
   across solver iterations from `t` to `t + dt`.
 
   Attributes:
-    sources: Source profiles from sources configured in EXPLICIT mode.
+    sources: Source outputs from sources configured in EXPLICIT mode.
     pedestal: Pedestal structure evaluated explicitly at time `t` when
       `explicit_pedestal` is True, or None when evaluated implicitly.
   """
 
-  sources: source_profiles.SourceProfiles
+  sources: Mapping[str, source_profiles.SourceOutput]
   pedestal: pedestal_structure.PedestalStructure | None

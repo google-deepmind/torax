@@ -30,9 +30,9 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import source_helpers
 from torax._src.torax_pydantic import config as torax_pydantic_config
 
 # pylint: disable=invalid-name,protected-access
@@ -88,14 +88,11 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(self.runtime_params)
-    self.source_profiles, _ = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     self.formation_state = (
         self.pedestal_model.formation_model.initial_state(
@@ -728,14 +725,11 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(self.runtime_params)
-    self.source_profiles, _ = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     self.formation_state = (
         self.pedestal_model.formation_model.initial_state(

@@ -164,9 +164,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+        solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
     (q_cycl,) = output.profiles

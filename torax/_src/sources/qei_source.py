@@ -14,21 +14,20 @@
 
 """Collisional ion-electron heat source."""
 import dataclasses
-from typing import ClassVar
+from typing import Annotated, ClassVar, Self
 import chex
 import jax
 from jax import numpy as jnp
-from torax._src import array_typing
+import pydantic
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
-from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
-from torax._src.sources import source_state as source_state_lib
+from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
@@ -39,11 +38,12 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class QeiSource(source.Source):
+class QeiSource(static_dataclass.StaticDataclass):
   """Collisional ion-electron heat source.
 
-  This is a special-case source because it can provide both implicit and
-  explicit terms in our solver. See sim.py for how this is used.
+  This is a special-case source that computes coupled implicit and explicit
+  ion-electron heat exchange terms (`QeiInfo`) consumed directly by the PDE
+  solver rather than standard cell-grid `SourceOutput` profiles.
   """
 
   SOURCE_ID: ClassVar[str] = 'ei_exchange'
@@ -56,7 +56,7 @@ class QeiSource(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: state.BaseCoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
@@ -70,43 +70,11 @@ class QeiSource(source.Source):
         lambda: source_profiles.QeiInfo.zeros(geo),
     )
 
-  def _get_model_value(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
-      source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
-    raise NotImplementedError('Call get_qei() instead.')
-
-  def get_value(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
-      source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
-    raise NotImplementedError('Call get_qei() instead.')
-
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: tuple[array_typing.Array, ...],
-      affected_mesh_state: int,
-      geo: geometry.Geometry,
-  ) -> jax.Array:
-    raise NotImplementedError('This method is not valid for QeiSource.')
-
 
 def _model_based_qei(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: state.BaseCoreProfiles,
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
   source_params = runtime_params.sources[QeiSource.SOURCE_ID]
@@ -153,23 +121,38 @@ def _model_based_qei(
   )
 
 
-class QeiSourceConfig(base.SourceConfigBase):
+class QeiSourceConfig(torax_pydantic.ConfigBase):
   """Configuration for the QeiSource.
 
   Attributes:
-    Qei_multiplier: multiplier for ion-electron heat exchange term for
-      sensitivity testing
+    mode: Defines how the source values are computed (MODEL_BASED or ZERO).
+    Qei_multiplier: Multiplier for ion-electron heat exchange term for
+      sensitivity testing.
   """
 
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
   Qei_multiplier: float = 1.0
+
+  @pydantic.model_validator(mode='after')
+  def _check_mode(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.PRESCRIBED:
+      raise ValueError(
+          'QeiSource does not support Mode.PRESCRIBED; use MODEL_BASED or'
+          ' ZERO.'
+      )
+    return self
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
-    base_params = super().build_runtime_params(t)
+    del t
     return RuntimeParams(
-        **vars(base_params),
+        prescribed_values=(),
+        mode=self.mode,
+        is_explicit=False,
         Qei_multiplier=self.Qei_multiplier,
     )
 

@@ -19,26 +19,9 @@ import functools
 import immutabledict
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.sources import ohmic_heat_source
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_state as source_state_lib
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
-
-# Sources that depend on live core_profiles (specifically psidot and
-# conductivity) and therefore are evaluated with remaining sources after
-# neoclassical conductivity is available.
-_CORE_PROFILES_SOURCES = frozenset(
-    [ohmic_heat_source.OhmicHeatSource.SOURCE_ID]
-)
-
-# Sources that depend on the output of other sources (e.g.
-# ConstantFractionImpurityRadiationHeatSink, which scales with total input
-# heating power) and therefore must be calculated last after all other heat
-# sources are computed.
-_FINAL_SOURCES = frozenset(
-    [impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID]
-)
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -51,7 +34,28 @@ class SourceModels(static_dataclass.StaticDataclass):
   """
 
   qei_source: qei_source_lib.QeiSource
-  standard_sources: immutabledict.immutabledict[str, source_lib.Source]
+  standard_sources: immutabledict.immutabledict[str, source_lib.SourceBase]
+
+  def __post_init__(self):
+    super().__post_init__()
+    for name, src in self.standard_sources.items():
+      if not isinstance(
+          src,
+          (
+              source_lib.Source,
+              source_lib.SourceUsingCoreProfiles,
+              source_lib.FinalSource,
+          ),
+      ):
+        raise TypeError(
+            f'Unsupported source type {type(src).__name__} for {name!r}. Must'
+            ' inherit from Source, SourceUsingCoreProfiles, or FinalSource.'
+        )
+    if len(self.final_sources) > 1:
+      raise ValueError(
+          'At most one FinalSource may be configured in SourceModels, got '
+          f'{len(self.final_sources)}: {list(self.final_sources.keys())}.'
+      )
 
   def initial_state(
       self,
@@ -64,43 +68,50 @@ class SourceModels(static_dataclass.StaticDataclass):
     }
 
   @functools.cached_property
-  def psi_sources(self) -> immutabledict.immutabledict[str, source_lib.Source]:
+  def psi_sources(
+      self,
+  ) -> immutabledict.immutabledict[str, source_lib.Source]:
     """A derived dictionary of sources that affect the psi core_profile."""
     return immutabledict.immutabledict({
         name: source
         for name, source in self.standard_sources.items()
-        if source_lib.AffectedCoreProfile.PSI in source.AFFECTED_CORE_PROFILES
+        if isinstance(source, source_lib.Source)
+        and source_lib.AffectedCoreProfile.PSI in source.AFFECTED_CORE_PROFILES
     })
 
   @functools.cached_property
   def basic_sources(
       self,
   ) -> immutabledict.immutabledict[str, source_lib.Source]:
-    """Derived mapping of standard sources evaluated as basic sources.
+    """Derived mapping of standard sources depending only on BaseCoreProfiles.
 
     These sources depend only on base profiles and do not require psidot,
     conductivity, or outputs of other sources.
     """
-    excluded = _CORE_PROFILES_SOURCES | _FINAL_SOURCES
     return immutabledict.immutabledict({
         name: source
         for name, source in self.standard_sources.items()
-        if name not in excluded
+        if isinstance(source, source_lib.Source)
     })
 
   @functools.cached_property
-  def remaining_and_final_sources(
+  def core_profiles_sources(
       self,
-  ) -> immutabledict.immutabledict[str, source_lib.Source]:
-    """Derived mapping of core_profiles sources followed by final sources."""
-    sources = {
+  ) -> immutabledict.immutabledict[str, source_lib.SourceUsingCoreProfiles]:
+    """Derived mapping of standard sources requiring full CoreProfiles."""
+    return immutabledict.immutabledict({
         name: source
         for name, source in self.standard_sources.items()
-        if name in _CORE_PROFILES_SOURCES
-    }
-    sources.update({
-        name: source
-        for name, source in self.standard_sources.items()
-        if name in _FINAL_SOURCES
+        if isinstance(source, source_lib.SourceUsingCoreProfiles)
     })
-    return immutabledict.immutabledict(sources)
+
+  @functools.cached_property
+  def final_sources(
+      self,
+  ) -> immutabledict.immutabledict[str, source_lib.FinalSource]:
+    """Derived mapping of final standard sources evaluated last."""
+    return immutabledict.immutabledict({
+        name: source
+        for name, source in self.standard_sources.items()
+        if isinstance(source, source_lib.FinalSource)
+    })

@@ -38,6 +38,7 @@ from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
+from torax._src.state import BaseCoreProfiles
 from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport
 from torax._src.state import SimError
@@ -69,6 +70,7 @@ __all__ = [
     'plot_run',
     'plot_run_from_data_tree',
     'run_simulation',
+    'BaseCoreProfiles',
     'CoreProfiles',
     'CoreTransport',
     'Geometry',

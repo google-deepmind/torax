@@ -26,7 +26,6 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
@@ -43,11 +42,11 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 def calc_bremsstrahlung(
-    core_profiles: state.CoreProfiles,
+    core_profiles: state.BaseCoreProfiles,
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
     exclude_impurity_bremsstrahlung: bool = False,
-) -> tuple[jt.Float[jax.Array, ''], jt.Float[jax.Array, '']]:
+) -> tuple[jt.Float[jax.Array, ''], array_typing.FloatVectorCell]:
   """Calculate the Bremsstrahlung radiation power profile.
 
   Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
@@ -93,7 +92,7 @@ def calc_bremsstrahlung(
         1.0
         + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
-    return correction  # pyrefly: ignore[bad-return]
+    return jnp.asarray(correction)
 
   # In MW/m^3
   P_brem_profile_face = jnp.where(
@@ -103,11 +102,15 @@ def calc_bremsstrahlung(
   )
 
   # In W/m^3
-  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face) * 1e6
+  P_brem_profile_cell: array_typing.FloatVectorCell = jnp.asarray(
+      geometry.face_to_cell(P_brem_profile_face) * 1e6
+  )
 
   # In MW
-  P_brem_total = math_utils.volume_integration(P_brem_profile_cell, geo)
-  return P_brem_total, P_brem_profile_cell  # pyrefly: ignore[bad-return]
+  P_brem_total = jnp.asarray(
+      math_utils.volume_integration(P_brem_profile_cell, geo)
+  )
+  return P_brem_total, P_brem_profile_cell
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -123,11 +126,8 @@ class BremsstrahlungHeatSink(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: state.BaseCoreProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates bremsstrahlung radiation heat sink profile.
 
@@ -136,22 +136,18 @@ class BremsstrahlungHeatSink(source.Source):
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del calculated_source_profiles, conductivity, psidot  # Unused.
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     _, P_brem_profile = calc_bremsstrahlung(
-        core_profiles,
+        solver_profiles,
         geo,
         use_relativistic_correction=source_params.use_relativistic_correction,
         exclude_impurity_bremsstrahlung=(

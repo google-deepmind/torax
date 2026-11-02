@@ -17,15 +17,12 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import circular_geometry
 from torax._src.physics import psi_calculations
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.tests import test_lib
-from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import torax_pydantic
 
 
 class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
@@ -34,64 +31,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   source_config_class = ohmic_heat_source.OhmicHeatSourceConfig
   source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_ID
   needs_source_models = True
-
-  def test_raises_error_if_psidot_is_none(self):
-    source = ohmic_heat_source.OhmicHeatSource()
-    source_config = self._source_config_class.from_dict({})
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    torax_pydantic.set_grid(
-        source_config,
-        torax_pydantic.Grid1D(face_centers=face_centers),
-    )
-    runtime_params = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
-        instance=True,
-        sources={self._source_name: source_config.build_runtime_params(t=0.0)},
-    )
-    with self.assertRaisesRegex(
-        ValueError,
-        'psidot is a required argument for'
-        ' OhmicHeatSource._get_model_value. This can occur if this source'
-        ' is used in an explicit source.',
-    ):
-      source.get_value(
-          runtime_params,
-          mock.ANY,
-          mock.ANY,
-          calculated_source_profiles=mock.ANY,
-          conductivity=mock.ANY,
-          source_state=source_state_lib.SourceState(),
-          psidot=None,
-      )
-
-  def test_raises_error_if_conductivity_is_none(self):
-    source = ohmic_heat_source.OhmicHeatSource()
-    source_config = self._source_config_class.from_dict({})
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    torax_pydantic.set_grid(
-        source_config,
-        torax_pydantic.Grid1D(face_centers=face_centers),
-    )
-    runtime_params = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
-        instance=True,
-        sources={self._source_name: source_config.build_runtime_params(t=0.0)},
-    )
-    with self.assertRaisesRegex(
-        ValueError,
-        'conductivity is a required argument for'
-        ' OhmicHeatSource._get_model_value. This can occur if this source'
-        ' is used in an explicit source.',
-    ):
-      source.get_value(
-          runtime_params,
-          mock.ANY,
-          mock.ANY,
-          calculated_source_profiles=mock.ANY,
-          conductivity=None,
-          source_state=source_state_lib.SourceState(),
-          psidot=mock.ANY,
-      )
+  can_be_explicit = False
 
   @parameterized.parameters(-2.0, 2.0)
   def test_ohmic_power_with_psidot(self, psidot_val):
@@ -108,17 +48,16 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     core_profiles = mock.Mock()
     core_profiles.psi.grad.return_value = jnp.ones(n_rho)
+    core_profiles.psidot = mock.Mock(value=psidot)
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
+    core_profiles.conductivity = conductivity
 
     output, _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
         runtime_params=mock.ANY,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
-        psidot=psidot,
     )
     (pohm,) = output.profiles
 
@@ -145,17 +84,16 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     core_profiles = mock.Mock()
     core_profiles.psi.grad.return_value = psi_grad
+    core_profiles.psidot = mock.Mock(value=psidot)
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
+    core_profiles.conductivity = conductivity
 
     output, _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
         runtime_params=mock.ANY,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
-        psidot=psidot,
     )
     (pohm,) = output.profiles
 
@@ -199,17 +137,16 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     core_profiles = mock.Mock()
     core_profiles.psi = psi
+    core_profiles.psidot = psidot
     conductivity = mock.Mock()
     conductivity.sigma = sigma
+    core_profiles.conductivity = conductivity
 
     output, _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
         runtime_params=mock.ANY,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
-        psidot=psidot.value,
     )
     (pohm,) = output.profiles
     large_aspect_ratio_pohm = (

@@ -15,12 +15,14 @@
 """Utilities to help with testing sources."""
 
 from collections.abc import Mapping
+import dataclasses
 from typing import Any, ClassVar, Type
 
 from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
+from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
@@ -45,6 +47,7 @@ class SourceTestCase(parameterized.TestCase):
   source_name: ClassVar[str]
   source_config_class: ClassVar[Type[base.SourceConfigBase]]
   needs_source_models: ClassVar[bool] = False
+  can_be_explicit: ClassVar[bool] = True
   model_name: ClassVar[str | None] = None
   extra_source_config_kwargs: ClassVar[Mapping[str, Any]] = {}
 
@@ -54,6 +57,7 @@ class SourceTestCase(parameterized.TestCase):
     self._model_name = self.model_name
     self._source_config_class = self.source_config_class
     self._needs_source_models = self.needs_source_models
+    self._can_be_explicit = self.can_be_explicit
 
   def test_build_runtime_params(self):
     source = self._source_config_class.from_dict(
@@ -97,14 +101,10 @@ class SourceTestCase(parameterized.TestCase):
 class SingleProfileSourceTestCase(SourceTestCase):
   """Base test class for SingleProfileSource subclasses."""
 
-  def test_source_value_on_the_cell_grid(self):
-    """Tests that the source can provide a value by default on the cell grid."""
-    config_dict = default_configs.get_default_config_dict()
-    source_config_dict = dict(self.extra_source_config_kwargs)
-    if self._model_name is not None:
-      source_config_dict['model_name'] = self._model_name
-    config_dict['sources'] = {self._source_name: source_config_dict}
-    torax_config = config.ToraxConfig.from_dict(config_dict)
+  def _evaluate_single_profile_source(
+      self, torax_config: config.ToraxConfig
+  ) -> tuple[source_profiles.SourceOutput, geometry.Geometry]:
+    """Builds inputs and evaluates the single profile source."""
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles, runtime_params, geo = (
@@ -124,24 +124,80 @@ class SingleProfileSourceTestCase(SourceTestCase):
               runtime_params, geo, core_profiles
           )
       )
-      psidot = core_profiles.psidot.value
+      core_profiles = dataclasses.replace(
+          core_profiles,
+          conductivity=conductivity,
+      )
     else:
       calculated_source_profiles = None
-      conductivity = None
-      psidot = None
     source = source_models.standard_sources[self._source_name]
-    output, _ = source.get_value(
-        runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
-        conductivity=conductivity,
-        source_state=source.initial_state(runtime_params),
-        psidot=psidot,
-    )
+    if isinstance(source, source_lib.FinalSource):
+      assert calculated_source_profiles is not None
+      output, _ = source.get_value(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          calculated_source_profiles=calculated_source_profiles,
+          source_state=source.initial_state(runtime_params),
+      )
+    elif isinstance(source, source_lib.Source):
+      output, _ = source.get_value(
+          runtime_params=runtime_params,
+          geo=geo,
+          solver_profiles=core_profiles,
+          source_state=source.initial_state(runtime_params),
+      )
+    elif isinstance(source, source_lib.SourceUsingCoreProfiles):
+      output, _ = source.get_value(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_state=source.initial_state(runtime_params),
+      )
+    else:
+      raise TypeError(f'Unsupported source type: {type(source)}')
+    return output, geo
+
+  def test_source_value_on_the_cell_grid(self):
+    """Tests that the source can provide a value by default on the cell grid."""
+    config_dict = default_configs.get_default_config_dict()
+    source_cfg = {**self.extra_source_config_kwargs}
+    if self._model_name is not None:
+      source_cfg['model_name'] = self._model_name
+    config_dict['sources'] = {self._source_name: source_cfg}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    output, geo = self._evaluate_single_profile_source(torax_config)
     value = output.profiles[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
+
+  @parameterized.parameters(
+      runtime_params_lib.Mode.ZERO,
+      runtime_params_lib.Mode.MODEL_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
+  )
+  def test_explicit_mode_validation(self, mode: runtime_params_lib.Mode):
+    """Tests that is_explicit=True is validated or evaluated across modes."""
+    config_dict = default_configs.get_default_config_dict()
+    source_cfg = {
+        'mode': mode,
+        'is_explicit': True,
+        **self.extra_source_config_kwargs,
+    }
+    if self._model_name is not None:
+      source_cfg['model_name'] = self._model_name
+    config_dict['sources'] = {self._source_name: source_cfg}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    if not self._can_be_explicit:
+      with self.assertRaisesRegex(
+          ValueError, 'cannot be configured with is_explicit=True'
+      ):
+        self._evaluate_single_profile_source(torax_config)
+    else:
+      output, geo = self._evaluate_single_profile_source(torax_config)
+      value = output.profiles[0]
+      chex.assert_rank(value, 1)
+      self.assertEqual(value.shape, geo.rho.shape)
 
 
 class MultipleProfileSourceTestCase(SourceTestCase):
@@ -164,9 +220,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+        solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
     value = output.profiles
