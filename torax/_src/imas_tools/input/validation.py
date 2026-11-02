@@ -41,6 +41,58 @@ def _validate_paths(
       logging.warning("The IDS is missing the %s quantity.", path)
 
 
+def validate_equilibrium_geometry_from_IMAS(
+    equilibrium: ids_toplevel.IDSToplevel,
+    slice_index: int = 0,
+) -> None:
+  """Validate fields required to compute TORAX geometry from one IMAS slice.
+
+  This runs before any profile arithmetic, so an absent field produces a
+  descriptive error rather than a NumPy broadcasting or shape exception.
+  Optional fields with existing fallbacks are deliberately not required.
+  """
+  time_slice = equilibrium.time_slice[slice_index]
+  _validate_paths(
+      time_slice,
+      required_paths=(
+          "profiles_1d.psi",
+          "profiles_1d.phi",
+          "profiles_1d.r_inboard",
+          "profiles_1d.r_outboard",
+          "profiles_1d.f",
+          "profiles_1d.gm1",
+          "profiles_1d.gm2",
+          "profiles_1d.gm3",
+          "profiles_1d.gm4",
+          "profiles_1d.gm5",
+          "profiles_1d.gm7",
+          "profiles_1d.j_phi",
+          "profiles_1d.triangularity_upper",
+          "profiles_1d.triangularity_lower",
+          "profiles_1d.elongation",
+          "boundary.minor_radius",
+          "global_quantities.ip",
+          "global_quantities.magnetic_axis.z",
+      ),
+      warning_paths=(),
+  )
+  _validate_paths(
+      equilibrium,
+      required_paths=(
+          "vacuum_toroidal_field.r0",
+          "vacuum_toroidal_field.b0",
+      ),
+      warning_paths=(),
+  )
+  # If dvolume_dpsi is absent, the geometry builder derives it from volume.
+  if not time_slice.profiles_1d.dvolume_dpsi.has_value:
+    _validate_paths(
+        time_slice,
+        required_paths=("profiles_1d.volume",),
+        warning_paths=(),
+    )
+
+
 def validate_profile_conditions_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
 ) -> None:
