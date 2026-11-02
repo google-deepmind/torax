@@ -96,14 +96,14 @@ class FormulasTest(parameterized.TestCase):
     """Test that Greenwald fraction is calculated correctly."""
     n_e_avg = 1.0e20
 
-    fgw_n_e_volume_avg_calculated = formulas.calculate_greenwald_fraction(
+    f_GW_n_e_volume_avg_calculated = formulas.calculate_greenwald_fraction(
         n_e_avg, self.core_profiles, self.geo
     )
 
-    fgw_n_e_volume_avg_expected = 1.0
+    f_GW_n_e_volume_avg_expected = 1.0
 
     np.testing.assert_allclose(
-        fgw_n_e_volume_avg_calculated, fgw_n_e_volume_avg_expected
+        f_GW_n_e_volume_avg_calculated, f_GW_n_e_volume_avg_expected
     )
 
   def test_calculate_betas(self):

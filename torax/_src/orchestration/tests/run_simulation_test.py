@@ -35,10 +35,10 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         torax_config, max_steps=100
     ).simulation_output_to_xr()
 
-    original_value = torax_config.profile_conditions.nbar
+    original_value = torax_config.profile_conditions.n_e_bar
     new_value = original_value.value * 1.1
 
-    torax_config.update_fields({'profile_conditions.nbar': new_value})
+    torax_config.update_fields({'profile_conditions.n_e_bar': new_value})
     new_simulation_xr = run_simulation.run_simulation(
         torax_config, max_steps=100
     ).simulation_output_to_xr()

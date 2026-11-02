@@ -23,7 +23,7 @@ CONFIG = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
-        'nbar': 0.85,
+        'n_e_bar': 0.85,
         'n_e_right_bc': 0.2e20,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
