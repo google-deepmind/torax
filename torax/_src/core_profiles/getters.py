@@ -203,28 +203,35 @@ def get_updated_psi(
   else:
     value = profile_conditions_params.psi
 
-  right_face_grad_constraint = (
-      psi_calculations.calculate_psi_grad_constraint_from_I_p(  # pylint: disable=g-long-ternary
-          I_p=profile_conditions_params.I_p,
-          geo=geo,
+  match profile_conditions_params.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      right_face_grad_constraint = (
+          psi_calculations.calculate_psi_grad_constraint_from_I_p(
+              I_p=profile_conditions_params.I_p,
+              geo=geo,
+          )
       )
-      if not profile_conditions_params.use_v_loop_lcfs_boundary_condition
-      else None
-  )
-  right_face_constraint = (
-      psi_calculations.calculate_psi_value_constraint_from_v_loop(  # pylint: disable=g-long-ternary
-          dt=dt,
-          v_loop_lcfs_t=profile_conditions_params.v_loop_lcfs,
-          v_loop_lcfs_t_plus_dt=profile_conditions_params.v_loop_lcfs,
-          psi_lcfs_t=original_psi.right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-          theta=theta,
-          current_diffusion_time_reduction_factor=(
-              current_diffusion_time_reduction_factor
-          ),
+      right_face_constraint = None
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      assert original_psi.right_face_constraint is not None
+      right_face_grad_constraint = None
+      right_face_constraint = (
+          psi_calculations.calculate_psi_value_constraint_from_v_loop(
+              dt=dt,
+              v_loop_lcfs_t=profile_conditions_params.v_loop_lcfs,
+              v_loop_lcfs_t_plus_dt=profile_conditions_params.v_loop_lcfs,
+              psi_lcfs_t=original_psi.right_face_constraint,
+              theta=theta,
+              current_diffusion_time_reduction_factor=(
+                  current_diffusion_time_reduction_factor
+              ),
+          )
       )
-      if profile_conditions_params.use_v_loop_lcfs_boundary_condition
-      else None
-  )
+    case _:
+      raise ValueError(
+          'Unknown psi_bc_source:'
+          f' {profile_conditions_params.psi_bc_source}'
+      )
   return cell_variable.CellVariable(
       value=value,
       face_centers=geo.rho_face_norm,

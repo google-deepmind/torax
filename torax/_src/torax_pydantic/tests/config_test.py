@@ -282,36 +282,36 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="vloop_true_evolve_false_raises",
-          use_v_loop_bc=True,
+          psi_bc_source="v_loop",
           evolve_current=False,
           expect_error=True,
       ),
       dict(
           testcase_name="vloop_true_evolve_true_passes",
-          use_v_loop_bc=True,
+          psi_bc_source="v_loop",
           evolve_current=True,
           expect_error=False,
       ),
       dict(
           testcase_name="vloop_false_evolve_false_passes",
-          use_v_loop_bc=False,
+          psi_bc_source="I_p",
           evolve_current=False,
           expect_error=False,
       ),
   )
   def test_v_loop_bc_with_evolve_current_false_raises_error(
-      self, use_v_loop_bc, evolve_current, expect_error
+      self, psi_bc_source, evolve_current, expect_error
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict["profile_conditions"]["use_v_loop_lcfs_boundary_condition"] = (
-        use_v_loop_bc
-    )
+    config_dict["profile_conditions"]["psi_bc_source"] = psi_bc_source
+    if psi_bc_source == "v_loop":
+      config_dict["profile_conditions"]["v_loop_lcfs"] = 0.0
     config_dict["numerics"]["evolve_current"] = evolve_current
     if expect_error:
       with self.assertRaisesRegex(
           ValueError,
-          "profile_conditions.use_v_loop_lcfs_boundary_condition cannot be"
-          " True when numerics.evolve_current is False.",
+          'profile_conditions.psi_bc_source cannot be "v_loop" when'
+          " numerics.evolve_current is False.",
       ):
         config.ToraxConfig.from_dict(config_dict)
     else:

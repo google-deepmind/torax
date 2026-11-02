@@ -40,6 +40,7 @@ from torax._src.core_profiles import builders
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
@@ -158,16 +159,21 @@ def update_core_and_source_profiles_after_step(
   time_reduction_factor = (
       runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
   )
-  v_loop_lcfs = (
-      runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
-      if runtime_params_t_plus_dt.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else psi_calculations.calculate_v_loop_lcfs_from_psi(
+  match runtime_params_t_plus_dt.profile_conditions.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      v_loop_lcfs = psi_calculations.calculate_v_loop_lcfs_from_psi(
           core_profiles_t.psi,
           updated_solver_state.psi,
           dt,
           current_diffusion_time_reduction_factor=time_reduction_factor,
       )
-  )
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      v_loop_lcfs = runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs
+    case _:
+      raise ValueError(
+          'Unknown psi_bc_source:'
+          f' {runtime_params_t_plus_dt.profile_conditions.psi_bc_source}'
+      )
 
   base = builders.build_base_core_profiles(
       runtime_params_t_plus_dt,

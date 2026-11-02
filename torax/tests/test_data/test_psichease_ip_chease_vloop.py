@@ -25,7 +25,7 @@ CONFIG = {
         'I_p_source': 'geometry',
         'initial_psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
-        'use_v_loop_lcfs_boundary_condition': True,
+        'psi_bc_source': 'v_loop',
         # Physical loop voltage; psi BC is accelerated by
         # current_diffusion_time_reduction_factor.
         'v_loop_lcfs': 0.075,

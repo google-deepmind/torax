@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
@@ -244,11 +245,13 @@ def _calc_coeffs_full(
   ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
       runtime_params, geo, core_profiles
   )
-  v_loop_lcfs = (
-      runtime_params.profile_conditions.v_loop_lcfs
-      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else None
-  )
+  if (
+      runtime_params.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  ):
+    v_loop_lcfs = runtime_params.profile_conditions.v_loop_lcfs
+  else:
+    v_loop_lcfs = None
   psidot = psi_calculations.calculate_psidot(
       psi=core_profiles.psi,
       sigma=conductivity.sigma,
