@@ -651,22 +651,15 @@ class StateHistoryTest(parameterized.TestCase):
         ['Ar'],
     )
 
-  def test_status_attribute_completed(self):
-    """Test that status attribute is set to 'completed' for successful runs."""
+  def test_sim_error_no_error_in_output(self):
     output_xr = self.history.simulation_output_to_xr()
-    self.assertIn('sim_status', output_xr.numerics)
-    self.assertEqual(
-        output_xr.numerics.sim_status, state.SimStatus.COMPLETED.value
-    )
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
         output_xr.numerics.sim_error, state.SimError.NO_ERROR.value
     )
     self.assertIn(output_keys.SOLVER_ERROR_STATE, output_xr.numerics)
 
-  def test_status_attribute_error(self):
-    """Test that status attribute is set to 'error' when sim has errors."""
-    # Create a history with an error state
+  def test_sim_error_attribute_in_output(self):
     history_with_error = output.StateHistory(
         state_history=_stack_pytrees(self.sim_state),
         post_processed_outputs_history=_stack_pytrees(self._output_state),
@@ -674,8 +667,6 @@ class StateHistoryTest(parameterized.TestCase):
         torax_config=self.torax_config,
     )
     output_xr = history_with_error.simulation_output_to_xr()
-    self.assertIn('sim_status', output_xr.numerics)
-    self.assertEqual(output_xr.numerics.sim_status, state.SimStatus.ERROR.value)
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
         output_xr.numerics.sim_error, state.SimError.NAN_DETECTED.value
@@ -903,7 +894,6 @@ class StateHistoryTest(parameterized.TestCase):
     # Variables that intentionally have no units.
     _UNITLESS_VARIABLES = frozenset({
         # Numerics / solver status codes.
-        output_keys.SIM_STATUS,
         output_keys.SIM_ERROR,
         output_keys.OUTER_SOLVER_ITERATIONS,
         output_keys.INNER_SOLVER_ITERATIONS,
@@ -979,7 +969,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertTrue(output_keys.Units.DIMENSIONLESS)
 
     # OutputKey with units=NOT_APPLICABLE should not produce units in attrs.
-    self.assertEqual(output_keys.get_units(output_keys.SIM_STATUS), {})
+    self.assertEqual(output_keys.get_units(output_keys.SIM_ERROR), {})
 
     # OutputKey with units=DIMENSIONLESS should produce units in attrs.
     self.assertEqual(

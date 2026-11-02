@@ -922,9 +922,6 @@ IMPURITY_RIGHT_BC: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Numerics.
 # ---------------------------------------------------------------------------
-SIM_STATUS: Final[OutputKey] = OutputKey(
-    "sim_status", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
-)
 SIM_ERROR: Final[OutputKey] = OutputKey(
     "sim_error", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )

@@ -903,7 +903,6 @@ class SolverNumericOutputs:
     }
 
 
-# TODO(b/434175938): change to StrEnum
 @enum.unique
 class SimError(enum.Enum):
   """Integer enum for sim error handling."""
@@ -963,13 +962,3 @@ class SimError(enum.Enum):
       case _:
         raise ValueError(f'Unknown SimError: {self}')
 
-
-class SimStatus(enum.StrEnum):
-  """String enum for simulation output file status.
-
-  This indicates the state of the simulation when the output file was written.
-  """
-
-  COMPLETED = 'completed'  # Simulation completed successfully to t_final
-  CHECKPOINT = 'checkpoint'  # Intermediate checkpoint (not yet used)
-  ERROR = 'error'  # Simulation stopped due to an error condition

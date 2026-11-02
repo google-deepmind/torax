@@ -349,17 +349,7 @@ class StateHistory:
 
   def _build_numerics_dataset(self) -> xr.Dataset:
     """Builds the numerics xr.Dataset."""
-    sim_status = (
-        state.SimStatus.COMPLETED
-        if self.sim_error is state.SimError.NO_ERROR
-        else state.SimStatus.ERROR
-    )
     numerics_vars: dict[str, output_grid_context.OutputVar] = {
-        output_keys.SIM_STATUS: (
-            (),
-            np.asarray(sim_status.value),
-            output_keys.get_units(output_keys.SIM_STATUS),
-        ),
         output_keys.SIM_ERROR: (
             (),
             np.asarray(self.sim_error.value),

@@ -130,13 +130,6 @@ The ``numerics`` dataset contains the following data variables.
   indicating whether the state at that timestep corresponds to a
   post-sawtooth-crash state.
 
-``sim_status`` ()
-  String indicating if the simulation completed successfully:
-
-  * "completed" if successful.
-
-  * "error" if in an error state.
-
 ``sim_error`` ()
   Integer providing further information on the simulation error state:
 
@@ -151,6 +144,8 @@ The ``numerics`` dataset contains the following data variables.
   * 4 if the minimum timestep, as set by ``time_step_calculator.min_dt`` is reached.
 
   * 5 if low temperature collapse is detected (T < T_min_eV).
+
+  * 6 if the simulation did not reach the final timestep ``t_final``.
 
 .. _output_profiles:
 
