@@ -107,7 +107,7 @@ class StandardGeometry(geometry.Geometry):
   psi: array_typing.FloatVectorCell
   psi_from_I_p: array_typing.FloatVectorCell
   psi_from_I_p_face: array_typing.FloatVectorFace
-  j_toroidal_total: array_typing.Array
+  j_toroidal_total: array_typing.FloatVectorCell
   j_toroidal_total_face: array_typing.FloatVectorFace
   delta_upper_face: array_typing.FloatVectorFace
   delta_lower_face: array_typing.FloatVectorFace
@@ -383,15 +383,31 @@ class StandardGeometryIntermediates:
         bc_type = 'not-a-knot'
       else:
         bc_type = 'natural'
-      set_edge = lambda array: spline(rhon, array, 1.0, bc_type)
-      self.int_dl_over_Bp[-1] = set_edge(self.int_dl_over_Bp)
-      self.flux_surf_avg_grad_psi2_over_R2[-1] = set_edge(
-          self.flux_surf_avg_grad_psi2_over_R2
+      set_edge = lambda array: _with_replaced_edge(
+          array, spline(rhon, array, 1.0, bc_type)
       )
-      self.flux_surf_avg_1_over_R2[-1] = set_edge(self.flux_surf_avg_1_over_R2)
-      self.flux_surf_avg_grad_psi[-1] = set_edge(self.flux_surf_avg_grad_psi)
-      self.flux_surf_avg_grad_psi2[-1] = set_edge(self.flux_surf_avg_grad_psi2)
-      self.vpr[-1] = set_edge(self.vpr)
+      object.__setattr__(self, 'int_dl_over_Bp', set_edge(self.int_dl_over_Bp))
+      object.__setattr__(
+          self,
+          'flux_surf_avg_grad_psi2_over_R2',
+          set_edge(self.flux_surf_avg_grad_psi2_over_R2),
+      )
+      object.__setattr__(
+          self,
+          'flux_surf_avg_1_over_R2',
+          set_edge(self.flux_surf_avg_1_over_R2),
+      )
+      object.__setattr__(
+          self,
+          'flux_surf_avg_grad_psi',
+          set_edge(self.flux_surf_avg_grad_psi),
+      )
+      object.__setattr__(
+          self,
+          'flux_surf_avg_grad_psi2',
+          set_edge(self.flux_surf_avg_grad_psi2),
+      )
+      object.__setattr__(self, 'vpr', set_edge(self.vpr))
 
     # Near-axis smoothing of quantities with known near-axis trends with rho.
     idx_limit = int(np.argmin(np.abs(rhon - _RHO_SMOOTHING_LIMIT)))
@@ -399,30 +415,28 @@ class StandardGeometryIntermediates:
     # |grad(psi)| = R * Bp scales like rho_norm near the axis, so |grad(psi)|^2
     # terms scale as rho_norm^2 + O(rho_norm^4) and |grad(psi)| scales as
     # rho_norm + O(rho_norm^3).
-    self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_near_axis(
-        self.flux_surf_avg_grad_psi2_over_R2, rhon, idx_limit, order=2
+    object.__setattr__(
+        self,
+        'flux_surf_avg_grad_psi2_over_R2',
+        _smooth_near_axis(
+            self.flux_surf_avg_grad_psi2_over_R2, rhon, idx_limit, order=2
+        ),
     )
-    self.flux_surf_avg_grad_psi2[:] = _smooth_near_axis(
-        self.flux_surf_avg_grad_psi2, rhon, idx_limit, order=2
+    object.__setattr__(
+        self,
+        'flux_surf_avg_grad_psi2',
+        _smooth_near_axis(
+            self.flux_surf_avg_grad_psi2, rhon, idx_limit, order=2
+        ),
     )
-    self.flux_surf_avg_grad_psi[:] = _smooth_near_axis(
-        self.flux_surf_avg_grad_psi, rhon, idx_limit, order=1
+    object.__setattr__(
+        self,
+        'flux_surf_avg_grad_psi',
+        _smooth_near_axis(
+            self.flux_surf_avg_grad_psi, rhon, idx_limit, order=1
+        ),
     )
-    # Warn if the input grid is too coarse, which can cause artifacts in
-    # derived quantities such as j_toroidal_total.
-    drho_norm = np.diff(rhon)
-    max_spacing = np.max(drho_norm)
-    if max_spacing > _COARSE_GRID_THRESHOLD:
-      logging.log_every_n_seconds(
-          logging.WARNING,
-          'The input equilibrium grid is coarse (max rho_norm spacing ='
-          ' %.4f > %.4f). This can create numerical artifacts in derived'
-          ' quantities such as j_toroidal_total. Consider using a'
-          ' higher-resolution equilibrium file.',
-          _COARSE_GRID_WARNING_INTERVAL_SEC,  # log every interval
-          max_spacing,
-          _COARSE_GRID_THRESHOLD,
-      )
+    _warn_if_coarse_grid(rhon)
 
   def _prepend_magnetic_axis(self) -> None:
     """Prepends the magnetic axis (rho_norm=0) to the radial profiles.
@@ -436,7 +450,7 @@ class StandardGeometryIntermediates:
     axis_values = dict.fromkeys(_ZERO_ON_AXIS, 0.0)
     axis_values['R_in'] = R_axis
     axis_values['R_out'] = R_axis
-    for name, f in dataclasses.asdict(self).items():
+    for name, f in vars(self).items():
       # Skip scalar attributes (ndim != 1) and `face_centers` (which is the
       # target TORAX mesh, not a profile from the input equilibrium).
       if name == 'face_centers' or np.ndim(f) != 1:
@@ -445,6 +459,32 @@ class StandardGeometryIntermediates:
       object.__setattr__(
           self, name, np.insert(f, 0, axis_values.get(name, f[0]))
       )
+
+
+def _with_replaced_edge(
+    array: np.ndarray, edge_value: np.ndarray | float
+) -> np.ndarray:
+  """Returns a copy of array with its last element replaced by edge_value."""
+  return np.concatenate(
+      [array[:-1], np.asarray([edge_value], dtype=array.dtype)]
+  )
+
+
+def _warn_if_coarse_grid(rhon: np.ndarray) -> None:
+  """Warns if the equilibrium grid is too coarse for j_toroidal_total."""
+  drho_norm = np.diff(rhon)
+  max_spacing = np.max(drho_norm)
+  if max_spacing > _COARSE_GRID_THRESHOLD:
+    logging.log_every_n_seconds(
+        logging.WARNING,
+        'The input equilibrium grid is coarse (max rho_norm spacing ='
+        ' %.4f > %.4f). This can create numerical artifacts in derived'
+        ' quantities such as j_toroidal_total. Consider using a'
+        ' higher-resolution equilibrium file.',
+        _COARSE_GRID_WARNING_INTERVAL_SEC,  # log every interval
+        max_spacing,
+        _COARSE_GRID_THRESHOLD,
+    )
 
 
 def build_standard_geometry(
@@ -777,12 +817,12 @@ def _calculate_psi_from_I_p(
   I_p_face = scipy.interpolate.CubicSpline(rho_norm_intermediate, I_p_profile)(
       rho_face_norm
   )
-  dpsi_drhon_face = np.zeros_like(rho_face_norm)
-  dpsi_drhon_face[1:] = (
+  dpsi_drhon_face = np.concatenate([
+      np.zeros(1, dtype=I_p_face.dtype),
       I_p_face[1:]
       * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * Phi_b)
-      / (g2g3_over_rhon_face[1:] * F_face[1:])
-  )
+      / (g2g3_over_rhon_face[1:] * F_face[1:]),
+  ])
   # dpsi/drho_norm is linear in rho_norm near the axis.
   psi_first_cell = (
       psi_axis + 0.5 * dpsi_drhon_face[1] * rho_norm[0] ** 2 / rho_face_norm[1]
@@ -790,11 +830,15 @@ def _calculate_psi_from_I_p(
   psi = psi_first_cell + np.concatenate(
       [np.zeros(1), np.cumsum(dpsi_drhon_face[1:-1] * np.diff(rho_norm))]
   )
-  psi_face = np.interp(rho_face_norm, rho_norm, psi)
-  psi_face[0] = psi_axis
-  psi_face[-1] = psi[-1] + dpsi_drhon_face[-1] * (
+  psi_face_interp = np.interp(rho_face_norm, rho_norm, psi)
+  edge_psi_face = psi[-1] + dpsi_drhon_face[-1] * (
       rho_face_norm[-1] - rho_norm[-1]
   )
+  psi_face = np.concatenate([
+      np.asarray([psi_axis]),
+      psi_face_interp[1:-1],
+      np.asarray([edge_psi_face]),
+  ])
   return psi, psi_face
 
 
@@ -834,21 +878,21 @@ def _smooth_near_axis(
     Array with indices :idx_limit replaced by the anchored asymptotic fit.
     No-op if idx_limit <= 1.
   """
-  smoothed = np.array(data, copy=True)
+  data_arr = np.asarray(data)
   if idx_limit <= 1:
-    return smoothed
+    return data_arr
   r_limit = rhon[idx_limit]
-  y_limit = smoothed[idx_limit]
+  y_limit = data_arr[idx_limit]
   r_interior = np.asarray(rhon[:idx_limit])
-  y_interior = smoothed[:idx_limit]
+  y_interior = data_arr[:idx_limit]
   leading_term = y_limit * (r_interior / r_limit) ** order
   if idx_limit <= 2:
-    smoothed[:idx_limit] = leading_term
-    return smoothed
+    return np.concatenate([leading_term, data_arr[idx_limit:]])
   next_order_basis = (r_interior**order) * (r_interior**2 - r_limit**2)
   # Closed form for least-squares solution for c2.
   c2 = np.dot(next_order_basis, y_interior - leading_term) / np.dot(
       next_order_basis, next_order_basis
   )
-  smoothed[:idx_limit] = leading_term + c2 * next_order_basis
-  return smoothed
+  return np.concatenate(
+      [leading_term + c2 * next_order_basis, data_arr[idx_limit:]]
+  )

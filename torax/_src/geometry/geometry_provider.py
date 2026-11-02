@@ -112,7 +112,7 @@ class ConstantGeometryProvider(GeometryProvider):
 class TimeDependentGeometryProvider:
   """A geometry provider which holds values to interpolate based on time."""
 
-  geometry_type: geometry.GeometryType
+  geometry_type: geometry.GeometryType = jax.tree.static()
   torax_mesh: torax_pydantic.Grid1D
   drho_norm: interpolated_param.InterpolatedVarSingleAxis
   Phi: interpolated_param.InterpolatedVarSingleAxis

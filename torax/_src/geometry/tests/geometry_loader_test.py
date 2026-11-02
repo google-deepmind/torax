@@ -14,6 +14,7 @@
 
 """Tests for the geometry_loader module."""
 
+import pathlib
 from unittest import mock
 from absl.testing import absltest
 import numpy as np
@@ -82,6 +83,25 @@ class GeometryLoaderTest(absltest.TestCase):
         ValueError, "MEQ data field 'bad_field' is not a numpy array"
     ):
       geometry_loader._load_meq_file("dummy_path.mat")
+
+  def test_get_geometry_dir_with_pathlib_path(self):
+    """Tests get_geometry_dir when given a pathlib.Path."""
+    path = pathlib.Path("/tmp/test_geo_dir")
+    self.assertEqual(geometry_loader.get_geometry_dir(path), path)
+
+  @mock.patch.object(geometry_loader, "_load_CHEASE_file")
+  def test_load_geo_data_with_pathlib_path(self, mock_load_chease):
+    """Tests load_geo_data accepts pathlib.Path for dir and file."""
+    mock_load_chease.return_value = {"dummy": np.array([1.0])}
+    geo_dir = pathlib.Path("/tmp/test_dir")
+    geo_file = pathlib.Path("test_chease.mat")
+    data = geometry_loader.load_geo_data(
+        geometry_dir=geo_dir,
+        geometry_file=geo_file,
+        geometry_source=geometry_loader.GeometrySource.CHEASE,
+    )
+    self.assertEqual(data, {"dummy": np.array([1.0])})
+    mock_load_chease.assert_called_once_with(geo_dir / geo_file)
 
 
 if __name__ == "__main__":

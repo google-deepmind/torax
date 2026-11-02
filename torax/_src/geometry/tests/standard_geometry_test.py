@@ -603,17 +603,16 @@ class OffAxisGridTest(parameterized.TestCase):
   @parameterized.parameters(
       f.name
       for f in dataclasses.fields(standard_geometry.StandardGeometry)
-      if f.type
-      in (
+      if f.type in (
           array_typing.Array,
           array_typing.FloatVectorFace,
           array_typing.FloatVectorCell,
+          array_typing.FloatVector,
       )
       # Poloidal flux profiles are shifted by a constant offset psi[0] (tested
       # below), and iterhybrid.mat2cols has a small non-zero triangularity
       # artifact (~8.5e-3) at the axis row whereas _ZERO_ON_AXIS enforces 0.
-      and f.name
-      not in {
+      and f.name not in {
           'psi',
           'psi_from_I_p',
           'psi_from_I_p_face',
