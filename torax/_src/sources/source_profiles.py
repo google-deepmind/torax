@@ -15,8 +15,7 @@
 
 from collections.abc import Iterator, Mapping
 import dataclasses
-import operator
-from typing import Any, Literal, Self
+from typing import Literal, Self
 
 import jax
 import jax.numpy as jnp
@@ -118,59 +117,6 @@ class SourceProfiles:
   fast_ions: dict[str, tuple[fast_ion_lib.FastIon, ...]] = dataclasses.field(
       default_factory=dict
   )
-
-  # This function can be jitted if source_models is a static argument. However,
-  # in our tests, jitting this function actually slightly slows down runs, so
-  # this is left as pure python.
-  @classmethod
-  def merge(
-      cls,
-      explicit_source_profiles: Self,
-      implicit_source_profiles: Self,
-  ) -> Self:
-    """Returns a SourceProfiles that merges the input profiles.
-
-    Sources can either be explicit or implicit. The explicit_source_profiles
-    contain the profiles for all source models that are set to explicit, and it
-    contains profiles with all zeros for any implicit source. The opposite holds
-    for the implicit_source_profiles.
-
-    This function adds the two dictionaries of profiles and returns a single
-    SourceProfiles that includes both.
-
-    Args:
-      explicit_source_profiles: Profiles from explicit source models. This
-        SourceProfiles dict will include keys for both the explicit and implicit
-        sources, but only the explicit sources will have non-zero profiles. See
-        source.py and runtime_params.py for more info on explicit vs. implicit.
-      implicit_source_profiles: Profiles from implicit source models. This
-        SourceProfiles dict will include keys for both the explicit and implicit
-        sources, but only the implicit sources will have non-zero profiles. See
-        source.py and runtime_params.py for more info on explicit vs. implicit.
-
-    Returns:
-      A SourceProfiles with non-zero profiles for all sources, both explicit and
-      implicit (assuming the source model outputted a non-zero profile).
-
-    """
-    def _is_fast_ions_dict(x: Any) -> bool:
-      return isinstance(x, dict) and all(
-          isinstance(v, tuple)
-          and all(isinstance(el, fast_ion_lib.FastIon) for el in v)
-          for v in x.values()
-      )
-
-    def _merge(a: Any, b: Any):
-      if _is_fast_ions_dict(a):
-        return {**a, **b}
-      return operator.add(a, b)
-
-    return jax.tree_util.tree_map(
-        _merge,
-        explicit_source_profiles,
-        implicit_source_profiles,
-        is_leaf=_is_fast_ions_dict,
-    )
 
   def total_psi_sources(self, geo: geometry.Geometry) -> array_typing.Array:
     """Returns the total psi sources."""

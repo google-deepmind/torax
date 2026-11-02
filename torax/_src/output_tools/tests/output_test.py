@@ -139,7 +139,6 @@ class StateHistoryTest(parameterized.TestCase):
             },
         ),
         neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo),
-        pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(self.geo),
     )
     self.source_models = models.source_models
     pedestal_output, pedestal_state = models.pedestal_model.initialize(

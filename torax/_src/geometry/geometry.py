@@ -306,11 +306,6 @@ class Geometry:
     )
 
   @property
-  def drho(self) -> array_typing.Array:
-    """Cell widths [m]."""
-    return self.drho_norm * jnp.expand_dims(self.rho_b, axis=-1)
-
-  @property
   def rho_b(self) -> array_typing.FloatScalar:
     """Toroidal flux coordinate [m] at boundary (LCFS)."""
     return jnp.sqrt(self.Phi_b / np.pi / self.B_0)

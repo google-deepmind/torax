@@ -252,16 +252,3 @@ class PereverzevTransport(TransportCoeffs):
 
   full_v_heat_face_ion: array_typing.FloatVectorFace
   full_v_heat_face_el: array_typing.FloatVectorFace
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a PereverzevTransport with zero transport coefficients."""
-    zeros = jnp.zeros_like(geo.rho_face_norm)
-    return cls(
-        chi_face_ion=zeros,
-        chi_face_el=zeros,
-        d_face_el=zeros,
-        v_face_el=zeros,
-        full_v_heat_face_ion=zeros,
-        full_v_heat_face_el=zeros,
-    )
