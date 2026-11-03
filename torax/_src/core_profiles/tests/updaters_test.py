@@ -152,7 +152,7 @@ class UpdatersTest(parameterized.TestCase):
 
     # Should be same as t0 since not evolved and not prescribed
     np.testing.assert_allclose(
-        solver_state.psi.value, core_profiles_t0.psi.value
+        solver_state.psi.value, core_profiles_t0.poloidal_flux.psi.value
     )
 
   def test_psi_not_updated_if_evolve_current_true(self):
@@ -178,7 +178,7 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     # Initial should be 10.0
-    np.testing.assert_allclose(core_profiles_t0.psi.value, 10.0)
+    np.testing.assert_allclose(core_profiles_t0.poloidal_flux.psi.value, 10.0)
 
     runtime_params_t1 = provider(t=1.0)
     # At t=1, prescribed is 20.0. But evolve_current=True.
@@ -264,10 +264,18 @@ class UpdatersTest(parameterized.TestCase):
     self.assertIsInstance(result, state.SolverState)
     with self.subTest('evolving_values_preserved'):
       # Evolving channels retain values from t0.
-      np.testing.assert_allclose(result.psi.value, core_profiles_t0.psi.value)
-      np.testing.assert_allclose(result.T_i.value, core_profiles_t0.T_i.value)
-      np.testing.assert_allclose(result.T_e.value, core_profiles_t0.T_e.value)
-      np.testing.assert_allclose(result.n_e.value, core_profiles_t0.n_e.value)
+      np.testing.assert_allclose(
+          result.psi.value, core_profiles_t0.poloidal_flux.psi.value
+      )
+      np.testing.assert_allclose(
+          result.T_i.value, core_profiles_t0.kinetic.T_i.value
+      )
+      np.testing.assert_allclose(
+          result.T_e.value, core_profiles_t0.kinetic.T_e.value
+      )
+      np.testing.assert_allclose(
+          result.n_e.value, core_profiles_t0.kinetic.n_e.value
+      )
     with self.subTest('boundary_conditions_updated'):
       # Boundary conditions are updated to values at t1.
       assert result.T_i.right_face_constraint is not None

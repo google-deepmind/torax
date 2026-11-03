@@ -17,7 +17,6 @@
 # pylint: disable=invalid-name
 
 from collections.abc import Mapping
-import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import state
@@ -26,7 +25,6 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
 )
-from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
@@ -187,89 +185,4 @@ def evaluate_dependent_sources(
     )
 
   return profiles, updated_source_states
-
-
-# TODO(b/572586768): Remove temporary compatibility helper once
-# initialization / callers migrate.
-def build_source_profiles(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-    source_states: Mapping[str, source_state_lib.SourceState],
-    explicit: bool,
-    explicit_source_profiles: source_profiles.SourceProfiles | None = None,
-    explicit_source_outputs: (
-        Mapping[str, source_profiles.SourceOutput] | None
-    ) = None,
-    bootstrap_current: bootstrap_current_base.BootstrapCurrent | None = None,
-) -> tuple[
-    source_profiles.SourceProfiles,
-    dict[str, source_state_lib.SourceState],
-]:
-  """Evaluates all sources and builds a complete SourceProfiles object."""
-  del explicit_source_profiles
-  if explicit:
-    basic_outputs, updated_source_states = evaluate_basic_sources(
-        runtime_params=runtime_params,
-        geo=geo,
-        solver_profiles=core_profiles,
-        source_models=source_models,
-        source_states=source_states,
-        explicit=True,
-    )
-    dummy_bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-    dummy_qei = source_profiles.QeiInfo.zeros(geo)
-    profiles = source_profiles.SourceProfiles.from_source_outputs(
-        source_outputs=basic_outputs,
-        standard_sources=source_models.standard_sources,
-        bootstrap_current=dummy_bootstrap,
-        qei=dummy_qei,
-    )
-    return profiles, updated_source_states
-  if explicit_source_outputs is None:
-    explicit_source_outputs, _ = evaluate_basic_sources(
-        runtime_params=runtime_params,
-        geo=geo,
-        solver_profiles=core_profiles,
-        source_models=source_models,
-        source_states=source_states,
-        explicit=True,
-    )
-  implicit_outputs, updated_source_states = evaluate_basic_sources(
-      runtime_params=runtime_params,
-      geo=geo,
-      solver_profiles=core_profiles,
-      source_models=source_models,
-      source_states=source_states,
-      explicit=False,
-  )
-  basic_outputs = {**explicit_source_outputs, **implicit_outputs}
-  if bootstrap_current is None:
-    bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-  # TODO(b/572586768): Remove inline psidot recomputation once calc_coeffs
-  # and initial_state migrate to state_evaluation.
-  v_loop_lcfs = core_profiles.psidot.right_face_constraint
-  psidot = psi_calculations.calculate_psidot(
-      psi=core_profiles.poloidal_flux.psi,
-      sigma=core_profiles.conductivity.sigma,
-      psi_sources=source_profiles.sum_total_psi_sources(
-          basic_outputs, source_models, bootstrap_current, geo
-      ),
-      geo=geo,
-      evolve_current=runtime_params.numerics.evolve_current,
-      prescribed_psidot=runtime_params.profile_conditions.psidot,
-      v_loop_lcfs=v_loop_lcfs,
-  )
-  core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
-  return evaluate_dependent_sources(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      source_states=updated_source_states,
-      basic_source_outputs=basic_outputs,
-      bootstrap_current=bootstrap_current,
-  )
-
 

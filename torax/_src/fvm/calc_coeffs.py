@@ -221,9 +221,9 @@ def _calc_coeffs_full(
   # --- Transient term coefficients --- #
   # These have radial dependence through r, n
   toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
-  tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_i = core_profiles.kinetic.n_i.value * geo.vpr ** (5.0 / 3.0)
   toc_T_e = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
-  tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_e = core_profiles.kinetic.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
       / runtime_params.numerics.current_diffusion_time_reduction_factor
@@ -254,13 +254,13 @@ def _calc_coeffs_full(
   # Heat equations
   full_chi_face_ion = (
       geo.g1_over_vpr_face
-      * core_profiles.n_i.face_value()
+      * core_profiles.kinetic.n_i.face_value()
       * consts.keV_to_J
       * physical_transport.chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
-      * core_profiles.n_e.face_value()
+      * core_profiles.kinetic.n_e.face_value()
       * consts.keV_to_J
       * physical_transport.chi_face_el
   )
@@ -281,10 +281,16 @@ def _calc_coeffs_full(
   # Phi_b_dot proportional term into a convective term and an effective source
   # term.
   full_v_heat_face_ion = (
-      -0.75 * phib_dot_factor * core_profiles.n_i.face_value() * consts.keV_to_J
+      -0.75
+      * phib_dot_factor
+      * core_profiles.kinetic.n_i.face_value()
+      * consts.keV_to_J
   )
   full_v_heat_face_el = (
-      -0.75 * phib_dot_factor * core_profiles.n_e.face_value() * consts.keV_to_J
+      -0.75
+      * phib_dot_factor
+      * core_profiles.kinetic.n_e.face_value()
+      * consts.keV_to_J
   )
   # Particle equations. No effective source term will be needed for particles.
   full_v_face_el -= 0.5 * phib_dot_factor
@@ -296,13 +302,13 @@ def _calc_coeffs_full(
   if per is not None:
     d_per_ion_heat = (
         geo.g1_over_vpr_face
-        * core_profiles.n_i.face_value()
+        * core_profiles.kinetic.n_i.face_value()
         * consts.keV_to_J
         * per.chi_face_ion
     )
     d_per_el_heat = (
         geo.g1_over_vpr_face
-        * core_profiles.n_e.face_value()
+        * core_profiles.kinetic.n_e.face_value()
         * consts.keV_to_J
         * per.chi_face_el
     )
@@ -360,21 +366,21 @@ def _calc_coeffs_full(
   source_i += (
       0.5
       * geo.rho_norm
-      * core_profiles.n_i.value
+      * core_profiles.kinetic.n_i.value
       * geo.dvpr_drho_norm
       * geo.Phi_b_dot
       / geo.Phi_b
-      * core_profiles.T_i.value
+      * core_profiles.kinetic.T_i.value
       * consts.keV_to_J
   )
   source_e += (
       0.5
       * geo.rho_norm
-      * core_profiles.n_e.value
+      * core_profiles.kinetic.n_e.value
       * geo.dvpr_drho_norm
       * geo.Phi_b_dot
       / geo.Phi_b
-      * core_profiles.T_e.value
+      * core_profiles.kinetic.T_e.value
       * consts.keV_to_J
   )
 
@@ -389,7 +395,7 @@ def _calc_coeffs_full(
       * core_profiles.conductivity.sigma
       / runtime_params.numerics.current_diffusion_time_reduction_factor
       / geo.F**2
-      * core_profiles.psi.grad()
+      * core_profiles.poloidal_flux.psi.grad()
   )
 
   # --- Build arguments to solver  --- #

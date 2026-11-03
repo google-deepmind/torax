@@ -297,7 +297,11 @@ class CalcCoeffsTest(parameterized.TestCase):
           models=inputs.models,
           model_state=inputs.model_state,
       )
-      x_vars = (core_profiles.T_i, core_profiles.T_e, core_profiles.n_e)
+      x_vars = (
+          core_profiles.kinetic.T_i,
+          core_profiles.kinetic.T_e,
+          core_profiles.kinetic.n_e,
+      )
       c_mat, c_vec = discrete_system.calc_c(x_vars, coeffs)
       x_vec = jnp.stack([v.value for v in x_vars], axis=-1)
       return np.asarray(c_mat.matvec(x_vec) + c_vec)
@@ -367,13 +371,22 @@ class CalcCoeffsTest(parameterized.TestCase):
     # (Phi_b_dot / Phi_b) * vpr * n_e.
     phib_dot_vpr = geo.Phi_b_dot / geo.Phi_b * geo.vpr
     heat_prefactor = 2.0 * constants.CONSTANTS.keV_to_J
-    n_i, n_e = inputs.core_profiles.n_i.value, inputs.core_profiles.n_e.value
+    n_i, n_e = (
+        inputs.core_profiles.kinetic.n_i.value,
+        inputs.core_profiles.kinetic.n_e.value,
+    )
     expected = {
         'T_i': (
-            heat_prefactor * phib_dot_vpr * n_i * inputs.core_profiles.T_i.value
+            heat_prefactor
+            * phib_dot_vpr
+            * n_i
+            * inputs.core_profiles.kinetic.T_i.value
         ),
         'T_e': (
-            heat_prefactor * phib_dot_vpr * n_e * inputs.core_profiles.T_e.value
+            heat_prefactor
+            * phib_dot_vpr
+            * n_e
+            * inputs.core_profiles.kinetic.T_e.value
         ),
         'n_e': phib_dot_vpr * n_e,
     }
@@ -475,23 +488,25 @@ class CalcCoeffsTest(parameterized.TestCase):
     # When psi is scaled, current-iterate psidot changes and particle convection
     # (Ware pinch) responds accordingly, even when incoming psidot was zero.
     core_profiles = inputs.core_profiles
-    right_face_constraint = (
-        core_profiles.psi.right_face_constraint * 2.0
-        if core_profiles.psi.right_face_constraint is not None
-        else None
-    )
-    right_face_grad_constraint = (
-        core_profiles.psi.right_face_grad_constraint * 2.0
-        if core_profiles.psi.right_face_grad_constraint is not None
-        else None
-    )
+    if core_profiles.poloidal_flux.psi.right_face_constraint is not None:
+      right_face_constraint = (
+          core_profiles.poloidal_flux.psi.right_face_constraint * 2.0
+      )
+    else:
+      right_face_constraint = None
+    if core_profiles.poloidal_flux.psi.right_face_grad_constraint is not None:
+      right_face_grad_constraint = (
+          core_profiles.poloidal_flux.psi.right_face_grad_constraint * 2.0
+      )
+    else:
+      right_face_grad_constraint = None
     core_profiles_scaled_psi = dataclasses.replace(
         core_profiles_zero_psidot,
         poloidal_flux=dataclasses.replace(
             core_profiles_zero_psidot.poloidal_flux,
             psi=dataclasses.replace(
-                core_profiles.psi,
-                value=core_profiles.psi.value * 2.0,
+                core_profiles.poloidal_flux.psi,
+                value=core_profiles.poloidal_flux.psi.value * 2.0,
                 right_face_constraint=right_face_constraint,
                 right_face_grad_constraint=right_face_grad_constraint,
             ),

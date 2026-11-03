@@ -284,7 +284,7 @@ class FVMTest(parameterized.TestCase):
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
     # initialize x_new for timestepping
-    x_new = (sim_state.core_profiles.T_i,)
+    x_new = (sim_state.core_profiles.kinetic.T_i,)
     for _ in range(time_steps):
       x_old = copy.deepcopy(x_new)
       x_new = implicit_solve_block.implicit_solve_block(

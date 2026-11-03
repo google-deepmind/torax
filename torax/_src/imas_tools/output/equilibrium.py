@@ -67,14 +67,14 @@ def torax_state_to_imas_equilibrium(
   eq = equilibrium.time_slice[0]
   eq.boundary.geometric_axis.r = geometry.R_major
   eq.boundary.minor_radius = geometry.a_minor
-  eq.profiles_1d.psi = core_profiles.psi.face_value()
-  psi_axis = core_profiles.psi.face_value()[0]
-  psi_boundary = core_profiles.psi.face_value()[-1]
+  eq.profiles_1d.psi = core_profiles.poloidal_flux.psi.face_value()
+  psi_axis = core_profiles.poloidal_flux.psi.left_face_value[0]
+  psi_boundary = core_profiles.poloidal_flux.psi.right_face_value[0]
   eq.global_quantities.psi_axis = psi_axis
   eq.global_quantities.psi_boundary = psi_boundary
-  eq.profiles_1d.psi_norm = (core_profiles.psi.face_value() - psi_axis) / (
-      psi_boundary - psi_axis
-  )
+  eq.profiles_1d.psi_norm = (
+      core_profiles.poloidal_flux.psi.face_value() - psi_axis
+  ) / (psi_boundary - psi_axis)
   eq.profiles_1d.phi = -1 * geometry.Phi_face
   eq.profiles_1d.r_inboard = geometry.R_in_face
   eq.profiles_1d.r_outboard = geometry.R_out_face
@@ -88,7 +88,7 @@ def torax_state_to_imas_equilibrium(
   except ValueError as e:
     logging.warning(e)
   eq.global_quantities.ip = -1 * geometry.I_p_profile_face[-1]
-  eq.profiles_1d.j_phi = -1 * core_profiles.j_toroidal_total_face
+  eq.profiles_1d.j_phi = -1 * core_profiles.poloidal_flux.j_toroidal_total_face
   eq.profiles_1d.volume = geometry.volume_face
   eq.profiles_1d.area = geometry.area_face
   eq.global_quantities.volume = geometry.volume_face[-1]
@@ -133,8 +133,8 @@ def torax_state_to_imas_equilibrium(
   # <j.B>/B_0, could be useful to calculate and use instead of FF'
   eq.profiles_1d.f = -1 * geometry.F_face
   eq.profiles_1d.f_df_dpsi = post_processed_outputs.FFprime
-  eq.profiles_1d.q = core_profiles.q_face
-  eq.profiles_1d.magnetic_shear = core_profiles.s_face
+  eq.profiles_1d.q = core_profiles.poloidal_flux.q_face
+  eq.profiles_1d.magnetic_shear = core_profiles.poloidal_flux.s_face
 
   # Optionally maps fixed quantities not evolved by TORAX and read directly
   # from input equilibrium.

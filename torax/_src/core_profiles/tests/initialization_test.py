@@ -189,7 +189,10 @@ class InitializationTest(parameterized.TestCase):
     core_profiles, _, _ = _get_initial_state(torax_config)
 
     np.testing.assert_allclose(
-        core_profiles.psi.value, expected_psi, atol=1e-6, rtol=1e-6
+        core_profiles.poloidal_flux.psi.value,
+        expected_psi,
+        atol=1e-6,
+        rtol=1e-6,
     )
 
   def test_initial_psi_from_geo(self):
@@ -202,7 +205,9 @@ class InitializationTest(parameterized.TestCase):
 
     # The `psi_from_I_p` attribute of the geometry is the ground truth here.
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
-    np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_I_p)
+    np.testing.assert_allclose(
+        core_profiles.poloidal_flux.psi.value, geo.psi_from_I_p
+    )
 
   def test_initial_psi_from_config(self):
     config_dict = default_configs.get_default_config_dict()
@@ -220,7 +225,9 @@ class InitializationTest(parameterized.TestCase):
     expected_psi = np.interp(
         geo.rho_norm, np.array([0.0, 1.0]), np.array([42.0, 43.0])
     )
-    np.testing.assert_allclose(core_profiles.psi.value, expected_psi)
+    np.testing.assert_allclose(
+        core_profiles.poloidal_flux.psi.value, expected_psi
+    )
 
   @parameterized.parameters([
       dict(geometry_name='circular'),
@@ -690,7 +697,7 @@ class InitializationTest(parameterized.TestCase):
         basic_source_outputs, source_models, bootstrap_current, geo
     )
     expected_psidot = psi_calculations.calculate_psidot(
-        psi=result.psi,
+        psi=result.poloidal_flux.psi,
         sigma=conductivity.sigma,
         psi_sources=expected_psi_sources,
         geo=geo,
@@ -817,8 +824,8 @@ def _get_initial_state(
       source_states=source_states,
       calculate_anyway=True,
   )
-  j_toroidal_total = core_profiles.j_toroidal_total
-  j_toroidal_total_face = core_profiles.j_toroidal_total_face
+  j_toroidal_total = core_profiles.poloidal_flux.j_toroidal_total
+  j_toroidal_total_face = core_profiles.poloidal_flux.j_toroidal_total_face
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
       sum(psi_sources.values(), start=jnp.zeros_like(geo.rho)),
       geo,

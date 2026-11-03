@@ -69,7 +69,7 @@ class BuildersTest(parameterized.TestCase):
         self.solver_state.n_e.value,
     )
     np.testing.assert_allclose(
-        result.flux.psi.value,
+        result.poloidal_flux.psi.value,
         self.solver_state.psi.value,
     )
     np.testing.assert_allclose(
@@ -77,7 +77,7 @@ class BuildersTest(parameterized.TestCase):
         self.solver_state.toroidal_angular_velocity.value,
     )
     np.testing.assert_allclose(
-        result.flux.v_loop_lcfs,
+        result.poloidal_flux.v_loop_lcfs,
         jnp.asarray(0.0, dtype=jax_utils.get_dtype()),
     )
 
@@ -85,17 +85,7 @@ class BuildersTest(parameterized.TestCase):
     expected_q_face = psi_calculations.calc_q_face(
         self.geo, self.solver_state.psi
     )
-    np.testing.assert_allclose(result.flux.q_face, expected_q_face)
-
-    # Check compatibility property access on BaseCoreProfiles.
-    np.testing.assert_allclose(
-        result.T_i.value,
-        self.solver_state.T_i.value,
-    )
-    np.testing.assert_allclose(
-        result.psi.value,
-        self.solver_state.psi.value,
-    )
+    np.testing.assert_allclose(result.poloidal_flux.q_face, expected_q_face)
     self.assertTrue(result.quasineutrality_satisfied())
 
   def test_build_base_core_profiles_custom_v_loop_lcfs(self):
@@ -106,7 +96,7 @@ class BuildersTest(parameterized.TestCase):
         solver_state=self.solver_state,
         v_loop_lcfs=custom_v_loop,
     )
-    np.testing.assert_allclose(result.flux.v_loop_lcfs, custom_v_loop)
+    np.testing.assert_allclose(result.poloidal_flux.v_loop_lcfs, custom_v_loop)
 
   def test_build_base_core_profiles_jittable(self):
     @jax.jit
@@ -174,7 +164,7 @@ class BuildersTest(parameterized.TestCase):
         self.solver_state.n_e.value,
     )
     np.testing.assert_allclose(
-        result.flux.psi.value,
+        result.poloidal_flux.psi.value,
         self.solver_state.psi.value,
     )
 
@@ -198,7 +188,7 @@ class BuildersTest(parameterized.TestCase):
         explicit=True,
         v_loop_lcfs=custom_v_loop,
     )
-    np.testing.assert_allclose(result.flux.v_loop_lcfs, custom_v_loop)
+    np.testing.assert_allclose(result.poloidal_flux.v_loop_lcfs, custom_v_loop)
     assert result.psidot.right_face_constraint is not None
     np.testing.assert_allclose(
         result.psidot.right_face_constraint,

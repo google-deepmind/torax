@@ -34,43 +34,57 @@ class SourceModelsTest(parameterized.TestCase):
     self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
 
   def test_computing_source_profiles_works_with_all_defaults(self):
-    torax_config = config.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict()
-    )
-    core_profiles, runtime_params, geo = (
-        core_profile_helpers.make_initial_inputs(torax_config)
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    source_states = source_models.initial_state(runtime_params)
-    _, bootstrap_current, _, _ = (
-        neoclassical_model.calculate_conductivity_current_and_rotation(
-            runtime_params,
-            geo,
-            core_profiles,
-            fast_ions=core_profiles.fast_ions,
-        )
-    )
-    explicit_source_profiles, source_states = (
-        source_profile_builders.build_source_profiles(
-            runtime_params,
-            geo,
-            core_profiles,
-            source_models,
+    (
+        source_models,
+        runtime_params,
+        geo,
+        core_profiles,
+        source_states,
+        _,
+        bootstrap_current,
+    ) = self._build_test_env(is_explicit=False)
+
+    explicit_outputs, source_states = (
+        source_profile_builders.evaluate_basic_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            solver_profiles=core_profiles,
+            source_models=source_models,
             source_states=source_states,
             explicit=True,
         )
     )
-    source_profile_builders.build_source_profiles(
-        runtime_params,
-        geo,
-        core_profiles,
-        source_models,
-        source_states=source_states,
-        explicit=False,
-        explicit_source_profiles=explicit_source_profiles,
-        bootstrap_current=bootstrap_current,
+    basic_outputs, source_states = (
+        source_profile_builders.evaluate_basic_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            solver_profiles=core_profiles,
+            source_models=source_models,
+            source_states=source_states,
+            explicit=False,
+        )
     )
+    all_basic_outputs = {**explicit_outputs, **basic_outputs}
+    final_profiles, final_states = (
+        source_profile_builders.evaluate_dependent_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            source_models=source_models,
+            source_states=source_states,
+            basic_source_outputs=all_basic_outputs,
+            bootstrap_current=bootstrap_current,
+        )
+    )
+
+    self.assertIn('impurity_radiation', final_profiles.T_e)
+    self.assertTrue(jnp.any(final_profiles.T_e['impurity_radiation'] < 0.0))
+    self.assertIn('ohmic', final_profiles.T_e)
+    self.assertIn('icrh', final_profiles.T_e)
+    self.assertIn('icrh', final_profiles.T_i)
+    self.assertIn('ecrh', final_profiles.T_e)
+    self.assertIn('ecrh', final_profiles.psi)
+    self.assertNotEmpty(final_states)
 
   def _build_test_env(
       self,
@@ -149,10 +163,10 @@ class SourceModelsTest(parameterized.TestCase):
     explicit_outputs = None
     if not is_explicit:
       explicit_outputs, _ = source_profile_builders.evaluate_basic_sources(
-          runtime_params,
-          geo,
-          core_profiles,
-          source_models,
+          runtime_params=runtime_params,
+          geo=geo,
+          solver_profiles=core_profiles,
+          source_models=source_models,
           source_states=source_states,
           explicit=True,
       )
@@ -201,17 +215,17 @@ class SourceModelsTest(parameterized.TestCase):
     ) = self._build_test_env(is_explicit=False)
 
     explicit_outputs, _ = source_profile_builders.evaluate_basic_sources(
-        runtime_params,
-        geo,
-        core_profiles,
-        source_models,
+        runtime_params=runtime_params,
+        geo=geo,
+        solver_profiles=core_profiles,
+        source_models=source_models,
         source_states=source_states,
         explicit=True,
     )
 
     orig_keys = set(explicit_outputs.keys())
 
-    basic_outputs, stage_states = (
+    basic_outputs, updated_source_states = (
         source_profile_builders.evaluate_basic_sources(
             runtime_params=runtime_params,
             geo=geo,
@@ -227,7 +241,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        source_states=stage_states,
+        source_states=updated_source_states,
         basic_source_outputs=all_basic_outputs,
         bootstrap_current=bootstrap_current,
     )

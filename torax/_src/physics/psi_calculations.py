@@ -293,10 +293,10 @@ def calc_Wpol(
 
 
 def calc_li3(
-    R_major: jax.Array,
-    Wpol: jax.Array,
-    I_p_total: jax.Array,
-) -> jax.Array:
+    R_major: array_typing.FloatScalar,
+    Wpol: array_typing.FloatScalar,
+    I_p_total: array_typing.FloatScalar,
+) -> array_typing.FloatScalar:
   """Calculates li3 based on a formulation using Wpol.
 
   Normalized internal inductance is defined as:

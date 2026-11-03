@@ -83,22 +83,24 @@ def calculate_impurity_species_output(
     ):
       radiation_active = False
 
-  impurity_fractions = sim_state.core_profiles.impurity_fractions
+  impurity_fractions = sim_state.core_profiles.ions.impurity_fractions
   impurity_names = runtime_params.plasma_composition.impurity_names
-  charge_state_info = sim_state.core_profiles.charge_state_info
+  charge_state_info = sim_state.core_profiles.ions.charge_state_info
 
   for symbol in impurity_names:
     core_profiles = sim_state.core_profiles
     impurity_density_scaling = core_profiles.impurity_density_scaling
     n_imp = (
         impurity_fractions[symbol]
-        * core_profiles.n_impurity.value
+        * core_profiles.kinetic.n_impurity.value
         * impurity_density_scaling
     )
     Z_imp = charge_state_info.Z_per_species[symbol]
     if radiation_active:
-      lz = radiation_lib.calculate_cooling_rate(core_profiles.T_e.value, symbol)
-      radiation = n_imp * core_profiles.n_e.value * lz
+      lz = radiation_lib.calculate_cooling_rate(
+          core_profiles.kinetic.T_e.value, symbol
+      )
+      radiation = n_imp * core_profiles.kinetic.n_e.value * lz
     else:
       radiation = jnp.zeros_like(n_imp)
     impurity_species_output[symbol] = ImpuritySpeciesOutput(
