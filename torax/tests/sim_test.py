@@ -288,7 +288,6 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup_sawtooth.py',
       ),
       # Tests LH transition with ADAPTIVE_TRANSPORT
-      # TODO(b/331171303): Reinstate when fixed.
       # (
       #     'test_iterhybrid_lh_transition',
       #     'test_iterhybrid_lh_transition.py',

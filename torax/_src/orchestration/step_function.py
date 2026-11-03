@@ -371,8 +371,6 @@ class SimulationStepFn:
         body,
         (remaining_dt, input_state, previous_post_processed_outputs),
     )
-    # TODO(b/456188184): Add a return value for the number of steps, sawtooth
-    # crashes, and solver error states etc.
     # Set the dt to the original dt passed to the function, and the t to the
     # final time.
     # In case we exited early return the actual elapsed dt.
