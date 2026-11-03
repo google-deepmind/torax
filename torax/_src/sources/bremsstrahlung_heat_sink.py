@@ -23,8 +23,8 @@ from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -42,7 +42,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 def calc_bremsstrahlung(
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles_lib.SolverProfiles,
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
     exclude_impurity_bremsstrahlung: bool = False,
@@ -127,7 +127,7 @@ class BremsstrahlungHeatSink(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      solver_profiles: state.BaseCoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates bremsstrahlung radiation heat sink profile.

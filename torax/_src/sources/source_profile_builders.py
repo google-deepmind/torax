@@ -21,6 +21,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
@@ -33,7 +34,7 @@ from torax._src.sources import source_state as source_state_lib
 def evaluate_basic_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_profiles: state.BaseCoreProfiles,
+    solver_profiles: solver_profiles_lib.SolverProfiles,
     source_models: source_models_lib.SourceModels,
     source_states: Mapping[str, source_state_lib.SourceState],
     explicit: bool,
@@ -42,7 +43,7 @@ def evaluate_basic_sources(
     dict[str, source_profiles.SourceOutput],
     dict[str, source_state_lib.SourceState],
 ]:
-  """Evaluates basic standard sources depending only on BaseCoreProfiles.
+  """Evaluates basic standard sources depending only on SolverProfiles.
 
   Basic sources depend only on base profiles and do not require psidot,
   conductivity, or outputs of other sources. This function is used to evaluate
@@ -82,7 +83,7 @@ def evaluate_basic_sources(
 def evaluate_psi_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_profiles: state.BaseCoreProfiles,
+    solver_profiles: solver_profiles_lib.SolverProfiles,
     source_models: source_models_lib.SourceModels,
     source_states: Mapping[str, source_state_lib.SourceState],
     calculate_anyway: bool = False,

@@ -23,7 +23,7 @@ import jax
 import jax.numpy as jnp
 import pydantic
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
@@ -131,7 +131,7 @@ class BootstrapCurrentModel(abc.ABC):
       self,
       runtime_params: bootstrap_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.BaseCoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> BootstrapCurrent:

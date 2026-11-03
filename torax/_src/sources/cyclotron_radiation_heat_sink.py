@@ -26,8 +26,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -247,7 +247,7 @@ class CyclotronRadiationHeatSink(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      solver_profiles: state.BaseCoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates cyclotron radiation heat sink for electron heat equation.

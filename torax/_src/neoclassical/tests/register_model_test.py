@@ -23,6 +23,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
@@ -49,7 +50,7 @@ class CustomConductivityModel(conductivity_base.ConductivityModel):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.BaseCoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> state.Conductivity:
     del runtime_params, core_profiles, neoclassical_intermediates
@@ -80,7 +81,7 @@ class CustomPoloidalVelocityModel(poloidal_velocity_base.PoloidalVelocityModel):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.BaseCoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> poloidal_velocity_base.PoloidalVelocity:
     return poloidal_velocity_zeros.ZerosModel().calculate_poloidal_velocity(
@@ -123,7 +124,7 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.BaseCoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> tuple[
       state.Conductivity,

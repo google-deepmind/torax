@@ -85,7 +85,7 @@ class SourceModels(static_dataclass.StaticDataclass):
   def basic_sources(
       self,
   ) -> immutabledict.immutabledict[str, source_lib.Source]:
-    """Derived mapping of standard sources depending only on BaseCoreProfiles.
+    """Derived mapping of standard sources depending only on SolverProfiles.
 
     These sources depend only on base profiles and do not require psidot,
     conductivity, or outputs of other sources.

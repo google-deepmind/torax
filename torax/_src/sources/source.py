@@ -27,6 +27,7 @@ from jax import numpy as jnp
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
@@ -108,14 +109,14 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class Source(SourceBase):
-  """Standard source model depending on BaseCoreProfiles."""
+  """Standard source model depending on SolverProfiles."""
 
   @abc.abstractmethod
   def _get_model_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      solver_profiles: state.BaseCoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the model-based value and updated state for this source."""
@@ -124,7 +125,7 @@ class Source(SourceBase):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      solver_profiles: state.BaseCoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the cell grid profile and updated state for this source."""

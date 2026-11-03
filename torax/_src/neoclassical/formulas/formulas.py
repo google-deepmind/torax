@@ -18,7 +18,9 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.physics import collisions
@@ -63,7 +65,7 @@ class AnalyticalNeoclassicalIntermediates(
 
 def compute_neoclassical_intermediates(
     geo: geometry_lib.Geometry,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles_lib.SolverProfiles,
     fast_ions: tuple[fast_ion_lib.FastIon, ...],
 ) -> AnalyticalNeoclassicalIntermediates:
   """Computes shared quantities for analytical neoclassical models.
@@ -186,7 +188,7 @@ def calculate_nu_i_star(
     q: Safety factor.
     geo: The geometry of the torus.
     n_i: Ion density in Sauter Eq. (18c) [m^-3]. Total thermal ion particle
-      density (``BaseCoreProfiles.calculate_n_i_total_thermal_face``) for
+      density (``SolverProfiles.calculate_n_i_total_thermal_face``) for
       Sauter/Redl bootstrap; main-ion density for single-fluid uses (poloidal
       velocity) and Angioni-Sauter transport (where impurity collisions enter
       via alpha_I).

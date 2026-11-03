@@ -19,9 +19,9 @@ from absl.testing import parameterized
 import chex
 import jax
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import config_loader
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base as source_base_pydantic_model
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
@@ -49,7 +49,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      solver_profiles: state.BaseCoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[
       source_profiles.SourceOutput,

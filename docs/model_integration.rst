@@ -332,7 +332,7 @@ are inherited automatically.
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          solver_profiles: torax.BaseCoreProfiles,
+          solver_profiles: torax.SolverProfiles,
           source_state: sources.SourceState,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
         # Return a SourceOutput with one profile per affected core profile,
@@ -703,7 +703,7 @@ Create a ``NeoclassicalModel`` subclass implementing
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.BaseCoreProfiles,
+          core_profiles: torax.SolverProfiles,
           fast_ions: tuple[Any, ...],
       ) -> tuple[
           neoclassical.Conductivity,

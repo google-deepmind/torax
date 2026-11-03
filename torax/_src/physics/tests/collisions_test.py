@@ -16,10 +16,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.core_profiles import poloidal_flux_profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.physics import charge_states
 from torax._src.physics import collisions
@@ -197,7 +197,7 @@ class CollisionsTest(parameterized.TestCase):
         I_p_profile_face=jnp.zeros(2),
         v_loop_lcfs=jnp.array(0.0),
     )
-    core_profiles = state.BaseCoreProfiles(
+    core_profiles = solver_profiles.SolverProfiles(
         kinetic=kinetic,
         ions=ions,
         poloidal_flux=poloidal_flux,

@@ -24,10 +24,12 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import builders
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -351,7 +353,7 @@ def _iterate_psi_and_sources(
       )
   source_states_i = source_states
   for _ in range(iterations):
-    base_profiles = builders.build_base_core_profiles(
+    base_profiles = solver_profiles_lib.SolverProfiles.from_solver_state(
         runtime_params=runtime_params,
         geo=geo,
         solver_state=solver_state,

@@ -22,6 +22,9 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import state
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
@@ -375,11 +378,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    base_core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
+    solver_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
-        base_core_profiles,
+        solver_profiles,
         kinetic=dataclasses.replace(
-            base_core_profiles.kinetic,
+            solver_profiles.kinetic,
             T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
             T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
             n_e=core_profile_helpers.make_constant_core_profile(
@@ -432,23 +435,23 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
   def test_n_i_total_thermal_face_rescales_impurity_density(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    solver_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     # Bundled impurity charge <Z^2>/<Z> = 3 and <Z> = 2, so the true impurity
     # particle density is 1.5x the bundled one.
     core_profiles = dataclasses.replace(
-        base_core_profiles,
+        solver_profiles,
         kinetic=dataclasses.replace(
-            base_core_profiles.kinetic,
+            solver_profiles.kinetic,
             n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
             n_impurity=core_profile_helpers.make_constant_core_profile(
                 geo, 0.25e20
             ),
         ),
         ions=dataclasses.replace(
-            base_core_profiles.ions,
+            solver_profiles.ions,
             Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
             charge_state_info_face=dataclasses.replace(
-                base_core_profiles.ions.charge_state_info_face,
+                solver_profiles.ions.charge_state_info_face,
                 Z_avg=jnp.full_like(geo.rho_face, 2.0),
             ),
         ),
@@ -460,7 +463,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
   def test_thermal_densities_with_fast_ions(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    solver_profiles = core_profile_helpers.make_zero_core_profiles(geo)
 
     fast_ion_he3 = fast_ion_lib.FastIon(
         species='He3',
@@ -470,9 +473,9 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     )
 
     core_profiles = dataclasses.replace(
-        base_core_profiles,
+        solver_profiles,
         kinetic=dataclasses.replace(
-            base_core_profiles.kinetic,
+            solver_profiles.kinetic,
             T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
             T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
             n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
@@ -482,7 +485,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
             ),
         ),
         ions=dataclasses.replace(
-            base_core_profiles.ions,
+            solver_profiles.ions,
             main_ion_fractions={'D': 1.0},
             impurity_fractions={'He3': jnp.ones(10)},
         ),
@@ -855,8 +858,8 @@ class SolverNumericOutputsTest(parameterized.TestCase):
     )
 
 
-class BaseCoreProfilesTest(parameterized.TestCase):
-  """Unit tests for BaseCoreProfiles and CoreProfiles."""
+class SolverProfilesTest(parameterized.TestCase):
+  """Unit tests for SolverProfiles and CoreProfiles."""
 
   def setUp(self):
     super().setUp()
@@ -867,14 +870,14 @@ class BaseCoreProfilesTest(parameterized.TestCase):
     core_profiles, self.runtime_params, _ = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    self.base_profiles = state.BaseCoreProfiles(
+    self.base_profiles = solver_profiles_lib.SolverProfiles(
         kinetic=core_profiles.kinetic,
         ions=core_profiles.ions,
         poloidal_flux=core_profiles.poloidal_flux,
     )
     self.core_profiles = core_profiles
 
-  def test_base_core_profiles_properties(self):
+  def test_solver_profiles_properties(self):
     self.assertTrue(self.base_profiles.quasineutrality_satisfied())
     self.assertFalse(self.base_profiles.negative_temperature_or_density())
     self.assertFalse(self.base_profiles.below_minimum_temperature(10.0))

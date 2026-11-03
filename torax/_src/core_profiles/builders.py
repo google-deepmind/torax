@@ -20,11 +20,11 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import ion_composition as ion_composition_lib
-from torax._src.core_profiles import kinetic_profiles
-from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
@@ -35,54 +35,6 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources import source_state as source_state_lib
-
-
-def build_base_core_profiles(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    solver_state: solver_state_lib.SolverState,
-    v_loop_lcfs: array_typing.FloatScalar | None = None,
-) -> state.BaseCoreProfiles:
-  """Constructs purely algebraic BaseCoreProfiles from SolverState.
-
-  Used by the unified physics pipeline and initial state convergence.
-
-  Args:
-    runtime_params: Runtime parameters.
-    geo: Geometry of the tokamak.
-    solver_state: The current set of primary profiles.
-    v_loop_lcfs: Loop voltage at the LCFS [V]. If None, defaults to 0.0.
-
-  Returns:
-    BaseCoreProfiles with kinetic, ions, and poloidal_flux.
-  """
-  ion_composition, n_i, n_impurity = (
-      ion_composition_lib.IonComposition.from_profiles(
-          runtime_params.plasma_composition,
-          geo,
-          solver_state.n_e,
-          solver_state.T_e,
-      )
-  )
-  poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles.from_psi(
-      geo=geo,
-      psi=solver_state.psi,
-      min_rho_norm=runtime_params.numerics.min_rho_norm,
-      v_loop_lcfs=v_loop_lcfs,
-  )
-  kinetic = kinetic_profiles.KineticProfiles(
-      T_i=solver_state.T_i,
-      T_e=solver_state.T_e,
-      n_e=solver_state.n_e,
-      n_i=n_i,
-      n_impurity=n_impurity,
-      toroidal_angular_velocity=solver_state.toroidal_angular_velocity,
-  )
-  return state.BaseCoreProfiles(
-      kinetic=kinetic,
-      ions=ion_composition,
-      poloidal_flux=poloidal_flux,
-  )
 
 
 def build_core_profiles(
@@ -139,7 +91,7 @@ def build_core_profiles(
     )
 
   # Construct profiles that depend only on the solver variables.
-  base_profiles = build_base_core_profiles(
+  base_profiles = solver_profiles_lib.SolverProfiles.from_solver_state(
       runtime_params=runtime_params,
       geo=geo,
       solver_state=solver_state,

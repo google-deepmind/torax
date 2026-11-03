@@ -18,10 +18,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.core_profiles import poloidal_flux_profiles
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import scaling_laws
@@ -40,7 +40,7 @@ class ScalingLawsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
 
-    core_profiles = state.BaseCoreProfiles(
+    core_profiles = solver_profiles.SolverProfiles(
         kinetic=kinetic_profiles.KineticProfiles(
             n_e=cell_variable.CellVariable(
                 value=jnp.ones_like(geo.rho_norm) * 2e20,
@@ -177,7 +177,7 @@ class ScalingLawsTest(parameterized.TestCase):
         a_minor=2.0,
         B_0=5.0,
     ).build_geometry()
-    core_profiles = state.BaseCoreProfiles(
+    core_profiles = solver_profiles.SolverProfiles(
         kinetic=kinetic_profiles.KineticProfiles(
             n_e=cell_variable.CellVariable(
                 value=jnp.ones_like(geo.rho_norm) * 2e20,

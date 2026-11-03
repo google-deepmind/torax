@@ -27,6 +27,7 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
 from torax._src.geometry import geometry
@@ -592,7 +593,7 @@ class CalcCoeffsTest(parameterized.TestCase):
 
     self.assertLen(observed_calls, 1)
     passed_core_profiles, passed_fast_ions = observed_calls[0]
-    self.assertIsInstance(passed_core_profiles, state.BaseCoreProfiles)
+    self.assertIsInstance(passed_core_profiles, solver_profiles.SolverProfiles)
     self.assertNotEmpty(passed_fast_ions)
     passed_he3 = [fi for fi in passed_fast_ions if fi.species == 'He3']
     self.assertLen(passed_he3, 1)

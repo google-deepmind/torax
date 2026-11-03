@@ -26,7 +26,7 @@ import enum
 import jax
 from jax import numpy as jnp
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -80,7 +80,7 @@ class PLHAuxiliaryData:
 
 def _calculate_P_LH_high_density(
     geo: geometry.Geometry,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     line_average_n_e: jax.Array,
     scaling_law: PLHScalingLaw,
     divertor_factor: float = 1.0,
@@ -124,7 +124,7 @@ def _calculate_P_LH_high_density(
 
 def _calculate_line_average_n_e_at_P_LH_min(
     geo: geometry.Geometry,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
 ) -> jax.Array:
   """Calculates the density at P_LH_min from equation 3 in Ryter 2014."""
   I_p_total = core_profiles.poloidal_flux.I_p_profile_face[..., -1]
@@ -140,7 +140,7 @@ def _calculate_line_average_n_e_at_P_LH_min(
 
 def calculate_P_LH(
     geo: geometry.Geometry,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     scaling_law: PLHScalingLaw,
     divertor_configuration: DivertorConfiguration = (
         DivertorConfiguration.HORIZONTAL_TARGET
@@ -219,7 +219,7 @@ def calculate_P_LH(
 
 def calculate_scaling_law_confinement_time(
     geo: geometry.Geometry,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     P_loss: jax.Array,
     scaling_law: str,
 ) -> jax.Array:

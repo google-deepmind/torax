@@ -20,8 +20,8 @@ from torax._src import array_typing
 from torax._src import model_state as model_state_lib
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import builders
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_profiles
 from torax._src.core_profiles import solver_state
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
@@ -193,7 +193,7 @@ def _evolve_x_after_sawtooth(
       evolving_names,
       solver_state_redistributed,
   )
-  base_profiles = builders.build_base_core_profiles(
+  base_profiles = solver_profiles.SolverProfiles.from_solver_state(
       runtime_params_t_plus_crash_dt,
       geo_t_plus_crash_dt,
       updated_solver_state,

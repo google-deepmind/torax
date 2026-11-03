@@ -25,9 +25,9 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import builders
+from torax._src.core_profiles import solver_profiles
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
-from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -45,72 +45,6 @@ class BuildersTest(parameterized.TestCase):
         core_profile_helpers.make_initial_inputs(self.torax_config)
     )
     self.solver_state = self.core_profiles_t0.to_solver_state()
-
-  def test_build_base_core_profiles_structure_and_values(self):
-    result = builders.build_base_core_profiles(
-        runtime_params=self.runtime_params,
-        geo=self.geo,
-        solver_state=self.solver_state,
-    )
-
-    self.assertIsInstance(result, state.BaseCoreProfiles)
-    np.testing.assert_allclose(
-        result.kinetic.T_i.value,
-        self.solver_state.T_i.value,
-    )
-    np.testing.assert_allclose(
-        result.kinetic.T_e.value,
-        self.solver_state.T_e.value,
-    )
-    np.testing.assert_allclose(
-        result.kinetic.n_e.value,
-        self.solver_state.n_e.value,
-    )
-    np.testing.assert_allclose(
-        result.poloidal_flux.psi.value,
-        self.solver_state.psi.value,
-    )
-    np.testing.assert_allclose(
-        result.kinetic.toroidal_angular_velocity.value,
-        self.solver_state.toroidal_angular_velocity.value,
-    )
-    np.testing.assert_allclose(
-        result.poloidal_flux.v_loop_lcfs,
-        jnp.asarray(0.0, dtype=jax_utils.get_dtype()),
-    )
-
-    # Check that safety factor and total current match direct calculations.
-    expected_q_face = psi_calculations.calc_q_face(
-        self.geo, self.solver_state.psi
-    )
-    np.testing.assert_allclose(result.poloidal_flux.q_face, expected_q_face)
-    self.assertTrue(result.quasineutrality_satisfied())
-
-  def test_build_base_core_profiles_custom_v_loop_lcfs(self):
-    custom_v_loop = jnp.asarray(1.75, dtype=jax_utils.get_dtype())
-    result = builders.build_base_core_profiles(
-        runtime_params=self.runtime_params,
-        geo=self.geo,
-        solver_state=self.solver_state,
-        v_loop_lcfs=custom_v_loop,
-    )
-    np.testing.assert_allclose(result.poloidal_flux.v_loop_lcfs, custom_v_loop)
-
-  def test_build_base_core_profiles_jittable(self):
-    @jax.jit
-    def jitted_builder(solver_state):
-      return builders.build_base_core_profiles(
-          runtime_params=self.runtime_params,
-          geo=self.geo,
-          solver_state=solver_state,
-      )
-
-    result = jitted_builder(self.solver_state)
-    self.assertIsInstance(result, state.BaseCoreProfiles)
-    np.testing.assert_allclose(
-        result.kinetic.T_i.value,
-        self.solver_state.T_i.value,
-    )
 
   def test_build_core_profiles_structure_and_values(self):
     models = self.torax_config.build_models()
@@ -277,7 +211,7 @@ class BuildersTest(parameterized.TestCase):
 
     self.assertLen(observed_calls, 1)
     passed_core_profiles, passed_fast_ions = observed_calls[0]
-    self.assertIsInstance(passed_core_profiles, state.BaseCoreProfiles)
+    self.assertIsInstance(passed_core_profiles, solver_profiles.SolverProfiles)
     self.assertNotEmpty(passed_fast_ions)
     passed_he3 = [fi for fi in passed_fast_ions if fi.species == 'He3']
     self.assertLen(passed_he3, 1)

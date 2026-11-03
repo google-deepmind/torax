@@ -19,9 +19,9 @@ import chex
 import jax
 from jax import numpy as jnp
 import pydantic
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -57,7 +57,7 @@ class QeiSource(static_dataclass.StaticDataclass):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.BaseCoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
@@ -75,7 +75,7 @@ class QeiSource(static_dataclass.StaticDataclass):
 def _model_based_qei(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
   source_params = runtime_params.sources[QeiSource.SOURCE_ID]

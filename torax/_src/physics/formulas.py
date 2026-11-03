@@ -49,6 +49,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
@@ -219,7 +220,7 @@ def calculate_time_derivative_with_exponential_smoothing(
 
 def calculate_greenwald_fraction(
     n_e_avg: array_typing.FloatScalar,
-    core_profiles: state.BaseCoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates the Greenwald fraction from the averaged electron density.
