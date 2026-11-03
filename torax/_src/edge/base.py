@@ -108,7 +108,21 @@ class EdgeModelOutputs:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Returns a dictionary of standard edge output variable tuples."""
+    """Packs time-stacked edge model outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time coordinates for shape validation and
+        `(dims, data, attrs)` packing. Mutated in-place to register the
+        `impurity` coordinate when `impurity_right_bc` is non-empty.
+
+    Returns:
+      Mapping from boundary condition variable names to `(dims, data, attrs)`
+      `OutputVar` tuples (omitting unset or empty fields):
+        - `T_e_right_bc`, `T_i_right_bc`, `n_e_right_bc`: `('time',)` with shape
+          `(n_time,)`.
+        - `impurity_right_bc`: `('impurity', 'time')` with shape
+          `(n_impurities, n_time)`.
+    """
     out_dict: dict[str, output_grid_context.OutputVar] = {}
     if self.T_e_right_bc is not None:
       out_dict[output_keys.T_E_RIGHT_BC] = context.pack(
@@ -157,7 +171,7 @@ class CombinedEdgeOutputs(EdgeModelOutputs):
   def to_xr_datatree(
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
-    """Builds an xr.DataTree of the combined edge model and sub-model outputs."""
+    """Builds an xr.DataTree of the combined edge model and sub-models."""
     base_tree = super().to_xr_datatree(context)
     children = {
         name: sub_out.to_xr_datatree(context)
@@ -183,7 +197,20 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> EdgeModelOutputs:
-    """Evaluates the edge model at the given time."""
+    """Evaluates the edge model at the given time.
+
+    Args:
+      edge_runtime_params: Runtime parameters for the edge model.
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+      core_sources: Core plasma sources.
+      previous_edge_outputs: Outputs from the edge model at the previous time
+        step, if available.
+
+    Returns:
+      Computed `EdgeModelOutputs` for the current state.
+    """
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -326,7 +353,7 @@ class EdgeModelConfig(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> edge_runtime_params_lib.RuntimeParams:
-    """Builds the runtime parameters for the edge model at time t."""
+    """Builds the runtime parameters for the edge model at time `t`."""
     return edge_runtime_params_lib.RuntimeParams(
         update_T_e=self.update_T_e.get_value(t),
         update_T_i=self.update_T_i.get_value(t),
