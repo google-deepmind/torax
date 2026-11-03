@@ -58,15 +58,15 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 'P_ohmic_e',
                 'P_alpha_total',
                 'P_bremsstrahlung_e',
-                'P_radiation_e',
-                'P_cyclotron_e',
+                'P_impurity_radiation_e',
+                'P_cyclotron_radiation_e',
             ),
             labels=(
                 r'$P_\mathrm{aux}$',
                 r'$P_\mathrm{ohm}$',
                 r'$P_\mathrm{\alpha}$',
-                r'$P_\mathrm{rad}$',
                 r'$P_\mathrm{brems}$',
+                r'$P_\mathrm{rad}$',
                 r'$P_\mathrm{cycl}$',
             ),
             ylabel=r'Total heating/sink powers $[MW]$',
@@ -92,7 +92,12 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('p_alpha_i', 'p_alpha_e', 'p_ohmic_e', 'ei_exchange'),
+            attrs=(
+                'p_alpha_i',
+                'p_alpha_e',
+                'p_ohmic_e',
+                'p_ei_exchange_i',
+            ),
             labels=(
                 r'$Q_\mathrm{alpha,i}$',
                 r'$Q_\mathrm{alpha,e}$',
