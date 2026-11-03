@@ -228,9 +228,6 @@ CONFIG = {
             "gaussian_location": 0.2,
             "gaussian_width": 0.3,
         },
-        "generic_particle": {"S_total": 0.0},
-        "gas_puff": {"S_total": 0.0},
-        "pellet": {"S_total": 0.0},
     },
     "transport": {
         "chi_min": 0.05,

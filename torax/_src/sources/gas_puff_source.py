@@ -14,10 +14,11 @@
 
 """Gas puff source for the n_e equation."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
@@ -36,8 +37,8 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
-  puff_decay_length: array_typing.FloatScalar
-  S_total: array_typing.FloatScalar
+  puff_decay_length: array_typing.FloatScalar | None
+  S_total: array_typing.FloatScalar | None
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -74,6 +75,10 @@ class GasPuffSource(source.Source):
     del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.puff_decay_length is None:
+      raise ValueError('GasPuffSource requires `puff_decay_length` to be set.')
+    if source_params.S_total is None:
+      raise ValueError('GasPuffSource requires `S_total` to be set.')
     profile = formulas.exponential_profile(
         decay_start=1.0,
         width=source_params.puff_decay_length,
@@ -88,19 +93,26 @@ class GasPuffSourceConfig(base.SourceConfigBase):
 
   Attributes:
     puff_decay_length: exponential decay length of gas puff ionization
-      [normalized radial coord]
-    S_total: total gas puff particles/s
+      [normalized radial coord]. Required when mode is 'model_based'.
+    S_total: total gas puff particles/s. Required when mode is 'model_based'.
   """
 
   model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
       'exponential'
   )
-  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1e22
-  )
+  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  S_total: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.S_total is None:
+        raise ValueError("S_total must be provided when mode is 'model_based'.")
+      if self.puff_decay_length is None:
+        raise ValueError(
+            "puff_decay_length must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -109,8 +121,12 @@ class GasPuffSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        puff_decay_length=self.puff_decay_length.get_value(t),
-        S_total=self.S_total.get_value(t),
+        puff_decay_length=(
+            None
+            if self.puff_decay_length is None
+            else self.puff_decay_length.get_value(t)
+        ),
+        S_total=(None if self.S_total is None else self.S_total.get_value(t)),
     )
 
   def build_source(self) -> GasPuffSource:

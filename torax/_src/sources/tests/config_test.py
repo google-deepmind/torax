@@ -95,6 +95,7 @@ class SourcesConfigTest(parameterized.TestCase):
         'gas_puff': {
             'is_explicit': True,
             'puff_decay_length': 1.23,
+            'S_total': 1e22,
         },
         'ohmic': {
             'mode': 'zero',  # turn it off.
@@ -111,6 +112,7 @@ class SourcesConfigTest(parameterized.TestCase):
     # With the overriding params.
     gas_puff_config = sources.gas_puff
     self.assertIsNotNone(gas_puff_config)
+    assert gas_puff_config.puff_decay_length is not None
     self.assertEqual(
         gas_puff_config.puff_decay_length.get_value(0.0),
         1.23,
@@ -275,6 +277,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=1e22,
           updated_value=2e22,
+          extra_fields={'puff_decay_length': 0.05},
       ),
       dict(
           testcase_name='generic_current',
@@ -393,6 +396,12 @@ class SourcesConfigTest(parameterized.TestCase):
           ),
       ),
       dict(
+          testcase_name='gas_puff',
+          source_name='gas_puff',
+          source_kwargs={},
+          expected_error="S_total must be provided when mode is 'model_based'",
+      ),
+      dict(
           testcase_name='icrh_scaled_profile',
           source_name='icrh',
           source_kwargs={
@@ -429,6 +438,12 @@ class SourcesConfigTest(parameterized.TestCase):
           source_name='ecrh',
           source_kwargs={},
           zero_fields=('P_total', 'extra_prescribed_power_density'),
+      ),
+      dict(
+          testcase_name='gas_puff',
+          source_name='gas_puff',
+          source_kwargs={},
+          zero_fields=('S_total',),
       ),
       dict(
           testcase_name='icrh_scaled_profile',
@@ -487,6 +502,14 @@ class SourcesConfigTest(parameterized.TestCase):
           expected_error=(
               'gaussian_location must be provided when mode is'
               " 'model_based' and P_total is provided"
+          ),
+      ),
+      dict(
+          testcase_name='gas_puff_missing_decay_length',
+          source_name='gas_puff',
+          source_kwargs={'S_total': 1e22},
+          expected_error=(
+              "puff_decay_length must be provided when mode is 'model_based'"
           ),
       ),
   )

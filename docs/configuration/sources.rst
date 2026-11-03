@@ -221,13 +221,15 @@ its configuration class in Python:
 
 ``mode`` (str [default = 'model'])
 
-``puff_decay_length`` (**time-varying-scalar** [default = 0.05])
-  Gas puff decay length from edge in units of :math:`\hat{\rho}`.
+``puff_decay_length`` (**time-varying-scalar** [default = None])
+  Gas puff decay length from edge in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
 **Parameters for** ``model_name = 'exponential'`` **:**
 
-``S_total`` (**time-varying-scalar** [default = 1e22])
-  Total number of particle source in units of particles/s.
+``S_total`` (**time-varying-scalar** [default = None])
+  Total number of particle source in units of particles/s. Required when
+  ``mode == 'model_based'``.
 
 **Parameters for** ``model_name = 'feedback'`` **:**
 

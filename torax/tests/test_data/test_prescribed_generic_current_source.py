@@ -67,16 +67,6 @@ CONFIG = {
                 ),
             ),
         },
-        # Disable density sources/sinks
-        'generic_particle': {
-            'S_total': 0.0,
-        },
-        'gas_puff': {
-            'S_total': 0.0,
-        },
-        'pellet': {
-            'S_total': 0.0,
-        },
         # Use default heat sources
         'generic_heat': {},
         'ei_exchange': {},
