@@ -140,7 +140,7 @@ three sub-models:
     transport once pedestal targets are reached). Additional parameters:
 
     * ``pedestal_active`` (**time-varying-scalar** [default = True]): Whether
-      the pedestal is active (default interpolation is ``STEP``; evaluated at
+      the pedestal is active (default interpolation is ``'step'``; evaluated at
       step start :math:`t`).
 
   * ``'martin_scaling'``: Uses the Martin scaling law to determine the L-H

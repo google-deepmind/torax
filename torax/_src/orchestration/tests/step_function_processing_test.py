@@ -60,7 +60,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
         },
         'formation_model': {
             'model_name': 'prescribed',
-            'pedestal_active': ({0.0: False, 0.5: True}, 'STEP'),
+            'pedestal_active': ({0.0: False, 0.5: True}, 'step'),
         },
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)

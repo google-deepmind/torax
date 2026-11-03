@@ -75,7 +75,7 @@ CONFIG = {
         },
         'formation_model': {
             'model_name': 'prescribed',
-            'pedestal_active': ({0: False, 4: True}, 'STEP'),
+            'pedestal_active': ({0: False, 4: True}, 'step'),
         },
     },
     'transport': {

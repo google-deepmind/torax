@@ -92,15 +92,15 @@ interpolation methods
 ^^^^^^^^^^^^^^^^^^^^^
 Currently, two interpolation modes are supported:
 
-* ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
+* ``'piecewise_linear'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values at each time value in the time-series
+* ``'step'``: stepwise change in values at each time value in the time-series
   (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 The interpolation method can be specified by giving a tuple of the form
 ``(inputs, interpolation_mode)``, where ``inputs`` is one of the input
 specifications listed in the previous section. Specifying no interpolation mode
-is equivalent to ``(inputs, 'PIECEWISE_LINEAR')``.
+is equivalent to ``(inputs, 'piecewise_linear')``.
 
 Examples
 ^^^^^^^^
@@ -111,7 +111,7 @@ time value.
 
 .. code-block:: python
 
-  I_p = ({10: 2.0e6, 100: 15.0e6}, 'PIECEWISE_LINEAR')
+  I_p = ({10: 2.0e6, 100: 15.0e6}, 'piecewise_linear')
 
 or more simply, taking advantage of the default.
 
@@ -126,7 +126,7 @@ transitioning to :math:`3~keV` at :math:`t=8s`, and back down to
 
 .. code-block:: python
 
-  T_i_top= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
+  T_i_top= ({2: 1.0, 8: 3.0, 20: 1.0}, 'step')
 
 
 .. _time_varying_arrays:
@@ -231,17 +231,17 @@ time and in :math:`\hat{\rho}`. To specify a different interpolation method:
 
 .. code-block:: python
 
-  (time_varying_array_value, {'time_interpolation_mode': 'STEP',
-  'rho_interpolation_mode': 'PIECEWISE_LINEAR'})
+  (time_varying_array_value, {'time_interpolation_mode': 'step',
+  'rho_interpolation_mode': 'piecewise_linear'})
 
 where ``time_varying_array_value`` is any of the above inputs
 (nested dictionary, arrays, etc.).
 
 Currently two interpolation modes are supported as for **time-varying-scalar**:
 
-* ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
+* ``'piecewise_linear'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values at each time value in the time-series
+* ``'step'``: stepwise change in values at each time value in the time-series
   (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 

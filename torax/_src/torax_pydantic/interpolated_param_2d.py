@@ -372,12 +372,12 @@ class TimeVaryingArray(config_base.ConfigBase):
 
     if isinstance(data, tuple):
       if len(data) == 2 and isinstance(data[1], dict):
-        time_interpolation_mode = interpolated_param.InterpolationMode[
-            data[1]['time_interpolation_mode'].upper()
-        ]
-        rho_interpolation_mode = interpolated_param.InterpolationMode[
-            data[1]['rho_interpolation_mode'].upper()
-        ]
+        time_interpolation_mode = interpolated_param.InterpolationMode(
+            data[1]['time_interpolation_mode']
+        )
+        rho_interpolation_mode = interpolated_param.InterpolationMode(
+            data[1]['rho_interpolation_mode']
+        )
         # First element in tuple assumed to be the input.
         data = data[0]
 

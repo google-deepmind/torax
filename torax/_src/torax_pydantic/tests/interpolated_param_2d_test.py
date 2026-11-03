@@ -843,6 +843,24 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
           },
       })
 
+  @parameterized.parameters(
+      ('STEP', 'piecewise_linear'),
+      ('PIECEWISE_LINEAR', 'piecewise_linear'),
+      ('piecewise_linear', 'STEP'),
+      ('piecewise_linear', 'PIECEWISE_LINEAR'),
+  )
+  def test_rejects_uppercase_interpolation_mode(
+      self, time_mode: str, rho_mode: str
+  ):
+    with self.assertRaises(pydantic.ValidationError):
+      interpolated_param_2d.TimeVaryingArray.model_validate((
+          {0.0: {0.0: 1.0, 1.0: 2.0}},
+          {
+              TIME_INTERPOLATION_MODE: time_mode,
+              RHO_INTERPOLATION_MODE: rho_mode,
+          },
+      ))
+
 
 if __name__ == '__main__':
   absltest.main()

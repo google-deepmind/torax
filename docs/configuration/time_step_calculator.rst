@@ -77,7 +77,7 @@ time_step_calculator
   known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
   different granularity of simulation is required for each phase. Note that the
   default interpolation mode for ``dt`` has been internally imposed as
-  ``'STEP'``.
+  ``'step'``.
   E.g.:
 
   .. code-block:: python

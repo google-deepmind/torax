@@ -585,6 +585,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'must be the same length'):
       scalar.update(replacements)
 
+  @parameterized.parameters('STEP', 'PIECEWISE_LINEAR')
+  def test_rejects_uppercase_interpolation_mode(self, invalid_mode: str):
+    with self.assertRaises(pydantic.ValidationError):
+      torax_pydantic.TimeVaryingScalar.model_validate((1.0, invalid_mode))
+
 
 if __name__ == '__main__':
   absltest.main()
