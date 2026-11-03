@@ -50,7 +50,7 @@ class CoreTransport:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a CoreTransport with all zeros. Useful for initializing."""
+    """Returns a CoreTransport with all zeros, used for initializing."""
     return cls(
         total=transport_coeffs_lib.TransportCoeffs.zeros(geo),
         turbulent=transport_coeffs_lib.TurbulentTransport.zeros(geo),
@@ -62,7 +62,18 @@ class CoreTransport:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts CoreTransport into an OutputVar mapping for the profiles node."""
+    """Packs time-stacked core transport outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from turbulent and neoclassical transport channel names
+      (`chi_turb_*`, `d_turb_e`, `v_turb_e`, `chi_neo_*`, `d_neo_e`,
+      `v_neo_e`, `v_neo_ware_e`) to `(dims, data, attrs)` `OutputVar` tuples
+      on `('time', 'rho_face_norm')` with shape `(n_time, n_rho_face)`.
+    """
     return {
         **self.turbulent.to_output_dict(context),
         **self.neoclassical.to_output_dict(context),
@@ -95,7 +106,18 @@ class SolverNumericOutputs:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked SolverNumericOutputs into a dictionary of OutputVar tuples."""
+    """Packs time-stacked solver numeric outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time coordinates for shape validation and
+        `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from solver diagnostic names (`outer_solver_iterations`,
+      `inner_solver_iterations`, `solver_error_state`, `sawtooth_crash`) to
+      `(dims, data, attrs)` `OutputVar` tuples on `('time',)` with shape
+      `(n_time,)`.
+    """
     return {
         output_keys.OUTER_SOLVER_ITERATIONS: context.pack(
             output_keys.OUTER_SOLVER_ITERATIONS, self.outer_solver_iterations
@@ -125,6 +147,7 @@ class SimError(enum.Enum):
   DID_NOT_REACH_T_FINAL = 6
 
   def log_error(self):
+    """Logs an error message corresponding to the simulation error state."""
     match self:
       case SimError.NEGATIVE_CORE_PROFILES:
         logging.error("""

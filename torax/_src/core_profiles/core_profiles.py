@@ -154,7 +154,25 @@ class CoreProfiles(solver_profiles.SolverProfiles):
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts core profiles into an OutputVar mapping."""
+    """Packs time-stacked core profiles into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and packing. Also registers `main_ion` species coordinates
+        in-place when `ions.main_ion_fractions` is non-empty.
+
+    Returns:
+      Mapping from xarray output variable names to `(dims, data, attrs)`
+      `OutputVar` tuples:
+        - Cell+boundary profiles (including per-source/species fast-ion
+          densities and temperatures): `('time', 'rho_norm')`, shape
+          `(n_time, n_rho_cell + 2)`.
+        - Face profiles (`q_face`, `s_face`, `I_p_profile`):
+          `('time', 'rho_face_norm')`, shape `(n_time, n_rho_face)`.
+        - Scalars (`v_loop_lcfs`, `A_i`, `I_p`): `('time',)`, shape `(n_time,)`.
+        - Main ion fractions (if present): `('main_ion', 'time')`, shape
+          `(n_main_ions, n_time)`.
+    """
     out_dict = {}
 
     cell_vars = {

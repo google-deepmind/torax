@@ -213,7 +213,7 @@ class SolverProfiles:
 
   @jax.jit
   def below_minimum_temperature(self, T_min_eV: float) -> jax.Array:
-    """Return True if T_e or T_i is below the minimum temperature threshold."""
+    """Checks if T_e or T_i is below `T_min_eV` [eV]."""
     # Convert eV -> keV since internal storage is keV.
     T_min_keV = T_min_eV / 1000.0
 

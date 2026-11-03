@@ -457,12 +457,18 @@ class PostProcessedOutputs:
 
   @jax.jit
   def has_nan(self) -> jax.Array:
-    """Returns a boolean JAX scalar indicating whether any leaf has NaNs."""
+    """Checks if any leaf in PostProcessedOutputs contains NaNs."""
     return jnp.any(
         jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
     )
 
-  def check_for_errors(self):
+  def check_for_errors(self) -> state.SimError:
+    """Checks for NaNs in the post-processed outputs.
+
+    Returns:
+      SimError.NAN_DETECTED if any NaNs are present, otherwise
+      SimError.NO_ERROR.
+    """
     if self.has_nan():
       path_vals, _ = jax.tree.flatten_with_path(self)
       for path, value in path_vals:
@@ -479,7 +485,29 @@ class PostProcessedOutputs:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts post-processed outputs into an OutputVar mapping."""
+    """Packs time-stacked post-processed outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and packing. Also registers `impurity` species coordinates
+        in-place when `impurity_species` is non-empty.
+
+    Returns:
+      Mapping from xarray output variable names to `(dims, data, attrs)`
+      `OutputVar` tuples:
+        - Face profiles (`pprime`, `FFprime`, `psi_norm`, `poloidal_velocity`,
+          `E_r`, beta/alpha profiles): `('time', 'rho_face_norm')`, shape
+          `(n_time, n_rho_face)`.
+        - Cell current profiles (`j_*`): `('time', 'rho_cell_norm')`, shape
+          `(n_time, n_rho_cell)`.
+        - Extended bootstrap toroidal current (`j_toroidal_bootstrap`):
+          `('time', 'rho_norm')`, shape `(n_time, n_rho_cell + 2)`.
+        - Scalar quantities (stored energies, powers, averages, currents,
+          beta, `q` diagnostics): `('time',)`, shape `(n_time,)`.
+        - Per-species impurity radiation/density/charge (if present):
+          `('impurity', 'time', 'rho_cell_norm')`, shape
+          `(n_impurities, n_time, n_rho_cell)`.
+    """
     out_dict: dict[str, output_grid_context.OutputVar] = {}
 
     # 1. Profiles on the face grid (FACE)
