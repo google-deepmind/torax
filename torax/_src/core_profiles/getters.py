@@ -21,6 +21,7 @@ from torax._src import math_utils
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.geometry import standard_geometry
 from torax._src.physics import psi_calculations
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -176,6 +177,121 @@ def get_updated_electron_density(
       right_face_constraint=n_e_right_bc,
   )
   return n_e
+
+
+def build_psi_cell_variable(
+    psi_value: array_typing.FloatVectorCell,
+    I_p: array_typing.FloatScalar,
+    geo: geometry.Geometry,
+    use_v_loop_lcfs_boundary_condition: bool,
+    psi_lcfs: array_typing.FloatScalar | None = None,
+) -> cell_variable.CellVariable:
+  """Builds a psi CellVariable with boundary conditions consistent with I_p.
+
+  Args:
+    psi_value: Poloidal flux values on the cell grid [Wb].
+    I_p: Total plasma current [A].
+    geo: Tokamak geometry.
+    use_v_loop_lcfs_boundary_condition: If True, sets a Dirichlet right-face
+      value constraint (`psi_lcfs` if provided, otherwise extrapolated from
+      `psi_value[-1]` using the `I_p`-derived edge gradient) to initialize the
+      LCFS flux for subsequent loop-voltage evolution. If False, sets a
+      Neumann right-face gradient constraint from `I_p`.
+    psi_lcfs: Optional LCFS poloidal flux [Wb] from a numerical equilibrium.
+
+  Returns:
+    Poloidal flux `CellVariable`.
+  """
+  if use_v_loop_lcfs_boundary_condition:
+    right_face_grad_constraint = None
+    if psi_lcfs is not None:
+      right_face_constraint = psi_lcfs
+    else:
+      dpsi_drhonorm_edge = (
+          psi_calculations.calculate_psi_grad_constraint_from_I_p(I_p, geo)
+      )
+      right_face_constraint = (
+          psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
+      )
+  else:
+    right_face_grad_constraint = (
+        psi_calculations.calculate_psi_grad_constraint_from_I_p(I_p, geo)
+    )
+    right_face_constraint = None
+
+  return cell_variable.CellVariable(
+      value=psi_value,
+      face_centers=geo.rho_face_norm,
+      right_face_grad_constraint=right_face_grad_constraint,
+      right_face_constraint=right_face_constraint,
+  )
+
+
+def get_prescribed_psi(
+    profile_conditions_params: core_profile_runtime_params.RuntimeParams,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Gets prescribed poloidal flux (psi) profile and boundary conditions.
+
+  Supports two prescribed modes selected by
+  `profile_conditions_params.initial_psi_source`:
+  - `PROFILE_CONDITIONS`: Uses the prescribed `profile_conditions_params.psi`
+    profile.
+  - `GEOMETRY`: Uses `geo.psi_from_I_p` and `geo.psi_from_I_p_face[-1]` from a
+    `StandardGeometry` equilibrium.
+
+  Args:
+    profile_conditions_params: Runtime parameters for profile conditions.
+    geo: Tokamak geometry.
+
+  Returns:
+    Poloidal flux `CellVariable` with boundary conditions consistent with
+    `I_p`.
+
+  Raises:
+    ValueError: If `initial_psi_source` is not `PROFILE_CONDITIONS` or
+      `GEOMETRY`, if `initial_psi_source` is `PROFILE_CONDITIONS` and `psi` is
+      `None`, or if `initial_psi_source` is `GEOMETRY` and `geo` is not a
+      `StandardGeometry`.
+  """
+  use_v_loop = (
+      profile_conditions_params.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  )
+  match profile_conditions_params.initial_psi_source:
+    case core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS:
+      if profile_conditions_params.psi is None:
+        raise ValueError(
+            'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
+        )
+      return build_psi_cell_variable(
+          psi_value=profile_conditions_params.psi,
+          I_p=profile_conditions_params.I_p,
+          geo=geo,
+          use_v_loop_lcfs_boundary_condition=use_v_loop,
+      )
+
+    case core_profile_runtime_params.InitialPsiSource.GEOMETRY:
+      if not isinstance(geo, standard_geometry.StandardGeometry):
+        raise ValueError(
+            'GEOMETRY initial_psi_source is only supported for standard'
+            ' geometry.'
+        )
+      # geo.psi_from_I_p_face[-1] is already made consistent with I_p by
+      # make_I_p_consistent.
+      return build_psi_cell_variable(
+          psi_value=geo.psi_from_I_p,
+          I_p=profile_conditions_params.I_p,
+          geo=geo,
+          use_v_loop_lcfs_boundary_condition=use_v_loop,
+          psi_lcfs=geo.psi_from_I_p_face[-1],
+      )
+
+    case _:
+      raise ValueError(
+          'Unsupported prescribed initial_psi_source:'
+          f' {profile_conditions_params.initial_psi_source}'
+      )
 
 
 def get_updated_psi(

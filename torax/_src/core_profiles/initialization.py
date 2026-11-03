@@ -33,7 +33,6 @@ from torax._src.core_profiles import (
 from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import standard_geometry
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
@@ -142,33 +141,12 @@ def update_psi_from_j(
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
-  # Set the BCs for psi to ensure the correct I_p
-  dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_I_p(
-      I_p,
-      geo,
+  return getters.build_psi_cell_variable(
+      psi_value=psi_value,
+      I_p=I_p,
+      geo=geo,
+      use_v_loop_lcfs_boundary_condition=use_v_loop_lcfs_boundary_condition,
   )
-
-  if use_v_loop_lcfs_boundary_condition:
-    # For v_loop_lcfs, we will prescribe a rate of change of psi at the LCFS
-    # For the first timestep, we need an initial value for psi at the LCFS, so
-    # we set it to match the desired plasma current.
-    right_face_grad_constraint = None
-    right_face_constraint = (
-        psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
-    )
-  else:
-    # Use the dpsi/drho calculated above as the right face gradient constraint
-    right_face_grad_constraint = dpsi_drhonorm_edge
-    right_face_constraint = None
-
-  psi = cell_variable.CellVariable(
-      value=psi_value,
-      face_centers=geo.rho_face_norm,
-      right_face_grad_constraint=right_face_grad_constraint,
-      right_face_constraint=right_face_constraint,
-  )
-
-  return psi
 
 
 def _init_psi(
@@ -207,76 +185,12 @@ def _init_psi(
   """
 
   match runtime_params.profile_conditions.initial_psi_source:
-    # Case 1: retrieving psi from the profile conditions, using the prescribed
-    # profile and I_p
-    case core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS:
-      if runtime_params.profile_conditions.psi is None:
-        raise ValueError(
-            'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
-        )
-      # Calculate the dpsi/drho necessary to achieve the given I_p
-      dpsi_drhonorm_edge = (
-          psi_calculations.calculate_psi_grad_constraint_from_I_p(
-              runtime_params.profile_conditions.I_p,
-              geo,
-          )
-      )
-
-      # Set the BCs to ensure the correct I_p
-      if (
-          runtime_params.profile_conditions.psi_bc_source
-          == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
-      ):
-        # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
-        # to achieve the desired I_p
-        right_face_grad_constraint = None
-        right_face_constraint = (
-            runtime_params.profile_conditions.psi[-1]
-            + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
-        )
-      else:
-        # Use the dpsi/drho calculated above as the right face gradient
-        # constraint
-        right_face_grad_constraint = dpsi_drhonorm_edge
-        right_face_constraint = None
-
-      return cell_variable.CellVariable(
-          value=runtime_params.profile_conditions.psi,
-          face_centers=geo.rho_face_norm,
-          right_face_grad_constraint=right_face_grad_constraint,
-          right_face_constraint=right_face_constraint,
-      )
-
-    # Case 2: retrieving psi from the standard geometry input.
-    case core_profile_runtime_params.InitialPsiSource.GEOMETRY:
-      if not isinstance(geo, standard_geometry.StandardGeometry):
-        raise ValueError(
-            'GEOMETRY initial_psi_source is only supported for standard'
-            ' geometry.'
-        )
-      # psi is already provided from a numerical equilibrium, so no need to
-      # first calculate currents.
-      dpsi_drhonorm_edge = (
-          psi_calculations.calculate_psi_grad_constraint_from_I_p(
-              runtime_params.profile_conditions.I_p,
-              geo,
-          )
-      )
-      use_v_loop = (
-          runtime_params.profile_conditions.psi_bc_source
-          == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
-      )
-      # Use the psi from the equilibrium as the right face constraint
-      # This has already been made consistent with the desired I_p
-      # by make_I_p_consistent
-      return cell_variable.CellVariable(
-          value=geo.psi_from_I_p,  # Use psi from equilibrium
-          face_centers=geo.rho_face_norm,
-          right_face_grad_constraint=None if use_v_loop else dpsi_drhonorm_edge,
-          right_face_constraint=geo.psi_from_I_p_face[-1]
-          if use_v_loop
-          else None,
-      )
+    # Case 1 & 2: retrieving prescribed psi from profile conditions or geometry.
+    case (
+        core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+        | core_profile_runtime_params.InitialPsiSource.GEOMETRY
+    ):
+      return getters.get_prescribed_psi(runtime_params.profile_conditions, geo)
 
     # Case 3: calculating j according to nu formula and psi from j.
     case core_profile_runtime_params.InitialPsiSource.J:
@@ -324,8 +238,13 @@ def _init_psi(
             source_states=source_states,
             iterations=2,
         )
+      return psi
 
-  return psi
+    case _:
+      raise ValueError(
+          'Unknown initial_psi_source:'
+          f' {runtime_params.profile_conditions.initial_psi_source}'
+      )
 
 
 def _iterate_psi_and_sources(
