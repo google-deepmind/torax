@@ -30,30 +30,36 @@ from torax._src import jax_utils
 class PedestalStructure:
   """Output of a PedestalStructureModel.
 
+  Here "pedestal top" follows the naming convention in Snyder et al., Nucl.
+  Fusion 44 (2004) 320, which was designed for modified-tanh (mtanh) profiles.
+  In this convention, a pedestal width of Δ corresponds to a pedestal 'top'
+  location of ψ_top = 1 - 1.5Δ and a pedestal 'knee' location of ψ_ped = 1 - Δ.
+
   Attributes:
-    rho_norm_ped_top: The requested location of the pedestal top in rho_norm,
-      not quantized to either the cell or face grid.
-    T_i_ped: The ion temperature at the pedestal top [keV].
-    T_e_ped: The electron temperature at the pedestal top [keV].
-    n_e_ped: The electron density at the pedestal top [m^-3].
+    rho_norm_top: The requested location of the pedestal top (corresponding to
+      ψ_top = 1 - 1.5Δ) in rho_norm, not quantized to either the cell or face
+      grid.
+    T_i_top: The ion temperature at the pedestal top [keV].
+    T_e_top: The electron temperature at the pedestal top [keV].
+    n_e_top: The electron density at the pedestal top [m^-3].
   """
 
-  rho_norm_ped_top: array_typing.FloatScalar
-  T_i_ped: array_typing.FloatScalar
-  T_e_ped: array_typing.FloatScalar
-  n_e_ped: array_typing.FloatScalar
+  rho_norm_top: array_typing.FloatScalar
+  T_i_top: array_typing.FloatScalar
+  T_e_top: array_typing.FloatScalar
+  n_e_top: array_typing.FloatScalar
 
   @classmethod
   def no_pedestal(cls) -> Self:
     """Returns a PedestalStructure representing an inactive or absent pedestal.
 
-    Uses `rho_norm_ped_top=jnp.inf` and `0.0` pedestal values so that radial
+    Uses `rho_norm_top=jnp.inf` and `0.0` pedestal values so that radial
     masks are False while maintaining a concrete PyTree structure compatible
     with `jax.lax.cond`.
     """
     return cls(
-        rho_norm_ped_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
-        T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_norm_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
+        T_i_top=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        T_e_top=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_top=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )

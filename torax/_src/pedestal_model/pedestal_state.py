@@ -80,29 +80,29 @@ class IBCPedestalState(PedestalState):
     transition_start_time: Simulation time at which the current L-H or H-L
       transition started (-inf when no transition has occurred; mirrored
       pseudo-start-time when dithering).
-    T_i_ped_L_mode: Ion temperature at the pedestal top captured for L-mode
+    T_i_top_L_mode: Ion temperature at the pedestal top captured for L-mode
       ramp interpolation [keV].
-    T_e_ped_L_mode: Electron temperature at the pedestal top captured for
+    T_e_top_L_mode: Electron temperature at the pedestal top captured for
       L-mode ramp interpolation [keV].
-    n_e_ped_L_mode: Electron density at the pedestal top captured for L-mode
+    n_e_top_L_mode: Electron density at the pedestal top captured for L-mode
       ramp interpolation [m^-3].
-    rho_norm_ped_top: Normalized toroidal flux coordinate of the pedestal top
+    rho_norm_top: Normalized toroidal flux coordinate of the pedestal top
       from the previous step.
   """
 
   transition_start_time: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(-jnp.inf, dtype=jax_utils.get_dtype())
   )
-  T_i_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
+  T_i_top_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
-  T_e_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
+  T_e_top_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
-  n_e_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
+  n_e_top_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
-  rho_norm_ped_top: array_typing.FloatScalar = dataclasses.field(
+  rho_norm_top: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(jnp.inf, dtype=jax_utils.get_dtype())
   )
 
@@ -175,21 +175,21 @@ class IBCPedestalState(PedestalState):
       )
 
     scaled_T_i = _interpolate_transition(
-        l_val=self.T_i_ped_L_mode,
-        h_val=structure.T_i_ped,
+        l_val=self.T_i_top_L_mode,
+        h_val=structure.T_i_top,
     )
     scaled_T_e = _interpolate_transition(
-        l_val=self.T_e_ped_L_mode,
-        h_val=structure.T_e_ped,
+        l_val=self.T_e_top_L_mode,
+        h_val=structure.T_e_top,
     )
     scaled_n_e = _interpolate_transition(
-        l_val=self.n_e_ped_L_mode,
-        h_val=structure.n_e_ped,
+        l_val=self.n_e_top_L_mode,
+        h_val=structure.n_e_top,
     )
 
     return dataclasses.replace(
         structure,
-        T_i_ped=scaled_T_i,
-        T_e_ped=scaled_T_e,
-        n_e_ped=scaled_n_e,
+        T_i_top=scaled_T_i,
+        T_e_top=scaled_T_e,
+        n_e_top=scaled_n_e,
     )

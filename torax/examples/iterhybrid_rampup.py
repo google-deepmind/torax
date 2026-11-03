@@ -117,15 +117,15 @@ CONFIG = {
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 1.0,  # Ion pedestal top temperature [keV]
-            'T_e_ped': 1.0,  # Electron pedestal top temperature [keV]
-            'n_e_ped_is_f_GW': True,
-            'n_e_ped': {
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 1.0,  # Ion pedestal top temperature [keV]
+            'T_e_top': 1.0,  # Electron pedestal top temperature [keV]
+            'n_e_top_is_f_GW': True,
+            'n_e_top': {
                 0: 0.3,
                 80: 0.7,
             },  # Pedestal top electron density [f_GW]
-            'rho_norm_ped_top': 0.9,  # Pedestal top location
+            'rho_norm_top': 0.9,  # Pedestal top location
         },
     },
     'transport': {

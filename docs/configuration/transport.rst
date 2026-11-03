@@ -30,13 +30,13 @@ Top-level Transport Parameters
   with model-specific parameters. For each component model, ``rho_min`` and
   ``rho_max`` define its active radial domain. If a pedestal is active and
   configured with an internal boundary condition, the core ``rho_max`` is
-  bounded by ``rho_norm_ped_top``, where ``rho_norm_ped_top`` is set in the
+  bounded by ``rho_norm_top``, where ``rho_norm_top`` is set in the
   ``pedestal`` config.
 
 ``pedestal_transport_models`` (dict[str, dict] [default = {}])
   A dictionary mapping user-given names to config dictionaries for the component
   models for turbulent transport in the pedestal. The pedestal transport models
-  are active only for radii above ``rho_norm_ped_top``. Setting ``rho_min`` or
+  are active only for radii above ``rho_norm_top``. Setting ``rho_min`` or
   ``rho_max`` is not supported for pedestal transport models, and an error is
   raised if they deviate from default values (0.0 and 1.0).
 
@@ -134,10 +134,10 @@ Examples:
   },
   'pedestal': {
       'structure_model': {
-          'model_name': 'set_T_ped_n_ped',
-          'rho_norm_ped_top': 0.9,
-          'n_e_ped': 0.8,
-          'n_e_ped_is_f_GW': True,
+          'model_name': 'set_T_top_n_top',
+          'rho_norm_top': 0.9,
+          'n_e_top': 0.8,
+          'n_e_top_is_f_GW': True,
       },
   },
   ...

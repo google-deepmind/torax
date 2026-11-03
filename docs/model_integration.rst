@@ -132,8 +132,9 @@ Registering a custom pedestal structure model
 =============================================
 
 The TORAX ``PedestalModel`` is composed of three sub-models: a
-``PedestalStructureModel`` (which computes the H-mode target pedestal-top width,
-temperatures, and density), a ``FormationModel``, and a ``SaturationModel``.
+``PedestalStructureModel`` (which computes the H-mode target pedestal-top
+location, temperatures, and density), a ``FormationModel``, and a
+``SaturationModel``.
 To integrate a custom pedestal structure model (for example, an external neural
 network surrogate such as
 `epednn-mit <https://github.com/aaronkho/epednn_mit>`_), you need to:
@@ -174,10 +175,10 @@ override ``initial_state(self) -> pedestal.StructureState``.
         # Implement your pedestal structure model here.
         return (
             pedestal.PedestalStructure(
-                rho_norm_ped_top=jnp.array(0.9),
-                T_i_ped=jnp.array(5.0),
-                T_e_ped=jnp.array(5.0),
-                n_e_ped=jnp.array(0.7e20),
+                rho_norm_top=jnp.array(0.9),
+                T_i_top=jnp.array(5.0),
+                T_e_top=jnp.array(5.0),
+                n_e_top=jnp.array(0.7e20),
             ),
             structure_state,
         )
@@ -211,7 +212,7 @@ Continuing from Step 1 (additional imports only):
     class MyStructureRuntimeParams(pedestal.StructureRuntimeParams):
       """Runtime parameters for MyPedestalStructureModel."""
 
-      T_ped: array_typing.FloatScalar
+      T_top: array_typing.FloatScalar
 
     class MyStructureConfig(pedestal.StructureConfigBase):
       """Pydantic config for MyPedestalStructureModel."""
@@ -219,7 +220,7 @@ Continuing from Step 1 (additional imports only):
       model_name: Annotated[
           Literal['my_pedestal'], torax_pydantic.JAX_STATIC
       ] = 'my_pedestal'
-      T_ped: torax_pydantic.TimeVaryingScalar = (
+      T_top: torax_pydantic.TimeVaryingScalar = (
           torax_pydantic.ValidatedDefault(5.0)
       )
 
@@ -229,7 +230,7 @@ Continuing from Step 1 (additional imports only):
       def build_runtime_params(self, t) -> MyStructureRuntimeParams:
         return MyStructureRuntimeParams(
             **vars(super().build_runtime_params(t)),
-            T_ped=self.T_ped.get_value(t),
+            T_top=self.T_top.get_value(t),
         )
 
 

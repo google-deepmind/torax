@@ -40,10 +40,10 @@ def main(argv: Sequence[str]) -> None:
       },
       'pedestal': {
           'structure_model': {
-              'model_name': 'set_T_ped_n_ped',
-              'rho_norm_ped_top': 0.9,
-              'n_e_ped': 0.8,
-              'n_e_ped_is_f_GW': True,
+              'model_name': 'set_T_top_n_top',
+              'rho_norm_top': 0.9,
+              'n_e_top': 0.8,
+              'n_e_top_is_f_GW': True,
           },
       },
       'neoclassical': {},

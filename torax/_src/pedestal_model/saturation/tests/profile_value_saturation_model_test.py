@@ -54,16 +54,16 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
     )
 
     # For this test, we put the pedestal top at the last grid point.
-    ped_top_idx = -1
-    current_T_e_ped = self.core_profiles.kinetic.T_e.face_value()[ped_top_idx]
+    top_idx = -1
+    current_T_e_top = self.core_profiles.kinetic.T_e.face_value()[top_idx]
 
     # Construct a pedestal output that is asking for a pedestal with
     # target temperature.
     pedestal_output = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=self.geo.rho_face[ped_top_idx],
-        T_i_ped=1.0,
-        T_e_ped=current_T_e_ped * T_target_over_T_current,
-        n_e_ped=1.0,
+        rho_norm_top=self.geo.rho_face[top_idx],
+        T_i_top=1.0,
+        T_e_top=current_T_e_top * T_target_over_T_current,
+        n_e_top=1.0,
     )
 
     transport_multipliers = saturation_model(

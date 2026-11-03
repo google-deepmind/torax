@@ -71,7 +71,7 @@ class BuilderTest(absltest.TestCase):
         pedestal_runtime_params_lib.StructureRuntimeParams,
         instance=True,
         pedestal_profile_form=(
-            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_TOP
         ),
     )
     pedestal = mock.create_autospec(
@@ -97,13 +97,13 @@ class BuilderTest(absltest.TestCase):
   def _make_ibc_pedestal_output(
       self,
       confinement_mode: pedestal_runtime_params_lib.ConfinementMode,
-      T_e_ped: float = 2.0,
+      T_e_top: float = 2.0,
   ) -> pedestal_model_output.IBCPedestalModelOutput:
     output = pedestal_structure.PedestalStructure(
-        T_i_ped=2.0,
-        T_e_ped=T_e_ped,
-        n_e_ped=1e19,
-        rho_norm_ped_top=0.9,
+        T_i_top=2.0,
+        T_e_top=T_e_top,
+        n_e_top=1e19,
+        rho_norm_top=0.9,
     )
     return pedestal_model_output.IBCPedestalModelOutput(
         structure=output,
@@ -136,7 +136,7 @@ class BuilderTest(absltest.TestCase):
     )
     h_mode_output = self._make_ibc_pedestal_output(
         confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
-        T_e_ped=2.0,
+        T_e_top=2.0,
     )
     built_ibc_h = builder.build_internal_boundary_conditions(
         runtime_params=runtime_params,
@@ -156,10 +156,10 @@ class BuilderTest(absltest.TestCase):
         profile_conditions_ibc=self.profile_conditions_ibc
     )
     structure = pedestal_structure.PedestalStructure(
-        T_i_ped=2.0,
-        T_e_ped=2.0,
-        n_e_ped=1e19,
-        rho_norm_ped_top=0.9,
+        T_i_top=2.0,
+        T_e_top=2.0,
+        n_e_top=1e19,
+        rho_norm_top=0.9,
     )
     adaptive_output = (
         pedestal_model_output.AdaptiveTransportPedestalModelOutput(

@@ -88,7 +88,7 @@ def calculate_all_transport_coeffs(
     ):
       pedestal_active_mask_face = jnp.where(
           pedestal_model_output.is_active,
-          geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm >= pedestal_model_output.rho_norm_top,
           False,
       )
       pereverzev_transport_coeffs = jax.tree.map(

@@ -129,12 +129,12 @@ CONFIG = {
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 5,  # ion pedestal top temperature in keV for T_i and T_e
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 5,  # ion pedestal top temperature in keV for T_i and T_e
             # electron pedestal top temperature in keV for T_i and T_e
-            'T_e_ped': 5,
-            'n_e_ped': 0.68e20,  # pedestal top electron density in m^-3
-            'rho_norm_ped_top': 0.93,  # ped top location in normalized radius
+            'T_e_top': 5,
+            'n_e_top': 0.68e20,  # pedestal top electron density in m^-3
+            'rho_norm_top': 0.93,  # ped top location in normalized radius
         },
     },
     'transport': {

@@ -44,33 +44,33 @@ class ProfileValueSaturationModel(base.SaturationModel):
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates transport increase multipliers."""
     # Get the current profile values at the pedestal top.
-    # Interpolating to get the values at exactly rho_norm_ped_top is difficult,
+    # Interpolating to get the values at exactly rho_norm_top is difficult,
     # as the gradients in the pedestal and the core are very different and are
     # going to be varying a lot during a solve step. Instead, we take the values
     # at the nearest grid point, which is more stable.
-    rho_norm_face_ped_top_idx = jnp.argmin(
-        jnp.abs(geo.rho_face_norm - pedestal_output.rho_norm_ped_top)
+    rho_norm_face_top_idx = jnp.argmin(
+        jnp.abs(geo.rho_face_norm - pedestal_output.rho_norm_top)
     )
-    current_T_e_ped_top = core_profiles.kinetic.T_e.face_value()[
-        rho_norm_face_ped_top_idx
+    current_T_e_top = core_profiles.kinetic.T_e.face_value()[
+        rho_norm_face_top_idx
     ]
-    current_T_i_ped_top = core_profiles.kinetic.T_i.face_value()[
-        rho_norm_face_ped_top_idx
+    current_T_i_top = core_profiles.kinetic.T_i.face_value()[
+        rho_norm_face_top_idx
     ]
 
     # Compute the multipliers based on the deviation from the pedestal model.
     chi_e_multiplier = self._calculate_multiplier(
-        current_T_e_ped_top, pedestal_output.T_e_ped, runtime_params.pedestal
+        current_T_e_top, pedestal_output.T_e_top, runtime_params.pedestal
     )
     chi_i_multiplier = self._calculate_multiplier(
-        current_T_i_ped_top, pedestal_output.T_i_ped, runtime_params.pedestal
+        current_T_i_top, pedestal_output.T_i_top, runtime_params.pedestal
     )
 
     return pedestal_model_output.TransportMultipliers(
         chi_e_multiplier=chi_e_multiplier,
         chi_i_multiplier=chi_i_multiplier,
         # TODO(b/487920703): set the density transport coefficients based on
-        # n_e_ped. In testing, we found this could be unstable.
+        # n_e_top. In testing, we found this could be unstable.
         D_e_multiplier=chi_e_multiplier,
         v_e_multiplier=chi_e_multiplier,
     )

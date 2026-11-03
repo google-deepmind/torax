@@ -120,13 +120,13 @@ or more simply, taking advantage of the default.
     I_p = {10: 2.0e6, 100: 15.0e6}
 
 2. Define a time-dependent internal boundary condition for ion temperature,
-``T_i_ped``, with stepwise changes, starting at :math:`1~keV` at :math:`t=2s`,
+``T_i_top``, with stepwise changes, starting at :math:`1~keV` at :math:`t=2s`,
 transitioning to :math:`3~keV` at :math:`t=8s`, and back down to
 :math:`1~keV` at :math:`t=20s`:
 
 .. code-block:: python
 
-  T_i_ped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
+  T_i_top= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
 
 
 .. _time_varying_arrays:
@@ -436,12 +436,12 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'pedestal': {
           'structure_model': {
-              'model_name': 'set_T_ped_n_ped',
-              'T_i_ped': 1.0,
-              'T_e_ped': 1.0,
-              'n_e_ped': {0: 0.3, 80: 0.7},
-              'rho_norm_ped_top': 0.95,
-              'n_e_ped_is_f_GW': True,
+              'model_name': 'set_T_top_n_top',
+              'T_i_top': 1.0,
+              'T_e_top': 1.0,
+              'n_e_top': {0: 0.3, 80: 0.7},
+              'rho_norm_top': 0.95,
+              'n_e_top_is_f_GW': True,
           },
       },
       'solver': {

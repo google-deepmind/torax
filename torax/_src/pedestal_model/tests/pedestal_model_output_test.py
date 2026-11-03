@@ -44,10 +44,10 @@ class PedestalStructureTest(parameterized.TestCase):
     self.geo.rho = jnp.linspace(0, 1, 9)
     self.geo.rho_norm = jnp.linspace(0, 1, 9)
     self.pedestal_model_output = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.99,
-        T_i_ped=1.0,
-        T_e_ped=1.1,
-        n_e_ped=1.2e19,
+        rho_norm_top=0.99,
+        T_i_top=1.0,
+        T_e_top=1.1,
+        n_e_top=1.2e19,
     )
     self.multipliers = pedestal_model_output.TransportMultipliers(
         chi_e_multiplier=jnp.array(2.0),
@@ -58,7 +58,7 @@ class PedestalStructureTest(parameterized.TestCase):
 
   def test_to_internal_boundary_conditions_shapes_and_values(self):
     idx = jnp.argmin(
-        jnp.abs(self.geo.rho_norm - self.pedestal_model_output.rho_norm_ped_top)
+        jnp.abs(self.geo.rho_norm - self.pedestal_model_output.rho_norm_top)
     )
     output = pedestal_model_output.IBCPedestalModelOutput(
         structure=self.pedestal_model_output,
@@ -78,24 +78,24 @@ class PedestalStructureTest(parameterized.TestCase):
 
     with self.subTest('T_i'):
       np.testing.assert_allclose(
-          ibc.T_i[idx], self.pedestal_model_output.T_i_ped
+          ibc.T_i[idx], self.pedestal_model_output.T_i_top
       )
       np.testing.assert_allclose(
-          jnp.sum(ibc.T_i), self.pedestal_model_output.T_i_ped
+          jnp.sum(ibc.T_i), self.pedestal_model_output.T_i_top
       )
     with self.subTest('T_e'):
       np.testing.assert_allclose(
-          ibc.T_e[idx], self.pedestal_model_output.T_e_ped
+          ibc.T_e[idx], self.pedestal_model_output.T_e_top
       )
       np.testing.assert_allclose(
-          jnp.sum(ibc.T_e), self.pedestal_model_output.T_e_ped
+          jnp.sum(ibc.T_e), self.pedestal_model_output.T_e_top
       )
     with self.subTest('n_e'):
       np.testing.assert_allclose(
-          ibc.n_e[idx], self.pedestal_model_output.n_e_ped
+          ibc.n_e[idx], self.pedestal_model_output.n_e_top
       )
       np.testing.assert_allclose(
-          jnp.sum(ibc.n_e), self.pedestal_model_output.n_e_ped
+          jnp.sum(ibc.n_e), self.pedestal_model_output.n_e_top
       )
 
   def test_modify_core_transport_applies_multipliers(self):
@@ -168,7 +168,7 @@ class PedestalStructureTest(parameterized.TestCase):
         pedestal_runtime_params=pedestal_runtime_params,
     )
     pedestal_mask = (
-        self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
+        self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_top
     )
 
     # Check turbulent transport is scaled correctly.
@@ -275,7 +275,7 @@ class PedestalStructureTest(parameterized.TestCase):
   def test_modify_core_transport_scales_only_core_and_preserves_pedestal(self):
     n_face = self.geo.rho_face_norm.shape[0]
     pedestal_mask = (
-        self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
+        self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_top
     )
     turbulent_core = transport_coeffs_lib.TransportCoeffs(
         chi_face_ion=jnp.ones(n_face),
@@ -350,10 +350,10 @@ class PedestalStructureTest(parameterized.TestCase):
   def test_modify_core_transport_smooths_across_core_and_pedestal(self):
     n_face = self.geo.rho_face_norm.shape[0]
     structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.7,
-        T_i_ped=1.0,
-        T_e_ped=1.1,
-        n_e_ped=1.2e19,
+        rho_norm_top=0.7,
+        T_i_top=1.0,
+        T_e_top=1.1,
+        n_e_top=1.2e19,
     )
     ped_output = pedestal_model_output.AdaptiveTransportPedestalModelOutput(
         structure=structure,
@@ -367,7 +367,7 @@ class PedestalStructureTest(parameterized.TestCase):
             v_e_multiplier=jnp.array(5.0),
         ),
     )
-    pedestal_mask = self.geo.rho_face_norm > ped_output.rho_norm_ped_top
+    pedestal_mask = self.geo.rho_face_norm > ped_output.rho_norm_top
 
     turbulent_core = transport_coeffs_lib.TransportCoeffs(
         chi_face_ion=jnp.linspace(1.0, 2.0, n_face),
@@ -468,7 +468,7 @@ class PedestalStructureTest(parameterized.TestCase):
         self.geo.rho_face_norm,
         smoothing_width,
         active=(
-            jnp.abs(self.geo.rho_face_norm - ped_output.rho_norm_ped_top)
+            jnp.abs(self.geo.rho_face_norm - ped_output.rho_norm_top)
             < 2.0 * smoothing_width
         ),
     )
@@ -537,13 +537,13 @@ class PedestalStructureTest(parameterized.TestCase):
 
   def test_to_internal_boundary_conditions_tanh_profiles(self):
     geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
-    rho_ped_top = float(geo.rho_norm[22])
+    rho_norm_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
     structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=rho_ped_top,
-        T_i_ped=5.0,
-        T_e_ped=4.0,
-        n_e_ped=0.7e20,
+        rho_norm_top=rho_norm_top,
+        T_i_top=5.0,
+        T_e_top=4.0,
+        n_e_top=0.7e20,
     )
     output = pedestal_model_output.IBCPedestalModelOutput(
         structure=structure,
@@ -559,7 +559,7 @@ class PedestalStructureTest(parameterized.TestCase):
         ),
     )
     ped_mask = pedestal_model_output._pedestal_cell_mask(
-        geo.rho_face_norm, rho_ped_top
+        geo.rho_face_norm, rho_norm_top
     )
     for name, top_v, sep_v in (
         ('T_i', 5.0, 0.1),
@@ -575,20 +575,20 @@ class PedestalStructureTest(parameterized.TestCase):
         self.assertTrue(bool(jnp.all(ped_vals > sep_v)))
 
   @parameterized.parameters(0.925, 0.93)
-  def test_interfacial_face_is_in_core_domain(self, rho_ped_top):
+  def test_interfacial_face_is_in_core_domain(self, rho_norm_top):
     geo = circular_geometry.CircularConfig(n_rho=100).build_geometry()
     cell_mask = pedestal_model_output._pedestal_cell_mask(
-        geo.rho_face_norm, rho_ped_top
+        geo.rho_face_norm, rho_norm_top
     )
     face_mask = pedestal_model_output.pedestal_face_mask(
-        geo.rho_face_norm, rho_ped_top
+        geo.rho_face_norm, rho_norm_top
     )
     first_ped_cell = int(np.argmax(np.asarray(cell_mask)))
     self.assertFalse(bool(face_mask[first_ped_cell]))
 
   @parameterized.parameters(1.25, 1.5, 2.0)
   def test_tanh_ibc_matches_across_grid_packings(self, packing):
-    rho_ped_top = 0.93
+    rho_norm_top = 0.93
     ped_eval = np.linspace(0.94, 0.99, 50)
 
     def _eval_ped_profile(p):
@@ -596,10 +596,10 @@ class PedestalStructureTest(parameterized.TestCase):
           face_centers=1.0 - (1.0 - np.linspace(0.0, 1.0, 201)) ** p
       ).build_geometry()
       ibc = _mtanh_ibc(
-          geo, rho_ped_top, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0)
+          geo, rho_norm_top, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0)
       )
       mask = pedestal_model_output._pedestal_cell_mask(
-          geo.rho_face_norm, rho_ped_top
+          geo.rho_face_norm, rho_norm_top
       )
       return np.interp(ped_eval, geo.rho_norm[mask], ibc.T_i[mask])
 
@@ -624,24 +624,24 @@ class PedestalStructureTest(parameterized.TestCase):
     grad_psi = jax.grad(_sum_ti)(geo.rho_norm**2)
     self.assertTrue(bool(jnp.all(jnp.isfinite(grad_psi))))
 
-  def test_tanh_ibc_pins_no_cells_when_ped_top_at_lcfs(self):
+  def test_tanh_ibc_pins_no_cells_when_top_at_lcfs(self):
     geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
     ibc = _mtanh_ibc(geo, 1.0, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0))
     np.testing.assert_array_equal(ibc.T_i, 0.0)
 
   def test_tanh_ibc_first_pinned_cell(self):
-    with self.subTest('equals_top_value_when_cell_center_at_ped_top'):
+    with self.subTest('equals_top_value_when_cell_center_at_top'):
       # With psi linear in rho, psi interpolated at a cell center equals the
-      # cell value, so the mtanh there is exactly T_i_ped.
+      # cell value, so the mtanh there is exactly T_i_top.
       geo = circular_geometry.CircularConfig(n_rho=100).build_geometry()
-      rho_ped_top = float(geo.rho_norm[93])
+      rho_norm_top = float(geo.rho_norm[93])
       ibc = _mtanh_ibc(
-          geo, rho_ped_top, _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
+          geo, rho_norm_top, _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
       )
       first = int(
           np.argmax(
               pedestal_model_output._pedestal_cell_mask(
-                  geo.rho_face_norm, rho_ped_top
+                  geo.rho_face_norm, rho_norm_top
               )
           )
       )
@@ -651,9 +651,9 @@ class PedestalStructureTest(parameterized.TestCase):
       # With the pedestal top on a face, the first pinned cell center lies half
       # a cell inside it, the worst case.
       geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
-      rho_ped_top = float(geo.rho_face_norm[24])
+      rho_norm_top = float(geo.rho_face_norm[24])
       ibc = _mtanh_ibc(
-          geo, rho_ped_top, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0)
+          geo, rho_norm_top, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0)
       )
       bound = (1.0 - np.tanh(2.0)) / (np.tanh(1.0) + np.tanh(2.0))
       self.assertBetween(float(ibc.T_i[23]), 4.0, 4.0 + bound * (4.0 - 0.1))
@@ -698,16 +698,16 @@ def _mtanh_core_profiles(
 
 def _mtanh_ibc(
     geo: geometry.Geometry,
-    rho_norm_ped_top: float,
+    rho_norm_top: float,
     core_profiles: core_profiles_lib.CoreProfiles,
 ):
-  """Returns the MTANH internal boundary conditions for T_i_ped = 4."""
+  """Returns the MTANH internal boundary conditions for T_i_top = 4."""
   output = pedestal_model_output.IBCPedestalModelOutput(
       structure=pedestal_structure.PedestalStructure(
-          rho_norm_ped_top=rho_norm_ped_top,
-          T_i_ped=4.0,
-          T_e_ped=4.0,
-          n_e_ped=1e20,
+          rho_norm_top=rho_norm_top,
+          T_i_top=4.0,
+          T_e_top=4.0,
+          n_e_top=1e20,
       ),
       confinement_mode=jnp.asarray(
           pedestal_runtime_params_lib.ConfinementMode.H_MODE
@@ -732,10 +732,10 @@ class PedestalModelOutputTest(parameterized.TestCase):
     self.geo.rho_norm = jnp.linspace(0, 1, 9)
     self.geo.torax_mesh = mock.MagicMock(nx=9)
     self.structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.99,
-        T_i_ped=1.0,
-        T_e_ped=1.1,
-        n_e_ped=1.2e19,
+        rho_norm_top=0.99,
+        T_i_top=1.0,
+        T_e_top=1.1,
+        n_e_top=1.2e19,
     )
     self.pedestal_runtime_params = mock.create_autospec(
         pedestal_runtime_params_lib.RuntimeParams, instance=True
@@ -746,48 +746,48 @@ class PedestalModelOutputTest(parameterized.TestCase):
     self.pedestal_runtime_params.V_e_min = jnp.array(-10.0)
     self.pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
 
-  def test_ibc_output_to_internal_boundary_conditions_set_at_ped_top(self):
+  def test_ibc_output_to_internal_boundary_conditions_set_at_top(self):
     output = pedestal_model_output.IBCPedestalModelOutput(
         structure=self.structure,
         confinement_mode=jnp.asarray(
             pedestal_runtime_params_lib.ConfinementMode.H_MODE
         ),
     )
-    # SET_AT_PED_TOP
+    # SET_AT_TOP
     ibc_set = output.to_internal_boundary_conditions(
         self.geo,
         core_profiles=mock.create_autospec(
             core_profiles_lib.CoreProfiles, instance=True
         ),
         pedestal_profile_form=(
-            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_TOP
         ),
     )
-    # SET_AT_PED_TOP pins values at the nearest cell to ped top
-    rho_norm_ped_top_idx = jnp.argmin(
-        jnp.abs(self.geo.rho_norm - self.structure.rho_norm_ped_top)
+    # SET_AT_TOP pins values at the nearest cell to the pedestal top.
+    rho_norm_top_idx = jnp.argmin(
+        jnp.abs(self.geo.rho_norm - self.structure.rho_norm_top)
     )
     np.testing.assert_allclose(
-        ibc_set.T_i[rho_norm_ped_top_idx], self.structure.T_i_ped
+        ibc_set.T_i[rho_norm_top_idx], self.structure.T_i_top
     )
     np.testing.assert_allclose(
-        ibc_set.T_e[rho_norm_ped_top_idx], self.structure.T_e_ped
+        ibc_set.T_e[rho_norm_top_idx], self.structure.T_e_top
     )
     np.testing.assert_allclose(
-        ibc_set.n_e[rho_norm_ped_top_idx], self.structure.n_e_ped
+        ibc_set.n_e[rho_norm_top_idx], self.structure.n_e_top
     )
     self.assertEqual(jnp.sum(ibc_set.T_i != 0.0), 1)
 
   def test_ibc_output_to_internal_boundary_conditions_mtanh(self):
     geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
-    rho_ped_top = float(geo.rho_norm[22])
+    rho_norm_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
     output_mtanh = pedestal_model_output.IBCPedestalModelOutput(
         structure=pedestal_structure.PedestalStructure(
-            rho_norm_ped_top=rho_ped_top,
-            T_i_ped=5.0,
-            T_e_ped=4.0,
-            n_e_ped=0.7e20,
+            rho_norm_top=rho_norm_top,
+            T_i_top=5.0,
+            T_e_top=4.0,
+            n_e_top=0.7e20,
         ),
         confinement_mode=jnp.asarray(
             pedestal_runtime_params_lib.ConfinementMode.H_MODE

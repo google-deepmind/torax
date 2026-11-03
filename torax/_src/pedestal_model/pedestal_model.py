@@ -135,36 +135,36 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
     structure, structure_state = self.structure_model(
         runtime_params, geo, core_profiles, structure_state
     )
-    ped_top_idx = jnp.argmin(
-        jnp.abs(geo.rho_norm - structure.rho_norm_ped_top)
+    top_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - structure.rho_norm_top)
     )
     in_l_mode = (
         confinement_mode == pedestal_runtime_params_lib.ConfinementMode.L_MODE
     )
     bc_multiplier = runtime_params.pedestal.initial_L_mode_bc_multiplier
-    T_i_ped_L_mode = jnp.where(
+    T_i_top_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.kinetic.T_i.value[ped_top_idx],
+        core_profiles.kinetic.T_i.value[top_idx],
         bc_multiplier * core_profiles.kinetic.T_i.right_face_value[0],
     )
-    T_e_ped_L_mode = jnp.where(
+    T_e_top_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.kinetic.T_e.value[ped_top_idx],
+        core_profiles.kinetic.T_e.value[top_idx],
         bc_multiplier * core_profiles.kinetic.T_e.right_face_value[0],
     )
-    n_e_ped_L_mode = jnp.where(
+    n_e_top_L_mode = jnp.where(
         in_l_mode,
-        core_profiles.kinetic.n_e.value[ped_top_idx],
+        core_profiles.kinetic.n_e.value[top_idx],
         bc_multiplier * core_profiles.kinetic.n_e.right_face_value[0],
     )
     pedestal_state = pedestal_state_lib.IBCPedestalState(
         structure=structure_state,
         formation=formation_state,
         confinement_mode=confinement_mode,
-        T_i_ped_L_mode=T_i_ped_L_mode,
-        T_e_ped_L_mode=T_e_ped_L_mode,
-        n_e_ped_L_mode=n_e_ped_L_mode,
-        rho_norm_ped_top=structure.rho_norm_ped_top,
+        T_i_top_L_mode=T_i_top_L_mode,
+        T_e_top_L_mode=T_e_top_L_mode,
+        n_e_top_L_mode=n_e_top_L_mode,
+        rho_norm_top=structure.rho_norm_top,
     )
     # No transition ramp occurs at initialization (confinement_mode is L_MODE
     # or H_MODE and transition_start_time is -inf); this only selects the
@@ -281,7 +281,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
         pedestal_state,
         structure=structure_state,
         formation=formation_state,
-        rho_norm_ped_top=structure.rho_norm_ped_top,
+        rho_norm_top=structure.rho_norm_top,
     )
     scaled_structure = updated_state.scale_structure(
         structure,
@@ -637,30 +637,30 @@ def _update_ibc_pedestal_state(
       (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
       | (new_confinement_mode == ConfinementMode.H_MODE)
   )
-  ped_top_idx = jnp.argmin(
-      jnp.abs(geo.rho_norm - pedestal_state.rho_norm_ped_top)
+  top_idx = jnp.argmin(
+      jnp.abs(geo.rho_norm - pedestal_state.rho_norm_top)
   )
-  new_T_i_ped_L_mode = jnp.where(
+  new_T_i_top_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.kinetic.T_i.value[ped_top_idx],
-      pedestal_state.T_i_ped_L_mode,
+      core_profiles.kinetic.T_i.value[top_idx],
+      pedestal_state.T_i_top_L_mode,
   )
-  new_T_e_ped_L_mode = jnp.where(
+  new_T_e_top_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.kinetic.T_e.value[ped_top_idx],
-      pedestal_state.T_e_ped_L_mode,
+      core_profiles.kinetic.T_e.value[top_idx],
+      pedestal_state.T_e_top_L_mode,
   )
-  new_n_e_ped_L_mode = jnp.where(
+  new_n_e_top_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.kinetic.n_e.value[ped_top_idx],
-      pedestal_state.n_e_ped_L_mode,
+      core_profiles.kinetic.n_e.value[top_idx],
+      pedestal_state.n_e_top_L_mode,
   )
 
   return dataclasses.replace(
       pedestal_state,
       confinement_mode=new_confinement_mode,
       transition_start_time=new_transition_start_time,
-      T_i_ped_L_mode=new_T_i_ped_L_mode,
-      T_e_ped_L_mode=new_T_e_ped_L_mode,
-      n_e_ped_L_mode=new_n_e_ped_L_mode,
+      T_i_top_L_mode=new_T_i_top_L_mode,
+      T_e_top_L_mode=new_T_e_top_L_mode,
+      n_e_top_L_mode=new_n_e_top_L_mode,
   )

@@ -29,8 +29,8 @@ from torax._src.pedestal_model.formation import prescribed_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.pedestal_model.structure import base as structure_base
 from torax._src.pedestal_model.structure import no_pedestal
-from torax._src.pedestal_model.structure import set_pped_tpedratio_nped
-from torax._src.pedestal_model.structure import set_tped_nped
+from torax._src.pedestal_model.structure import set_ptop_ttopratio_ntop
+from torax._src.pedestal_model.structure import set_ttop_ntop
 from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -195,9 +195,9 @@ class ProfileValueSaturationConfig(torax_pydantic.ConfigBase):
   """Configuration for ProfileValueSaturation model.
 
   This saturation model triggers an increase in pedestal transport when the
-  pedestal temperature and density are above the values requested by the
-  pedestal model. The increase is a smooth linear function of the ratio of the
-  current value to the value requested by the pedestal model.
+  pedestal-top temperature and density are above the target values from the
+  pedestal structure model. The increase is a smooth function of the normalized
+  deviation from the target pedestal-top value.
 
   The formula is
     transport_multiplier = 1 + alpha * base_multiplier,
@@ -299,12 +299,12 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
 
   Attributes:
     pedestal_profile_form: Controls the shape of internal boundary conditions in
-      the pedestal region (SET_AT_PED_TOP or MTANH).
+      the pedestal region (SET_AT_TOP or MTANH).
   """
 
   pedestal_profile_form: Annotated[
       runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
-  ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
+  ] = runtime_params.PedestalProfileForm.SET_AT_TOP
 
   @abc.abstractmethod
   def build_structure_model(self) -> structure_base.PedestalStructureModel:
@@ -320,109 +320,109 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
     )
 
 
-class SetPpedTpedRatioNpedConfig(StructureConfigBase):
-  """Model for direct specification of pressure, temperature ratio, and density.
+class SetPtopTtopRatioNtopConfig(StructureConfigBase):
+  """Model for direct specification of pedestal-top pressure, ratio, and density.
 
   Attributes:
-    P_ped: The plasma pressure at the pedestal [Pa].
-    P_ped_multiplier: Multiplier for the pedestal pressure (mostly used for
+    p_top: The plasma pressure at the pedestal top [Pa].
+    p_top_multiplier: Multiplier for the pedestal-top pressure (mostly used for
       sensitivity analysis) [dimensionless].
-    n_e_ped: The electron density at the pedestal [m^-3] or f_GW.
-    n_e_ped_is_f_GW: Whether the electron density at the pedestal is in units of
-      f_GW.
-    T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
+    n_e_top: The electron density at the pedestal top [m^-3] or f_GW.
+    n_e_top_is_f_GW: Whether the electron density at the pedestal top is in
+      units of f_GW.
+    T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal top
       [dimensionless].
-    rho_norm_ped_top: The location of the pedestal top.
+    rho_norm_top: The location of the pedestal top.
   """
 
   model_name: Annotated[
-      Literal["set_P_ped_n_ped"], torax_pydantic.JAX_STATIC
-  ] = "set_P_ped_n_ped"
-  P_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      Literal["set_p_top_n_top"], torax_pydantic.JAX_STATIC
+  ] = "set_p_top_n_top"
+  p_top: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1e5)
   )
-  P_ped_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+  p_top_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+  n_e_top: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.7e20)
   )
-  n_e_ped_is_f_GW: bool = False
+  n_e_top_is_f_GW: bool = False
   T_i_T_e_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  rho_norm_ped_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+  rho_norm_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
   )
 
   def build_structure_model(
       self,
   ) -> (
-      set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel
+      set_ptop_ttopratio_ntop.SetPressureTemperatureRatioAndDensityPedestalModel
   ):
     return (
-        set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
+        set_ptop_ttopratio_ntop.SetPressureTemperatureRatioAndDensityPedestalModel()
     )
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> set_pped_tpedratio_nped.RuntimeParams:
-    return set_pped_tpedratio_nped.RuntimeParams(
+  ) -> set_ptop_ttopratio_ntop.RuntimeParams:
+    return set_ptop_ttopratio_ntop.RuntimeParams(
         **vars(super().build_runtime_params(t)),
-        P_ped=self.P_ped.get_value(t),
-        P_ped_multiplier=self.P_ped_multiplier.get_value(t),
-        n_e_ped=self.n_e_ped.get_value(t),
-        n_e_ped_is_f_GW=self.n_e_ped_is_f_GW,
+        p_top=self.p_top.get_value(t),
+        p_top_multiplier=self.p_top_multiplier.get_value(t),
+        n_e_top=self.n_e_top.get_value(t),
+        n_e_top_is_f_GW=self.n_e_top_is_f_GW,
         T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
-        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+        rho_norm_top=self.rho_norm_top.get_value(t),
     )
 
 
-class SetTpedNpedConfig(StructureConfigBase):
+class SetTtopNtopConfig(StructureConfigBase):
   """A basic version of the pedestal structure model using direct specification.
 
   Attributes:
-    n_e_ped: The electron density at the pedestal [m^-3] or f_GW.
-    n_e_ped_is_f_GW: Whether the electron density at the pedestal is in units of
-      f_GW.
-    T_i_ped: Ion temperature at the pedestal [keV].
-    T_e_ped: Electron temperature at the pedestal [keV].
-    rho_norm_ped_top: The location of the pedestal top.
+    n_e_top: The electron density at the pedestal top [m^-3] or f_GW.
+    n_e_top_is_f_GW: Whether the electron density at the pedestal top is in
+      units of f_GW.
+    T_i_top: Ion temperature at the pedestal top [keV].
+    T_e_top: Electron temperature at the pedestal top [keV].
+    rho_norm_top: The location of the pedestal top.
   """
 
   model_name: Annotated[
-      Literal["set_T_ped_n_ped"], torax_pydantic.JAX_STATIC
-  ] = "set_T_ped_n_ped"
-  n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      Literal["set_T_top_n_top"], torax_pydantic.JAX_STATIC
+  ] = "set_T_top_n_top"
+  n_e_top: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.7e20)
   )
-  n_e_ped_is_f_GW: bool = False
+  n_e_top_is_f_GW: bool = False
   # TODO(b/434175938): Consider extending to TimeVaryingArray
-  T_i_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+  T_i_top: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
-  T_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+  T_e_top: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
-  rho_norm_ped_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+  rho_norm_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
   )
 
   def build_structure_model(
       self,
-  ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
-    return set_tped_nped.SetTemperatureDensityPedestalModel()
+  ) -> set_ttop_ntop.SetTemperatureDensityPedestalModel:
+    return set_ttop_ntop.SetTemperatureDensityPedestalModel()
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> set_tped_nped.RuntimeParams:
-    return set_tped_nped.RuntimeParams(
+  ) -> set_ttop_ntop.RuntimeParams:
+    return set_ttop_ntop.RuntimeParams(
         **vars(super().build_runtime_params(t)),
-        n_e_ped=self.n_e_ped.get_value(t),
-        n_e_ped_is_f_GW=self.n_e_ped_is_f_GW,
-        T_i_ped=self.T_i_ped.get_value(t),
-        T_e_ped=self.T_e_ped.get_value(t),
-        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+        n_e_top=self.n_e_top.get_value(t),
+        n_e_top_is_f_GW=self.n_e_top_is_f_GW,
+        T_i_top=self.T_i_top.get_value(t),
+        T_e_top=self.T_e_top.get_value(t),
+        rho_norm_top=self.rho_norm_top.get_value(t),
     )
 
 
@@ -440,7 +440,7 @@ class NoPedestalConfig(StructureConfigBase):
 
 
 StructureConfig = Annotated[
-    SetPpedTpedRatioNpedConfig | SetTpedNpedConfig | NoPedestalConfig,
+    SetPtopTtopRatioNtopConfig | SetTtopNtopConfig | NoPedestalConfig,
     pydantic.Discriminator("model_name"),
 ]
 
@@ -450,7 +450,7 @@ class PedestalConfig(torax_pydantic.ConfigBase):
 
   Attributes:
     structure_model: Configuration for the pedestal structure model (computing
-      target pedestal height, width, and profile form).
+      target pedestal-top values, location, and profile form).
     mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
       set the pedestal by modifying the transport coefficients in the pedestal
       region, allowing the pedestal to self-consistently evolve. Set to

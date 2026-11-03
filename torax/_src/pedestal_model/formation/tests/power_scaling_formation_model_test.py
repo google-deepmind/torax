@@ -36,7 +36,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     # Switch to use the PowerScaling formation model.
     config_dict['pedestal'] = {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
+        'structure_model': {'model_name': 'set_T_top_n_top'},
         'mode': 'adaptive_transport',
         # Individual tests will override the model name.
         'formation_model': {

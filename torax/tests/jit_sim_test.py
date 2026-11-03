@@ -185,8 +185,8 @@ class JitSimTest(sim_test_case.SimTestCase):
       ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
-          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
-          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped.py',
+          'test_iterhybrid_predictor_corrector_set_ptop_ttopratio_ntop',
+          'test_iterhybrid_predictor_corrector_set_ptop_ttopratio_ntop.py',
       ),
       # Predictor-corrector solver with cyclotron radiation heat sink
       (

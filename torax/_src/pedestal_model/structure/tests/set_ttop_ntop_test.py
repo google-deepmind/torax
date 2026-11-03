@@ -29,36 +29,36 @@ _RTOL = 1e-6
 class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
 
   @parameterized.product(
-      T_i_ped=[5, {0.0: 5.0, 1.0: 10.0}],
-      T_e_ped=[4, {0.0: 4.0, 1.0: 8.0}],
-      n_e_ped=[0.7e20, {0.0: 0.7e20, 1.0: 0.9e20}],
-      rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
-      n_e_ped_is_f_GW=[False, True],
+      T_i_top=[5, {0.0: 5.0, 1.0: 10.0}],
+      T_e_top=[4, {0.0: 4.0, 1.0: 8.0}],
+      n_e_top=[0.7e20, {0.0: 0.7e20, 1.0: 0.9e20}],
+      rho_norm_top=[{0.0: 0.5, 1.0: 0.7}],
+      n_e_top_is_f_GW=[False, True],
       time=[0.0, 1.0],
   )
   def test_build_and_call_pedestal_model(
       self,
-      T_i_ped,
-      T_e_ped,
-      n_e_ped,
-      rho_norm_ped_top,
-      n_e_ped_is_f_GW,
+      T_i_top,
+      T_e_top,
+      n_e_top,
+      rho_norm_top,
+      n_e_top_is_f_GW,
       time,
   ):
-    if n_e_ped_is_f_GW:
-      if isinstance(n_e_ped, dict):
-        n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
+    if n_e_top_is_f_GW:
+      if isinstance(n_e_top, dict):
+        n_e_top = {key: value / 1e20 for key, value in n_e_top.items()}
       else:
-        n_e_ped /= 1e20
+        n_e_top /= 1e20
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': T_i_ped,
-            'T_e_ped': T_e_ped,
-            'rho_norm_ped_top': rho_norm_ped_top,
-            'n_e_ped': n_e_ped,
-            'n_e_ped_is_f_GW': n_e_ped_is_f_GW,
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': T_i_top,
+            'T_e_top': T_e_top,
+            'rho_norm_top': rho_norm_top,
+            'n_e_top': n_e_top,
+            'n_e_top_is_f_GW': n_e_top_is_f_GW,
         }
     }
     torax_config = torax_pydantic_config.ToraxConfig.from_dict(config)
@@ -88,36 +88,36 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         pedestal_state=pedestal_state,
     )
 
-    if isinstance(T_i_ped, (float, int)):
-      self.assertEqual(pedestal_model_output.structure.T_i_ped, T_i_ped)
+    if isinstance(T_i_top, (float, int)):
+      self.assertEqual(pedestal_model_output.structure.T_i_top, T_i_top)
     else:
-      self.assertEqual(pedestal_model_output.structure.T_i_ped, T_i_ped[time])
-    if isinstance(T_e_ped, (float, int)):
-      self.assertEqual(pedestal_model_output.structure.T_e_ped, T_e_ped)
+      self.assertEqual(pedestal_model_output.structure.T_i_top, T_i_top[time])
+    if isinstance(T_e_top, (float, int)):
+      self.assertEqual(pedestal_model_output.structure.T_e_top, T_e_top)
     else:
-      self.assertEqual(pedestal_model_output.structure.T_e_ped, T_e_ped[time])
-    if isinstance(rho_norm_ped_top, (float, int)):
-      self.assertEqual(pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top)
+      self.assertEqual(pedestal_model_output.structure.T_e_top, T_e_top[time])
+    if isinstance(rho_norm_top, (float, int)):
+      self.assertEqual(pedestal_model_output.rho_norm_top, rho_norm_top)
     else:
       self.assertEqual(
-          pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top[time]
+          pedestal_model_output.rho_norm_top, rho_norm_top[time]
       )
 
-    if isinstance(n_e_ped, (float, int)):
-      expected_n_e_ped = n_e_ped
+    if isinstance(n_e_top, (float, int)):
+      expected_n_e_top = n_e_top
     else:
-      expected_n_e_ped = n_e_ped[time]
-    if n_e_ped_is_f_GW:
+      expected_n_e_top = n_e_top[time]
+    if n_e_top_is_f_GW:
       nGW = (
           runtime_params.profile_conditions.I_p
           / 1e6  # Convert to MA.
           / (jnp.pi * geo.a_minor**2)
           * 1e20
       )
-      expected_n_e_ped *= nGW
+      expected_n_e_top *= nGW
 
     np.testing.assert_allclose(
-        pedestal_model_output.structure.n_e_ped, expected_n_e_ped, rtol=_RTOL
+        pedestal_model_output.structure.n_e_top, expected_n_e_top, rtol=_RTOL
     )
 
 

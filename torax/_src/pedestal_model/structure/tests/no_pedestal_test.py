@@ -54,7 +54,7 @@ class NoPedestalTest(absltest.TestCase):
             pedestal_state=pedestal_state,
         )
     )
-    self.assertEqual(pedestal_model_output.rho_norm_ped_top, jnp.inf)
+    self.assertEqual(pedestal_model_output.rho_norm_top, jnp.inf)
     self.assertEqual(updated_pedestal_state, pedestal_state)
 
 

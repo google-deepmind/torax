@@ -85,10 +85,10 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
 
     # Pedestal structure and outputs.
     self.pedestal_structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=jnp.asarray(0.7),
-        T_i_ped=jnp.asarray(4.0),
-        T_e_ped=jnp.asarray(4.0),
-        n_e_ped=jnp.asarray(0.6e20),
+        rho_norm_top=jnp.asarray(0.7),
+        T_i_top=jnp.asarray(4.0),
+        T_e_top=jnp.asarray(4.0),
+        n_e_top=jnp.asarray(0.6e20),
     )
     self.ibc_pedestal_output = (
         pedestal_model_output_lib.IBCPedestalModelOutput(

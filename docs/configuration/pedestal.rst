@@ -6,8 +6,8 @@ pedestal
 The ``pedestal`` dictionary configures the pedestal model, which is composed of
 three sub-models:
 
-* ``structure_model``: computes the H-mode target pedestal width
-  (``rho_norm_ped_top``) and pedestal-top electron density, ion temperature,
+* ``structure_model``: computes the H-mode target pedestal-top location
+  (``rho_norm_top``) and pedestal-top electron density, ion temperature,
   and electron temperature.
 * ``formation_model``: determines when L-H and H-L transitions occur (and in
   ``'adaptive_transport'`` mode, the transport decrease multiplier).
@@ -31,8 +31,8 @@ three sub-models:
   ``'internal_boundary_condition'`` mode. During a transition, the confinement
   mode enters ``TRANSITIONING_TO_H_MODE`` or ``TRANSITIONING_TO_L_MODE`` and
   pedestal values are linearly interpolated between the captured L-mode baseline
-  values and the H-mode target values (e.g. ``T_i_ped(t)``, ``T_e_ped(t)``,
-  ``n_e_ped(t)``) over this time window. Must be non-negative. Defaults to
+  values and the H-mode target values (e.g. ``T_i_top(t)``, ``T_e_top(t)``,
+  ``n_e_top(t)``) over this time window. Must be non-negative. Defaults to
   ``0.0`` (immediate step transition between ``l_mode`` and ``h_mode``) for
   ``'prescribed'`` formation, and must be explicitly specified when using a
   power-scaling formation model (``'martin_scaling'`` or ``'delabie_scaling'``)
@@ -67,12 +67,12 @@ three sub-models:
   via ``torax.pedestal.register_pedestal_structure_model`` (see
   :ref:`model-integration`). All structure models share the following parameter:
 
-  * ``pedestal_profile_form`` (**str** [default = ``"set_at_ped_top"``]):
+  * ``pedestal_profile_form`` (**str** [default = ``"set_at_top"``]):
     Controls the shape of internal boundary conditions in the pedestal region.
     Options:
 
-    * ``"set_at_ped_top"``: Pedestal values are pinned at a single grid cell
-      nearest to ``rho_norm_ped_top``.
+    * ``"set_at_top"``: Pedestal values are pinned at a single grid cell
+      nearest to ``rho_norm_top``.
     * ``"mtanh"``: A smooth modified-tanh (mtanh) profile is applied across the
       pedestal region from the pedestal top to the separatrix, following the mtanh
       parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
@@ -80,13 +80,13 @@ three sub-models:
       For simplicity, the core polynomial part of the full mtanh is neglected;
       only the tanh component is used in the pedestal region.
       The mtanh width :math:`\Delta` is derived on-the-fly from
-      ``rho_norm_ped_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
+      ``rho_norm_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
 
       .. math::
 
          f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\!\left(\frac{2(\psi - \psi_{\text{mid}})}{\Delta}\right)\right]
 
-      where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{ped,top}})`,
+      where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{top}})`,
       :math:`\Delta = (1 - \psi_{\text{top}}) / 1.5`,
       :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
       :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
@@ -96,10 +96,10 @@ three sub-models:
 
   * ``'no_pedestal'`` (default): Disables the pedestal across the entire
     ``PedestalModel`` regardless of ``formation_model`` or ``saturation_model``.
-  * ``'set_T_ped_n_ped'``: Directly specify the pedestal width, electron
+  * ``'set_T_top_n_top'``: Directly specify the pedestal-top location, electron
     density, ion temperature, and electron temperature (see below).
-  * ``'set_P_ped_n_ped'``: Specify the pedestal width, electron density, total
-    pedestal pressure, and ion-to-electron temperature ratio (see below).
+  * ``'set_p_top_n_top'``: Specify the pedestal-top location, electron density,
+    total pressure, and ion-to-electron temperature ratio (see below).
 
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
@@ -215,49 +215,50 @@ no_pedestal
 ===========
 No pedestal profile is set. This is the default option.
 
-set_T_ped_n_ped
+set_T_top_n_top
 ===============
-Directly specify the pedestal width, electron density, ion temperature and
-electron temperature.
+Directly specify the pedestal-top location, electron density, ion temperature
+and electron temperature.
 
-``n_e_ped`` (**time-varying-scalar** [default = 0.7e20])
+``n_e_top`` (**time-varying-scalar** [default = 0.7e20])
   Electron density at the pedestal top.
-  In units of reference density if ``n_e_ped_is_f_GW==False``. In units of
-  Greenwald fraction if ``n_e_ped_is_f_GW==True``.
+  In units of reference density if ``n_e_top_is_f_GW==False``. In units of
+  Greenwald fraction if ``n_e_top_is_f_GW==True``.
 
-``n_e_ped_is_f_GW`` (**bool** [default = False])
-  Toggles units of ``n_e_ped``.
+``n_e_top_is_f_GW`` (**bool** [default = False])
+  Toggles units of ``n_e_top``.
 
-``T_i_ped`` (**time-varying-scalar** [default = 5.0])
+``T_i_top`` (**time-varying-scalar** [default = 5.0])
   Ion temperature at the pedestal top in units of keV.
 
-``T_e_ped`` (**time-varying-scalar** [default = 5.0])
+``T_e_top`` (**time-varying-scalar** [default = 5.0])
   Electron temperature at the pedestal top in units of keV.
 
-``rho_norm_ped_top`` (**time-varying-scalar** [default = 0.91])
-  Location of pedestal top, in units of :math:`\hat{\rho}`.
+``rho_norm_top`` (**time-varying-scalar** [default = 0.91])
+  Location of the pedestal top, in units of :math:`\hat{\rho}`.
 
-set_P_ped_n_ped
+set_p_top_n_top
 ===============
-Set the pedestal width, electron density and ion temperature by providing the
-total pressure at the pedestal and the ratio of ion to electron temperature.
+Set the pedestal-top location, electron density and ion temperature by
+providing the total pressure at the pedestal top and the ratio of ion to
+electron temperature.
 
-``P_ped`` (**time-varying-scalar** [default = 1e5])
-  The plasma pressure at the pedestal in units of :math:`Pa`.
+``p_top`` (**time-varying-scalar** [default = 1e5])
+  The plasma pressure at the pedestal top in units of :math:`Pa`.
 
-``P_ped_multiplier`` (**time-varying-scalar** [default = 1.0])
-  Multiplier for the pedestal pressure.
+``p_top_multiplier`` (**time-varying-scalar** [default = 1.0])
+  Multiplier for the pedestal-top pressure.
 
-``n_e_ped`` (**time-varying-scalar** [default = 0.7e20])
+``n_e_top`` (**time-varying-scalar** [default = 0.7e20])
   Electron density at the pedestal top. In units of reference density if
-  ``n_e_ped_is_f_GW==False``. In units of  Greenwald fraction if
-  ``n_e_ped_is_f_GW==True``.
+  ``n_e_top_is_f_GW==False``. In units of  Greenwald fraction if
+  ``n_e_top_is_f_GW==True``.
 
-``n_e_ped_is_f_GW`` (**bool** [default = False])
-  Toggles units of ``n_e_ped``.
+``n_e_top_is_f_GW`` (**bool** [default = False])
+  Toggles units of ``n_e_top``.
 
 ``T_i_T_e_ratio`` (**time-varying-scalar** [default = 1.0])
-  Ratio of the ion and electron temperature at the pedestal.
+  Ratio of the ion and electron temperature at the pedestal top.
 
-``rho_norm_ped_top`` (**time-varying-scalar** [default = 0.91])
-  Location of pedestal top, in units of :math:`\hat{\rho}`.
+``rho_norm_top`` (**time-varying-scalar** [default = 0.91])
+  Location of the pedestal top, in units of :math:`\hat{\rho}`.

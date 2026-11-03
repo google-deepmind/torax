@@ -54,7 +54,7 @@ CONFIG = {
         'bootstrap_current': {},
     },
     'pedestal': {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
+        'structure_model': {'model_name': 'set_T_top_n_top'},
     },
     'transport': {
         'core_transport_models': {

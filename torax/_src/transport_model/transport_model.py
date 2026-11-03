@@ -104,7 +104,7 @@ class TransportModel(static_dataclass.StaticDataclass):
         pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
             geo.rho_face_norm,
-            pedestal_model_output.rho_norm_ped_top,
+            pedestal_model_output.rho_norm_top,
         )
     )
     if isinstance(
@@ -381,16 +381,16 @@ def _build_smoothing_matrix(
     smoothing_width_profile = build_profile_fallback()
 
   # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
-  # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding
+  # Zeros out smoothing_width_profile for rho >= rho_norm_top to avoid bleeding
   # into boundary condition zone.
   if isinstance(
       pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
   ):
-    rho_norm_ped_top = pedestal_model_output.rho_norm_ped_top
+    rho_norm_top = pedestal_model_output.rho_norm_top
     smoothing_width_profile = jnp.where(
         pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
-            geo.rho_face_norm, rho_norm_ped_top
+            geo.rho_face_norm, rho_norm_top
         ),
         0.0,
         smoothing_width_profile,
@@ -410,10 +410,10 @@ def _build_pedestal_smoothing_matrix(
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix localized to the pedestal region."""
-  rho_norm_ped_top = pedestal_model_output.rho_norm_ped_top
+  rho_norm_top = pedestal_model_output.rho_norm_top
   smoothing_width_profile = jnp.where(
       pedestal_model_output_lib.pedestal_face_mask(
-          geo.rho_face_norm, rho_norm_ped_top
+          geo.rho_face_norm, rho_norm_top
       ),
       transport_runtime_params.pedestal_smoothing_width,
       0.0,

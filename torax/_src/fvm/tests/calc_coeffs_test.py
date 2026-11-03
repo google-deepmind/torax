@@ -118,7 +118,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
-                structure_model=dict(model_name='set_T_ped_n_ped'),
+                structure_model=dict(model_name='set_T_top_n_top'),
                 formation_model=dict(
                     model_name='prescribed',
                     pedestal_active=pedestal_active,
@@ -175,7 +175,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     }
     config_dict_with_pedestal = copy.deepcopy(config_dict)
     config_dict_with_pedestal['pedestal'] = {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'}
+        'structure_model': {'model_name': 'set_T_top_n_top'}
     }
 
     with self.subTest('same_coeffs_callback_hash_equal'):

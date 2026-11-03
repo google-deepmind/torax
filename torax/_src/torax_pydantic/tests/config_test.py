@@ -584,7 +584,7 @@ class ConfigTest(parameterized.TestCase):
       )
     if use_pedestal:
       config_dict["pedestal"] = {
-          "structure_model": {"model_name": "set_T_ped_n_ped"}
+          "structure_model": {"model_name": "set_T_top_n_top"}
       }
     else:
       config_dict["pedestal"] = {
@@ -1121,7 +1121,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     }
@@ -1139,7 +1139,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     }

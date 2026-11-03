@@ -48,14 +48,14 @@ class PedestalProfileForm(enum.StrEnum):
   """Controls the shape of internal boundary conditions in the pedestal region.
 
   Attributes:
-    SET_AT_PED_TOP: Pedestal values are pinned at a single grid cell nearest to
-      rho_norm_ped_top.
+    SET_AT_TOP: Pedestal values are pinned at a single grid cell nearest to
+      rho_norm_top.
     MTANH: A smooth modified-tanh (mtanh) profile is applied across the pedestal
       region from the pedestal top to the separatrix, following the mtanh
       parameterization of Snyder et al., Nucl. Fusion 44 (2004) 320.
   """
 
-  SET_AT_PED_TOP = "set_at_ped_top"
+  SET_AT_TOP = "set_at_top"
   MTANH = "mtanh"
 
 
@@ -104,9 +104,9 @@ class RuntimeParams:
       During a transition, pedestal values are linearly interpolated between
       L-mode and H-mode values over this time window.
     explicit_pedestal: When True (default), the pedestal model is evaluated once
-      per timestep before the solver and its output (T_ped, n_ped, rho_ped_top)
-      is frozen during the solve. When False, the pedestal model is
-      re-evaluated whenever the solver recomputes the PDE coefficients (e.g.
+      per timestep before the solver and its output (T_i_top, T_e_top, n_e_top,
+      rho_norm_top) is frozen during the solve. When False, the pedestal model
+      is re-evaluated whenever the solver recomputes the PDE coefficients (e.g.
       each Newton-Raphson iteration or predictor-corrector step), coupling
       pedestal physics to the implicit solve. Note: for ADAPTIVE_TRANSPORT mode,
       transport multipliers are always re-evaluated implicitly with current

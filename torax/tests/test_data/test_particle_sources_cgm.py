@@ -72,8 +72,8 @@ CONFIG = {
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'n_e_ped': 1.0e20,
+            'model_name': 'set_T_top_n_top',
+            'n_e_top': 1.0e20,
         },
     },
     'transport': {

@@ -80,10 +80,10 @@ class FixedPedestalModel(structure_base.PedestalStructureModel):
     del runtime_params, geo, core_profiles
     return (
         pedestal_structure.PedestalStructure(
-            rho_norm_ped_top=jnp.array(0.9),
-            T_i_ped=jnp.array(5.0),
-            T_e_ped=jnp.array(5.0),
-            n_e_ped=jnp.array(0.7e20),
+            rho_norm_top=jnp.array(0.9),
+            T_i_top=jnp.array(5.0),
+            T_e_top=jnp.array(5.0),
+            n_e_top=jnp.array(0.7e20),
         ),
         structure_state,
     )

@@ -21,13 +21,13 @@ tests/persistent_cache
 CONFIG = {
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 1.0,  # ion pedestal top temperature in keV
-            'T_e_ped': 1.0,  # electron pedestal top temperature in keV
-            'n_e_ped_is_f_GW': True,
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 1.0,  # ion pedestal top temperature in keV
+            'T_e_top': 1.0,  # electron pedestal top temperature in keV
+            'n_e_top_is_f_GW': True,
             # pedestal top electron density in units of f_GW
-            'n_e_ped': {0: 0.3, 80: 0.7},
-            'rho_norm_ped_top': 0.9,  # ped top location in normalized radius
+            'n_e_top': {0: 0.3, 80: 0.7},
+            'rho_norm_top': 0.9,  # ped top location in normalized radius
         },
     },
     'plasma_composition': {
