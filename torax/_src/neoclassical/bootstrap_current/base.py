@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+from typing import Self
 
 import jax
 import jax.numpy as jnp
@@ -45,7 +46,7 @@ class BootstrapCurrent:
   j_parallel_bootstrap_face: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
+  def zeros(cls, geometry: geometry_lib.Geometry) -> Self:
     """Returns a BootstrapCurrent with all values set to zero."""
     return cls(
         j_parallel_bootstrap=jnp.zeros_like(geometry.rho_norm),
@@ -56,7 +57,17 @@ class BootstrapCurrent:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts bootstrap current profiles into an OutputVar mapping."""
+    """Packs time-stacked bootstrap current into an xarray-ready variable.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from `j_parallel_bootstrap` to a `(dims, data, attrs)`
+      `OutputVar` tuple on `('time', 'rho_norm')` with shape
+      `(n_time, n_rho_cell + 2)`.
+    """
     j_parallel_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
         self.j_parallel_bootstrap,
         self.j_parallel_bootstrap_face,

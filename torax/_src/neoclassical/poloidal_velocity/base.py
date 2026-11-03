@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+from typing import Self
 
 import jax
 import jax.numpy as jnp
@@ -37,7 +38,7 @@ class PoloidalVelocity:
   poloidal_velocity: cell_variable.CellVariable
 
   @classmethod
-  def zeros(cls, geometry: geometry_lib.Geometry) -> 'PoloidalVelocity':
+  def zeros(cls, geometry: geometry_lib.Geometry) -> Self:
     """Returns a PoloidalVelocity with all values set to zero."""
     poloidal_velocity = cell_variable.CellVariable(
         value=jnp.zeros_like(geometry.rho_norm),

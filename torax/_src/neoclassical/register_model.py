@@ -26,7 +26,7 @@ from torax._src.torax_pydantic import config
 def register_neoclassical_model(
     pydantic_model_class: type[neoclassical_config.NeoclassicalConfigBase],
 ) -> None:
-  """Registers a top-level neoclassical model with TORAX."""
+  """Registers a top-level neoclassical model config class with TORAX."""
   inner_union, discriminator = get_args(neoclassical_config.NeoclassicalConfig)
   new_union = inner_union | pydantic_model_class
   setattr(

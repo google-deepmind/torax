@@ -59,7 +59,17 @@ class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
       poloidal_velocity_base.PoloidalVelocity,
       neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ]:
-    """Calculates current, poloidal velocity, and intermediates."""
+    """Calculates current, poloidal velocity, and intermediates.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+
+    Returns:
+      Tuple of (`Conductivity`, `BootstrapCurrent`, `PoloidalVelocity`,
+      `NeoclassicalIntermediates`).
+    """
 
   @abc.abstractmethod
   def calculate_transport(
@@ -69,7 +79,17 @@ class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: core_profiles_lib.CoreProfiles,
       intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
-    """Calculates neoclassical transport coefficients."""
+    """Calculates neoclassical transport coefficients.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+      intermediates: Precomputed neoclassical intermediate quantities.
+
+    Returns:
+      Computed `NeoclassicalTransport` coefficients.
+    """
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

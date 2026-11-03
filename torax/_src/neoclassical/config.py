@@ -43,7 +43,7 @@ class NeoclassicalConfigBase(torax_pydantic.ConfigBase):
 
   @abc.abstractmethod
   def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
-    """Builds runtime params for the neoclassical model."""
+    """Builds the runtime parameters for the neoclassical model."""
 
   @abc.abstractmethod
   def build_model(self) -> neoclassical_model.NeoclassicalModel:
