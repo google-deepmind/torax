@@ -70,8 +70,10 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_i and power_density_e profiles
+          populated.
+        - SourceState for this source.
     """
     del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -122,7 +124,9 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
 
     # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
     return (
-        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        source_profiles.SourceOutput(
+            power_density_i=source_ion, power_density_e=source_el
+        ),
         source_state,
     )
 

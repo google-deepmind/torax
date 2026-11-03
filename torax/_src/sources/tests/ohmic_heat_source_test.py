@@ -59,11 +59,13 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         core_profiles=core_profiles,
         source_state=source_state_lib.SourceState(),
     )
-    (pohm,) = output.profiles
+    assert output.power_density_e is not None
 
     expected_e_dot_b = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot
     expected_pohm = conductivity.sigma * expected_e_dot_b**2 / geo.gm5
-    np.testing.assert_allclose(np.asarray(pohm), expected_pohm)
+    np.testing.assert_allclose(
+        np.asarray(output.power_density_e), expected_pohm
+    )
 
   def test_ohmic_power_subtracts_phi_b_dot_grid_motion(self):
     n_rho = 4
@@ -95,9 +97,11 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         core_profiles=core_profiles,
         source_state=source_state_lib.SourceState(),
     )
-    (pohm,) = output.profiles
+    assert output.power_density_e is not None
 
-    np.testing.assert_allclose(np.asarray(pohm), 0.0, atol=1e-12)
+    np.testing.assert_allclose(
+        np.asarray(output.power_density_e), 0.0, atol=1e-12
+    )
 
   def test_ohmic_power_agrees_with_large_aspect_ratio_formula_for_pure_ohmic_current(
       self,
@@ -148,12 +152,12 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         core_profiles=core_profiles,
         source_state=source_state_lib.SourceState(),
     )
-    (pohm,) = output.profiles
+    assert output.power_density_e is not None
     large_aspect_ratio_pohm = (
         j_toroidal_total * psidot.value / (2.0 * jnp.pi * geo.R_major_profile)
     )
     np.testing.assert_allclose(
-        np.asarray(pohm), large_aspect_ratio_pohm, rtol=3e-4
+        np.asarray(output.power_density_e), large_aspect_ratio_pohm, rtol=3e-4
     )
 
 if __name__ == '__main__':

@@ -78,10 +78,9 @@ class InitializationTest(parameterized.TestCase):
         solver_profiles=mock.ANY,
         source_state=source.initial_state(runtime_params),
     )
-    (j_parallel_external,) = output.profiles
-    assert isinstance(j_parallel_external, jax.Array)
+    self.assertIsNotNone(output.j_parallel)
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-        j_parallel_external,
+        output.j_parallel,
         geo,
         runtime_params.numerics.min_rho_norm,
     )
@@ -480,7 +479,8 @@ class InitializationTest(parameterized.TestCase):
     )
     source_states = source_models.initial_state(runtime_params)
     mock_output = source_profiles.SourceOutput(
-        profiles=(jnp.zeros_like(geo.rho), jnp.zeros_like(geo.rho)),
+        power_density_i=jnp.zeros_like(geo.rho),
+        power_density_e=jnp.zeros_like(geo.rho),
         fast_ions=(
             fast_ion_lib.FastIon(
                 source='icrh',
@@ -595,7 +595,8 @@ class InitializationTest(parameterized.TestCase):
     )
     source_states = source_models.initial_state(runtime_params)
     mock_output = source_profiles.SourceOutput(
-        profiles=(jnp.zeros_like(geo.rho), jnp.zeros_like(geo.rho)),
+        power_density_i=jnp.zeros_like(geo.rho),
+        power_density_e=jnp.zeros_like(geo.rho),
         fast_ions=(
             fast_ion_lib.FastIon(
                 source='icrh',

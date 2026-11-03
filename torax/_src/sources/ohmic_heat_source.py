@@ -63,8 +63,9 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
     del runtime_params
     # Joule dissipation of the Ohmic current, P_ohm = sigma <E.B>^2 / <B^2>,
@@ -79,7 +80,7 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
     P_ohm = core_profiles.conductivity.sigma * E_dot_B**2 / geo.gm5
-    return source_profiles.SourceOutput(profiles=(P_ohm,)), source_state
+    return source_profiles.SourceOutput(power_density_e=P_ohm), source_state
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):

@@ -305,9 +305,9 @@ If you instead subclass an existing source class (e.g.
 are inherited automatically.
 
 ``_get_model_value`` receives the simulation state and returns a tuple of
-``sources.SourceOutput`` (containing the 1D profiles, one per entry in
-``AFFECTED_CORE_PROFILES``, in the same order, and optional fast ions) and the
-(possibly updated) ``source_state``.
+``sources.SourceOutput`` (containing the 1D cell-grid profiles as named
+attributes corresponding to ``AFFECTED_CORE_PROFILES``, and optional fast ions)
+and the (possibly updated) ``source_state``.
 
 .. code-block:: python
 
@@ -336,13 +336,13 @@ are inherited automatically.
           solver_profiles: torax.SolverProfiles,
           source_state: sources.SourceState,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        # Return a SourceOutput with one profile per affected core profile,
-        # plus the updated source_state.
-        # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
+        # Return a SourceOutput with attributes set for each affected core profile.
         ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
         el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
         return (
-            sources.SourceOutput(profiles=(ion_heat, el_heat)),
+            sources.SourceOutput(
+                power_density_i=ion_heat, power_density_e=el_heat
+            ),
             source_state,
         )
 
@@ -377,7 +377,7 @@ configured with ``is_explicit=True``.
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
         el_heat = core_profiles.conductivity.sigma * 1e-3
         return (
-            sources.SourceOutput(profiles=(el_heat,)),
+            sources.SourceOutput(power_density_e=el_heat),
             source_state,
         )
 
@@ -412,7 +412,7 @@ cannot return ``fast_ions``, and cannot be configured with
             'T_e', geo
         )
         return (
-            sources.SourceOutput(profiles=(-0.1 * total_el_heat,)),
+            sources.SourceOutput(power_density_e=-0.1 * total_el_heat),
             source_state,
         )
 

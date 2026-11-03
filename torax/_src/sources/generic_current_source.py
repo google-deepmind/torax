@@ -78,7 +78,9 @@ class GenericCurrentSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(psi_profile,)), source_state).
+      A tuple containing:
+        - SourceOutput, with the j_parallel profile populated.
+        - SourceState for this source.
     """
     del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -121,7 +123,7 @@ class GenericCurrentSource(source.Source):
     j_parallel = psi_calculations.j_toroidal_to_j_parallel(
         j_tor, geo, runtime_params.numerics.min_rho_norm
     )
-    return source_profiles.SourceOutput(profiles=(j_parallel,)), source_state
+    return source_profiles.SourceOutput(j_parallel=j_parallel), source_state
 
 
 class GenericCurrentSourceConfig(source_base.SourceConfigBase):

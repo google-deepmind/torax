@@ -278,8 +278,9 @@ class CyclotronRadiationHeatSink(source.Source):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
@@ -356,7 +357,7 @@ class CyclotronRadiationHeatSink(source.Source):
     rescaling_factor = P_cycl_total / denom
     Q_cycl = Q_cycl_shape * rescaling_factor
 
-    return source_profiles.SourceOutput(profiles=(-Q_cycl,)), source_state
+    return source_profiles.SourceOutput(power_density_e=-Q_cycl), source_state
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):

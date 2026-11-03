@@ -142,8 +142,9 @@ class BremsstrahlungHeatSink(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
@@ -157,7 +158,7 @@ class BremsstrahlungHeatSink(source.Source):
     )
     # As a sink, the power is negative.
     return (
-        source_profiles.SourceOutput(profiles=(-1.0 * P_brem_profile,)),
+        source_profiles.SourceOutput(power_density_e=-1.0 * P_brem_profile),
         source_state,
     )
 

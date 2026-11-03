@@ -180,6 +180,23 @@ class SingleProfileSourceTestCase(SourceTestCase):
       raise TypeError(f'Unsupported source type: {type(source)}')
     return output, geo
 
+  def _extract_single_profile(
+      self, output: source_profiles.SourceOutput
+  ) -> jax.Array:
+    """Extracts and returns the sole non-None profile array from `output`."""
+    profiles = [
+        p
+        for p in (
+            output.power_density_i,
+            output.power_density_e,
+            output.j_parallel,
+            output.particle_source,
+        )
+        if p is not None
+    ]
+    self.assertLen(profiles, 1)
+    return jnp.asarray(profiles[0])
+
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
     config_dict = default_configs.get_default_config_dict()
@@ -189,7 +206,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     config_dict['sources'] = {self._source_name: source_cfg}
     torax_config = config.ToraxConfig.from_dict(config_dict)
     output, geo = self._evaluate_single_profile_source(torax_config)
-    value = output.profiles[0]
+    value = self._extract_single_profile(output)
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
 
@@ -217,7 +234,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         self._evaluate_single_profile_source(torax_config)
     else:
       output, geo = self._evaluate_single_profile_source(torax_config)
-      value = output.profiles[0]
+      value = self._extract_single_profile(output)
       chex.assert_rank(value, 1)
       self.assertEqual(value.shape, geo.rho.shape)
 
@@ -245,10 +262,19 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    value = output.profiles
-    self.assertLen(value, 2)
-    self.assertEqual(value[0].shape, geo.rho.shape)
-    self.assertEqual(value[1].shape, geo.rho.shape)
+    profiles = [
+        p
+        for p in (
+            output.power_density_i,
+            output.power_density_e,
+            output.j_parallel,
+            output.particle_source,
+        )
+        if p is not None
+    ]
+    self.assertLen(profiles, 2)
+    self.assertEqual(profiles[0].shape, geo.rho.shape)
+    self.assertEqual(profiles[1].shape, geo.rho.shape)
 
-    self.assertFalse(jnp.any(jnp.isnan(value[0])))
-    self.assertFalse(jnp.any(jnp.isnan(value[1])))
+    self.assertFalse(jnp.any(jnp.isnan(profiles[0])))
+    self.assertFalse(jnp.any(jnp.isnan(profiles[1])))

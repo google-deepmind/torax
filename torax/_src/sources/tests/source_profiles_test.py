@@ -29,6 +29,34 @@ from torax._src.sources import source_profiles as source_profiles_lib
 # pylint: disable=invalid-name
 class SourceProfilesTest(parameterized.TestCase):
 
+  def test_source_output_zeros_all_profiles(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    all_zeros = source_profiles_lib.SourceOutput.zeros(geo)
+    self.assertIsNotNone(all_zeros.power_density_i)
+    self.assertIsNotNone(all_zeros.power_density_e)
+    self.assertIsNotNone(all_zeros.j_parallel)
+    self.assertIsNotNone(all_zeros.particle_source)
+    np.testing.assert_allclose(all_zeros.power_density_i, 0.0)
+    np.testing.assert_allclose(all_zeros.power_density_e, 0.0)
+    np.testing.assert_allclose(all_zeros.j_parallel, 0.0)
+    np.testing.assert_allclose(all_zeros.particle_source, 0.0)
+
+  def test_source_output_zeros_affected_core_profiles_subset(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    partial_zeros = source_profiles_lib.SourceOutput.zeros(
+        geo,
+        affected_core_profiles=(
+            source_profiles_lib.AffectedCoreProfile.TEMP_EL,
+            source_profiles_lib.AffectedCoreProfile.PSI,
+        ),
+    )
+    self.assertIsNone(partial_zeros.power_density_i)
+    self.assertIsNone(partial_zeros.particle_source)
+    self.assertIsNotNone(partial_zeros.power_density_e)
+    self.assertIsNotNone(partial_zeros.j_parallel)
+    np.testing.assert_allclose(partial_zeros.power_density_e, 0.0)
+    np.testing.assert_allclose(partial_zeros.j_parallel, 0.0)
+
   def test_summed_T_i_profiles_dont_change_when_jitting(self):
     geo = circular_geometry.CircularConfig().build_geometry()
 
@@ -97,17 +125,18 @@ class SourceProfilesTest(parameterized.TestCase):
     qei = source_profiles_lib.QeiInfo.zeros(geo)
     source_outputs = {
         'heat': source_profiles_lib.SourceOutput(
-            profiles=(ones * 2.0, ones * 3.0),
+            power_density_i=ones * 2.0,
+            power_density_e=ones * 3.0,
             fast_ions=(mock_fast_ion,),
         ),
         'particle': source_profiles_lib.SourceOutput(
-            profiles=(ones * 4.0,),
+            particle_source=ones * 4.0,
         ),
         'current': source_profiles_lib.SourceOutput(
-            profiles=(ones * 5.0,),
+            j_parallel=ones * 5.0,
         ),
         'ignored_nonstandard': source_profiles_lib.SourceOutput(
-            profiles=(ones * 99.0,),
+            j_parallel=ones * 99.0,
         ),
     }
     profiles = source_profiles_lib.SourceProfiles.from_source_outputs(

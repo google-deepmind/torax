@@ -63,8 +63,8 @@ def _calc_ec_current(runtime_params, geo, core_profiles) -> np.ndarray:
       solver_profiles=core_profiles,
       source_state=source.initial_state(runtime_params),
   )
-  _, j_parallel = output.profiles
-  return np.asarray(j_parallel)
+  assert output.j_parallel is not None
+  return np.asarray(output.j_parallel)
 
 
 class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
@@ -138,7 +138,8 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
         solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    q_e, _ = output.profiles
+    q_e = output.power_density_e
+    self.assertIsNotNone(q_e)
     self.assertTrue(np.any(np.asarray(q_e) > 0.0))
 
   def test_extra_prescribed_power_density_only_sets_gaussian_params_to_none(
@@ -167,7 +168,8 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
         solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    q_e, _ = output.profiles
+    q_e = output.power_density_e
+    self.assertIsNotNone(q_e)
     np.testing.assert_allclose(
         np.asarray(q_e), np.asarray(ecrh_params.extra_prescribed_power_density)
     )
@@ -197,7 +199,8 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
         solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    q_e, _ = output.profiles
+    q_e = output.power_density_e
+    self.assertIsNotNone(q_e)
     self.assertTrue(
         np.all(
             np.asarray(q_e)

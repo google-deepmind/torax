@@ -105,11 +105,8 @@ def evaluate_psi_sources(
           curr_state,
       )
       updated_source_states[source_name] = new_state
-      for profile, affected_core_profile in zip(
-          output.profiles, source.AFFECTED_CORE_PROFILES, strict=True
-      ):
-        if affected_core_profile == source_profiles.AffectedCoreProfile.PSI:
-          psi_profiles[source_name] = jnp.asarray(profile)
+      if output.j_parallel is not None:
+        psi_profiles[source_name] = jnp.asarray(output.j_parallel)
   return psi_profiles, updated_source_states
 
 

@@ -92,8 +92,9 @@ class MavrinImpurityRadiationHeatSink(
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
     del geo
     # Reconstruct array from mapping for DynamicIonMixture and effective LZ
@@ -138,7 +139,7 @@ class MavrinImpurityRadiationHeatSink(
     # The impurity radiation heat sink is a negative source, so we return a
     # negative profile.
     return (
-        source_profiles.SourceOutput(profiles=(-radiation_profile,)),
+        source_profiles.SourceOutput(power_density_e=-radiation_profile),
         source_state,
     )
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 """Source/sink profiles for all the sources in TORAX."""
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping
 import dataclasses
 import enum
 from typing import Any, Literal, Self
@@ -32,17 +32,22 @@ from torax._src.physics import fast_ion as fast_ion_lib
 
 
 @enum.unique
-class AffectedCoreProfile(enum.IntEnum):
-  """An enum for the core profiles affected by a source."""
+class AffectedCoreProfile(enum.StrEnum):
+  """Defines which part of the core profiles the source helps evolve.
 
-  # Poloidal magnetic flux equation.
-  PSI = 1
+  The profiles of each source/sink are terms included in equations evolving
+  different core profiles. This enum maps a source to those equations, and its
+  values correspond to the field names on `SourceOutput`.
+  """
+
+  # Current density equation.
+  PSI = 'j_parallel'
   # Electron density equation.
-  NE = 2
+  NE = 'particle_source'
   # Ion temperature equation.
-  TEMP_ION = 3
+  TEMP_ION = 'power_density_i'
   # Electron temperature equation.
-  TEMP_EL = 4
+  TEMP_EL = 'power_density_e'
 
 
 def j_parallel_to_psi_source(
@@ -63,13 +68,54 @@ class SourceOutput:
   """Output of a single Source model evaluation for one time step.
 
   Attributes:
-    profiles: Tuple of 1D cell-grid profiles corresponding to
-      `Source.AFFECTED_CORE_PROFILES` in the same order.
+    power_density_i: Ion power density profile on the cell grid [W/m^3].
+    power_density_e: Electron power density profile on the cell grid [W/m^3].
+    j_parallel: Parallel current density profile on the cell grid [A/m^2].
+    particle_source: Electron particle source profile on the cell grid [m^-3
+      s^-1].
     fast_ions: Fast ion species distributions produced by this source, if any.
   """
 
-  profiles: tuple[array_typing.FloatVectorCell, ...]
+  power_density_i: array_typing.FloatVectorCell | None = None
+  power_density_e: array_typing.FloatVectorCell | None = None
+  j_parallel: array_typing.FloatVectorCell | None = None
+  particle_source: array_typing.FloatVectorCell | None = None
   fast_ions: tuple[fast_ion_lib.FastIon, ...] = ()
+
+  @classmethod
+  def zeros(
+      cls,
+      geo: geometry.Geometry,
+      affected_core_profiles: Collection[AffectedCoreProfile] | None = None,
+  ) -> Self:
+    """Returns a SourceOutput with zero profiles for affected core profiles."""
+    zero_profile = jnp.zeros(geo.rho_norm.shape)
+    if affected_core_profiles is None:
+      return cls(
+          power_density_i=zero_profile,
+          power_density_e=zero_profile,
+          j_parallel=zero_profile,
+          particle_source=zero_profile,
+      )
+    profiles = set(affected_core_profiles)
+    return cls(
+        power_density_i=(
+            zero_profile
+            if AffectedCoreProfile.TEMP_ION in profiles
+            else None
+        ),
+        power_density_e=(
+            zero_profile
+            if AffectedCoreProfile.TEMP_EL in profiles
+            else None
+        ),
+        j_parallel=(
+            zero_profile if AffectedCoreProfile.PSI in profiles else None
+        ),
+        particle_source=(
+            zero_profile if AffectedCoreProfile.NE in profiles else None
+        ),
+    )
 
 
 def extract_fast_ions(
@@ -89,11 +135,8 @@ def extract_psi_sources(
   """Extracts psi source profiles from SourceOutput mapping."""
   psi_sources = {}
   for name, out in source_outputs.items():
-    if name in source_models.standard_sources:
-      source = source_models.standard_sources[name]
-      for profile, affected in zip(out.profiles, source.AFFECTED_CORE_PROFILES):
-        if affected == AffectedCoreProfile.PSI:
-          psi_sources[name] = jnp.asarray(profile)
+    if name in source_models.standard_sources and out.j_parallel is not None:
+      psi_sources[name] = jnp.asarray(out.j_parallel)
   return psi_sources
 
 
@@ -258,20 +301,14 @@ class SourceProfiles:
     fast_ions = {}
     for name, output in source_outputs.items():
       if name in standard_sources:
-        source = standard_sources[name]
-        for profile, affected in zip(
-            output.profiles, source.AFFECTED_CORE_PROFILES, strict=True
-        ):
-          jax_profile = jnp.asarray(profile)
-          match affected:
-            case AffectedCoreProfile.PSI:
-              psi[name] = jax_profile
-            case AffectedCoreProfile.NE:
-              n_e[name] = jax_profile
-            case AffectedCoreProfile.TEMP_ION:
-              T_i[name] = jax_profile
-            case AffectedCoreProfile.TEMP_EL:
-              T_e[name] = jax_profile
+        if output.j_parallel is not None:
+          psi[name] = jnp.asarray(output.j_parallel)
+        if output.particle_source is not None:
+          n_e[name] = jnp.asarray(output.particle_source)
+        if output.power_density_i is not None:
+          T_i[name] = jnp.asarray(output.power_density_i)
+        if output.power_density_e is not None:
+          T_e[name] = jnp.asarray(output.power_density_e)
         if output.fast_ions:
           fast_ions[name] = output.fast_ions
     return cls(
@@ -297,20 +334,14 @@ class SourceProfiles:
     fast_ions = dict(self.fast_ions)
     for name, output in source_outputs.items():
       if name in source_models.standard_sources:
-        source = source_models.standard_sources[name]
-        for profile, affected in zip(
-            output.profiles, source.AFFECTED_CORE_PROFILES, strict=True
-        ):
-          jax_profile = jnp.asarray(profile)
-          match affected:
-            case AffectedCoreProfile.PSI:
-              psi[name] = jax_profile
-            case AffectedCoreProfile.NE:
-              n_e[name] = jax_profile
-            case AffectedCoreProfile.TEMP_ION:
-              T_i[name] = jax_profile
-            case AffectedCoreProfile.TEMP_EL:
-              T_e[name] = jax_profile
+        if output.j_parallel is not None:
+          psi[name] = jnp.asarray(output.j_parallel)
+        if output.particle_source is not None:
+          n_e[name] = jnp.asarray(output.particle_source)
+        if output.power_density_i is not None:
+          T_i[name] = jnp.asarray(output.power_density_i)
+        if output.power_density_e is not None:
+          T_e[name] = jnp.asarray(output.power_density_e)
         if output.fast_ions:
           fast_ions[name] = output.fast_ions
     return dataclasses.replace(

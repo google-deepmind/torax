@@ -69,8 +69,9 @@ class GasPuffSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the particle_source profile populated.
+        - SourceState for this source.
     """
     del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -85,7 +86,7 @@ class GasPuffSource(source.Source):
         total=source_params.S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(profiles=(profile,)), source_state
+    return source_profiles.SourceOutput(particle_source=profile), source_state
 
 
 class GasPuffSourceConfig(base.SourceConfigBase):

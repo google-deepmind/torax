@@ -61,8 +61,10 @@ class FusionHeatSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_i and power_density_e profiles
+          populated.
+        - SourceState for this source.
     """
     del geo
     # If both D and T not present in the main ion mixture, return zero fusion.
@@ -71,10 +73,8 @@ class FusionHeatSource(source.Source):
     if not {'D', 'T'}.issubset(main_ion_names):
       return (
           source_profiles.SourceOutput(
-              profiles=(
-                  jnp.zeros_like(solver_profiles.kinetic.T_i.value),
-                  jnp.zeros_like(solver_profiles.kinetic.T_i.value),
-              )
+              power_density_i=jnp.zeros_like(solver_profiles.kinetic.T_i.value),
+              power_density_e=jnp.zeros_like(solver_profiles.kinetic.T_i.value),
           ),
           source_state,
       )
@@ -143,7 +143,12 @@ class FusionHeatSource(source.Source):
     frac_e = 1.0 - frac_i
     Pfus_i = Pfus_cell * frac_i * alpha_fraction
     Pfus_e = Pfus_cell * frac_e * alpha_fraction
-    return source_profiles.SourceOutput(profiles=(Pfus_i, Pfus_e)), source_state
+    return (
+        source_profiles.SourceOutput(
+            power_density_i=Pfus_i, power_density_e=Pfus_e
+        ),
+        source_state,
+    )
 
 
 class FusionHeatSourceConfig(base.SourceConfigBase):

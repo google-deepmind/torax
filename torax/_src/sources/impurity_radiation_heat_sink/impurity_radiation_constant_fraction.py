@@ -71,8 +71,9 @@ class ConstantFractionImpurityRadiationHeatSink(
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
     del core_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -106,7 +107,10 @@ class ConstantFractionImpurityRadiationHeatSink(
         / geo.volume_face[-1]
         * jnp.ones_like(geo.rho)
     )
-    return source_profiles_lib.SourceOutput(profiles=(-P_rad,)), source_state
+    return (
+        source_profiles_lib.SourceOutput(power_density_e=-P_rad),
+        source_state,
+    )
 
 
 @jax.tree_util.register_dataclass

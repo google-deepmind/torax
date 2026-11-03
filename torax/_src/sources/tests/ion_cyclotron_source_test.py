@@ -32,7 +32,7 @@ class _DummySource(icrh_base.IonCyclotronSource):
 
   def _get_model_value(self, *args, **kwargs):
     return (
-        source_profiles.SourceOutput(profiles=()),
+        source_profiles.SourceOutput(),
         source_state_lib.SourceState(),
     )
 

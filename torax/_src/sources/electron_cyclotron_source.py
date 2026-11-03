@@ -82,8 +82,10 @@ class ElectronCyclotronSource(source.Source):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile, psi_profile)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e and j_parallel profiles
+          populated.
+        - SourceState for this source.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
     # Helps linter understand the type of source_params.
@@ -144,7 +146,9 @@ class ElectronCyclotronSource(source.Source):
     )
 
     return (
-        source_profiles.SourceOutput(profiles=(ec_power_density, fsa_j_dot_B)),
+        source_profiles.SourceOutput(
+            power_density_e=ec_power_density, j_parallel=fsa_j_dot_B
+        ),
         source_state,
     )
 

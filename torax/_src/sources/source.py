@@ -44,7 +44,6 @@ from collections.abc import Callable
 import dataclasses
 from typing import ClassVar
 
-from jax import numpy as jnp
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
@@ -53,6 +52,8 @@ from torax._src.geometry import geometry
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
+
+AffectedCoreProfile = source_profiles.AffectedCoreProfile
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -70,8 +71,7 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
       in ``runtime_params.sources`` and ``SourceModels.standard_sources``.
     AFFECTED_CORE_PROFILES: Tuple of :class:`~torax.sources.AffectedCoreProfile`
       enum members defining which PDE channel equations this source's output
-      profiles contribute to. The order in this tuple must match the profile
-      ordering in the returned :class:`~torax.sources.SourceOutput.profiles`.
+      profiles contribute to.
   """
 
   SOURCE_ID: ClassVar[str]
@@ -144,6 +144,21 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
         output, source_state = model_fn()
+        for affected_profile in AffectedCoreProfile:
+          value = getattr(output, affected_profile)
+          if affected_profile in self.AFFECTED_CORE_PROFILES:
+            if value is None:
+              raise ValueError(
+                  f'{type(self).__name__} must return'
+                  f' {affected_profile.value!r} for affected core profile'
+                  f' {affected_profile.name}.'
+              )
+          elif value is not None:
+            raise ValueError(
+                f'{type(self).__name__} returned {affected_profile.value!r}'
+                f' but {affected_profile.name} is not in'
+                ' AFFECTED_CORE_PROFILES.'
+            )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         if len(source_params.prescribed_values) != len(
             self.AFFECTED_CORE_PROFILES
@@ -154,13 +169,22 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
               f'{len(source_params.prescribed_values)} '
               f' Expected: {len(self.AFFECTED_CORE_PROFILES)}.'
           )
+        prescribed = dict(
+            zip(
+                self.AFFECTED_CORE_PROFILES,
+                source_params.prescribed_values,
+                strict=True,
+            )
+        )
         output = source_profiles.SourceOutput(
-            profiles=source_params.prescribed_values
+            power_density_i=prescribed.get(AffectedCoreProfile.TEMP_ION),
+            power_density_e=prescribed.get(AffectedCoreProfile.TEMP_EL),
+            j_parallel=prescribed.get(AffectedCoreProfile.PSI),
+            particle_source=prescribed.get(AffectedCoreProfile.NE),
         )
       case sources_runtime_params_lib.Mode.ZERO:
-        zeros = jnp.zeros(geo.rho_norm.shape)
-        output = source_profiles.SourceOutput(
-            profiles=(zeros,) * len(self.AFFECTED_CORE_PROFILES)
+        output = source_profiles.SourceOutput.zeros(
+            geo, self.AFFECTED_CORE_PROFILES
         )
       case _:
         raise ValueError(f'Unknown mode: {mode}')
