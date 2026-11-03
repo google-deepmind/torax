@@ -21,9 +21,7 @@ dependencies = [
     "jaxlib>=0.11.1",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    # Temporarily pointing at main while waiting for the updated
-    # fusion_surrogates release.
-    "fusion_surrogates[tglfnnukaea] @ git+https://github.com/google-deepmind/fusion_surrogates.git@main",
+    "fusion_surrogates[tglfnnukaea]==0.4.8",
     "matplotlib>=3.3.0",
     "numpy>2",
     "setuptools;python_version>='3.12'",
