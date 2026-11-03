@@ -85,6 +85,7 @@ class SourceModelsTest(parameterized.TestCase):
     sources_dict['pellet'] = {}
     sources_dict['impurity_radiation'] = {
         'model_name': 'P_in_scaled_flat_profile',
+        'fraction_P_heating': 0.1,
     }
     configured_models = sources_config.SourcesConfig.from_dict(
         sources_dict
@@ -114,6 +115,7 @@ class SourceModelsTest(parameterized.TestCase):
     sources_dict['pellet'] = {}
     sources_dict['impurity_radiation'] = {
         'model_name': 'P_in_scaled_flat_profile',
+        'fraction_P_heating': 0.1,
     }
     configured_models = sources_config.SourcesConfig.from_dict(
         sources_dict

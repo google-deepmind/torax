@@ -65,7 +65,10 @@ class SourcesConfigTest(parameterized.TestCase):
       ),
       dict(
           config_dict={
-              'impurity_radiation': {'model_name': 'P_in_scaled_flat_profile'},
+              'impurity_radiation': {
+                  'model_name': 'P_in_scaled_flat_profile',
+                  'fraction_P_heating': 0.1,
+              },
           },
           expected_sources_model=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
       ),
@@ -388,6 +391,14 @@ class SourcesConfigTest(parameterized.TestCase):
           },
           expected_error="P_total must be provided when mode is 'model_based'",
       ),
+      dict(
+          testcase_name='impurity_radiation_constant_fraction',
+          source_name='impurity_radiation',
+          source_kwargs={'model_name': 'P_in_scaled_flat_profile'},
+          expected_error=(
+              "fraction_P_heating must be provided when mode is 'model_based'"
+          ),
+      ),
   )
   def test_missing_amplitude_raises_in_model_based_mode(
       self,
@@ -411,6 +422,12 @@ class SourcesConfigTest(parameterized.TestCase):
               'minority_species': 'He3',
           },
           zero_fields=('P_total',),
+      ),
+      dict(
+          testcase_name='impurity_radiation_constant_fraction',
+          source_name='impurity_radiation',
+          source_kwargs={'model_name': 'P_in_scaled_flat_profile'},
+          zero_fields=('fraction_P_heating',),
       ),
   )
   def test_missing_amplitude_allowed_in_zero_and_prescribed_modes(

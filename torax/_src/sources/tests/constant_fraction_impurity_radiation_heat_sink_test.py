@@ -41,6 +41,7 @@ class ImpurityRadiationConstantFractionTest(
   model_name = 'P_in_scaled_flat_profile'
   needs_source_models = True
   can_be_explicit = False
+  extra_source_config_kwargs = {'fraction_P_heating': 0.1}
 
   def test_source_value(self):
     heat_name = (
@@ -118,6 +119,7 @@ class ImpurityRadiationConstantFractionTest(
     impurity_radiation_heat_sink_power = math_utils.volume_integration(
         impurity_radiation_heat_sink_power_density, geo
     )
+    assert impurity_radiation_params.fraction_P_heating is not None
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,
         heat_params.P_total * -impurity_radiation_params.fraction_P_heating,

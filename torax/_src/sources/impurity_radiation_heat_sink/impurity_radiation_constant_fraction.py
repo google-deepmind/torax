@@ -14,10 +14,11 @@
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 import chex
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
@@ -76,6 +77,11 @@ class ConstantFractionImpurityRadiationHeatSink(
     del core_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.fraction_P_heating is None:
+      raise ValueError(
+          'ConstantFractionImpurityRadiationHeatSink requires'
+          ' `fraction_P_heating` to be set.'
+      )
 
     # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
     # sources_psi, but only summing over heating *input* sources
@@ -106,7 +112,7 @@ class ConstantFractionImpurityRadiationHeatSink(
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
-  fraction_P_heating: array_typing.FloatScalar
+  fraction_P_heating: array_typing.FloatScalar | None
 
 
 class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
@@ -114,15 +120,24 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
 
   Attributes:
     fraction_P_heating: Fraction of total power density to be absorbed by the
-      impurity.
+      impurity. Required when mode is 'model_based'.
   """
 
   model_name: Annotated[
       Literal['P_in_scaled_flat_profile'], torax_pydantic.JAX_STATIC
   ] = 'P_in_scaled_flat_profile'
-  fraction_P_heating: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.1)
-  )
+  fraction_P_heating: torax_pydantic.UnitIntervalTimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if (
+        self.mode == sources_runtime_params_lib.Mode.MODEL_BASED
+        and self.fraction_P_heating is None
+    ):
+      raise ValueError(
+          "fraction_P_heating must be provided when mode is 'model_based'."
+      )
+    return self
 
   def build_runtime_params(
       self,
@@ -131,7 +146,11 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        fraction_P_heating=self.fraction_P_heating.get_value(t),
+        fraction_P_heating=(
+            None
+            if self.fraction_P_heating is None
+            else self.fraction_P_heating.get_value(t)
+        ),
     )
 
   def build_source(self) -> ConstantFractionImpurityRadiationHeatSink:
