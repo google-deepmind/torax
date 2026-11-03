@@ -102,15 +102,16 @@ class ElectronCyclotronSource(source.Source):
             jnp.log(16.0)
             + jnp.log(jnp.pi)
             + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
-            + jnp.log(solver_profiles.T_e.value * 1e3)
+            + jnp.log(solver_profiles.kinetic.T_e.value * 1e3)
             - (
                 2 * jnp.log(constants.CONSTANTS.q_e)
                 + jnp.log(
                     collisions.calculate_log_lambda_ee(
-                        solver_profiles.T_e.value, solver_profiles.n_e.value
+                        solver_profiles.kinetic.T_e.value,
+                        solver_profiles.kinetic.n_e.value,
                     )
                 )
-                + jnp.log(solver_profiles.n_e.value)
+                + jnp.log(solver_profiles.kinetic.n_e.value)
             )
         )
         * source_params.current_drive_efficiency
@@ -118,7 +119,7 @@ class ElectronCyclotronSource(source.Source):
     )
 
     # < j.B >
-    q_cell = geometry.face_to_cell(solver_profiles.q_face)
+    q_cell = geometry.face_to_cell(solver_profiles.poloidal_flux.q_face)
     fsa_j_dot_B = (
         geo.F
         * geo.gm9

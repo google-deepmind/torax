@@ -339,8 +339,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
-      flux=dataclasses.replace(
-          initial_state.core_profiles.flux,
+      poloidal_flux=dataclasses.replace(
+          initial_state.core_profiles.poloidal_flux,
           v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
       ),
   )

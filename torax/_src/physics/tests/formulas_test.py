@@ -53,8 +53,8 @@ class FormulasTest(parameterized.TestCase):
                 self.geo, 0.25e20
             ),
         ),
-        flux=dataclasses.replace(
-            self.core_profiles.flux,
+        poloidal_flux=dataclasses.replace(
+            self.core_profiles.poloidal_flux,
             I_p_profile_face=np.array([np.pi * 1e6]),
         ),
     )
@@ -226,7 +226,9 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        flux=dataclasses.replace(core_profiles.flux, psi=psi_var),
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux, psi=psi_var
+        ),
         kinetic=dataclasses.replace(
             core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
         ),
@@ -280,7 +282,9 @@ class FormulasTest(parameterized.TestCase):
         kinetic=dataclasses.replace(
             core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
         ),
-        flux=dataclasses.replace(core_profiles.flux, q_face=q_face),
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux, q_face=q_face
+        ),
     )
 
     alpha_mhd = formulas.calculate_alpha_mhd(core_profiles, geo)
@@ -340,8 +344,8 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        flux=dataclasses.replace(
-            core_profiles.flux, psi=psi_var, q_face=q_face
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux, psi=psi_var, q_face=q_face
         ),
         kinetic=dataclasses.replace(
             core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val

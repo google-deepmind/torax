@@ -70,6 +70,7 @@ class ConvertersTest(parameterized.TestCase):
             n_e=n_e,
             n_i=mock.ANY,
             n_impurity=mock.ANY,
+            toroidal_angular_velocity=toroidal_angular_velocity,
         ),
         ions=state.IonComposition(
             impurity_fractions=mock.ANY,
@@ -86,7 +87,7 @@ class ConvertersTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        flux=state.FluxProfiles(
+        poloidal_flux=state.PoloidalFluxProfiles(
             psi=psi,
             q_face=mock.ANY,
             s_face=mock.ANY,
@@ -95,7 +96,6 @@ class ConvertersTest(parameterized.TestCase):
             I_p_profile_face=mock.ANY,
             v_loop_lcfs=mock.ANY,
         ),
-        toroidal_angular_velocity=toroidal_angular_velocity,
         fast_ions=mock.ANY,
         conductivity=state.Conductivity(
             sigma=mock.ANY,

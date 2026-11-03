@@ -70,8 +70,8 @@ class FusionHeatSource(source.Source):
       return (
           source_profiles.SourceOutput(
               profiles=(
-                  jnp.zeros_like(solver_profiles.T_i.value),
-                  jnp.zeros_like(solver_profiles.T_i.value),
+                  jnp.zeros_like(solver_profiles.kinetic.T_i.value),
+                  jnp.zeros_like(solver_profiles.kinetic.T_i.value),
               )
           ),
           source_state,
@@ -86,7 +86,7 @@ class FusionHeatSource(source.Source):
           product *= fraction
       DT_fraction_product = product
 
-    t_face = solver_profiles.T_i.face_value()
+    t_face = solver_profiles.kinetic.T_i.face_value()
 
     # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
     # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
@@ -120,7 +120,7 @@ class FusionHeatSource(source.Source):
 
     logPfus = (
         jnp.log(DT_fraction_product * Efus)
-        + 2 * jnp.log(solver_profiles.n_i.face_value())
+        + 2 * jnp.log(solver_profiles.kinetic.n_i.face_value())
         + logsigmav
     )
 
@@ -135,7 +135,7 @@ class FusionHeatSource(source.Source):
     alpha_mass = 4.002602
     frac_i = collisions.mikkelsen_fast_ion_heating_fraction(
         birth_energy,
-        solver_profiles.T_e.value,
+        solver_profiles.kinetic.T_e.value,
         alpha_mass,
     )
     frac_e = 1.0 - frac_i

@@ -171,9 +171,10 @@ class SimpleRedistribution(
         n_e=n_e_redistributed,
         n_i=n_i_redistributed,
         n_impurity=n_impurity_redistributed,
+        toroidal_angular_velocity=core_profiles_t.toroidal_angular_velocity,
     )
-    flux = dataclasses.replace(
-        core_profiles_t.flux,
+    poloidal_flux = dataclasses.replace(
+        core_profiles_t.poloidal_flux,
         psi=psi_redistributed,
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),
         s_face=psi_calculations.calc_s_face(geo, psi_redistributed),
@@ -182,7 +183,7 @@ class SimpleRedistribution(
         core_profiles_t,
         kinetic=kinetic,
         ions=ions_redistributed,
-        flux=flux,
+        poloidal_flux=poloidal_flux,
     )
 
 

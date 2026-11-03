@@ -99,23 +99,24 @@ class MavrinImpurityRadiationHeatSink(
     # Reconstruct array from mapping for DynamicIonMixture and effective LZ
     # calculations.
     ion_symbols = runtime_params.plasma_composition.impurity_names
-    impurity_fractions_arr = jnp.stack(
-        [solver_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
-    )
+    impurity_fractions_arr = jnp.stack([
+        solver_profiles.ions.impurity_fractions[symbol]
+        for symbol in ion_symbols
+    ])
     # Calculate the total effective cooling rate coming from all impurity
     # species.
     effective_LZ = calculate_total_impurity_radiation(
         ion_symbols=runtime_params.plasma_composition.impurity_names,
         impurity_fractions=impurity_fractions_arr,
-        T_e=solver_profiles.T_e.value,
+        T_e=solver_profiles.kinetic.T_e.value,
     )
     # The impurity density must be scaled to account for the true total impurity
     # density. This is because in an IonMixture, the impurity density is an
     # effective density as follows:
     # n_imp_true * sum(fraction_imp * Z_imp) = n_imp_eff * Z_imp_eff
-    # where solver_profiles.Z_impurity is the effective impurity charge for the
-    # IonMixture and solver_profiles.n_impurity is effective total impurity
-    # density.
+    # where solver_profiles.ions.Z_impurity is the effective impurity charge
+    # for the IonMixture and solver_profiles.kinetic.n_impurity is effective
+    # total impurity density.
     # However, the input fractions correspond to fractions of the true total
     # impurity density which must be scaled from the effective density as
     # follows:
@@ -128,8 +129,8 @@ class MavrinImpurityRadiationHeatSink(
     assert isinstance(source_params, RuntimeParams)
     radiation_profile = (
         effective_LZ
-        * solver_profiles.n_e.value
-        * solver_profiles.n_impurity.value
+        * solver_profiles.kinetic.n_e.value
+        * solver_profiles.kinetic.n_impurity.value
         * impurity_density_scaling
         * source_params.radiation_multiplier
     )

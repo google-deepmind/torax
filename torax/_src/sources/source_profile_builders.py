@@ -468,7 +468,7 @@ def build_source_profiles(
   # and initial_state migrate to physics_pipeline.
   v_loop_lcfs = core_profiles.psidot.right_face_constraint
   psidot = psi_calculations.calculate_psidot(
-      psi=core_profiles.psi,
+      psi=core_profiles.poloidal_flux.psi,
       sigma=core_profiles.conductivity.sigma,
       psi_sources=sum_total_psi_sources(
           basic_outputs, source_models, bootstrap_current, geo

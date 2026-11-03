@@ -25,13 +25,13 @@ from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 
 
-def _build_flux_profiles(
+def _build_poloidal_flux_profiles(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     min_rho_norm: array_typing.FloatScalar,
     v_loop_lcfs: array_typing.FloatScalar | None,
-) -> state.FluxProfiles:
-  """Constructs FluxProfiles derived from poloidal flux and geometry."""
+) -> state.PoloidalFluxProfiles:
+  """Constructs PoloidalFluxProfiles derived from poloidal flux and geometry."""
   j_toroidal_total, j_toroidal_total_face, i_p_profile_face = (
       psi_calculations.calc_j_toroidal_total(
           geo,
@@ -41,7 +41,7 @@ def _build_flux_profiles(
   )
   if v_loop_lcfs is None:
     v_loop_lcfs = jnp.asarray(0.0, dtype=jax_utils.get_dtype())
-  return state.FluxProfiles(
+  return state.PoloidalFluxProfiles(
       psi=psi,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
@@ -50,6 +50,9 @@ def _build_flux_profiles(
       I_p_profile_face=i_p_profile_face,
       v_loop_lcfs=v_loop_lcfs,
   )
+
+
+_build_flux_profiles = _build_poloidal_flux_profiles
 
 
 def build_base_core_profiles(
@@ -69,7 +72,7 @@ def build_base_core_profiles(
     v_loop_lcfs: Loop voltage at the LCFS [V]. If None, defaults to 0.0.
 
   Returns:
-    BaseCoreProfiles with kinetic, ions, flux, and toroidal angular velocity.
+    BaseCoreProfiles with kinetic, ions, and poloidal_flux.
   """
   ion_composition, n_i, n_impurity = getters.get_updated_ions(
       runtime_params,
@@ -77,7 +80,7 @@ def build_base_core_profiles(
       solver_state.n_e,
       solver_state.T_e,
   )
-  flux = _build_flux_profiles(
+  poloidal_flux = _build_poloidal_flux_profiles(
       geo,
       solver_state.psi,
       runtime_params.numerics.min_rho_norm,
@@ -89,10 +92,10 @@ def build_base_core_profiles(
       n_e=solver_state.n_e,
       n_i=n_i,
       n_impurity=n_impurity,
+      toroidal_angular_velocity=solver_state.toroidal_angular_velocity,
   )
   return state.BaseCoreProfiles(
       kinetic=kinetic,
       ions=ion_composition,
-      flux=flux,
-      toroidal_angular_velocity=solver_state.toroidal_angular_velocity,
+      poloidal_flux=poloidal_flux,
   )

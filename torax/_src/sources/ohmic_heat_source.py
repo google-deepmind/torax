@@ -75,7 +75,7 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
         - geo.rho_norm
         * geo.Phi_b_dot
         / (2.0 * geo.Phi_b)
-        * core_profiles.psi.grad()
+        * core_profiles.poloidal_flux.psi.grad()
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
     P_ohm = core_profiles.conductivity.sigma * E_dot_B**2 / geo.gm5

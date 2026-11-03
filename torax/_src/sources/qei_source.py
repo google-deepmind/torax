@@ -98,8 +98,8 @@ def _model_based_qei(
           and not runtime_params.numerics.evolve_ion_heat
       )
   ):
-    explicit_i = qei_coef * core_profiles.T_e.value
-    explicit_e = qei_coef * core_profiles.T_i.value
+    explicit_i = qei_coef * core_profiles.kinetic.T_e.value
+    explicit_e = qei_coef * core_profiles.kinetic.T_i.value
     implicit_ie = zeros
     implicit_ei = zeros
   else:
@@ -108,7 +108,7 @@ def _model_based_qei(
     implicit_ie = qei_coef
     implicit_ei = qei_coef
   p_ei = qei_coef * jnp.subtract(
-      core_profiles.T_e.value, core_profiles.T_i.value
+      core_profiles.kinetic.T_e.value, core_profiles.kinetic.T_i.value
   )
   return source_profiles.QeiInfo(
       implicit_ii=implicit_ii,

@@ -96,8 +96,7 @@ def update_core_profiles_during_step(
   return state.CoreProfiles(
       kinetic=base.kinetic,
       ions=base.ions,
-      flux=base.flux,
-      toroidal_angular_velocity=base.toroidal_angular_velocity,
+      poloidal_flux=base.poloidal_flux,
       fast_ions=(),
       conductivity=state.Conductivity.zeros(geo),
       poloidal_velocity=cell_variable.CellVariable(
@@ -186,8 +185,7 @@ def update_core_and_source_profiles_after_step(
   intermediate_core_profiles = state.CoreProfiles(
       kinetic=base.kinetic,
       ions=base.ions,
-      flux=base.flux,
-      toroidal_angular_velocity=base.toroidal_angular_velocity,
+      poloidal_flux=base.poloidal_flux,
       fast_ions=(),
       conductivity=state.Conductivity.zeros(geo),
       poloidal_velocity=cell_variable.CellVariable(

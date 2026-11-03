@@ -68,17 +68,18 @@ def calc_bremsstrahlung(
       jax.Array: total bremsstrahlung radiation power [MW]
       jax.Array: bremsstrahlung radiation power profile [W/m^3]
   """
-  n_e20 = core_profiles.n_e.face_value() / 1e20
+  n_e20 = core_profiles.kinetic.n_e.face_value() / 1e20
 
-  T_e_kev = core_profiles.T_e.face_value()
+  T_e_kev = core_profiles.kinetic.T_e.face_value()
 
   # When exclude_impurity_bremsstrahlung is True, use the main-ion-only
   # contribution to Z_eff: Z_eff_main = n_i * Z_i^2 / n_e.
   Z_eff_face = jnp.where(
       exclude_impurity_bremsstrahlung,
-      core_profiles.n_i.face_value() * core_profiles.Z_i_face**2
-      / core_profiles.n_e.face_value(),
-      core_profiles.Z_eff_face,
+      core_profiles.kinetic.n_i.face_value()
+      * core_profiles.ions.Z_i_face**2
+      / core_profiles.kinetic.n_e.face_value(),
+      core_profiles.ions.Z_eff_face,
   )
 
   P_brem_profile_face: jax.Array = (

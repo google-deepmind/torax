@@ -536,8 +536,8 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     core_profiles_scaled_psi = dataclasses.replace(
         core_profiles_zero_psidot,
-        flux=dataclasses.replace(
-            core_profiles_zero_psidot.flux,
+        poloidal_flux=dataclasses.replace(
+            core_profiles_zero_psidot.poloidal_flux,
             psi=dataclasses.replace(
                 core_profiles.psi,
                 value=core_profiles.psi.value * 2.0,

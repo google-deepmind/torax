@@ -54,7 +54,9 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     source_models = torax_config.sources.build_models()
 
-    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
+    initial_line_avg = math_utils.line_average(
+        core_profiles.kinetic.n_e.value, geo
+    )
 
     # Rebuild with specific requested value
     config_dict['sources']['gas_puff']['model_name'] = 'feedback'

@@ -287,9 +287,9 @@ class CyclotronRadiationHeatSink(source.Source):
     # Notation conventions based on the Albajar and Artaud papers
     # pylint: disable=invalid-name
 
-    n_e20_face = jnp.asarray(solver_profiles.n_e.face_value() / 1e20)
-    n_e20_cell = solver_profiles.n_e.value / 1e20
-    te_face = jnp.asarray(solver_profiles.T_e.face_value())
+    n_e20_face = jnp.asarray(solver_profiles.kinetic.n_e.face_value() / 1e20)
+    n_e20_cell = solver_profiles.kinetic.n_e.value / 1e20
+    te_face = jnp.asarray(solver_profiles.kinetic.T_e.face_value())
 
     # Dimensionless optical thickness parameter, on-axis:
     # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
@@ -348,7 +348,7 @@ class CyclotronRadiationHeatSink(source.Source):
         * geo.elongation**0.79
         * (geo.F / geo.R_major_profile) ** 2.62
         * n_e20_cell**0.38
-        * solver_profiles.T_e.value**3.61
+        * solver_profiles.kinetic.T_e.value**3.61
     )
 
     # Scale the profile shape to match the total integrated power loss

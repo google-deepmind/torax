@@ -47,7 +47,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     geo.gm5 = jnp.full((n_rho,), 9.0)
 
     core_profiles = mock.Mock()
-    core_profiles.psi.grad.return_value = jnp.ones(n_rho)
+    core_profiles.poloidal_flux.psi.grad.return_value = jnp.ones(n_rho)
     core_profiles.psidot = mock.Mock(value=psidot)
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
@@ -83,7 +83,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     geo.gm5 = jnp.full((n_rho,), 4.0)
 
     core_profiles = mock.Mock()
-    core_profiles.psi.grad.return_value = psi_grad
+    core_profiles.poloidal_flux.psi.grad.return_value = psi_grad
     core_profiles.psidot = mock.Mock(value=psidot)
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
@@ -136,7 +136,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     )
 
     core_profiles = mock.Mock()
-    core_profiles.psi = psi
+    core_profiles.poloidal_flux.psi = psi
     core_profiles.psidot = psidot
     conductivity = mock.Mock()
     conductivity.sigma = sigma

@@ -116,8 +116,9 @@ def initial_core_profiles(
       n_e=n_e,
       n_i=n_i,
       n_impurity=n_impurity,
+      toroidal_angular_velocity=toroidal_angular_velocity,
   )
-  flux = state.FluxProfiles(
+  flux = state.PoloidalFluxProfiles(
       psi=psi,
       q_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       s_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
@@ -137,8 +138,7 @@ def initial_core_profiles(
   core_profiles = state.CoreProfiles(
       kinetic=kinetic,
       ions=ion_composition,
-      flux=flux,
-      toroidal_angular_velocity=toroidal_angular_velocity,
+      poloidal_flux=flux,
       fast_ions=(),
       conductivity=conductivity,
       poloidal_velocity=cell_variable.CellVariable(
@@ -369,8 +369,8 @@ def _init_psi_and_psi_derived(
         )
         core_profiles_initial = dataclasses.replace(
             core_profiles,
-            flux=dataclasses.replace(
-                core_profiles.flux,
+            poloidal_flux=dataclasses.replace(
+                core_profiles.poloidal_flux,
                 psi=psi,
                 q_face=psi_calculations.calc_q_face(geo, psi),
                 s_face=psi_calculations.calc_s_face(geo, psi),
@@ -429,8 +429,8 @@ def _calculate_all_psi_dependent_profiles(
 
   core_profiles = dataclasses.replace(
       core_profiles,
-      flux=dataclasses.replace(
-          core_profiles.flux,
+      poloidal_flux=dataclasses.replace(
+          core_profiles.poloidal_flux,
           psi=psi,
           q_face=psi_calculations.calc_q_face(geo, psi),
           s_face=psi_calculations.calc_s_face(geo, psi),
@@ -563,8 +563,8 @@ def _iterate_psi_and_sources(
     )
     core_profiles = dataclasses.replace(
         core_profiles,
-        flux=dataclasses.replace(
-            core_profiles.flux,
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux,
             psi=psi,
             q_face=psi_calculations.calc_q_face(geo, psi),
             s_face=psi_calculations.calc_s_face(geo, psi),

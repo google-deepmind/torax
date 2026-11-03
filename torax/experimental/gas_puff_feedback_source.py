@@ -103,11 +103,11 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
     match source_params.average_type:
       case AverageType.LINE:
         current_avg_n_e = math_utils.line_average(
-            solver_profiles.n_e.value, geo
+            solver_profiles.kinetic.n_e.value, geo
         )
       case AverageType.VOLUME:
         current_avg_n_e = math_utils.volume_average(
-            solver_profiles.n_e.value, geo
+            solver_profiles.kinetic.n_e.value, geo
         )
       case _ as unknown:
         raise ValueError(f'Unknown average type: {unknown}')

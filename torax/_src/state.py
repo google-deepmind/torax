@@ -64,6 +64,7 @@ class KineticProfiles:
     n_e: Electron density [m^-3].
     n_i: Main ion density [m^-3].
     n_impurity: Impurity density of bundled impurity [m^-3].
+    toroidal_angular_velocity: Toroidal angular velocity [rad/s].
   """
 
   T_i: cell_variable.CellVariable
@@ -71,6 +72,7 @@ class KineticProfiles:
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
+  toroidal_angular_velocity: cell_variable.CellVariable
 
 
 @jax.tree_util.register_dataclass
@@ -122,8 +124,8 @@ class IonComposition:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
-class FluxProfiles:
-  """Magnetic flux and current profiles.
+class PoloidalFluxProfiles:
+  """Poloidal flux and derived magnetic and current profiles.
 
   Attributes:
     psi: Poloidal flux [Wb].
@@ -144,6 +146,9 @@ class FluxProfiles:
   v_loop_lcfs: array_typing.FloatScalar
 
 
+FluxProfiles = PoloidalFluxProfiles
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
 class BaseCoreProfiles:
@@ -154,16 +159,30 @@ class BaseCoreProfiles:
   models or profiles (such as sources, neoclassical, pedestal, or transport).
 
   Attributes:
-    kinetic: Kinetic profiles (temperatures and densities).
+    kinetic: Kinetic profiles (temperatures, densities, and toroidal angular
+      velocity).
     ions: Ion composition and charge state profiles.
-    flux: Magnetic flux, safety factor, and current profiles.
-    toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+    poloidal_flux: Poloidal flux, safety factor, magnetic shear, and current
+      profiles.
   """
 
   kinetic: KineticProfiles
   ions: IonComposition
-  flux: FluxProfiles
-  toroidal_angular_velocity: cell_variable.CellVariable
+  poloidal_flux: PoloidalFluxProfiles
+
+  @property
+  def toroidal_angular_velocity(self) -> cell_variable.CellVariable:
+    """Returns toroidal angular velocity."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.kinetic.toroidal_angular_velocity
+
+  @property
+  def flux(self) -> PoloidalFluxProfiles:
+    """Returns poloidal flux profiles container."""
+    # Temporary compatibility property; removed once downstream callers migrate
+    # to nested attributes.
+    return self.poloidal_flux
 
   @functools.cached_property
   def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
@@ -215,13 +234,15 @@ class BaseCoreProfiles:
   @functools.cached_property
   def psi_norm(self) -> array_typing.FloatVectorCell:
     """Normalized poloidal flux on the cell grid."""
-    psi_face = self.flux.psi.face_value()
-    return (self.flux.psi.value - psi_face[0]) / (psi_face[-1] - psi_face[0])
+    psi_face = self.poloidal_flux.psi.face_value()
+    return (self.poloidal_flux.psi.value - psi_face[0]) / (
+        psi_face[-1] - psi_face[0]
+    )
 
   @functools.cached_property
   def psi_norm_face(self) -> array_typing.FloatVectorFace:
     """Normalized poloidal flux on the face grid."""
-    psi_face = self.flux.psi.face_value()
+    psi_face = self.poloidal_flux.psi.face_value()
     return (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
 
   @functools.cached_property
@@ -416,63 +437,63 @@ class BaseCoreProfiles:
     """Returns poloidal magnetic flux profile."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.psi
+    return self.poloidal_flux.psi
 
   @property
   def q_face(self) -> array_typing.FloatVectorFace:
     """Returns safety factor profile on face grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.q_face
+    return self.poloidal_flux.q_face
 
   @property
   def s_face(self) -> array_typing.FloatVectorFace:
     """Returns magnetic shear profile on face grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.s_face
+    return self.poloidal_flux.s_face
 
   @property
   def j_total(self) -> array_typing.FloatVectorCell:
     """Returns total plasma current density on cell grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.j_toroidal_total
+    return self.poloidal_flux.j_toroidal_total
 
   @property
   def j_total_face(self) -> array_typing.FloatVectorFace:
     """Returns total plasma current density on face grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.j_toroidal_total_face
+    return self.poloidal_flux.j_toroidal_total_face
 
   @property
   def j_toroidal_total(self) -> array_typing.FloatVectorCell:
     """Returns total toroidal plasma current density on cell grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.j_toroidal_total
+    return self.poloidal_flux.j_toroidal_total
 
   @property
   def j_toroidal_total_face(self) -> array_typing.FloatVectorFace:
     """Returns total toroidal plasma current density on face grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.j_toroidal_total_face
+    return self.poloidal_flux.j_toroidal_total_face
 
   @property
   def I_p_profile_face(self) -> array_typing.FloatVectorFace:
     """Returns cumulative plasma current on face grid."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.I_p_profile_face
+    return self.poloidal_flux.I_p_profile_face
 
   @property
   def v_loop_lcfs(self) -> array_typing.FloatScalar:
     """Returns loop voltage at the last closed flux surface."""
     # Temporary compatibility property; removed once downstream callers migrate
     # to nested attributes.
-    return self.flux.v_loop_lcfs
+    return self.poloidal_flux.v_loop_lcfs
 
 
 @jax.tree_util.register_dataclass
@@ -504,9 +525,11 @@ class SolverState:
     return cls(
         T_i=core_profiles.kinetic.T_i,
         T_e=core_profiles.kinetic.T_e,
-        psi=core_profiles.flux.psi,
+        psi=core_profiles.poloidal_flux.psi,
         n_e=core_profiles.kinetic.n_e,
-        toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+        toroidal_angular_velocity=(
+            core_profiles.kinetic.toroidal_angular_velocity
+        ),
     )
 
 
@@ -702,13 +725,13 @@ class CoreProfiles(BaseCoreProfiles):
     cell_vars = {
         output_keys.T_I: self.kinetic.T_i.cell_plus_boundaries(),
         output_keys.T_E: self.kinetic.T_e.cell_plus_boundaries(),
-        output_keys.PSI: self.flux.psi.cell_plus_boundaries(),
+        output_keys.PSI: self.poloidal_flux.psi.cell_plus_boundaries(),
         output_keys.V_LOOP: self.psidot.cell_plus_boundaries(),
         output_keys.N_E: self.kinetic.n_e.cell_plus_boundaries(),
         output_keys.N_I: self.kinetic.n_i.cell_plus_boundaries(),
         output_keys.N_IMPURITY: self.kinetic.n_impurity.cell_plus_boundaries(),
         output_keys.TOROIDAL_ANGULAR_VELOCITY: (
-            self.toroidal_angular_velocity.cell_plus_boundaries()
+            self.kinetic.toroidal_angular_velocity.cell_plus_boundaries()
         ),
         output_keys.PRESSURE_THERMAL_E: (
             self.pressure_thermal_e.cell_plus_boundaries()
@@ -750,8 +773,8 @@ class CoreProfiles(BaseCoreProfiles):
         ),
         (
             output_keys.J_TOROIDAL_TOTAL,
-            self.flux.j_toroidal_total,
-            self.flux.j_toroidal_total_face,
+            self.poloidal_flux.j_toroidal_total,
+            self.poloidal_flux.j_toroidal_total_face,
         ),
     ]
     for key, cell_val, face_val in cell_face_pairs:
@@ -761,17 +784,17 @@ class CoreProfiles(BaseCoreProfiles):
       out_dict[key] = context.pack(key, extended_data)
 
     face_vars = {
-        output_keys.Q: self.flux.q_face,
-        output_keys.MAGNETIC_SHEAR: self.flux.s_face,
-        output_keys.I_P_PROFILE: self.flux.I_p_profile_face,
+        output_keys.Q: self.poloidal_flux.q_face,
+        output_keys.MAGNETIC_SHEAR: self.poloidal_flux.s_face,
+        output_keys.I_P_PROFILE: self.poloidal_flux.I_p_profile_face,
     }
     for key, face_data in face_vars.items():
       out_dict[key] = context.pack(key, face_data)
 
     scalar_vars = {
-        output_keys.V_LOOP_LCFS: self.flux.v_loop_lcfs,
+        output_keys.V_LOOP_LCFS: self.poloidal_flux.v_loop_lcfs,
         output_keys.A_I: self.ions.A_i,
-        output_keys.I_P: self.flux.I_p_profile_face[..., -1],
+        output_keys.I_P: self.poloidal_flux.I_p_profile_face[..., -1],
     }
     for key, scalar_data in scalar_vars.items():
       out_dict[key] = context.pack(key, scalar_data)
@@ -811,7 +834,7 @@ class CoreProfiles(BaseCoreProfiles):
       CoreProfiles(
         T_i={self.kinetic.T_i},
         T_e={self.kinetic.T_e},
-        psi={self.flux.psi},
+        psi={self.poloidal_flux.psi},
         n_e={self.kinetic.n_e},
         n_i={self.kinetic.n_i},
         n_impurity={self.kinetic.n_impurity},

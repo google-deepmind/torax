@@ -111,6 +111,7 @@ def make_zero_core_profiles(
       n_e=zero_cell_variable,
       n_i=zero_cell_variable,
       n_impurity=zero_cell_variable,
+      toroidal_angular_velocity=zero_cell_variable,
   )
   ions = state.IonComposition(
       impurity_fractions=impurity_fractions_dict,
@@ -131,7 +132,7 @@ def make_zero_core_profiles(
       charge_state_info=zero_charge_state_info,
       charge_state_info_face=zero_charge_state_info_face,
   )
-  flux = state.FluxProfiles(
+  poloidal_flux = state.PoloidalFluxProfiles(
       psi=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
@@ -147,8 +148,7 @@ def make_zero_core_profiles(
   return state.CoreProfiles(
       kinetic=kinetic,
       ions=ions,
-      flux=flux,
-      toroidal_angular_velocity=zero_cell_variable,
+      poloidal_flux=poloidal_flux,
       fast_ions=(),
       conductivity=conductivity,
       poloidal_velocity=zero_cell_variable,

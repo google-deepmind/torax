@@ -98,11 +98,13 @@ class InitialStatesTest(parameterized.TestCase):
     with self.subTest('negative psi does not trigger'):
       new_core_profiles = dataclasses.replace(
           core_profiles,
-          flux=dataclasses.replace(
-              core_profiles.flux,
+          poloidal_flux=dataclasses.replace(
+              core_profiles.poloidal_flux,
               psi=dataclasses.replace(
-                  core_profiles.flux.psi,
-                  value=jnp.full_like(core_profiles.flux.psi.value, -1.0),
+                  core_profiles.poloidal_flux.psi,
+                  value=jnp.full_like(
+                      core_profiles.poloidal_flux.psi.value, -1.0
+                  ),
               ),
           ),
       )
@@ -409,7 +411,9 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     )
     core_profiles = dataclasses.replace(
         self.core_profiles,
-        flux=dataclasses.replace(self.core_profiles.flux, psi=psi),
+        poloidal_flux=dataclasses.replace(
+            self.core_profiles.poloidal_flux, psi=psi
+        ),
     )
     np.testing.assert_allclose(
         [core_profiles.psi_norm_face[0], core_profiles.psi_norm_face[-1]],
@@ -832,8 +836,7 @@ class BaseCoreProfilesTest(parameterized.TestCase):
     self.base_profiles = state.BaseCoreProfiles(
         kinetic=core_profiles.kinetic,
         ions=core_profiles.ions,
-        flux=core_profiles.flux,
-        toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+        poloidal_flux=core_profiles.poloidal_flux,
     )
     self.core_profiles = core_profiles
 
@@ -867,8 +870,7 @@ class BaseCoreProfilesTest(parameterized.TestCase):
     result = state.CoreProfiles(
         kinetic=self.base_profiles.kinetic,
         ions=self.base_profiles.ions,
-        flux=self.base_profiles.flux,
-        toroidal_angular_velocity=self.base_profiles.toroidal_angular_velocity,
+        poloidal_flux=self.base_profiles.poloidal_flux,
         fast_ions=self.core_profiles.fast_ions,
         conductivity=self.core_profiles.conductivity,
         poloidal_velocity=self.core_profiles.poloidal_velocity,

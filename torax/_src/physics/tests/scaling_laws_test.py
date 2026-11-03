@@ -52,6 +52,7 @@ class ScalingLawsTest(parameterized.TestCase):
             n_impurity=mock.ANY,
             T_i=mock.ANY,
             T_e=mock.ANY,
+            toroidal_angular_velocity=mock.ANY,
         ),
         ions=state.IonComposition(
             impurity_fractions=mock.ANY,
@@ -68,7 +69,7 @@ class ScalingLawsTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        flux=state.FluxProfiles(
+        poloidal_flux=state.PoloidalFluxProfiles(
             psi=mock.ANY,
             q_face=mock.ANY,
             s_face=mock.ANY,
@@ -77,7 +78,6 @@ class ScalingLawsTest(parameterized.TestCase):
             I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
             v_loop_lcfs=mock.ANY,
         ),
-        toroidal_angular_velocity=mock.ANY,
         fast_ions=mock.ANY,
         conductivity=state.Conductivity(
             sigma=mock.ANY,
@@ -198,6 +198,7 @@ class ScalingLawsTest(parameterized.TestCase):
             n_impurity=mock.ANY,
             T_i=mock.ANY,
             T_e=mock.ANY,
+            toroidal_angular_velocity=mock.ANY,
         ),
         ions=state.IonComposition(
             impurity_fractions=mock.ANY,
@@ -214,7 +215,7 @@ class ScalingLawsTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        flux=state.FluxProfiles(
+        poloidal_flux=state.PoloidalFluxProfiles(
             psi=mock.ANY,
             q_face=mock.ANY,
             s_face=mock.ANY,
@@ -223,7 +224,6 @@ class ScalingLawsTest(parameterized.TestCase):
             I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
             v_loop_lcfs=mock.ANY,
         ),
-        toroidal_angular_velocity=mock.ANY,
         fast_ions=mock.ANY,
         conductivity=state.Conductivity(
             sigma=mock.ANY,

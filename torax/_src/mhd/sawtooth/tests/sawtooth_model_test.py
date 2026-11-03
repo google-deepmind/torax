@@ -131,8 +131,8 @@ class SawtoothModelTest(parameterized.TestCase):
         self.initial_state,
         core_profiles=dataclasses.replace(
             self.initial_state.core_profiles,
-            flux=dataclasses.replace(
-                self.initial_state.core_profiles.flux,
+            poloidal_flux=dataclasses.replace(
+                self.initial_state.core_profiles.poloidal_flux,
                 q_face=raised_q_face,
             ),
         ),
@@ -167,8 +167,8 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state0,
         core_profiles=dataclasses.replace(
             self.initial_state.core_profiles,
-            flux=dataclasses.replace(
-                self.initial_state.core_profiles.flux,
+            poloidal_flux=dataclasses.replace(
+                self.initial_state.core_profiles.poloidal_flux,
                 q_face=self.initial_state.core_profiles.q_face,
             ),
         ),
@@ -180,8 +180,8 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state0,
         core_profiles=dataclasses.replace(
             self.initial_state.core_profiles,
-            flux=dataclasses.replace(
-                self.initial_state.core_profiles.flux,
+            poloidal_flux=dataclasses.replace(
+                self.initial_state.core_profiles.poloidal_flux,
                 q_face=self.initial_state.core_profiles.q_face,
             ),
         ),

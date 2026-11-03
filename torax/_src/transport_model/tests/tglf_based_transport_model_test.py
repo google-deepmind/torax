@@ -212,11 +212,14 @@ class TGLFTransportModelTest(parameterized.TestCase):
     omega = 1e5  # [rad/s]
     rigidly_rotating_core_profiles = dataclasses.replace(
         core_profiles,
-        toroidal_angular_velocity=cell_variable.CellVariable(
-            value=jnp.full_like(geo.rho_norm, omega),
-            face_centers=geo.rho_face_norm,
-            right_face_constraint=jnp.array(omega),
-            right_face_grad_constraint=None,
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic,
+            toroidal_angular_velocity=cell_variable.CellVariable(
+                value=jnp.full_like(geo.rho_norm, omega),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=jnp.array(omega),
+                right_face_grad_constraint=None,
+            ),
         ),
     )
 
