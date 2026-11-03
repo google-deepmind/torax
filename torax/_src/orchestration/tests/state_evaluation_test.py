@@ -22,7 +22,6 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import state_evaluation
@@ -48,9 +47,7 @@ class StateEvaluationTest(parameterized.TestCase):
     )
     self.geo = self.step_fn.geometry_provider(self.sim_state.t)
     self.models = self.step_fn.solver.models
-    self.solver_state = state.SolverState.from_core_profiles(
-        self.sim_state.core_profiles
-    )
+    self.solver_state = self.sim_state.core_profiles.to_solver_state()
     source_states = self.models.source_models.initial_state(self.runtime_params)
     explicit_source_outputs, _ = source_profile_builders.evaluate_basic_sources(
         source_models=self.models.source_models,
@@ -165,7 +162,7 @@ class StateEvaluationTest(parameterized.TestCase):
     runtime_params = step_fn.runtime_params_provider(t=sim_state.t)
     geo = step_fn.geometry_provider(sim_state.t)
     models = step_fn.solver.models
-    solver_state = state.SolverState.from_core_profiles(sim_state.core_profiles)
+    solver_state = sim_state.core_profiles.to_solver_state()
 
     source_states = models.source_models.initial_state(runtime_params)
     explicit_source_outputs, _ = source_profile_builders.evaluate_basic_sources(

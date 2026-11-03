@@ -14,16 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.config import build_runtime_params
+from torax._src.core_profiles import solver_state
 from torax._src.core_profiles import updaters
-from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -37,26 +34,6 @@ class UpdatersTest(parameterized.TestCase):
     super().setUp()
     # Build a default geo object for convenience.
     self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
-
-    T_e = cell_variable.CellVariable(
-        value=jnp.ones_like(self.geo.rho_norm),
-        face_centers=self.geo.rho_face_norm,
-        right_face_constraint=1.0,
-        right_face_grad_constraint=None,
-    )
-    n_e = cell_variable.CellVariable(
-        value=jnp.ones_like(self.geo.rho_norm),
-        face_centers=self.geo.rho_face_norm,
-        right_face_constraint=1.0,
-        right_face_grad_constraint=None,
-    )
-
-    self.core_profiles_t = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-        T_e=T_e,
-        n_e=n_e,
-    )
 
   @parameterized.named_parameters(
       dict(
@@ -99,7 +76,7 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t1 = provider(t=1.0)
 
     # Simulate a step update where prescribed values are applied
-    solver_state = updaters.provide_solver_state_t_plus_dt(
+    updated_solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(dt),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -110,7 +87,7 @@ class UpdatersTest(parameterized.TestCase):
     # Check psi value
     expected_psi_array = np.full_like(geo.rho_norm, expected_psi_val_t1)
     np.testing.assert_allclose(
-        solver_state.psi.value, expected_psi_array, rtol=1e-5
+        updated_solver_state.psi.value, expected_psi_array, rtol=1e-5
     )
 
   def test_psi_not_updated_if_not_prescribed(self):
@@ -142,7 +119,7 @@ class UpdatersTest(parameterized.TestCase):
         prof_cond, 'psi', None
     )  # Hack to set frozen field for test
 
-    solver_state = updaters.provide_solver_state_t_plus_dt(
+    updated_solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -152,7 +129,7 @@ class UpdatersTest(parameterized.TestCase):
 
     # Should be same as t0 since not evolved and not prescribed
     np.testing.assert_allclose(
-        solver_state.psi.value, core_profiles_t0.poloidal_flux.psi.value
+        updated_solver_state.psi.value, core_profiles_t0.poloidal_flux.psi.value
     )
 
   def test_psi_not_updated_if_evolve_current_true(self):
@@ -183,7 +160,7 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t1 = provider(t=1.0)
     # At t=1, prescribed is 20.0. But evolve_current=True.
 
-    solver_state = updaters.provide_solver_state_t_plus_dt(
+    updated_solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -195,7 +172,7 @@ class UpdatersTest(parameterized.TestCase):
     # because provide_solver_state_t_plus_dt only updates prescribed/BCs, and
     # evolving vars are handled by the solver).
     # Since it wasn't updated in provide_..., it should remain 10.0 here.
-    np.testing.assert_allclose(solver_state.psi.value, 10.0)
+    np.testing.assert_allclose(updated_solver_state.psi.value, 10.0)
 
   def test_provide_solver_state_prescribed_psi(self):
     config_dict = default_configs.get_default_config_dict()
@@ -225,7 +202,7 @@ class UpdatersTest(parameterized.TestCase):
         core_profiles_t=core_profiles_t0,
     )
 
-    self.assertIsInstance(result, state.SolverState)
+    self.assertIsInstance(result, solver_state.SolverState)
     expected_psi_array = np.full_like(geo.rho_norm, 15.0)
     np.testing.assert_allclose(result.psi.value, expected_psi_array, rtol=1e-5)
 
@@ -261,7 +238,7 @@ class UpdatersTest(parameterized.TestCase):
         core_profiles_t=core_profiles_t0,
     )
 
-    self.assertIsInstance(result, state.SolverState)
+    self.assertIsInstance(result, solver_state.SolverState)
     with self.subTest('evolving_values_preserved'):
       # Evolving channels retain values from t0.
       np.testing.assert_allclose(

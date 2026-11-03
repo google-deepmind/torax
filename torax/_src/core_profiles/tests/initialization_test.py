@@ -28,6 +28,7 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
@@ -495,7 +496,7 @@ class InitializationTest(parameterized.TestCase):
         'get_value',
         return_value=(mock_output, source_states['icrh']),
     ):
-      solver_state = initialization.initial_solver_state(
+      initial_solver_state = initialization.initial_solver_state(
           runtime_params=runtime_params,
           geo=geo,
           source_models=source_models,
@@ -505,7 +506,7 @@ class InitializationTest(parameterized.TestCase):
       evaluated_state, _ = state_evaluation.evaluate_initial_state(
           runtime_params=runtime_params,
           geo=geo,
-          solver_state=solver_state,
+          solver_state=initial_solver_state,
           models=models,
       )
       result = evaluated_state.core_profiles
@@ -622,7 +623,7 @@ class InitializationTest(parameterized.TestCase):
         'get_value',
         return_value=(mock_output, source_states['icrh']),
     ):
-      solver_state = initialization.initial_solver_state(
+      initial_solver_state = initialization.initial_solver_state(
           runtime_params=runtime_params,
           geo=geo,
           source_models=source_models,
@@ -632,7 +633,7 @@ class InitializationTest(parameterized.TestCase):
       evaluated_state, _ = state_evaluation.evaluate_initial_state(
           runtime_params=runtime_params,
           geo=geo,
-          solver_state=solver_state,
+          solver_state=initial_solver_state,
           models=models,
       )
       result = evaluated_state.core_profiles
@@ -793,7 +794,7 @@ class InitializationTest(parameterized.TestCase):
         neoclassical_model=neoclassical_model,
         source_states=source_states,
     )
-    self.assertIsInstance(result, state.SolverState)
+    self.assertIsInstance(result, solver_state.SolverState)
     self.assertEqual(result.psi.value.shape, geo.rho.shape)
     self.assertFalse(np.allclose(result.psi.value, 0.0))
 

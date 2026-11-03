@@ -23,6 +23,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import solver_state
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -148,7 +149,7 @@ def finalize_outputs(
     geometry_t_plus_dt: geometry.Geometry,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     core_profiles_t: state.CoreProfiles,
-    solver_state_t_plus_dt: state.SolverState,
+    solver_state_t_plus_dt: solver_state.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     models: models_lib.Models,

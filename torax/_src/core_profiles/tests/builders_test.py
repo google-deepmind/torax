@@ -44,9 +44,7 @@ class BuildersTest(parameterized.TestCase):
     self.core_profiles_t0, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(self.torax_config)
     )
-    self.solver_state = state.SolverState.from_core_profiles(
-        self.core_profiles_t0
-    )
+    self.solver_state = self.core_profiles_t0.to_solver_state()
 
   def test_build_base_core_profiles_structure_and_values(self):
     result = builders.build_base_core_profiles(
@@ -243,7 +241,7 @@ class BuildersTest(parameterized.TestCase):
         solver_profiles=core_profiles_t0,
         explicit=True,
     )
-    solver_state = state.SolverState.from_core_profiles(core_profiles_t0)
+    solver_state = core_profiles_t0.to_solver_state()
 
     observed_calls = []
     original_calc = (

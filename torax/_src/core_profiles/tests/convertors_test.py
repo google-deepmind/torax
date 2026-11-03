@@ -107,9 +107,7 @@ class ConvertersTest(parameterized.TestCase):
         poloidal_velocity=mock.ANY,
         psidot=mock.ANY,
     )
-    self.base_solver_state = (
-        state.SolverState.from_core_profiles(self.base_core_profiles)
-    )
+    self.base_solver_state = self.base_core_profiles.to_solver_state()
 
   def test_solver_state_to_x_round_trip(self):
     evolving_names = ('T_i', 'T_e', 'psi', 'n_e')

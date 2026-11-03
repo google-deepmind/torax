@@ -138,7 +138,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     calc_coeffs.calc_coeffs(
         runtime_params=inputs.runtime_params,
         geo=inputs.geo,
-        solver_state=state.SolverState.from_core_profiles(inputs.core_profiles),
+        solver_state=inputs.core_profiles.to_solver_state(),
         models=inputs.models,
         explicit_model_outputs=inputs.explicit_model_outputs,
         evolving_names=('T_i',),
@@ -290,7 +290,7 @@ class CalcCoeffsTest(parameterized.TestCase):
       coeffs = calc_coeffs.calc_coeffs(
           runtime_params=inputs.runtime_params,
           geo=inputs.geo,
-          solver_state=state.SolverState.from_core_profiles(core_profiles),
+          solver_state=core_profiles.to_solver_state(),
           explicit_model_outputs=inputs.explicit_model_outputs,
           evolving_names=evolving,
           use_pereverzev=config_dict['solver']['use_pereverzev'],
@@ -348,7 +348,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=inputs.runtime_params,
         geo=geo,
-        solver_state=state.SolverState.from_core_profiles(inputs.core_profiles),
+        solver_state=inputs.core_profiles.to_solver_state(),
         models=inputs.models,
         explicit_model_outputs=inputs.explicit_model_outputs,
         evolving_names=evolving_names,
@@ -356,7 +356,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         model_state=inputs.model_state,
     )
     x = convertors.solver_state_to_solver_x_tuple(
-        state.SolverState.from_core_profiles(inputs.core_profiles),
+        inputs.core_profiles.to_solver_state(),
         evolving_names,
     )
     c_mat, c_vec = discrete_system.calc_c(x, coeffs)
@@ -451,9 +451,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     coeffs_zero = calc_coeffs.calc_coeffs(
         runtime_params=inputs.runtime_params,
         geo=inputs.geo,
-        solver_state=state.SolverState.from_core_profiles(
-            core_profiles_zero_psidot
-        ),
+        solver_state=core_profiles_zero_psidot.to_solver_state(),
         models=inputs.models,
         explicit_model_outputs=inputs.explicit_model_outputs,
         evolving_names=('n_e',),
@@ -463,9 +461,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     coeffs_dummy = calc_coeffs.calc_coeffs(
         runtime_params=inputs.runtime_params,
         geo=inputs.geo,
-        solver_state=state.SolverState.from_core_profiles(
-            core_profiles_dummy_psidot
-        ),
+        solver_state=core_profiles_dummy_psidot.to_solver_state(),
         models=inputs.models,
         explicit_model_outputs=inputs.explicit_model_outputs,
         evolving_names=('n_e',),
@@ -515,9 +511,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     coeffs_scaled = calc_coeffs.calc_coeffs(
         runtime_params=inputs.runtime_params,
         geo=inputs.geo,
-        solver_state=state.SolverState.from_core_profiles(
-            core_profiles_scaled_psi
-        ),
+        solver_state=core_profiles_scaled_psi.to_solver_state(),
         models=inputs.models,
         explicit_model_outputs=inputs.explicit_model_outputs,
         evolving_names=('n_e',),
@@ -589,9 +583,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         calc_coeffs.calc_coeffs(
             runtime_params=inputs.runtime_params,
             geo=inputs.geo,
-            solver_state=state.SolverState.from_core_profiles(
-                stale_core_profiles
-            ),
+            solver_state=stale_core_profiles.to_solver_state(),
             explicit_model_outputs=inputs.explicit_model_outputs,
             models=inputs.models,
             evolving_names=evolving_names,

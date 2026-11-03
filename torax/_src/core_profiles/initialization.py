@@ -23,12 +23,12 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import builders
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
@@ -51,7 +51,7 @@ def initial_solver_state(
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_states: Mapping[str, source_state_lib.SourceState],
-) -> state.SolverState:
+) -> solver_state_lib.SolverState:
   """Calculates the initial SolverState.
 
   Args:
@@ -87,7 +87,7 @@ def initial_solver_state(
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
-  return state.SolverState(
+  return solver_state_lib.SolverState(
       T_i=T_i,
       T_e=T_e,
       psi=psi,
@@ -300,7 +300,7 @@ def _init_psi(
         # non-zero psi. We thus iterate between psi and source calculations,
         # using j_toroidal_total and psi calculated purely with the nu formula
         # as an initial guess.
-        solver_state = state.SolverState(
+        solver_state = solver_state_lib.SolverState(
             T_i=T_i,
             T_e=T_e,
             psi=psi,
@@ -329,7 +329,7 @@ def _init_psi(
 def _iterate_psi_and_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_models: source_models_lib.SourceModels,
     source_states: Mapping[str, source_state_lib.SourceState],

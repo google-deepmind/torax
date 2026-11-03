@@ -25,6 +25,7 @@ from torax._src.core_profiles import kinetic_profiles
 from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
@@ -39,7 +40,7 @@ from torax._src.sources import source_state as source_state_lib
 def build_base_core_profiles(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     v_loop_lcfs: array_typing.FloatScalar | None = None,
 ) -> state.BaseCoreProfiles:
   """Constructs purely algebraic BaseCoreProfiles from SolverState.
@@ -87,7 +88,7 @@ def build_base_core_profiles(
 def build_core_profiles(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_states: Mapping[str, source_state_lib.SourceState],

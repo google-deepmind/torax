@@ -18,11 +18,11 @@ import dataclasses
 import jax
 from torax._src import array_typing
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import builders
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
@@ -179,7 +179,7 @@ def sawtooth_step(
 def _evolve_x_after_sawtooth(
     x_redistributed: tuple[cell_variable.CellVariable, ...],
     runtime_params_t_plus_crash_dt: runtime_params_lib.RuntimeParams,
-    solver_state_redistributed: state.SolverState,
+    solver_state_redistributed: solver_state.SolverState,
     geo_t_plus_crash_dt: geometry.Geometry,
     previous_post_processed_outputs: post_processing.PostProcessedOutputs,
     evolving_names: tuple[str, ...],

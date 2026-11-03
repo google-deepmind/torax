@@ -24,6 +24,7 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
@@ -46,7 +47,7 @@ class SawtoothSolver(solver.Solver):
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -120,9 +121,7 @@ class SawtoothSolver(solver.Solver):
           * runtime_params_t.numerics.current_diffusion_time_reduction_factor
           * dt
       )
-      redistributed_solver_state = state.SolverState.from_core_profiles(
-          redistributed_core_profiles
-      )
+      redistributed_solver_state = redistributed_core_profiles.to_solver_state()
       evolved_solver_state = dataclasses.replace(
           redistributed_solver_state,
           psi=dataclasses.replace(
@@ -147,7 +146,7 @@ class SawtoothSolver(solver.Solver):
           solver_numeric_outputs_post_step,
       )
 
-    solver_state_t = state.SolverState.from_core_profiles(core_profiles_t)
+    solver_state_t = core_profiles_t.to_solver_state()
 
     # Return redistributed state attributes if triggered, otherwise return
     # unchanged state attributes.

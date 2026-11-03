@@ -19,10 +19,10 @@ import jax.numpy as jnp
 from torax._src import constants
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import ion_composition
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -63,7 +63,7 @@ class CoeffsCallback:
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      solver_state: state.SolverState,
+      solver_state: solver_state_lib.SolverState,
       x: tuple[cell_variable.CellVariable, ...],
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
@@ -128,7 +128,7 @@ class CoeffsCallback:
 def calc_coeffs(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
@@ -194,7 +194,7 @@ def calc_coeffs(
 def _calc_coeffs_full(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
@@ -491,7 +491,7 @@ def _calc_coeffs_full(
 def _calc_coeffs_reduced(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     evolving_names: tuple[str, ...],
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates only the transient_in_cell terms in Block1DCoeffs."""

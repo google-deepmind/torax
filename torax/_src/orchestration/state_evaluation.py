@@ -28,6 +28,7 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import builders
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
@@ -67,7 +68,7 @@ class EvaluatedState:
 def evaluate_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     models: models_lib.Models,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     model_state: model_state_lib.ModelState,
@@ -226,7 +227,7 @@ def _evaluate_ibc_and_transport(
 def evaluate_initial_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     models: models_lib.Models,
 ) -> tuple[EvaluatedState, model_state_lib.ModelState]:
   """Evaluates derived state variables and initial model state at t = 0.

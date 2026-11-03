@@ -21,6 +21,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import solver_state
 from torax._src.geometry import geometry
 
 # pylint: disable=invalid-name
@@ -32,8 +33,19 @@ def provide_solver_state_t_plus_dt(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
-) -> state.SolverState:
-  """Provides primary solver state at t + dt with updated BCs and prescribed."""
+) -> solver_state.SolverState:
+  """Provides primary solver state at t + dt with updated BCs and prescribed.
+
+  Args:
+    dt: Time step size [s].
+    runtime_params_t: Runtime parameters at time t.
+    runtime_params_t_plus_dt: Runtime parameters at time t + dt.
+    geo_t_plus_dt: Magnetic geometry at time t + dt.
+    core_profiles_t: Core plasma profiles at time t.
+
+  Returns:
+    SolverState at time t + dt.
+  """
   numerics = runtime_params_t.numerics
   profile_conditions_t_plus_dt = runtime_params_t_plus_dt.profile_conditions
   # If a profile is being evolved, only its boundary condition is updated while
@@ -73,7 +85,7 @@ def provide_solver_state_t_plus_dt(
       profile_conditions_t_plus_dt, geo_t_plus_dt
   )
 
-  return state.SolverState(
+  return solver_state.SolverState(
       T_i=T_i,
       T_e=T_e,
       psi=psi,

@@ -32,7 +32,7 @@ import immutabledict
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import cell_variable
 
 # Factors for state variable scaling.
@@ -50,7 +50,7 @@ STATE_SCALING_FACTORS: Final[Mapping[str, float]] = (
 
 
 def solver_state_to_solver_x_tuple(
-    solver_state: state.SolverState,
+    solver_state: solver_state_lib.SolverState,
     evolving_names: tuple[str, ...],
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Converts evolving parts of SolverState to the 'x' tuple for solver.
@@ -85,8 +85,8 @@ def solver_state_to_solver_x_tuple(
 def solver_x_tuple_to_solver_state(
     x_new: tuple[cell_variable.CellVariable, ...],
     evolving_names: tuple[str, ...],
-    solver_state: state.SolverState,
-) -> state.SolverState:
+    solver_state: solver_state_lib.SolverState,
+) -> solver_state_lib.SolverState:
   """Gets updated cell variables for evolving state variables in solver state.
 
   If a variable is in `evolving_names`, its new value is taken from `x_new`.
