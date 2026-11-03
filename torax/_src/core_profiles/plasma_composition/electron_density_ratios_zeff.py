@@ -33,8 +33,7 @@ class RuntimeParams:
   n_e_ratios_face: Mapping[str, array_typing.FloatVectorFace | None]
   unknown_species: str = jax.tree.static()
   Z_override: array_typing.FloatScalar | None = None
-  A_override: array_typing.FloatVectorCell | None = None
-  A_override_face: array_typing.FloatVectorFace | None = None
+  A_override: array_typing.FloatScalar | None = None
 
 
 class ElectronDensityRatiosZeff(torax_pydantic.ConfigBase):

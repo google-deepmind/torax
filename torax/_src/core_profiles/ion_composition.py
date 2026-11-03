@@ -94,6 +94,23 @@ class IonComposition:
     return _compute_ion_composition(plasma_composition, geo, n_e, T_e)
 
 
+def _calculate_average_mass(
+    fractions: Mapping[str, array_typing.FloatVector],
+    A_override: array_typing.FloatScalar | None = None,
+) -> array_typing.FloatVector:
+  """Calculates the average atomic mass of an ion mixture."""
+  if A_override is not None:
+    first_fraction = next(iter(fractions.values()))
+    return jnp.ones_like(first_fraction) * A_override
+  return jnp.sum(
+      jnp.array([
+          constants.ION_PROPERTIES_DICT[ion].A * fraction
+          for ion, fraction in fractions.items()
+      ]),
+      axis=0,
+  )
+
+
 def _calculate_main_ion_dilution_factor(
     Z_i: array_typing.FloatScalar,
     Z_impurity: array_typing.FloatVector,
@@ -170,9 +187,15 @@ class _IonProperties:
             Z_i_face[-1], Z_impurity_face[-1], Z_eff_edge
         ),
     )
+    A_avg = _calculate_average_mass(
+        impurity_params.fractions, impurity_params.A_override
+    )
+    A_avg_face = _calculate_average_mass(
+        impurity_params.fractions_face, impurity_params.A_override
+    )
     return cls(
-        A_impurity=impurity_params.A_avg,
-        A_impurity_face=impurity_params.A_avg_face,
+        A_impurity=A_avg,
+        A_impurity_face=A_avg_face,
         Z_impurity=Z_impurity,
         Z_impurity_face=Z_impurity_face,
         Z_eff=Z_eff,
@@ -192,14 +215,16 @@ class _IonProperties:
       Z_i_face: array_typing.FloatVectorFace,
   ) -> Self:
     """Calculates ion properties when impurity is defined by n_e ratios."""
+    fractions = impurity_params.fractions
+    fractions_face = impurity_params.fractions_face
     average_charge_state = charge_states.get_average_charge_state(
         T_e=T_e.value,
-        fractions=impurity_params.fractions,
+        fractions=fractions,
         Z_override=impurity_params.Z_override,
     )
     average_charge_state_face = charge_states.get_average_charge_state(
         T_e=T_e.face_value(),
-        fractions=impurity_params.fractions_face,
+        fractions=fractions_face,
         Z_override=impurity_params.Z_override,
     )
     Z_impurity = average_charge_state.Z_mixture
@@ -231,16 +256,20 @@ class _IonProperties:
         ]),
         axis=0,
     )
+    A_avg = _calculate_average_mass(fractions, impurity_params.A_override)
+    A_avg_face = _calculate_average_mass(
+        fractions_face, impurity_params.A_override
+    )
 
     return cls(
-        A_impurity=impurity_params.A_avg,
-        A_impurity_face=impurity_params.A_avg_face,
+        A_impurity=A_avg,
+        A_impurity_face=A_avg_face,
         Z_impurity=Z_impurity,
         Z_impurity_face=Z_impurity_face,
         Z_eff=Z_eff,
         dilution_factor=dilution_factor,
         dilution_factor_edge=dilution_factor_edge,
-        impurity_fractions=impurity_params.fractions,
+        impurity_fractions=fractions,
         charge_state_info=average_charge_state,
         charge_state_info_face=average_charge_state_face,
     )
@@ -386,31 +415,10 @@ class _IonProperties:
         n_e_ratios_mapping_face
     )
 
-    # Build the final ion mixture and calculate properties
-
-    if impurity_params.A_override is None:
-      A_avg = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions.items()
-          ]),
-          axis=0,
-      )
-      A_avg_face = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions_face.items()
-          ]),
-          axis=0,
-      )
-    else:
-      A_avg = jnp.ones_like(T_e.value) * impurity_params.A_override
-      A_override_face = (
-          impurity_params.A_override
-          if impurity_params.A_override_face is None
-          else impurity_params.A_override_face
-      )
-      A_avg_face = jnp.ones_like(T_e.face_value()) * A_override_face
+    A_avg = _calculate_average_mass(fractions, impurity_params.A_override)
+    A_avg_face = _calculate_average_mass(
+        fractions_face, impurity_params.A_override
+    )
 
     charge_state_info = charge_states.get_average_charge_state(
         T_e=T_e.value,
