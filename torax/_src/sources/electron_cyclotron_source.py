@@ -144,10 +144,11 @@ class ElectronCyclotronSource(source.Source):
         * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
         * j_tor_ec
     )
+    j_parallel_ec = fsa_j_dot_B / geo.B_0
 
     return (
         source_profiles.SourceOutput(
-            power_density_e=ec_power_density, j_parallel=fsa_j_dot_B
+            power_density_e=ec_power_density, j_parallel=j_parallel_ec
         ),
         source_state,
     )

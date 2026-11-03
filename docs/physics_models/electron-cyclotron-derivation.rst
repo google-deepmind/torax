@@ -13,12 +13,12 @@ defined in [1]_, [2]_ as
    \zeta = \frac{e^3 \ln \Lambda}{16\pi\varepsilon_0^2} \frac{n_e}{T_e}
    \frac{j_\mathrm{tor}}{Q_\mathrm{ec}},
 
-where :math:`e` is the electron charge in :math:`C`, :math:`\varepsilon_0` the
-vacuum permittivity, :math:`n_e` the electron density in :math:`m^{-3}`,
-:math:`T_e` the electron temperature in :math:`J`,
-:math:`j_\mathrm{tor} = \frac{dI_p}{dA}` with `A` as the cross sectional area
-inside the flux surface, and :math:`Q` is the absorbed EC power density in
-:math:`Wm^{-3}`.
+where :math:`e` is the electron charge in :math:`C`, :math:`\ln \Lambda` is the
+electron-electron Coulomb logarithm, :math:`\varepsilon_0` the vacuum
+permittivity, :math:`n_e` the electron density in :math:`m^{-3}`, :math:`T_e`
+the electron temperature in :math:`J`, :math:`j_\mathrm{tor} = \frac{dI_p}{dA}`
+with :math:`A` as the cross sectional area inside the flux surface, and
+:math:`Q_\mathrm{ec}` is the absorbed EC power density in :math:`Wm^{-3}`.
 
 Assume that the current drive and power absorption are localised in a region
 :math:`\delta\rho` around a flux surface at :math:`\rho`, meaning that the total
@@ -104,7 +104,25 @@ Hence,
     \langle J \cdot B \rangle = F \left\langle\frac{J_\phi}{R}\right\rangle
     \left(1+ \frac{g_2 g_3}{16\pi^4 q^2}\right)
 
-where :math:`g_2 = \left\langle \frac{|\nabla V|^2}{R^2} \right\rangle` and :math:`g_3 =  \langle R^{-2} \rangle`.
+where :math:`F = R B_\phi` is the toroidal field flux function,
+:math:`g_2 = \left\langle \frac{|\nabla V|^2}{R^2} \right\rangle`, and
+:math:`g_3 = \langle R^{-2} \rangle`.
+
+Using :math:`\left\langle\frac{J_\phi}{R}\right\rangle = \langle R^{-1} \rangle
+j_\mathrm{tor}` and dividing by the vacuum toroidal magnetic field on axis
+:math:`B_0` gives the parallel current density required by the :math:`\psi`
+source term in TORAX:
+
+.. math::
+    :label: j_parallel_ec
+
+    j_{\parallel,\mathrm{EC}} = \frac{\langle J \cdot B \rangle}{B_0}
+    = \frac{F \langle R^{-1} \rangle}{B_0}
+    \left(1+ \frac{g_2 g_3}{16\pi^4 q^2}\right) j_\mathrm{tor}
+    = \frac{16\pi\varepsilon_0^2}{e^3 \ln\Lambda}
+    \frac{F \langle R^{-1} \rangle}{B_0}
+    \left(1+ \frac{g_2 g_3}{16\pi^4 q^2}\right)
+    \frac{T_e}{n_e} \zeta Q_\mathrm{ec}.
 
 
 .. [1] Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). `Electron cyclotron current drive efficiency in general tokamak geometry <https://doi.org/10.1063/1.1610472>`_. Physics of Plasmas, 10(10), 4064-4071.

@@ -169,22 +169,15 @@ Available physics-based models and/or ML-surrogates are listed below.
 
 Electron-Cyclotron Heating and Current Drive
 --------------------------------------------
-The electron-cyclotron current drive can be calculated from the heating power
-density, :math:`Q_\mathrm{EC}(\rho) [Wm^{-3}]`, and a dimensionless EC current
-drive efficiency profile, :math:`\zeta_\mathrm{EC}(\rho)` . The current drive
-parallel to the magnetic field, in :math:`[Am^{-2}]`, is then given by:
-
-.. math::
-
-    \langle j_\mathrm{EC} \cdot B \rangle = \frac{2\pi\epsilon_0^2 F}
-    {e^3 R_\mathrm{maj}} \frac{T_e}{n_e} \zeta_{EC} Q_\mathrm{EC}
-
-where :math:`\epsilon_0` is the vacuum permittivity, :math:`F = B_\phi R` is the
-flux function, :math:`e` is the elementary charge, :math:`R_\mathrm{maj}` is the
-device major radius, :math:`T_e` is the electron temperature in joules, and
-:math:`n_e` is the electron density per cubic meter. This relationship is based
-on the Lin-Liu model |lin-liu|. The derivation can be found
-:ref:`here <ec-derivation>`.
+The electron-cyclotron heating power density :math:`Q_\mathrm{ec}(\rho)`
+[:math:`\mathrm{W\,m^{-3}}`] is constructed as the sum of a configurable
+Gaussian profile and an optional prescribed profile. From
+:math:`Q_\mathrm{ec}(\rho)` and a dimensionless EC current drive efficiency
+profile :math:`\zeta(\rho)`, the driven parallel current density
+:math:`j_{\parallel,\mathrm{EC}} = \langle \mathbf{J}_\mathrm{ec} \cdot
+\mathbf{B} \rangle / B_0` [:math:`\mathrm{A\,m^{-2}}`] is calculated following
+the Lin-Liu model |lin-liu|; see equation :eq:`j_parallel_ec` in the
+:ref:`EC current drive derivation <ec-derivation>`.
 
 
 Particle Sources
