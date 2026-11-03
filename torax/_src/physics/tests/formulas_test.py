@@ -59,7 +59,6 @@ class FormulasTest(parameterized.TestCase):
         ),
     )
 
-  # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
       dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.0, expected=1.0),
       dict(Z_i=1.0, Z_impurity=5.0, Z_eff=1.0, expected=1.0),

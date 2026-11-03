@@ -58,8 +58,6 @@ core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")
 core_sources_ids = loader.load_imas_data(str(path), "core_sources")
 
 # Replace I_p from profile conditions with I_p from equilibrium
-# TODO(b/323504363): can this be handled within the IMAS loader? e.g. if I_p
-# is not present in profile_conditions, pull from equilibrium automatically.
 profile_conditions_from_ids = core_profiles.profile_conditions_from_IMAS(
     core_profiles_ids,
 )

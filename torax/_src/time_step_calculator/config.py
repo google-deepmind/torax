@@ -94,8 +94,6 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
       NotImplementedError: If a default `max_steps` cannot be determined for
         this time step calculator.
     """
-    # TODO(b/564475000): Support max_steps heuristics for other time step
-    # calculators.
     raise NotImplementedError(
         f'max_steps must be specified when using {type(self).__name__}.'
     )

@@ -243,7 +243,7 @@ if hasattr(hijax, 'vmap_rule'):
   _bdims_at_front = hijax.bdims_at_front
   _unmap_avals = hijax.unmap_avals
   _vmap_rule = hijax.vmap_rule
-else:  # TODO(b/401588349): remove after jax 0.12.0 release
+else:  # Remove after jax 0.12.0 release.
 
   def _bdims_at_front(axis_data, args, dims):
     return jax.tree.map(
