@@ -25,6 +25,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -51,28 +52,6 @@ class Conductivity:
         sigma=jnp.zeros_like(geo.rho),
         sigma_face=jnp.zeros_like(geo.rho_face),
     )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True, eq=False)
-class KineticProfiles:
-  """Kinetic profiles.
-
-  Attributes:
-    T_i: Ion temperature [keV].
-    T_e: Electron temperature [keV].
-    n_e: Electron density [m^-3].
-    n_i: Main ion density [m^-3].
-    n_impurity: Impurity density of bundled impurity [m^-3].
-    toroidal_angular_velocity: Toroidal angular velocity [rad/s].
-  """
-
-  T_i: cell_variable.CellVariable
-  T_e: cell_variable.CellVariable
-  n_e: cell_variable.CellVariable
-  n_i: cell_variable.CellVariable
-  n_impurity: cell_variable.CellVariable
-  toroidal_angular_velocity: cell_variable.CellVariable
 
 
 @jax.tree_util.register_dataclass
@@ -166,7 +145,7 @@ class BaseCoreProfiles:
       profiles.
   """
 
-  kinetic: KineticProfiles
+  kinetic: kinetic_profiles.KineticProfiles
   ions: IonComposition
   poloidal_flux: PoloidalFluxProfiles
 

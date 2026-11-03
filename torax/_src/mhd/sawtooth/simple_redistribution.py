@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import kinetic_profiles
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import flatten_profile
 from torax._src.mhd.sawtooth import redistribution_base
@@ -165,7 +166,7 @@ class SimpleRedistribution(
         geo,
     )
 
-    kinetic = state.KineticProfiles(
+    kinetic = kinetic_profiles.KineticProfiles(
         T_i=ti_redistributed,
         T_e=te_redistributed,
         n_e=n_e_redistributed,

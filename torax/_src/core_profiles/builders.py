@@ -21,6 +21,7 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import kinetic_profiles
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
@@ -96,7 +97,7 @@ def build_base_core_profiles(
       runtime_params.numerics.min_rho_norm,
       v_loop_lcfs=v_loop_lcfs,
   )
-  kinetic = state.KineticProfiles(
+  kinetic = kinetic_profiles.KineticProfiles(
       T_i=solver_state.T_i,
       T_e=solver_state.T_e,
       n_e=solver_state.n_e,

@@ -17,6 +17,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.physics import charge_states
 from torax._src.physics import collisions
@@ -143,7 +144,7 @@ class CollisionsTest(parameterized.TestCase):
         value=jnp.zeros(1),
         face_centers=jnp.array([0.0, 1.0]),
     )
-    kinetic = state.KineticProfiles(
+    kinetic = kinetic_profiles.KineticProfiles(
         T_i=dummy_cv,
         T_e=dummy_cv,
         n_e=cell_variable.CellVariable(

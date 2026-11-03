@@ -21,6 +21,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import state_evaluation
@@ -112,7 +113,7 @@ def make_zero_core_profiles(
           name: jnp.zeros_like(geo.rho_face) for name in impurity_names
       },
   )
-  kinetic = state.KineticProfiles(
+  kinetic = kinetic_profiles.KineticProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
       n_e=zero_cell_variable,
