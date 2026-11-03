@@ -27,6 +27,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -56,33 +57,6 @@ class Conductivity:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
-class PoloidalFluxProfiles:
-  """Poloidal flux and derived magnetic and current profiles.
-
-  Attributes:
-    psi: Poloidal flux [Wb].
-    q_face: Safety factor on face grid.
-    s_face: Magnetic shear on face grid.
-    j_toroidal_total: Total current density on cell grid [A/m^2].
-    j_toroidal_total_face: Total current density on face grid [A/m^2].
-    I_p_profile_face: Plasma current profile on face grid [A].
-    v_loop_lcfs: Loop voltage at LCFS [V].
-  """
-
-  psi: cell_variable.CellVariable
-  q_face: array_typing.FloatVectorFace
-  s_face: array_typing.FloatVectorFace
-  j_toroidal_total: array_typing.FloatVectorCell
-  j_toroidal_total_face: array_typing.FloatVectorFace
-  I_p_profile_face: array_typing.FloatVectorFace
-  v_loop_lcfs: array_typing.FloatScalar
-
-
-FluxProfiles = PoloidalFluxProfiles
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True, eq=False)
 class BaseCoreProfiles:
   """Core plasma profiles derived directly from SolverState.
 
@@ -100,7 +74,7 @@ class BaseCoreProfiles:
 
   kinetic: kinetic_profiles.KineticProfiles
   ions: ion_composition.IonComposition
-  poloidal_flux: PoloidalFluxProfiles
+  poloidal_flux: poloidal_flux_profiles.PoloidalFluxProfiles
 
   @functools.cached_property
   def impurity_density_scaling(self) -> array_typing.FloatVectorCell:

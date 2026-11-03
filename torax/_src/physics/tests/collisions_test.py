@@ -19,6 +19,7 @@ import numpy as np
 from torax._src import state
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.fvm import cell_variable
 from torax._src.physics import charge_states
 from torax._src.physics import collisions
@@ -187,7 +188,7 @@ class CollisionsTest(parameterized.TestCase):
         charge_state_info=zero_charge_state_info,
         charge_state_info_face=zero_charge_state_info_face,
     )
-    flux = state.PoloidalFluxProfiles(
+    poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles(
         psi=dummy_cv,
         q_face=jnp.zeros(2),
         s_face=jnp.zeros(2),
@@ -199,7 +200,7 @@ class CollisionsTest(parameterized.TestCase):
     core_profiles = state.BaseCoreProfiles(
         kinetic=kinetic,
         ions=ions,
-        poloidal_flux=flux,
+        poloidal_flux=poloidal_flux,
     )
     np.testing.assert_allclose(
         collisions._calculate_weighted_Z_eff(core_profiles), expected

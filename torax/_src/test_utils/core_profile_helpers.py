@@ -23,6 +23,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import state_evaluation
@@ -141,7 +142,7 @@ def make_zero_core_profiles(
       charge_state_info=zero_charge_state_info,
       charge_state_info_face=zero_charge_state_info_face,
   )
-  poloidal_flux = state.PoloidalFluxProfiles(
+  poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles(
       psi=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),

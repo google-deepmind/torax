@@ -21,6 +21,7 @@ import numpy as np
 from torax._src import state
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import scaling_laws
@@ -69,7 +70,7 @@ class ScalingLawsTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        poloidal_flux=state.PoloidalFluxProfiles(
+        poloidal_flux=poloidal_flux_profiles.PoloidalFluxProfiles(
             psi=mock.ANY,
             q_face=mock.ANY,
             s_face=mock.ANY,
@@ -206,7 +207,7 @@ class ScalingLawsTest(parameterized.TestCase):
             charge_state_info=mock.ANY,
             charge_state_info_face=mock.ANY,
         ),
-        poloidal_flux=state.PoloidalFluxProfiles(
+        poloidal_flux=poloidal_flux_profiles.PoloidalFluxProfiles(
             psi=mock.ANY,
             q_face=mock.ANY,
             s_face=mock.ANY,

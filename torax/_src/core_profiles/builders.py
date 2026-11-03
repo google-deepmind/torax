@@ -22,9 +22,9 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import ion_composition as ion_composition_lib
 from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
@@ -34,36 +34,6 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources import source_state as source_state_lib
-
-
-def _build_poloidal_flux_profiles(
-    geo: geometry.Geometry,
-    psi: cell_variable.CellVariable,
-    min_rho_norm: array_typing.FloatScalar,
-    v_loop_lcfs: array_typing.FloatScalar | None,
-) -> state.PoloidalFluxProfiles:
-  """Constructs PoloidalFluxProfiles derived from poloidal flux and geometry."""
-  j_toroidal_total, j_toroidal_total_face, i_p_profile_face = (
-      psi_calculations.calc_j_toroidal_total(
-          geo,
-          psi,
-          min_rho_norm,
-      )
-  )
-  if v_loop_lcfs is None:
-    v_loop_lcfs = jnp.asarray(0.0, dtype=jax_utils.get_dtype())
-  return state.PoloidalFluxProfiles(
-      psi=psi,
-      q_face=psi_calculations.calc_q_face(geo, psi),
-      s_face=psi_calculations.calc_s_face(geo, psi),
-      j_toroidal_total=j_toroidal_total,
-      j_toroidal_total_face=j_toroidal_total_face,
-      I_p_profile_face=i_p_profile_face,
-      v_loop_lcfs=v_loop_lcfs,
-  )
-
-
-_build_flux_profiles = _build_poloidal_flux_profiles
 
 
 def build_base_core_profiles(
@@ -93,10 +63,10 @@ def build_base_core_profiles(
           solver_state.T_e,
       )
   )
-  poloidal_flux = _build_poloidal_flux_profiles(
-      geo,
-      solver_state.psi,
-      runtime_params.numerics.min_rho_norm,
+  poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles.from_psi(
+      geo=geo,
+      psi=solver_state.psi,
+      min_rho_norm=runtime_params.numerics.min_rho_norm,
       v_loop_lcfs=v_loop_lcfs,
   )
   kinetic = kinetic_profiles.KineticProfiles(
