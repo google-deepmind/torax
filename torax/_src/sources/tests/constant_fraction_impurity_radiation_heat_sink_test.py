@@ -119,6 +119,7 @@ class ImpurityRadiationConstantFractionTest(
     impurity_radiation_heat_sink_power = math_utils.volume_integration(
         impurity_radiation_heat_sink_power_density, geo
     )
+    assert heat_params.P_total is not None
     assert impurity_radiation_params.fraction_P_heating is not None
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,

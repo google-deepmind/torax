@@ -58,6 +58,7 @@ CONFIG = {
                 10: 120e6,
                 15: 120e6,
             },  # in W
+            'gaussian_location': 0.0,
         },
         'ei_exchange': {},
         'generic_current': {},

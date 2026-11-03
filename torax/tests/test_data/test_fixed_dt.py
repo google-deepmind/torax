@@ -43,7 +43,11 @@ CONFIG = {
             'pellet_deposition_location': 0.85,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_heat': {},
+        'generic_heat': {
+            'P_total': 120e6,
+            'gaussian_width': 0.25,
+            'gaussian_location': 0.0,
+        },
         'ei_exchange': {},
     },
     'pedestal': {

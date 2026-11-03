@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -286,6 +287,12 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='use_absolute_current',
           initial_value=False,
           updated_value=True,
+          extra_fields={
+              'fraction_of_total_current': 0.2,
+              'I_generic': 3.0e6,
+              'gaussian_width': 0.05,
+              'gaussian_location': 0.4,
+          },
       ),
       dict(
           testcase_name='generic_heat',
@@ -294,6 +301,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='P_total',
           initial_value=120e6,
           updated_value=130e6,
+          extra_fields={'gaussian_width': 0.25, 'gaussian_location': 0.0},
       ),
       dict(
           testcase_name='generic_particle',
@@ -407,6 +415,12 @@ class SourcesConfigTest(parameterized.TestCase):
           expected_error="S_total must be provided when mode is 'model_based'",
       ),
       dict(
+          testcase_name='generic_heat',
+          source_name='generic_heat',
+          source_kwargs={},
+          expected_error="P_total must be provided when mode is 'model_based'",
+      ),
+      dict(
           testcase_name='generic_particle',
           source_name='generic_particle',
           source_kwargs={},
@@ -461,6 +475,12 @@ class SourcesConfigTest(parameterized.TestCase):
           source_name='gas_puff',
           source_kwargs={},
           zero_fields=('S_total',),
+      ),
+      dict(
+          testcase_name='generic_heat',
+          source_name='generic_heat',
+          source_kwargs={},
+          zero_fields=('P_total',),
       ),
       dict(
           testcase_name='generic_particle',
@@ -539,6 +559,22 @@ class SourcesConfigTest(parameterized.TestCase):
           source_kwargs={'S_total': 1e22},
           expected_error=(
               "puff_decay_length must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='generic_heat_missing_width',
+          source_name='generic_heat',
+          source_kwargs={'P_total': 120e6, 'gaussian_location': 0.0},
+          expected_error=(
+              "gaussian_width must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='generic_heat_missing_location',
+          source_name='generic_heat',
+          source_kwargs={'P_total': 120e6, 'gaussian_width': 0.25},
+          expected_error=(
+              "gaussian_location must be provided when mode is 'model_based'"
           ),
       ),
       dict(

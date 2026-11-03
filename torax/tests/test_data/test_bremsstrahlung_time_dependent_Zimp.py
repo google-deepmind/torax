@@ -50,6 +50,8 @@ CONFIG = {
     'sources': {
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,
+            'P_total': 120e6,
+            'gaussian_location': 0.0,
         },
         'ei_exchange': {},
         'ohmic': {},

@@ -50,6 +50,8 @@ CONFIG = {
         },
         'generic_heat': {
             'P_total': 53.0e6,
+            'gaussian_width': 0.25,
+            'gaussian_location': 0.0,
         },
         'pellet': {
             'S_total': 1.0e22,

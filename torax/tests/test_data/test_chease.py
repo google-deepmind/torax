@@ -41,6 +41,8 @@ CONFIG = {
         'generic_heat': {
             # Gaussian width in normalized radial coordinate r
             'gaussian_width': 0.18202270915319393,
+            'P_total': 120e6,
+            'gaussian_location': 0.0,
         },
     },
     'pedestal': {},

@@ -292,15 +292,16 @@ electron heat source.
 
 ``mode`` (str [default = 'model'])
 
-``gaussian_location`` (**time-varying-scalar** [default = 0.0])
-  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+``gaussian_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``gaussian_width`` (**time-varying-scalar** [default = 0.25])
-  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+``gaussian_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``P_total`` (**time-varying-scalar** [default = 120e6])
-  Total source power in W. High default based on total ITER power including
-  alphas.
+``P_total`` (**time-varying-scalar** [default = None])
+  Total source power in W. Required when ``mode == 'model_based'``.
 
 ``electron_heat_fraction`` (**time-varying-scalar** [default = 0.66666])
   Electron heating fraction.

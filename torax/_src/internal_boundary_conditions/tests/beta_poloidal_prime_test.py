@@ -184,6 +184,8 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       config_dict['sources'] = {
           'generic_heat': {
               'P_total': P_total,
+              'gaussian_width': 0.25,
+              'gaussian_location': 0.0,
           }
       }
       config_dict['profile_conditions'][

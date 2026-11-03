@@ -41,7 +41,11 @@ CONFIG = {
         'geometry_type': 'circular',
     },
     'sources': {
-        'generic_heat': {},
+        'generic_heat': {
+            'P_total': 120e6,
+            'gaussian_width': 0.25,
+            'gaussian_location': 0.0,
+        },
         'ei_exchange': {},
         'generic_particle': {
             'S_total': 0.3e22,
