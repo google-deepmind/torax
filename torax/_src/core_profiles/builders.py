@@ -233,7 +233,7 @@ def build_core_profiles(
       poloidal_flux=base_profiles.poloidal_flux,
       fast_ions=fast_ions,
       conductivity=conductivity,
-      poloidal_velocity=poloidal_velocity.v_pol,
+      poloidal_velocity=poloidal_velocity.poloidal_velocity,
       psidot=psidot,
   )
 

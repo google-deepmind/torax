@@ -111,7 +111,7 @@ class KimModel(base.PoloidalVelocityModel):
     )
     B_total_squared_face = B_pol_squared_face + B_tor_face**2
 
-    v_pol = _calculate_poloidal_velocity(
+    poloidal_velocity = _calculate_poloidal_velocity(
         T_i=core_profiles.kinetic.T_i,
         k_neo=neoclassical_intermediates.k_neo,
         Z_i=core_profiles.ions.Z_i_face,
@@ -120,7 +120,7 @@ class KimModel(base.PoloidalVelocityModel):
         geo=geometry,
         poloidal_velocity_multiplier=runtime_params.poloidal_velocity_multiplier,
     )
-    return base.PoloidalVelocity(v_pol=v_pol)
+    return base.PoloidalVelocity(poloidal_velocity=poloidal_velocity)
 
   def __eq__(self, other) -> bool:
     return isinstance(other, self.__class__)
