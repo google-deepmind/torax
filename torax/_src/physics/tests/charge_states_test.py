@@ -160,34 +160,48 @@ class ChargeStatesTest(parameterized.TestCase):
           [9.42307536, 23.895752, 35.35459338],
       ),
   )
-  def test_get_average_charge_state(
+  def test_get_effective_charge_state(
       self,
       species,
       T_e,
       expected_Z,
   ):
-    """Test the get_average_charge_state function, where expected_Z references are pre-calculated."""
     T_e = np.array(T_e)
     expected_Z = np.array(expected_Z)
-    Z_calculated = charge_states.get_average_charge_state(
-        T_e,
+    Z_per_species = charge_states.get_average_charge_state_per_species(
+        T_e, tuple(species.keys())
+    )
+    Z_calculated = charge_states.get_effective_charge_state(
+        Z_per_species,
         species,
-        Z_override=None,
-    ).Z_mixture
+    )
 
     np.testing.assert_allclose(Z_calculated, expected_Z, rtol=1e-5)
 
-  def test_Z_override_in_get_average_charge_state(self):
-    """Test Z_override logic."""
-    species = {'W': 1.0}
-    T_e = np.array([0.1, 2, 10])
-    Z_override = np.array([50.0, 50.0, 50.0])
+  def test_get_average_charge_state_mixture(self):
+    species = {'C': 0.5, 'Ne': 0.5}
+    T_e = np.array([10.0])
+    Z_per_species = charge_states.get_average_charge_state_per_species(
+        T_e, tuple(species.keys())
+    )
     Z_calculated = charge_states.get_average_charge_state(
-        T_e,
+        Z_per_species,
         species,
-        np.array([50.0, 50.0, 50.0]),
-    ).Z_mixture
-    np.testing.assert_allclose(Z_calculated, Z_override)
+    )
+    np.testing.assert_allclose(Z_calculated, np.array([8.0]), rtol=1e-5)
+
+  def test_Z_override_in_get_average_charge_state_per_species(self):
+    species = {'C': 0.5, 'W': 0.5}
+    T_e = np.array([0.1, 2.0, 10.0])
+    Z_override = 50.0
+    expected_profile = np.array([50.0, 50.0, 50.0])
+    Z_per_species = charge_states.get_average_charge_state_per_species(
+        T_e,
+        tuple(species.keys()),
+        Z_override,
+    )
+    for ion_symbol in species:
+      np.testing.assert_allclose(Z_per_species[ion_symbol], expected_profile)
 
 
 if __name__ == '__main__':

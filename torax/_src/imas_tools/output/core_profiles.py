@@ -263,14 +263,14 @@ def _calculate_impurity_density_scaling_and_charge_states(
       cell_plus_boundaries grid.
   """
   extend = output_grid_context.extend_cell_grid_to_boundaries
-  charge_state_info = core_profiles.ions.charge_state_info
-  charge_state_info_face = core_profiles.ions.charge_state_info_face
+  Z_impurity_per_species = core_profiles.ions.Z_impurity_per_species
+  Z_impurity_per_species_face = core_profiles.ions.Z_impurity_per_species_face
   Z_per_species = {
       species: extend(
-          charge_state_info.Z_per_species[species],
-          charge_state_info_face.Z_per_species[species],
+          Z_impurity_per_species[species],
+          Z_impurity_per_species_face[species],
       )
-      for species in charge_state_info.Z_per_species
+      for species in Z_impurity_per_species
   }
   impurity_density_scaling = extend(
       core_profiles.impurity_density_scaling,

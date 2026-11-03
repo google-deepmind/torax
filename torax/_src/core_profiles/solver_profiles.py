@@ -74,7 +74,7 @@ class SolverProfiles:
       SolverProfiles with kinetic, ions, and poloidal_flux.
     """
     ion_composition, n_i, n_impurity = (
-        ion_composition_lib.IonComposition.from_profiles(
+        ion_composition_lib.get_ion_composition_and_density(
             runtime_params.plasma_composition,
             geo,
             solver_state.n_e,
@@ -104,12 +104,12 @@ class SolverProfiles:
   @functools.cached_property
   def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
     """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
-    return self.ions.Z_impurity / self.ions.charge_state_info.Z_avg
+    return self.ions.Z_impurity / self.ions.Z_avg
 
   @functools.cached_property
   def impurity_density_scaling_face(self) -> array_typing.FloatVectorFace:
     """Scaling factor for impurity density on the face grid."""
-    return self.ions.Z_impurity_face / self.ions.charge_state_info_face.Z_avg
+    return self.ions.Z_impurity_face / self.ions.Z_avg_face
 
   def get_species_concentration(
       self,

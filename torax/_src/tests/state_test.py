@@ -451,10 +451,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         ions=dataclasses.replace(
             solver_profiles.ions,
             Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
-            charge_state_info_face=dataclasses.replace(
-                solver_profiles.ions.charge_state_info_face,
-                Z_avg=jnp.full_like(geo.rho_face, 2.0),
-            ),
+            Z_avg_face=jnp.full_like(geo.rho_face, 2.0),
         ),
     )
 

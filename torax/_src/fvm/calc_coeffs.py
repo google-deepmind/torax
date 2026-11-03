@@ -502,7 +502,7 @@ def _calc_coeffs_reduced(
   for var in evolving_names:
     match var:
       case 'T_i':
-        _, n_i, _ = ion_composition.IonComposition.from_profiles(
+        _, n_i, _ = ion_composition.get_ion_composition_and_density(
             runtime_params.plasma_composition,
             geo,
             solver_state.n_e,

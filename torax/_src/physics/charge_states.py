@@ -14,15 +14,15 @@
 
 """Routines for calculating impurity charge states."""
 
-import dataclasses
-from typing import Final, Mapping
+from collections.abc import Mapping
+from typing import Final
 
 import immutabledict
-import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
+
 # pylint: disable=invalid-name
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):
@@ -88,44 +88,11 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
 )
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class ChargeStateInfo:
-  """Container for average charge state calculations.
-
-  Attributes:
-    Z_avg: Average charge of the mixture, weighted by ion fractions. <Z> =
-      sum(fraction_i * Z_i).
-    Z2_avg: Average squared charge of the mixture, weighted by ion fractions.
-      <Z^2> = sum(fraction_i * Z_i^2).
-    Z_per_species: Charge state for each individual ion species in the mixture.
-      For impurities, this is the outcome of a temperature dependent charge
-      state calculation.
-    Z_mixture: Effective charge of the mixture, defined as <Z^2> / <Z>. This is
-      the charge used in quasineutrality calculations when treating the mixture
-      as a single effective species.
-  """
-
-  Z_avg: array_typing.FloatVector
-  Z2_avg: array_typing.FloatVector
-  Z_per_species: Mapping[str, array_typing.FloatVector]
-
-  @property
-  def Z_mixture(self) -> array_typing.FloatVector:
-    # Guard against division by zero when Z_avg is zero (e.g. no impurities).
-    # This also prevents NaN propagation through jnp.where dead branches that
-    # evaluate this property.
-    safe_Z_avg = jnp.where(self.Z_avg == 0.0, 1.0, self.Z_avg)
-    return jnp.where(self.Z_avg == 0.0, 0.0, self.Z2_avg / safe_Z_avg)
-
-
-# pylint: disable=invalid-name
-@jax.jit(static_argnames=['ion_symbol'])
 def calculate_average_charge_state_single_species(
     T_e: array_typing.FloatVector,
     ion_symbol: str,
 ) -> array_typing.FloatVector:
-  """Calculates the average charge state of an impurity based on the Marvin 2018 polynomial fit.
+  """Calculates average charge state of an impurity via the Mavrin 2018 fit.
 
   The polynomial fit range is 0.1-100 keV, which is well within the typical
   bounds of core tokamak modelling. For safety, inputs are clipped to avoid
@@ -136,7 +103,7 @@ def calculate_average_charge_state_single_species(
     ion_symbol: Species to calculate average charge state for.
 
   Returns:
-    Z: Average charge state [amu].
+    Average charge state [dimensionless].
   """
 
   # Assert array input. Runtime typechecking not always on, add explicit check.
@@ -171,79 +138,99 @@ def calculate_average_charge_state_single_species(
   return Zavg
 
 
-@jax.jit
-def get_average_charge_state(
+def get_average_charge_state_per_species(
     T_e: array_typing.FloatVector,
-    fractions: Mapping[str, array_typing.FloatVector],
+    ion_symbols: tuple[str, ...],
     Z_override: array_typing.FloatScalar | None = None,
-) -> ChargeStateInfo:
-  """Calculates or prescribes average impurity charge state profile (JAX-compatible).
-
-  Equations for quasineutrality and Zeff are the following:
-
-  sum(n_i * Z_i) + sum(n_impurity * Z_impurity) = n_e
-  sum(n_i/n_e * Z_i**2) + sum(n_impurity/n_e * Z_impurity**2) = Z_eff
-
-  We now define effective main ion and impurity charge states and densities,
-  and constrain that Zeff is the same when using a single effective main ion and
-  impurity instead of the full set of ions:
-
-  sum(n_i * Z_i) + sum(n_impurity * Z_impurity) =
-    n_i_eff * Z_i_eff + n_impurity_eff * Z_impurity_eff
-
-  sum(n_i * Z_i**2) + sum(n_impurity * Z_impurity**2) =
-    n_i_eff * Z_i_eff**2 + n_impurity_eff * Z_impurity_eff**2
-
-  We also are free to constrain that:
-  sum(n_i * Z_i) = n_i_eff * Z_i_eff and
-  sum(n_i * Z_i ** 2) = n_i_eff * Z_i_eff**2
-  individually, for i in {main, impurity}.
-
-  Taking the ratio of the two equations, we then get:
-  Z_i_eff = sum(n_i * Z_i **2) / (sum(n_i * Z_i))
-    = sum(fraction_i * Z_i ** 2) / sum(fraction_i * Z_i) = <Z^2> / <Z>
+) -> dict[str, array_typing.FloatVector]:
+  """Calculates or prescribes per-species average charge state profiles.
 
   Args:
-    T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
-      face grid, or a single scalar.
-    fractions: Mapping of ion symbols to impurity fractions.
-    Z_override: If not None, use this value for the average charge state.
+    T_e: 1D electron temperature profile [keV].
+    ion_symbols: Ion symbols to evaluate.
+    Z_override: Optional scalar charge state applied uniformly to all species.
 
   Returns:
-    AverageChargeState: dataclass with average charge state info.
+    Mapping from each symbol in `ion_symbols` to its 1D charge state profile.
+
+  Raises:
+    ValueError: If `T_e` is a 0D scalar.
   """
-  # Assert array input. Runtime typechecking not always on, add explicit check.
   if T_e.ndim == 0:
     raise ValueError(
         'T_e must be a 1D array, but is a scalar. Please provide a 1D array.'
     )
-
   if Z_override is not None:
     override_val = jnp.ones_like(T_e) * Z_override
-    return ChargeStateInfo(
-        Z_avg=override_val,
-        Z2_avg=override_val**2,
-        Z_per_species={ion: override_val for ion in fractions.keys()},
-    )
-
-  Z_per_species = {
-      ion_symbol: calculate_average_charge_state_single_species(
-          T_e, ion_symbol
-      )
-      for ion_symbol in fractions.keys()
+    return {ion_symbol: override_val for ion_symbol in ion_symbols}
+  return {
+      ion_symbol: calculate_average_charge_state_single_species(T_e, ion_symbol)
+      for ion_symbol in ion_symbols
   }
-  Z_avg = jnp.sum(jnp.array([
-      Z_per_species[ion_symbol] * fraction
-      for ion_symbol, fraction in fractions.items()
-  ]), axis=0)
 
-  Z2_avg = jnp.sum(jnp.array([
-      Z_per_species[ion_symbol] ** 2 * fraction
-      for ion_symbol, fraction in fractions.items()
-  ]), axis=0)
 
-  return ChargeStateInfo(
-      Z_avg=Z_avg,
-      Z2_avg=Z2_avg,
-      Z_per_species=Z_per_species,
+def get_average_charge_state(
+    Z_per_species: Mapping[str, array_typing.FloatVector],
+    fractions: Mapping[
+        str, array_typing.FloatVector | array_typing.FloatScalar
+    ],
+) -> array_typing.FloatVector:
+  """Calculates the weighted charge state sum(w_k * Z_k).
+
+  Args:
+    Z_per_species: Mapping of ion symbols to 1D per-species charge states.
+    fractions: Mapping of ion symbols to scalar or 1D weights (e.g. species
+      fractions summing to 1, or n_k / n_e ratios).
+
+  Returns:
+    Weighted sum of per-species charge states across `fractions`.
+  """
+  return jnp.sum(
+      jnp.asarray([
+          Z_per_species[ion_symbol] * fraction
+          for ion_symbol, fraction in fractions.items()
+      ]),
+      axis=0,
   )
+
+
+def get_effective_charge_state(
+    Z_per_species: Mapping[str, array_typing.FloatVector],
+    fractions: Mapping[
+        str, array_typing.FloatVector | array_typing.FloatScalar
+    ],
+    Z_avg: array_typing.FloatVector | None = None,
+) -> array_typing.FloatVector:
+  """Calculates the effective mixture charge state <Z^2> / <Z>.
+
+  When bundling an ion mixture with per-species densities n_k = f_k * n_tot and
+  charge states Z_k into a single effective species (n_eff, Z_mix_eff) that
+  simultaneously preserves total charge density and Z_eff contribution:
+
+    sum_k n_k * Z_k = n_eff * Z_mix_eff
+    sum_k n_k * Z_k**2 = n_eff * Z_mix_eff**2
+
+  Taking the ratio gives
+  Z_mix_eff = sum_k(f_k * Z_k**2) / sum_k(f_k * Z_k) = <Z^2> / <Z>.
+
+  Args:
+    Z_per_species: Mapping of ion symbols to per-species charge states.
+    fractions: Mapping of ion symbols to species fractions.
+    Z_avg: Optional pre-computed mean charge state <Z> = sum(f_k * Z_k). If
+      None, it is computed via `get_average_charge_state`.
+
+  Returns:
+    Effective charge state <Z^2> / <Z> of the mixture.
+  """
+  if Z_avg is None:
+    Z_avg = get_average_charge_state(Z_per_species, fractions)
+  Z2_avg = jnp.sum(
+      jnp.asarray([
+          Z_per_species[ion_symbol] ** 2 * fraction
+          for ion_symbol, fraction in fractions.items()
+      ]),
+      axis=0,
+  )
+  # Guard jnp.where dead branch against zero division when Z_avg == 0.
+  safe_Z_avg = jnp.where(Z_avg == 0.0, 1.0, Z_avg)
+  return jnp.where(Z_avg == 0.0, 0.0, Z2_avg / safe_Z_avg)
