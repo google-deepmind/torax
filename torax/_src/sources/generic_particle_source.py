@@ -37,9 +37,9 @@ class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the n_e equation."""
 
   SOURCE_ID: ClassVar[str] = 'generic_particle'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.NE,
-  )
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (source_profiles.AffectedCoreProfile.NE,)
 
   def _get_model_value(
       self,

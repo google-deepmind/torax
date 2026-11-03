@@ -119,9 +119,9 @@ class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
 
   SOURCE_ID: ClassVar[str] = 'bremsstrahlung'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
 
   def _get_model_value(
       self,

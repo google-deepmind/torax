@@ -25,7 +25,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -47,9 +46,11 @@ class QeiSource(static_dataclass.StaticDataclass):
   """
 
   SOURCE_ID: ClassVar[str] = 'ei_exchange'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_ION,
-      source.AffectedCoreProfile.TEMP_EL,
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (
+      source_profiles.AffectedCoreProfile.TEMP_ION,
+      source_profiles.AffectedCoreProfile.TEMP_EL,
   )
 
   def get_qei(

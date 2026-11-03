@@ -22,6 +22,7 @@ from torax._src.sources import config as sources_config
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
+from torax._src.sources import source_profiles
 from torax._src.test_utils import default_sources
 
 
@@ -157,8 +158,8 @@ class SourceModelsTest(parameterized.TestCase):
     class DummyFinalSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = 'final1'
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -167,8 +168,8 @@ class SourceModelsTest(parameterized.TestCase):
     class DummyFinalSource2(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = 'final2'
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.TEMP_ION,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.TEMP_ION,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError

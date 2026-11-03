@@ -25,6 +25,7 @@ from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import builders
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
@@ -36,6 +37,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -43,14 +45,14 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 
-def initial_core_profiles(
+def initial_solver_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_states: Mapping[str, source_state_lib.SourceState],
-) -> state.CoreProfiles:
-  """Calculates the initial core profiles.
+) -> state.SolverState:
+  """Calculates the initial SolverState.
 
   Args:
     runtime_params: Runtime parameters at t=t_initial.
@@ -60,7 +62,7 @@ def initial_core_profiles(
     source_states: Initial source states mapping.
 
   Returns:
-    Initial core profiles.
+    Initial SolverState.
   """
   T_i = getters.get_updated_ion_temperature(
       runtime_params.profile_conditions, geo
@@ -71,92 +73,26 @@ def initial_core_profiles(
   n_e = getters.get_updated_electron_density(
       runtime_params.profile_conditions, geo
   )
-  ion_composition, n_i, n_impurity = getters.get_updated_ions(
-      runtime_params, geo, n_e, T_e
-  )
   toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       runtime_params.profile_conditions, geo
   )
-  # Set v_loop_lcfs. Two branches:
-  # 1. Initialize v_loop_lcfs to 0 if using the I_p boundary condition for psi.
-  #    In this case, v_loop_lcfs will be updated every timestep based on the
-  #    psi_lcfs values across the time interval. Since there is one more time
-  #    value than time intervals, the v_loop_lcfs time-series is
-  #    underconstrained, so we set v_loop_lcfs[0] to v_loop_lcfs[1] when
-  #    creating the outputs.
-  # 2. Set the v_loop_lcfs from profile_conditions if using the v_loop BC
-  #    option.
-  match runtime_params.profile_conditions.psi_bc_source:
-    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
-      v_loop_lcfs = jnp.asarray(0.0, dtype=jax_utils.get_dtype())
-    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
-      v_loop_lcfs = jnp.asarray(
-          runtime_params.profile_conditions.v_loop_lcfs,
-          dtype=jax_utils.get_dtype(),
-      )
-    case _:
-      raise ValueError(
-          'Unknown psi_bc_source:'
-          f' {runtime_params.profile_conditions.psi_bc_source}'
-      )
-
-  # Initialise psi and derived quantities to zero before they are calculated.
-  psidot = cell_variable.CellVariable(
-      value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      face_centers=geo.rho_face_norm,
-  )
-  psi = cell_variable.CellVariable(
-      value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      face_centers=geo.rho_face_norm,
-  )
-
-  kinetic = state.KineticProfiles(
+  psi = _init_psi(
+      runtime_params=runtime_params,
+      geo=geo,
       T_i=T_i,
       T_e=T_e,
       n_e=n_e,
-      n_i=n_i,
-      n_impurity=n_impurity,
       toroidal_angular_velocity=toroidal_angular_velocity,
-  )
-  flux = state.PoloidalFluxProfiles(
-      psi=psi,
-      q_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-      s_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-      j_toroidal_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      j_toroidal_total_face=jnp.zeros_like(
-          geo.rho_face, dtype=jax_utils.get_dtype()
-      ),
-      I_p_profile_face=jnp.zeros_like(
-          geo.rho_face, dtype=jax_utils.get_dtype()
-      ),
-      v_loop_lcfs=v_loop_lcfs,
-  )
-  conductivity = state.Conductivity(
-      sigma=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      sigma_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-  )
-  core_profiles = state.CoreProfiles(
-      kinetic=kinetic,
-      ions=ion_composition,
-      poloidal_flux=flux,
-      fast_ions=(),
-      conductivity=conductivity,
-      poloidal_velocity=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-          face_centers=geo.rho_face_norm,
-          right_face_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
-          right_face_grad_constraint=None,
-      ),
-      psidot=psidot,
-  )
-
-  return _init_psi_and_psi_derived(
-      runtime_params,
-      geo,
-      core_profiles,
-      source_models,
-      neoclassical_model,
+      source_models=source_models,
+      neoclassical_model=neoclassical_model,
       source_states=source_states,
+  )
+  return state.SolverState(
+      T_i=T_i,
+      T_e=T_e,
+      psi=psi,
+      n_e=n_e,
+      toroidal_angular_velocity=toroidal_angular_velocity,
   )
 
 
@@ -233,15 +169,18 @@ def update_psi_from_j(
   return psi
 
 
-def _init_psi_and_psi_derived(
+def _init_psi(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    T_i: cell_variable.CellVariable,
+    T_e: cell_variable.CellVariable,
+    n_e: cell_variable.CellVariable,
+    toroidal_angular_velocity: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_states: Mapping[str, source_state_lib.SourceState],
-) -> state.CoreProfiles:
-  """Initialises psi and currents in core profiles.
+) -> cell_variable.CellVariable:
+  """Initialises psi consistent with profile conditions, geometry, or current.
 
   There are three modes of doing this that are supported:
     1. Retrieving psi from the profile conditions.
@@ -253,13 +192,16 @@ def _init_psi_and_psi_derived(
   Args:
     runtime_params: Runtime parameters.
     geo: Torus geometry.
-    core_profiles: Core profiles.
+    T_i: Ion temperature [keV].
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
+    toroidal_angular_velocity: Toroidal angular velocity [rad/s].
     source_models: All TORAX source/sink functions.
     neoclassical_model: The neoclassical model.
     source_states: Initial source states mapping.
 
   Returns:
-    Refined core profiles.
+    Initial poloidal flux [Wb].
   """
 
   match runtime_params.profile_conditions.initial_psi_source:
@@ -296,7 +238,7 @@ def _init_psi_and_psi_derived(
         right_face_grad_constraint = dpsi_drhonorm_edge
         right_face_constraint = None
 
-      psi = cell_variable.CellVariable(
+      return cell_variable.CellVariable(
           value=runtime_params.profile_conditions.psi,
           face_centers=geo.rho_face_norm,
           right_face_grad_constraint=right_face_grad_constraint,
@@ -325,12 +267,10 @@ def _init_psi_and_psi_derived(
       # Use the psi from the equilibrium as the right face constraint
       # This has already been made consistent with the desired I_p
       # by make_I_p_consistent
-      psi = cell_variable.CellVariable(
+      return cell_variable.CellVariable(
           value=geo.psi_from_I_p,  # Use psi from equilibrium
           face_centers=geo.rho_face_norm,
-          right_face_grad_constraint=None
-          if use_v_loop
-          else dpsi_drhonorm_edge,
+          right_face_grad_constraint=None if use_v_loop else dpsi_drhonorm_edge,
           right_face_constraint=geo.psi_from_I_p_face[-1]
           if use_v_loop
           else None,
@@ -360,24 +300,12 @@ def _init_psi_and_psi_derived(
         # non-zero psi. We thus iterate between psi and source calculations,
         # using j_toroidal_total and psi calculated purely with the nu formula
         # as an initial guess.
-
-        # Initialize iterations.
-        j_toroidal_total, j_toroidal_total_face, I_p_profile_face = (
-            psi_calculations.calc_j_toroidal_total(
-                geo, psi, runtime_params.numerics.min_rho_norm
-            )
-        )
-        core_profiles_initial = dataclasses.replace(
-            core_profiles,
-            poloidal_flux=dataclasses.replace(
-                core_profiles.poloidal_flux,
-                psi=psi,
-                q_face=psi_calculations.calc_q_face(geo, psi),
-                s_face=psi_calculations.calc_s_face(geo, psi),
-                j_toroidal_total=j_toroidal_total,
-                j_toroidal_total_face=j_toroidal_total_face,
-                I_p_profile_face=I_p_profile_face,
-            ),
+        solver_state = state.SolverState(
+            T_i=T_i,
+            T_e=T_e,
+            psi=psi,
+            n_e=n_e,
+            toroidal_angular_velocity=toroidal_angular_velocity,
         )
 
         # TODO(b/440385263): add tunable iteration number or convergence
@@ -388,152 +316,89 @@ def _init_psi_and_psi_derived(
         psi = _iterate_psi_and_sources(
             runtime_params=runtime_params,
             geo=geo,
-            core_profiles=core_profiles_initial,
+            solver_state=solver_state,
             neoclassical_model=neoclassical_model,
             source_models=source_models,
             source_states=source_states,
             iterations=2,
         )
 
-  # Conclude with completing core_profiles with all psi-dependent profiles.
-  core_profiles = _calculate_all_psi_dependent_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      psi=psi,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      neoclassical_model=neoclassical_model,
-      source_states=source_states,
-  )
-
-  return core_profiles
-
-
-# TODO(b/572586768): Construct CoreProfiles in one pass once initialization
-# uses SolverState.
-def _calculate_all_psi_dependent_profiles(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    psi: cell_variable.CellVariable,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
-    source_states: Mapping[str, source_state_lib.SourceState],
-) -> state.CoreProfiles:
-  """Supplements core profiles with all other profiles that depend on psi."""
-  j_toroidal_total, j_toroidal_total_face, I_p_profile_face = (
-      psi_calculations.calc_j_toroidal_total(
-          geo, psi, runtime_params.numerics.min_rho_norm
-      )
-  )
-
-  core_profiles = dataclasses.replace(
-      core_profiles,
-      poloidal_flux=dataclasses.replace(
-          core_profiles.poloidal_flux,
-          psi=psi,
-          q_face=psi_calculations.calc_q_face(geo, psi),
-          s_face=psi_calculations.calc_s_face(geo, psi),
-          j_toroidal_total=j_toroidal_total,
-          j_toroidal_total_face=j_toroidal_total_face,
-          I_p_profile_face=I_p_profile_face,
-      ),
-  )
-  basic_source_outputs, _ = source_profile_builders.evaluate_basic_sources(
-      runtime_params=runtime_params,
-      geo=geo,
-      solver_profiles=core_profiles,
-      source_models=source_models,
-      source_states=source_states,
-      explicit=True,
-      calculate_anyway=True,
-  )
-  if runtime_params.numerics.enable_fast_ions:
-    fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-        source_profile_builders.extract_fast_ions(basic_source_outputs),
-        runtime_params.profile_conditions.prescribed_fast_ions,
-        geo.rho_face_norm,
-    )
-  else:
-    fast_ions = ()
-  core_profiles = dataclasses.replace(core_profiles, fast_ions=fast_ions)
-  (
-      conductivity,
-      bootstrap_current,
-      poloidal_velocity,
-      _,
-  ) = neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, core_profiles
-  )
-
-  # psidot calculated here with phibdot=0 in geo, since this is initial
-  # conditions and we don't yet have information on geo_t_plus_dt for the
-  # phibdot calculation.
-  if (
-      runtime_params.profile_conditions.psi_bc_source
-      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
-  ):
-    v_loop_lcfs = runtime_params.profile_conditions.v_loop_lcfs
-  else:
-    v_loop_lcfs = None
-  psidot = psi_calculations.calculate_psidot(
-      psi=psi,
-      sigma=conductivity.sigma,
-      psi_sources=source_profile_builders.sum_total_psi_sources(
-          basic_source_outputs, source_models, bootstrap_current, geo
-      ),
-      geo=geo,
-      evolve_current=runtime_params.numerics.evolve_current,
-      prescribed_psidot=runtime_params.profile_conditions.psidot,
-      v_loop_lcfs=v_loop_lcfs,
-  )
-  core_profiles = dataclasses.replace(
-      core_profiles,
-      psidot=psidot,
-      conductivity=conductivity,
-      poloidal_velocity=poloidal_velocity.v_pol,
-  )
-  return core_profiles
+  return psi
 
 
 def _iterate_psi_and_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    solver_state: state.SolverState,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_models: source_models_lib.SourceModels,
     source_states: Mapping[str, source_state_lib.SourceState],
     iterations: int,
 ) -> cell_variable.CellVariable:
   """Iterates psi and sources to converge to a consistent state."""
-
+  match runtime_params.profile_conditions.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      v_loop_lcfs = jnp.asarray(0.0, dtype=jax_utils.get_dtype())
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      v_loop_lcfs = jnp.asarray(
+          runtime_params.profile_conditions.v_loop_lcfs,
+          dtype=jax_utils.get_dtype(),
+      )
+    case _:
+      raise ValueError(
+          'Unknown psi_bc_source:'
+          f' {runtime_params.profile_conditions.psi_bc_source}'
+      )
+  source_states_i = source_states
   for _ in range(iterations):
-    basic_source_outputs, source_states = (
+    base_profiles = builders.build_base_core_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        solver_state=solver_state,
+        v_loop_lcfs=v_loop_lcfs,
+    )
+    basic_source_outputs, source_states_i = (
         source_profile_builders.evaluate_basic_sources(
             runtime_params=runtime_params,
             geo=geo,
-            solver_profiles=core_profiles,
+            solver_profiles=base_profiles,
             source_models=source_models,
-            source_states=source_states,
+            source_states=source_states_i,
             explicit=True,
             calculate_anyway=True,
         )
     )
     if runtime_params.numerics.enable_fast_ions:
       fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-          source_profile_builders.extract_fast_ions(basic_source_outputs),
+          source_profiles.extract_fast_ions(basic_source_outputs),
           runtime_params.profile_conditions.prescribed_fast_ions,
           geo.rho_face_norm,
       )
     else:
       fast_ions = ()
-    core_profiles = dataclasses.replace(core_profiles, fast_ions=fast_ions)
+    # TODO(b/572586768): Pass BaseCoreProfiles and fast_ions directly once
+    # neoclassical models migrate to BaseCoreProfiles.
+    core_profiles = state.CoreProfiles(
+        kinetic=base_profiles.kinetic,
+        ions=base_profiles.ions,
+        poloidal_flux=base_profiles.poloidal_flux,
+        fast_ions=fast_ions,
+        conductivity=state.Conductivity.zeros(geo),
+        poloidal_velocity=cell_variable.CellVariable(
+            value=jnp.zeros_like(geo.rho_norm),
+            face_centers=geo.rho_face_norm,
+        ),
+        psidot=cell_variable.CellVariable(
+            value=jnp.zeros_like(geo.rho_norm),
+            face_centers=geo.rho_face_norm,
+        ),
+    )
     _, bootstrap_current, _, _ = (
         neoclassical_model.calculate_conductivity_current_and_rotation(
             runtime_params, geo, core_profiles
         )
     )
-    psi_sources = source_profile_builders.extract_psi_sources(
+    psi_sources = source_profiles.extract_psi_sources(
         basic_source_outputs, source_models
     )
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
@@ -542,38 +407,26 @@ def _iterate_psi_and_sources(
         runtime_params.numerics.min_rho_norm,
     )
     j_toroidal_total_hires = get_j_toroidal_total_hires_with_external_sources(
-        runtime_params,
-        geo,
-        bootstrap_current,
+        runtime_params=runtime_params,
+        geo=geo,
+        bootstrap_current=bootstrap_current,
         j_toroidal_external=j_toroidal_external,
+    )
+    use_v_loop = (
+        runtime_params.profile_conditions.psi_bc_source
+        == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
     )
     psi = update_psi_from_j(
         runtime_params.profile_conditions.I_p,
         geo,
         j_toroidal_total_hires,
-        use_v_loop_lcfs_boundary_condition=(
-            runtime_params.profile_conditions.psi_bc_source
-            == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
-        ),
+        use_v_loop_lcfs_boundary_condition=use_v_loop,
     )
-    j_toroidal_total, j_toroidal_total_face, I_p_profile_face = (
-        psi_calculations.calc_j_toroidal_total(
-            geo, psi, runtime_params.numerics.min_rho_norm
-        )
+    solver_state = dataclasses.replace(
+        solver_state,
+        psi=psi,
     )
-    core_profiles = dataclasses.replace(
-        core_profiles,
-        poloidal_flux=dataclasses.replace(
-            core_profiles.poloidal_flux,
-            psi=psi,
-            q_face=psi_calculations.calc_q_face(geo, psi),
-            s_face=psi_calculations.calc_s_face(geo, psi),
-            j_toroidal_total=j_toroidal_total,
-            j_toroidal_total_face=j_toroidal_total_face,
-            I_p_profile_face=I_p_profile_face,
-        ),
-    )
-  return core_profiles.psi
+  return solver_state.psi
 
 
 def _get_j_toroidal_total_hires_with_no_external_sources(

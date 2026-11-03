@@ -36,9 +36,9 @@ class PelletSource(source.Source):
   """Pellet source for the n_e equation."""
 
   SOURCE_ID: ClassVar[str] = 'pellet'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.NE,
-  )
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (source_profiles.AffectedCoreProfile.NE,)
 
   def _get_model_value(
       self,

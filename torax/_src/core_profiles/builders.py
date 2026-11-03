@@ -73,7 +73,7 @@ def build_base_core_profiles(
 ) -> state.BaseCoreProfiles:
   """Constructs purely algebraic BaseCoreProfiles from SolverState.
 
-  Used by the unified physics pipeline and initialization profile builders.
+  Used by the unified physics pipeline and initial state convergence.
 
   Args:
     runtime_params: Runtime parameters.
@@ -182,13 +182,18 @@ def build_core_profiles(
           source_models=source_models,
           source_states=source_states,
           explicit=explicit,
-          explicit_source_outputs=explicit_source_outputs,
           calculate_anyway=calculate_anyway,
       )
   )
+  if explicit_source_outputs is not None:
+    basic_source_outputs = {
+        **explicit_source_outputs,
+        **basic_source_outputs,
+    }
+
   if runtime_params.numerics.enable_fast_ions:
     fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        source_profile_builders.extract_fast_ions(basic_source_outputs),
+        source_profiles_lib.extract_fast_ions(basic_source_outputs),
         runtime_params.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
@@ -221,7 +226,7 @@ def build_core_profiles(
       runtime_params, geo, temp_core_profiles
   )
 
-  total_psi_sources = source_profile_builders.sum_total_psi_sources(
+  total_psi_sources = source_profiles_lib.sum_total_psi_sources(
       basic_source_outputs=basic_source_outputs,
       source_models=source_models,
       bootstrap_current=bootstrap_current,

@@ -53,9 +53,9 @@ class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
   SOURCE_ID: ClassVar[str] = 'generic_current'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.PSI,
-  )
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (source_profiles.AffectedCoreProfile.PSI,)
 
   def _get_model_value(
       self,

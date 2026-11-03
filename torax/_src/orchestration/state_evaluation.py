@@ -31,6 +31,7 @@ from torax._src.core_profiles import builders
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
@@ -38,6 +39,7 @@ from torax._src.pedestal_model import (
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 @jax.tree_util.register_dataclass
@@ -123,7 +125,7 @@ def evaluate_state(
       )
   )
 
-  # Pedestal model and internal boundary conditions.
+  # Pedestal model.
   pedestal_output, updated_pedestal_state = models.pedestal_model(
       runtime_params=runtime_params,
       geo=geo,
@@ -132,6 +134,57 @@ def evaluate_state(
       pedestal_state=model_state.pedestal,
       explicit_pedestal_structure=explicit_model_outputs.pedestal,
   )
+  (
+      internal_boundary_conditions,
+      core_transport,
+      updated_transport_state,
+  ) = _evaluate_ibc_and_transport(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_output=pedestal_output,
+      models=models,
+      source_profiles=total_source_profiles,
+      neoclassical_intermediates=neoclassical_intermediates,
+      transport_state=model_state.transport,
+      use_pereverzev=use_pereverzev,
+  )
+
+  updated_model_state = model_state_lib.ModelState(
+      pedestal=updated_pedestal_state,
+      transport=updated_transport_state,
+      sources=updated_source_states,
+  )
+
+  evaluated_state = EvaluatedState(
+      core_profiles=core_profiles,
+      core_sources=total_source_profiles,
+      core_transport=core_transport,
+      pedestal_output=pedestal_output,
+      internal_boundary_conditions=internal_boundary_conditions,
+  )
+  return evaluated_state, updated_model_state
+
+
+def _evaluate_ibc_and_transport(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
+    models: models_lib.Models,
+    source_profiles: source_profiles_lib.SourceProfiles,
+    neoclassical_intermediates: (
+        neoclassical_intermediates_lib.NeoclassicalIntermediates
+    ),
+    transport_state: transport_state_lib.TransportState,
+    *,
+    use_pereverzev: bool,
+) -> tuple[
+    internal_boundary_conditions_lib.InternalBoundaryConditions,
+    state.CoreTransport,
+    transport_state_lib.TransportState,
+]:
+  """Evaluates internal boundary conditions and transport coefficients."""
   internal_boundary_conditions = (
       internal_boundary_conditions_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params,
@@ -141,7 +194,7 @@ def evaluate_state(
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
-          source_profiles=total_source_profiles,
+          source_profiles=source_profiles,
       )
   )
 
@@ -159,7 +212,7 @@ def evaluate_state(
           geo=geo,
           core_profiles=core_profiles,
           pedestal_model_output=pedestal_output,
-          transport_state=model_state.transport,
+          transport_state=transport_state,
           neoclassical_transport=neoclassical_transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geo
@@ -167,18 +220,87 @@ def evaluate_state(
           use_pereverzev=use_pereverzev,
       )
   )
+  return internal_boundary_conditions, core_transport, updated_transport_state
 
-  updated_model_state = model_state_lib.ModelState(
-      pedestal=updated_pedestal_state,
-      transport=updated_transport_state,
-      sources=updated_source_states,
+
+def evaluate_initial_state(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    solver_state: state.SolverState,
+    models: models_lib.Models,
+) -> tuple[EvaluatedState, model_state_lib.ModelState]:
+  """Evaluates derived state variables and initial model state at t = 0.
+
+  Args:
+    runtime_params: Runtime configuration parameters at t = 0.
+    geo: Magnetic geometry at t = 0.
+    solver_state: Initial primary profiles.
+    models: Physical models configured for the simulation.
+
+  Returns:
+    A tuple of (EvaluatedState, initial_model_state).
+  """
+  initial_source_states = models.source_models.initial_state(runtime_params)
+  (
+      core_profiles,
+      basic_source_outputs,
+      basic_source_states,
+      bootstrap_current,
+      neoclassical_intermediates,
+  ) = builders.build_core_profiles(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_state=solver_state,
+      source_models=models.source_models,
+      neoclassical_model=models.neoclassical_model,
+      source_states=initial_source_states,
+      explicit=True,
+      calculate_anyway=True,
   )
-
+  total_source_profiles, initial_source_states = (
+      source_profile_builders.evaluate_dependent_sources(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_models=models.source_models,
+          source_states=basic_source_states,
+          basic_source_outputs=basic_source_outputs,
+          bootstrap_current=bootstrap_current,
+      )
+  )
+  initial_pedestal_output, initial_pedestal_state = (
+      models.pedestal_model.initialize(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_profiles=total_source_profiles,
+      )
+  )
+  (
+      internal_boundary_conditions,
+      core_transport,
+      initial_transport_state,
+  ) = _evaluate_ibc_and_transport(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_output=initial_pedestal_output,
+      models=models,
+      source_profiles=total_source_profiles,
+      neoclassical_intermediates=neoclassical_intermediates,
+      transport_state=models.transport_model.initial_state(runtime_params),
+      use_pereverzev=False,
+  )
   evaluated_state = EvaluatedState(
       core_profiles=core_profiles,
       core_sources=total_source_profiles,
       core_transport=core_transport,
-      pedestal_output=pedestal_output,
+      pedestal_output=initial_pedestal_output,
       internal_boundary_conditions=internal_boundary_conditions,
   )
-  return evaluated_state, updated_model_state
+  initial_model_state = model_state_lib.ModelState(
+      pedestal=initial_pedestal_state,
+      transport=initial_transport_state,
+      sources=initial_source_states,
+  )
+  return evaluated_state, initial_model_state

@@ -216,6 +216,21 @@ class StateEvaluationTest(parameterized.TestCase):
         distinctive_value,
     )
 
+  def test_evaluate_initial_state(self):
+    evaluated_state, initial_model_state = (
+        state_evaluation.evaluate_initial_state(
+            runtime_params=self.runtime_params,
+            geo=self.geo,
+            solver_state=self.solver_state,
+            models=self.models,
+        )
+    )
+    self.assertIsInstance(evaluated_state, state_evaluation.EvaluatedState)
+    self.assertIsInstance(initial_model_state, model_state_lib.ModelState)
+    self.assertIsNotNone(evaluated_state.core_profiles)
+    self.assertIsNotNone(evaluated_state.core_sources)
+    self.assertIsNotNone(evaluated_state.core_transport)
+
 
 if __name__ == '__main__':
   absltest.main()
