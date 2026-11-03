@@ -556,13 +556,13 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     evolving_names = ('psi',)
 
-    observed_core_profiles = []
+    observed_calls = []
     original_calc = (
         inputs.models.neoclassical_model.calculate_conductivity_current_and_rotation
     )
 
     def spy_calc(runtime_params, geo, core_profiles, **kwargs):
-      observed_core_profiles.append(core_profiles)
+      observed_calls.append((core_profiles, kwargs.get('fast_ions', ())))
       return original_calc(runtime_params, geo, core_profiles, **kwargs)
 
     with jax.disable_jit():
@@ -583,12 +583,11 @@ class CalcCoeffsTest(parameterized.TestCase):
             model_state=inputs.model_state,
         )
 
-    self.assertLen(observed_core_profiles, 1)
-    passed_core_profiles = observed_core_profiles[0]
-    self.assertNotEmpty(passed_core_profiles.fast_ions)
-    passed_he3 = [
-        fi for fi in passed_core_profiles.fast_ions if fi.species == 'He3'
-    ]
+    self.assertLen(observed_calls, 1)
+    passed_core_profiles, passed_fast_ions = observed_calls[0]
+    self.assertIsInstance(passed_core_profiles, state.BaseCoreProfiles)
+    self.assertNotEmpty(passed_fast_ions)
+    passed_he3 = [fi for fi in passed_fast_ions if fi.species == 'He3']
     self.assertLen(passed_he3, 1)
     np.testing.assert_allclose(passed_he3[0].n.value, 1e19)
 

@@ -683,7 +683,7 @@ class InitializationTest(parameterized.TestCase):
     )
     conductivity, bootstrap_current, _, _ = (
         neoclassical_model.calculate_conductivity_current_and_rotation(
-            runtime_params, geo, result
+            runtime_params, geo, result, fast_ions=result.fast_ions
         )
     )
     expected_psi_sources = source_profiles.sum_total_psi_sources(
@@ -806,7 +806,7 @@ def _get_initial_state(
   source_states = source_models.initial_state(runtime_params)
   _, bootstrap_current, _, _ = (
       neoclassical_model.calculate_conductivity_current_and_rotation(
-          runtime_params, geo, core_profiles
+          runtime_params, geo, core_profiles, fast_ions=core_profiles.fast_ions
       )
   )
   psi_sources, _ = source_profile_builders.evaluate_psi_sources(

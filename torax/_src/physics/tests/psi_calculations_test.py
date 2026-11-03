@@ -241,6 +241,7 @@ class PsiCalculationsTest(parameterized.TestCase):
             runtime_params,
             geo,
             initial_core_profiles,
+            fast_ions=initial_core_profiles.fast_ions,
         )
     )
 

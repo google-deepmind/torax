@@ -200,30 +200,15 @@ def build_core_profiles(
   else:
     fast_ions = ()
 
-  # TODO(b/572586768): Pass BaseCoreProfiles and fast_ions directly once
-  # neoclassical models migrate to BaseCoreProfiles.
-  temp_core_profiles = state.CoreProfiles(
-      kinetic=base_profiles.kinetic,
-      ions=base_profiles.ions,
-      poloidal_flux=base_profiles.poloidal_flux,
-      fast_ions=fast_ions,
-      conductivity=state.Conductivity.zeros(geo),
-      poloidal_velocity=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho_norm),
-          face_centers=geo.rho_face_norm,
-      ),
-      psidot=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho_norm),
-          face_centers=geo.rho_face_norm,
-      ),
-  )
+  # Evaluate neoclassical conductivity, bootstrap current, and poloidal
+  # velocity. These depend on fast ions.
   (
       conductivity,
       bootstrap_current,
       poloidal_velocity,
       neoclassical_intermediates,
   ) = neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, temp_core_profiles
+      runtime_params, geo, base_profiles, fast_ions=fast_ions
   )
 
   total_psi_sources = source_profiles_lib.sum_total_psi_sources(

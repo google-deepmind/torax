@@ -376,26 +376,9 @@ def _iterate_psi_and_sources(
       )
     else:
       fast_ions = ()
-    # TODO(b/572586768): Pass BaseCoreProfiles and fast_ions directly once
-    # neoclassical models migrate to BaseCoreProfiles.
-    core_profiles = state.CoreProfiles(
-        kinetic=base_profiles.kinetic,
-        ions=base_profiles.ions,
-        poloidal_flux=base_profiles.poloidal_flux,
-        fast_ions=fast_ions,
-        conductivity=state.Conductivity.zeros(geo),
-        poloidal_velocity=cell_variable.CellVariable(
-            value=jnp.zeros_like(geo.rho_norm),
-            face_centers=geo.rho_face_norm,
-        ),
-        psidot=cell_variable.CellVariable(
-            value=jnp.zeros_like(geo.rho_norm),
-            face_centers=geo.rho_face_norm,
-        ),
-    )
     _, bootstrap_current, _, _ = (
         neoclassical_model.calculate_conductivity_current_and_rotation(
-            runtime_params, geo, core_profiles
+            runtime_params, geo, base_profiles, fast_ions=fast_ions
         )
     )
     psi_sources = source_profiles.extract_psi_sources(

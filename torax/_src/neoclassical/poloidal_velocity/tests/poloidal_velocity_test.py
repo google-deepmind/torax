@@ -74,15 +74,15 @@ class PoloidalVelocityTest(absltest.TestCase):
     )
     self.neoclassical_intermediates = (
         formulas.compute_neoclassical_intermediates(
-            self.geo, self.core_profiles
+            self.geo, self.core_profiles, fast_ions=()
         )
     )
 
   def test_calculate_poloidal_velocity_values_are_correct(self):
     poloidal_velocity = kim._calculate_poloidal_velocity(
-        T_i=self.core_profiles.T_i,
+        T_i=self.core_profiles.kinetic.T_i,
         k_neo=self.neoclassical_intermediates.k_neo,
-        Z_i=self.core_profiles.Z_i_face,
+        Z_i=self.core_profiles.ions.Z_i_face,
         B_tor=np.ones_like(self.geo.rho_face_norm),
         B_total_squared=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,

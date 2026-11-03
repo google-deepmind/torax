@@ -121,7 +121,10 @@ class SingleProfileSourceTestCase(SourceTestCase):
       )
       conductivity, _, _, _ = (
           neoclassical_model.calculate_conductivity_current_and_rotation(
-              runtime_params, geo, core_profiles
+              runtime_params,
+              geo,
+              core_profiles,
+              fast_ions=core_profiles.fast_ions,
           )
       )
       core_profiles = dataclasses.replace(

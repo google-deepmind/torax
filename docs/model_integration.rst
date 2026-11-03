@@ -703,13 +703,15 @@ Create a ``NeoclassicalModel`` subclass implementing
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.CoreProfiles,
+          core_profiles: torax.BaseCoreProfiles,
+          fast_ions: tuple[Any, ...],
       ) -> tuple[
           neoclassical.Conductivity,
           neoclassical.BootstrapCurrent,
           neoclassical.PoloidalVelocity,
           neoclassical.NeoclassicalIntermediates,
       ]:
+        del core_profiles, fast_ions
         assert isinstance(
             runtime_params.neoclassical, MyNeoclassicalRuntimeParams
         )

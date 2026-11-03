@@ -56,7 +56,7 @@ class PoloidalVelocityModel(abc.ABC):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: state.BaseCoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> PoloidalVelocity:
     """Calculates neoclassical poloidal velocity."""

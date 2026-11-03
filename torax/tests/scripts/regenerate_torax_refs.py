@@ -200,6 +200,7 @@ def _calculate_new_references(
           runtime_params,
           geo,
           initial_core_profiles,
+          fast_ions=initial_core_profiles.fast_ions,
       )
   )
   psidot = psi_calculations.calculate_psidot_from_psi_sources(

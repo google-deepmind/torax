@@ -45,7 +45,10 @@ class SourceModelsTest(parameterized.TestCase):
     source_states = source_models.initial_state(runtime_params)
     _, bootstrap_current, _, _ = (
         neoclassical_model.calculate_conductivity_current_and_rotation(
-            runtime_params, geo, core_profiles
+            runtime_params,
+            geo,
+            core_profiles,
+            fast_ions=core_profiles.fast_ions,
         )
     )
     explicit_source_profiles, source_states = (
@@ -113,7 +116,10 @@ class SourceModelsTest(parameterized.TestCase):
     source_states = source_models.initial_state(runtime_params)
     conductivity, bootstrap_current, _, _ = (
         neoclassical_model.calculate_conductivity_current_and_rotation(
-            runtime_params, geo, core_profiles
+            runtime_params,
+            geo,
+            core_profiles,
+            fast_ions=core_profiles.fast_ions,
         )
     )
     return (
