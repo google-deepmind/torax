@@ -21,6 +21,11 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
 
   source_config_class = generic_particle_source.GenericParticleSourceConfig
   source_name = generic_particle_source.GenericParticleSource.SOURCE_ID
+  extra_source_config_kwargs = {
+      'S_total': 1e22,
+      'particle_width': 0.25,
+      'deposition_location': 0.0,
+  }
 
 
 if __name__ == '__main__':

@@ -302,6 +302,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=1e22,
           updated_value=2e22,
+          extra_fields={'particle_width': 0.25, 'deposition_location': 0.0},
       ),
       dict(
           testcase_name='icrh_scaled_profile',
@@ -406,6 +407,12 @@ class SourcesConfigTest(parameterized.TestCase):
           expected_error="S_total must be provided when mode is 'model_based'",
       ),
       dict(
+          testcase_name='generic_particle',
+          source_name='generic_particle',
+          source_kwargs={},
+          expected_error="S_total must be provided when mode is 'model_based'",
+      ),
+      dict(
           testcase_name='icrh_scaled_profile',
           source_name='icrh',
           source_kwargs={
@@ -452,6 +459,12 @@ class SourcesConfigTest(parameterized.TestCase):
       dict(
           testcase_name='gas_puff',
           source_name='gas_puff',
+          source_kwargs={},
+          zero_fields=('S_total',),
+      ),
+      dict(
+          testcase_name='generic_particle',
+          source_name='generic_particle',
           source_kwargs={},
           zero_fields=('S_total',),
       ),
@@ -526,6 +539,22 @@ class SourcesConfigTest(parameterized.TestCase):
           source_kwargs={'S_total': 1e22},
           expected_error=(
               "puff_decay_length must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='generic_particle_missing_width',
+          source_name='generic_particle',
+          source_kwargs={'S_total': 1e22, 'deposition_location': 0.0},
+          expected_error=(
+              "particle_width must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='generic_particle_missing_location',
+          source_name='generic_particle',
+          source_kwargs={'S_total': 1e22, 'particle_width': 0.25},
+          expected_error=(
+              "deposition_location must be provided when mode is 'model_based'"
           ),
       ),
       dict(

@@ -13,10 +13,11 @@
 # limitations under the License.
 """Generic particle source for the n_e equation."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
@@ -66,6 +67,16 @@ class GenericParticleSource(source.Source):
     del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.particle_width is None:
+      raise ValueError(
+          'GenericParticleSource requires `particle_width` to be set.'
+      )
+    if source_params.deposition_location is None:
+      raise ValueError(
+          'GenericParticleSource requires `deposition_location` to be set.'
+      )
+    if source_params.S_total is None:
+      raise ValueError('GenericParticleSource requires `S_total` to be set.')
     profile = formulas.gaussian_profile(
         center=source_params.deposition_location,
         width=source_params.particle_width,
@@ -78,19 +89,21 @@ class GenericParticleSource(source.Source):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
-  particle_width: array_typing.FloatScalar
-  deposition_location: array_typing.FloatScalar
-  S_total: array_typing.FloatScalar
+  particle_width: array_typing.FloatScalar | None
+  deposition_location: array_typing.FloatScalar | None
+  S_total: array_typing.FloatScalar | None
 
 
 class GenericParticleSourceConfig(base.SourceConfigBase):
   """Generic particle source for the n_e equation.
 
   Attributes:
-    particle_width: particle source Gaussian width in normalized radial coord
+    particle_width: particle source Gaussian width in normalized radial coord.
+      Required when mode is 'model_based'.
     deposition_location: particle source Gaussian center in normalized radial
-      coord
-    S_total: total particle source particles/s
+      coord. Required when mode is 'model_based'.
+    S_total: total particle source particles/s. Required when mode is
+      'model_based'.
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
@@ -98,15 +111,26 @@ class GenericParticleSourceConfig(base.SourceConfigBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  particle_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.25)
+  particle_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = (
+      None
   )
-  deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1e22
-  )
+  S_total: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.S_total is None:
+        raise ValueError("S_total must be provided when mode is 'model_based'.")
+      if self.particle_width is None:
+        raise ValueError(
+            "particle_width must be provided when mode is 'model_based'."
+        )
+      if self.deposition_location is None:
+        raise ValueError(
+            "deposition_location must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -115,9 +139,17 @@ class GenericParticleSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        particle_width=self.particle_width.get_value(t),
-        deposition_location=self.deposition_location.get_value(t),
-        S_total=self.S_total.get_value(t),
+        particle_width=(
+            None
+            if self.particle_width is None
+            else self.particle_width.get_value(t)
+        ),
+        deposition_location=(
+            None
+            if self.deposition_location is None
+            else self.deposition_location.get_value(t)
+        ),
+        S_total=(None if self.S_total is None else self.S_total.get_value(t)),
     )
 
   def build_source(self) -> GenericParticleSource:

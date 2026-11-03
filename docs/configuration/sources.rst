@@ -316,14 +316,17 @@ implemented in TORAX.
 
 ``mode`` (str [default = 'model'])
 
-``deposition_location`` (**time-varying-scalar** [default = 0.0])
-  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+``deposition_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``particle_width`` (**time-varying-scalar** [default = 0.25])
-  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+``particle_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``S_total`` (**time-varying-scalar** [default = 1e22])
-  Total particle source in units of particles/s.
+``S_total`` (**time-varying-scalar** [default = None])
+  Total particle source in units of particles/s. Required when
+  ``mode == 'model_based'``.
 
 icrh
 ====

@@ -50,6 +50,8 @@ CONFIG = {
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             'S_total': 0.3e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
         },
         'gas_puff': {
             'S_total': 0.5e22,

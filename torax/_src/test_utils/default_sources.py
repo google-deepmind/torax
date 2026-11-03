@@ -41,7 +41,11 @@ def get_default_source_config() -> dict[str, Any]:
       # Current sources (for psi equation)
       'generic_current': {},
       # Electron density sources/sink (for the n_e equation).
-      'generic_particle': {},
+      'generic_particle': {
+          'S_total': 1e22,
+          'particle_width': 0.25,
+          'deposition_location': 0.0,
+      },
       'gas_puff': {
           'S_total': 1e22,
           'puff_decay_length': 0.05,

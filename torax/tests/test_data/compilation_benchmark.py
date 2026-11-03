@@ -62,6 +62,8 @@ CONFIG = {
         },
         'generic_particle': {
             'S_total': 0.3e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
         },
     },
     'pedestal': {

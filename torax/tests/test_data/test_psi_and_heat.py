@@ -40,7 +40,11 @@ CONFIG = {
     'sources': {
         'generic_heat': {},
         'ei_exchange': {},
-        'generic_particle': {},
+        'generic_particle': {
+            'S_total': 1e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
+        },
         'gas_puff': {'S_total': 1e22, 'puff_decay_length': 0.05},
         'pellet': {
             'S_total': 2e22,
