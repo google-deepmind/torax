@@ -17,13 +17,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src.sources import cyclotron_radiation_heat_sink
+from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
 
-class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
+class CyclotronRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Unit tests for CyclotronRadiationHeatSink."""
+
+  source_name = (
+      cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID
+  )
+  source_config_class = (
+      cyclotron_radiation_heat_sink.CyclotronRadiationHeatSinkConfig
+  )
 
   @parameterized.product(
       alpha_expected=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5],

@@ -22,6 +22,7 @@ from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import base
@@ -83,19 +84,37 @@ class SourceTestCase(parameterized.TestCase):
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
     """Tests that the runtime params builds runtime params."""
-    source_config = self._source_config_class.from_dict({
-        'mode': mode,
-        'is_explicit': is_explicit,
-        **self.extra_source_config_kwargs,
-    })
     mesh = torax_pydantic.Grid1D(
         face_centers=interpolated_param_2d.get_face_centers(nx=4)
     )
-    torax_pydantic.set_grid(source_config, mesh)
-    runtime_params = source_config.build_runtime_params(t=0.0)
-    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
-    self.assertEqual(runtime_params.mode, mode)
-    self.assertEqual(runtime_params.is_explicit, is_explicit)
+    base_kwargs = {'mode': mode, 'is_explicit': is_explicit}
+    if (
+        mode == runtime_params_lib.Mode.MODEL_BASED
+        and self.extra_source_config_kwargs
+    ):
+      # If the source requires arguments in model_based mode, raise a validation
+      # error.
+      with self.assertRaises(pydantic.ValidationError):
+        self._source_config_class.from_dict(base_kwargs)
+    else:
+      # In ZEROS and PRESCRIBED modes, the runtime params should build without
+      # extra arguments.
+      source_config = self._source_config_class.from_dict(base_kwargs)
+      torax_pydantic.set_grid(source_config, mesh)
+      runtime_params = source_config.build_runtime_params(t=0.0)
+      self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
+      self.assertEqual(runtime_params.mode, mode)
+      self.assertEqual(runtime_params.is_explicit, is_explicit)
+
+    if self.extra_source_config_kwargs:
+      source_config = self._source_config_class.from_dict(
+          {**base_kwargs, **self.extra_source_config_kwargs}
+      )
+      torax_pydantic.set_grid(source_config, mesh)
+      runtime_params = source_config.build_runtime_params(t=0.0)
+      self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
+      self.assertEqual(runtime_params.mode, mode)
+      self.assertEqual(runtime_params.is_explicit, is_explicit)
 
 
 class SingleProfileSourceTestCase(SourceTestCase):
