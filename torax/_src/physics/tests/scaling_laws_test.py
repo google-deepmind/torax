@@ -19,6 +19,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -53,7 +54,7 @@ class ScalingLawsTest(parameterized.TestCase):
             T_e=mock.ANY,
             toroidal_angular_velocity=mock.ANY,
         ),
-        ions=state.IonComposition(
+        ions=ion_composition.IonComposition(
             impurity_fractions=mock.ANY,
             main_ion_fractions=mock.ANY,
             Z_i=mock.ANY,
@@ -190,7 +191,7 @@ class ScalingLawsTest(parameterized.TestCase):
             T_e=mock.ANY,
             toroidal_angular_velocity=mock.ANY,
         ),
-        ions=state.IonComposition(
+        ions=ion_composition.IonComposition(
             impurity_fractions=mock.ANY,
             main_ion_fractions=mock.ANY,
             Z_i=mock.ANY,

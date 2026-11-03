@@ -20,7 +20,7 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import getters
+from torax._src.core_profiles import ion_composition as ion_composition_lib
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
@@ -85,11 +85,13 @@ def build_base_core_profiles(
   Returns:
     BaseCoreProfiles with kinetic, ions, and poloidal_flux.
   """
-  ion_composition, n_i, n_impurity = getters.get_updated_ions(
-      runtime_params,
-      geo,
-      solver_state.n_e,
-      solver_state.T_e,
+  ion_composition, n_i, n_impurity = (
+      ion_composition_lib.IonComposition.from_profiles(
+          runtime_params.plasma_composition,
+          geo,
+          solver_state.n_e,
+          solver_state.T_e,
+      )
   )
   poloidal_flux = _build_poloidal_flux_profiles(
       geo,

@@ -17,6 +17,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.physics import charge_states
@@ -171,7 +172,7 @@ class CollisionsTest(parameterized.TestCase):
         Z2_avg=jnp.zeros(2),
         Z_per_species={},
     )
-    ions = state.IonComposition(
+    ions = ion_composition.IonComposition(
         impurity_fractions={},
         main_ion_fractions={},
         Z_i=jnp.array([Z_i]),

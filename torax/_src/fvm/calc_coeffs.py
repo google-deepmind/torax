@@ -22,7 +22,7 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import getters
+from torax._src.core_profiles import ion_composition
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -502,8 +502,8 @@ def _calc_coeffs_reduced(
   for var in evolving_names:
     match var:
       case 'T_i':
-        _, n_i, _ = getters.get_updated_ions(
-            runtime_params,
+        _, n_i, _ = ion_composition.IonComposition.from_profiles(
+            runtime_params.plasma_composition,
             geo,
             solver_state.n_e,
             solver_state.T_e,

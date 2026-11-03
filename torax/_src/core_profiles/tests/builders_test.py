@@ -73,7 +73,7 @@ class BuildersTest(parameterized.TestCase):
         self.solver_state.psi.value,
     )
     np.testing.assert_allclose(
-        result.toroidal_angular_velocity.value,
+        result.kinetic.toroidal_angular_velocity.value,
         self.solver_state.toroidal_angular_velocity.value,
     )
     np.testing.assert_allclose(

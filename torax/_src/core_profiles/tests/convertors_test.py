@@ -21,6 +21,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -73,7 +74,7 @@ class ConvertersTest(parameterized.TestCase):
             n_impurity=mock.ANY,
             toroidal_angular_velocity=toroidal_angular_velocity,
         ),
-        ions=state.IonComposition(
+        ions=ion_composition.IonComposition(
             impurity_fractions=mock.ANY,
             main_ion_fractions=mock.ANY,
             Z_i=mock.ANY,

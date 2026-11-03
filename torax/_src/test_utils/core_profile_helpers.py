@@ -21,6 +21,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -121,7 +122,7 @@ def make_zero_core_profiles(
       n_impurity=zero_cell_variable,
       toroidal_angular_velocity=zero_cell_variable,
   )
-  ions = state.IonComposition(
+  ions = ion_composition.IonComposition(
       impurity_fractions=impurity_fractions_dict,
       main_ion_fractions=main_ion_fractions_dict,
       Z_i=jnp.zeros_like(geo.rho),

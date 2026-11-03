@@ -147,7 +147,8 @@ class InitializationTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, geo, _ = _get_initial_state(torax_config)
     np.testing.assert_allclose(
-        core_profiles.toroidal_angular_velocity.value, np.zeros_like(geo.rho)
+        core_profiles.kinetic.toroidal_angular_velocity.value,
+        np.zeros_like(geo.rho),
     )
 
   def test_initial_toroidal_velocity_from_profile_conditions(self):
@@ -163,7 +164,7 @@ class InitializationTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, _ = _get_initial_state(torax_config)
     np.testing.assert_allclose(
-        core_profiles.toroidal_angular_velocity.value,
+        core_profiles.kinetic.toroidal_angular_velocity.value,
         toroidal_angular_velocity_test,
     )
 

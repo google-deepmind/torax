@@ -24,7 +24,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import getters
+from torax._src.core_profiles import ion_composition as ion_composition_lib
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import flatten_profile
@@ -132,8 +132,8 @@ class SimpleRedistribution(
           ions_redistributed,
           n_i_redistributed,
           n_impurity_redistributed,
-      ) = getters.get_updated_ions(
-          runtime_params,
+      ) = ion_composition_lib.IonComposition.from_profiles(
+          runtime_params.plasma_composition,
           geo,
           n_e_redistributed,
           te_redistributed,
@@ -172,7 +172,7 @@ class SimpleRedistribution(
         n_e=n_e_redistributed,
         n_i=n_i_redistributed,
         n_impurity=n_impurity_redistributed,
-        toroidal_angular_velocity=core_profiles_t.toroidal_angular_velocity,
+        toroidal_angular_velocity=core_profiles_t.kinetic.toroidal_angular_velocity,
     )
     poloidal_flux = dataclasses.replace(
         core_profiles_t.poloidal_flux,

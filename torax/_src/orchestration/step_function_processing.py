@@ -170,7 +170,7 @@ def finalize_outputs(
   match profile_conditions.psi_bc_source:
     case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
       v_loop_lcfs = psi_calculations.calculate_v_loop_lcfs_from_psi(
-          core_profiles_t.flux.psi,
+          core_profiles_t.poloidal_flux.psi,
           updated_solver_state.psi,
           dt,
           current_diffusion_time_reduction_factor=time_reduction_factor,

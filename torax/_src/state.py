@@ -17,7 +17,7 @@
 import dataclasses
 import enum
 import functools
-from typing import Mapping, Self
+from typing import Self
 
 from absl import logging
 import jax
@@ -25,12 +25,12 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
@@ -52,53 +52,6 @@ class Conductivity:
         sigma=jnp.zeros_like(geo.rho),
         sigma_face=jnp.zeros_like(geo.rho_face),
     )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True, eq=False)
-class IonComposition:
-  """Ion composition and charge state information.
-
-  Ion density profiles (`n_i`, `n_impurity`) live on `KineticProfiles`, whereas
-  `IonComposition` holds species fractions, atomic masses, and charge states.
-  `Z_i`, `Z_impurity`, and `Z_eff` hold the plasma-level and species-effective
-  charges used across transport, resistivity, and MHD, while
-  `charge_state_info` holds detailed per-impurity coronal charge-state
-  distributions.
-
-  Attributes:
-    impurity_fractions: Fractional abundances of individual impurity species.
-    main_ion_fractions: Fractional abundances of individual main ion species.
-    Z_i: Main ion charge on cell grid [dimensionless].
-    Z_i_face: Main ion charge on face grid [dimensionless].
-    Z_impurity: Impurity charge of bundled impurity on cell grid
-      [dimensionless].
-    Z_impurity_face: Impurity charge of bundled impurity on face grid
-      [dimensionless].
-    A_i: Main ion mass [amu].
-    A_impurity: Impurity mass on cell grid [amu].
-    A_impurity_face: Impurity mass on face grid [amu].
-    Z_eff: Effective charge on cell grid [dimensionless].
-    Z_eff_face: Effective charge on face grid [dimensionless].
-    charge_state_info: Container with averaged and per-species ion charge state
-      information on cell grid.
-    charge_state_info_face: Container with averaged and per-species ion charge
-      state information on face grid.
-  """
-
-  impurity_fractions: Mapping[str, array_typing.FloatVector]
-  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
-  Z_i: array_typing.FloatVectorCell
-  Z_i_face: array_typing.FloatVectorFace
-  Z_impurity: array_typing.FloatVectorCell
-  Z_impurity_face: array_typing.FloatVectorFace
-  A_i: array_typing.FloatScalar
-  A_impurity: array_typing.FloatVectorCell
-  A_impurity_face: array_typing.FloatVectorFace
-  Z_eff: array_typing.FloatVectorCell
-  Z_eff_face: array_typing.FloatVectorFace
-  charge_state_info: charge_states.ChargeStateInfo
-  charge_state_info_face: charge_states.ChargeStateInfo
 
 
 @jax.tree_util.register_dataclass
@@ -146,22 +99,8 @@ class BaseCoreProfiles:
   """
 
   kinetic: kinetic_profiles.KineticProfiles
-  ions: IonComposition
+  ions: ion_composition.IonComposition
   poloidal_flux: PoloidalFluxProfiles
-
-  @property
-  def toroidal_angular_velocity(self) -> cell_variable.CellVariable:
-    """Returns toroidal angular velocity."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.kinetic.toroidal_angular_velocity
-
-  @property
-  def flux(self) -> PoloidalFluxProfiles:
-    """Returns poloidal flux profiles container."""
-    # Temporary compatibility property; removed once downstream callers migrate
-    # to nested attributes.
-    return self.poloidal_flux
 
   @functools.cached_property
   def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
