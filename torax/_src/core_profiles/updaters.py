@@ -59,7 +59,7 @@ def provide_solver_state_t_plus_dt(
       geo_t_plus_dt,
       dt=dt,
       theta=runtime_params_t_plus_dt.solver.theta_implicit,
-      only_boundary_condition=numerics.evolve_current,
+      evolve_current=numerics.evolve_current,
       original_psi=core_profiles_t.poloidal_flux.psi,
       current_diffusion_time_reduction_factor=time_reduction_factor,
   )

@@ -91,15 +91,12 @@ class UpdatersTest(parameterized.TestCase):
     )
 
   def test_psi_not_updated_if_not_prescribed(self):
-    """Tests that psi retains previous value if not prescribed (None) and not evolving."""
+    """Tests that psi retains previous value when initial_psi_source is 'j'."""
     config_dict = default_configs.get_default_config_dict()
-    # Don't provide psi in profile_conditions, it defaults to None
     config_dict['numerics'] = {
         'evolve_current': False,
     }
-    config_dict['profile_conditions']['psi'] = {
-        0.0: 10.0
-    }  # Set initial only via config for init
+    config_dict['profile_conditions']['I_p'] = {0.0: 15e6, 1.0: 20e6}
 
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
@@ -110,14 +107,7 @@ class UpdatersTest(parameterized.TestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
 
-    # Create runtime_params at t=1.0, but force psi to None
     runtime_params_t1 = provider(t=1.0)
-    # dataclasses.replace on RuntimeParams frozen dataclass
-    # We need to reach into profile_conditions
-    prof_cond = runtime_params_t1.profile_conditions
-    object.__setattr__(
-        prof_cond, 'psi', None
-    )  # Hack to set frozen field for test
 
     updated_solver_state = updaters.provide_solver_state_t_plus_dt(
         dt=jnp.array(1.0),

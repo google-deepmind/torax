@@ -11,9 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -24,6 +27,8 @@ from torax._src.core_profiles import profile_conditions as profile_conditions_li
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
+from torax._src.test_utils import core_profile_helpers
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 
 SMALL_VALUE = 1e-6
@@ -384,6 +389,211 @@ class GettersTest(parameterized.TestCase):
     ratio = n_e.value / n_e_f_GW.value
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
+
+  def test_get_updated_psi_from_geometry(self):
+    config_dict = {
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'geometry',
+            'psi_bc_source': 'I_p',
+        },
+        'plasma_composition': {},
+        'numerics': {'evolve_current': False},
+        'geometry': {
+            'geometry_type': 'chease',
+        },
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    original_psi = cell_variable.CellVariable(
+        value=jnp.zeros_like(geo.rho_norm),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
+    updated_psi = getters.get_updated_psi(
+        runtime_params.profile_conditions,
+        geo,
+        dt=jnp.array(1.0),
+        theta=jnp.array(1.0),
+        evolve_current=False,
+        original_psi=original_psi,
+    )
+    chex.assert_trees_all_close(
+        updated_psi, initial_core_profiles.poloidal_flux.psi
+    )
+
+  @parameterized.parameters('I_p', 'v_loop')
+  def test_get_updated_psi_evolve_current_only_updates_bc(
+      self, psi_bc_source: str
+  ):
+    use_v_loop = psi_bc_source == 'v_loop'
+    config_dict = {
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'geometry',
+            'psi_bc_source': psi_bc_source,
+            'v_loop_lcfs': 0.1 if use_v_loop else None,
+        },
+        'plasma_composition': {},
+        'numerics': {'evolve_current': True},
+        'geometry': {
+            'geometry_type': 'chease',
+        },
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    _, runtime_params, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
+    )
+    original_psi = cell_variable.CellVariable(
+        value=jnp.zeros_like(geo.rho_norm),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype())
+        if use_v_loop
+        else None,
+        right_face_grad_constraint=None
+        if use_v_loop
+        else jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
+    evolved_psi = getters.get_updated_psi(
+        runtime_params.profile_conditions,
+        geo,
+        dt=jnp.array(1.0),
+        theta=jnp.array(1.0),
+        evolve_current=True,
+        original_psi=original_psi,
+    )
+    np.testing.assert_allclose(evolved_psi.value, original_psi.value)
+
+  def test_get_updated_psi_from_j_keeps_original_value(self):
+    config_dict = {
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'j',
+            'psi_bc_source': 'I_p',
+        },
+        'plasma_composition': {},
+        'numerics': {'evolve_current': False},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    _, runtime_params, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
+    )
+    original_psi = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
+    updated_psi = getters.get_updated_psi(
+        runtime_params.profile_conditions,
+        geo,
+        dt=jnp.array(1.0),
+        theta=jnp.array(1.0),
+        evolve_current=False,
+        original_psi=original_psi,
+    )
+    np.testing.assert_allclose(updated_psi.value, original_psi.value)
+
+  def test_get_updated_psi_from_profile_conditions(self):
+    prescribed_psi = {0.0: {0.0: 0.1, 1.0: 1.5}}
+    config_dict = {
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'profile_conditions',
+            'psi': prescribed_psi,
+            'psi_bc_source': 'I_p',
+        },
+        'plasma_composition': {},
+        'numerics': {'evolve_current': False},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    original_psi = cell_variable.CellVariable(
+        value=jnp.zeros_like(geo.rho_norm),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
+    updated_psi = getters.get_updated_psi(
+        runtime_params.profile_conditions,
+        geo,
+        dt=jnp.array(1.0),
+        theta=jnp.array(1.0),
+        evolve_current=False,
+        original_psi=original_psi,
+    )
+    chex.assert_trees_all_close(
+        updated_psi, initial_core_profiles.poloidal_flux.psi
+    )
+
+  def test_get_updated_psi_from_profile_conditions_none_psi_keeps_original(
+      self,
+  ):
+    config_dict = {
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'profile_conditions',
+            'psi': {0.0: {0.0: 0.1, 1.0: 1.5}},
+            'psi_bc_source': 'I_p',
+        },
+        'plasma_composition': {},
+        'numerics': {'evolve_current': False},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    _, runtime_params, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
+    )
+    profile_conditions_none_psi = dataclasses.replace(
+        runtime_params.profile_conditions, psi=None
+    )
+    original_psi = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
+    updated_psi = getters.get_updated_psi(
+        profile_conditions_none_psi,
+        geo,
+        dt=jnp.array(1.0),
+        theta=jnp.array(1.0),
+        evolve_current=False,
+        original_psi=original_psi,
+    )
+    np.testing.assert_allclose(updated_psi.value, original_psi.value)
 
 
 if __name__ == '__main__':

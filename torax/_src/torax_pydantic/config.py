@@ -249,13 +249,23 @@ class ToraxConfig(torax_pydantic.ConfigBase):
         self.profile_conditions.psi is not None
         and initial_psi_source
         != core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
-        and self.numerics.evolve_current
+    ):
+      raise ValueError(
+          'profile_conditions.psi cannot be provided when'
+          ' profile_conditions.initial_psi_source is'
+          f' {initial_psi_source.value!r}.'
+      )
+    # TODO(b/581363815): Support updating psi from j for t > t_initial when
+    # numerics.evolve_current is False (or disallow this combination).
+    if (
+        initial_psi_source
+        == core_profile_runtime_params_lib.InitialPsiSource.J
+        and not self.numerics.evolve_current
     ):
       logging.warning(
-          'profile_conditions.psi is provided but will be ignored because'
-          ' profile_conditions.initial_psi_source is %r and'
-          ' numerics.evolve_current is True.',
-          initial_psi_source.value,
+          "profile_conditions.initial_psi_source='j' does not update psi for"
+          ' t > t_initial when numerics.evolve_current is False; psi will'
+          ' remain fixed at its initial profile.'
       )
     return self
 

@@ -217,7 +217,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        initial_psi_source='profile_conditions' if psi is not None else 'j',
         psi=psi,
     )
     torax_pydantic.set_grid(pc, geo.torax_mesh)

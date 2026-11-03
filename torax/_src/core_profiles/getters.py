@@ -299,15 +299,47 @@ def get_updated_psi(
     geo: geometry.Geometry,
     dt: array_typing.FloatScalar,
     theta: array_typing.FloatScalar,
-    only_boundary_condition: bool,
+    evolve_current: bool,
     original_psi: cell_variable.CellVariable,
     current_diffusion_time_reduction_factor: array_typing.FloatScalar = 1.0,
 ) -> cell_variable.CellVariable:
-  """Gets psi boundary conditions and maybe the prescribed profile."""
-  if only_boundary_condition or profile_conditions_params.psi is None:
-    value = original_psi.value
-  else:
-    value = profile_conditions_params.psi
+  """Updates the psi profile and/or boundary conditions for the next step.
+
+  - When `evolve_current` is False and `initial_psi_source` is `GEOMETRY` (or
+    `PROFILE_CONDITIONS` with `psi` provided), recomputes `psi` and its
+    boundary condition via `get_prescribed_psi`.
+  - When `evolve_current` is True and `initial_psi_source` is `J`,
+    keeps `original_psi.value` and updates only the boundary condition.
+  - When restarting from a file with `psi=None`, keeps `original_psi.value` and
+    updates only the boundary condition.
+
+  Args:
+    profile_conditions_params: Runtime parameters for profile conditions.
+    geo: Tokamak geometry.
+    dt: Time step duration [s].
+    theta: Implicitness parameter for time stepping.
+    evolve_current: Whether `psi` is evolved by the PDE solver.
+    original_psi: Previous `psi` cell variable.
+    current_diffusion_time_reduction_factor: Factor reducing the current
+      diffusion time scale when computing LCFS boundary conditions from loop
+      voltage.
+
+  Returns:
+    Updated `psi` cell variable.
+  """
+  # Recompute prescribed psi when current evolution is disabled and a
+  # prescribed source is available (`GEOMETRY`, or `PROFILE_CONDITIONS` with a
+  # non-None `psi`).
+  has_prescribed_psi = (
+      profile_conditions_params.initial_psi_source
+      == core_profile_runtime_params.InitialPsiSource.GEOMETRY
+  ) or (
+      profile_conditions_params.initial_psi_source
+      == core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+      and profile_conditions_params.psi is not None
+  )
+  if not evolve_current and has_prescribed_psi:
+    return get_prescribed_psi(profile_conditions_params, geo)
 
   match profile_conditions_params.psi_bc_source:
     case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
@@ -339,7 +371,7 @@ def get_updated_psi(
           f' {profile_conditions_params.psi_bc_source}'
       )
   return cell_variable.CellVariable(
-      value=value,
+      value=original_psi.value,
       face_centers=geo.rho_face_norm,
       right_face_grad_constraint=right_face_grad_constraint,
       right_face_constraint=right_face_constraint,

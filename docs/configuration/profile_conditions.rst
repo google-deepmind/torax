@@ -56,11 +56,9 @@ time-dependence of temperature, density, and current.
 ``psi`` (**time-varying-array** | None [default = None])
   Poloidal flux :math:`\psi` profile in units of :math:`\text{Wb}`. Used as the
   initial ``psi`` when ``initial_psi_source = 'profile_conditions'`` (required
-  in that mode unless restarting from a file). If ``numerics.evolve_current`` is
-  False and ``psi`` is provided, then the prescribed ``psi`` for
-  :math:`t > t_{\text{initial}}` is taken from here. If ``psi`` is provided when
-  ``initial_psi_source`` is not ``'profile_conditions'`` and
-  ``numerics.evolve_current`` is True, it is ignored and a warning is logged.
+  in that mode unless restarting from a file), and prescribes ``psi`` for
+  :math:`t > t_{\text{initial}}` when ``numerics.evolve_current`` is False. Must
+  not be provided when ``initial_psi_source`` is not ``'profile_conditions'``.
 
 ``psidot`` (**time-varying-array** | None [default = None])
   Prescribed values for the time derivative of poloidal flux (loop voltage).
@@ -141,12 +139,16 @@ time-dependence of temperature, density, and current.
   total Ohmic current equals ``I_p``
 
 ``initial_psi_source`` (str)
-  Required method for determining initial poloidal flux :math:`\psi`.
-  Options are ``'profile_conditions'`` (uses the ``psi`` array attribute, which
-  must be provided unless restarting from a file), ``'geometry'`` (uses
-  :math:`\psi` from numerical geometry; not supported for ``'circular'``
-  geometry), or ``'j'`` (calculates from the ``current_profile_nu`` current
-  formula).
+  Source of poloidal flux :math:`\psi` at initialization, and for
+  :math:`t > t_{\text{initial}}` when ``numerics.evolve_current`` is ``False``:
+
+  - ``'profile_conditions'``: Uses the ``psi`` array attribute (required unless
+    restarting from a file).
+  - ``'geometry'``: Uses :math:`\psi` from numerical geometry (not supported for
+    ``'circular'`` geometry).
+  - ``'j'``: Computes :math:`\psi` from the ``current_profile_nu`` current
+    formula at initialization only (:math:`\psi` remains fixed for
+    :math:`t > t_{\text{initial}}` if ``numerics.evolve_current`` is ``False``).
 
 ``toroidal_angular_velocity`` (**time-varying-array** | None [default = None])
   Toroidal angular velocity profile. If not provided, the velocity will be set

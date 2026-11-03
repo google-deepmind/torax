@@ -412,7 +412,7 @@ class ConfigTest(parameterized.TestCase):
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
-          expect_warning=True,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_geometry_evolve_current_true",
@@ -420,7 +420,7 @@ class ConfigTest(parameterized.TestCase):
           geometry_type="chease",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
-          expect_warning=True,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_j_evolve_current_false",
@@ -428,7 +428,7 @@ class ConfigTest(parameterized.TestCase):
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=False,
-          expect_warning=False,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_geometry_evolve_current_false",
@@ -436,7 +436,7 @@ class ConfigTest(parameterized.TestCase):
           geometry_type="chease",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=False,
-          expect_warning=False,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_profile_conditions_evolve_current_true",
@@ -444,7 +444,7 @@ class ConfigTest(parameterized.TestCase):
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
-          expect_warning=False,
+          expect_error=False,
       ),
       dict(
           testcase_name="psi_none_source_j_evolve_current_true",
@@ -452,16 +452,16 @@ class ConfigTest(parameterized.TestCase):
           geometry_type="circular",
           psi=None,
           evolve_current=True,
-          expect_warning=False,
+          expect_error=False,
       ),
   )
-  def test_psi_ignored_warning(
+  def test_psi_with_non_profile_conditions_source_raises_error(
       self,
       initial_psi_source,
       geometry_type,
       psi,
       evolve_current,
-      expect_warning,
+      expect_error,
   ):
     config_dict = default_configs.get_default_config_dict()
     if geometry_type == "chease":
@@ -473,7 +473,99 @@ class ConfigTest(parameterized.TestCase):
     config_dict["profile_conditions"]["psi"] = psi
     config_dict["numerics"]["evolve_current"] = evolve_current
 
-    warning_snippet = "profile_conditions.psi is provided but will be ignored"
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.psi cannot be provided when"
+          f" profile_conditions.initial_psi_source is '{initial_psi_source}'",
+      ):
+        config.ToraxConfig.from_dict(config_dict)
+    else:
+      config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="evolve_false_j_total_false",
+          evolve_current=False,
+          initial_j_is_total_current=False,
+      ),
+      dict(
+          testcase_name="evolve_false_j_total_true",
+          evolve_current=False,
+          initial_j_is_total_current=True,
+      ),
+      dict(
+          testcase_name="evolve_true_j_total_false",
+          evolve_current=True,
+          initial_j_is_total_current=False,
+      ),
+  )
+  def test_initial_j_is_total_current_with_psi_source_j_is_valid(
+      self,
+      evolve_current,
+      initial_j_is_total_current,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["profile_conditions"]["initial_psi_source"] = "j"
+    config_dict["profile_conditions"]["initial_j_is_total_current"] = (
+        initial_j_is_total_current
+    )
+    config_dict["numerics"]["evolve_current"] = evolve_current
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    self.assertEqual(
+        torax_config.profile_conditions.initial_j_is_total_current,
+        initial_j_is_total_current,
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="source_j_evolve_current_false",
+          initial_psi_source="j",
+          evolve_current=False,
+          expect_warning=True,
+      ),
+      dict(
+          testcase_name="source_j_evolve_current_true",
+          initial_psi_source="j",
+          evolve_current=True,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="source_geometry_evolve_current_false",
+          initial_psi_source="geometry",
+          evolve_current=False,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="source_profile_conditions_evolve_current_false",
+          initial_psi_source="profile_conditions",
+          evolve_current=False,
+          expect_warning=False,
+      ),
+  )
+  def test_psi_source_j_evolve_current_false_warning(
+      self,
+      initial_psi_source,
+      evolve_current,
+      expect_warning,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    if initial_psi_source == "geometry":
+      config_dict["geometry"] = {
+          "geometry_type": "chease",
+          "geometry_file": "iterhybrid.mat2cols",
+      }
+    elif initial_psi_source == "profile_conditions":
+      config_dict["profile_conditions"]["psi"] = {0: {0: 0.0, 1: 1.0}}
+    config_dict["profile_conditions"]["initial_psi_source"] = (
+        initial_psi_source
+    )
+    config_dict["numerics"]["evolve_current"] = evolve_current
+
+    warning_snippet = (
+        "profile_conditions.initial_psi_source='j' does not update psi for"
+        " t > t_initial when numerics.evolve_current is False"
+    )
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
 
   def test_I_p_and_I_p_source_defaults(self):

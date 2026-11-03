@@ -287,6 +287,15 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
       ),
+      # Similar to test_iterhybrid_rampup with multi-slice IMAS geometry and
+      # prescribed psi from geometry (evolve_current=False,
+      # initial_psi_source='geometry').
+      (
+          'test_iterhybrid_rampup_imas_psi_from_geometry',
+          'test_iterhybrid_rampup_imas_psi_from_geometry.py',
+          _ALL_PROFILES,
+          1e-7,
+      ),
       # Tests LH transition with ADAPTIVE_TRANSPORT
       # TODO(b/331171303): Reinstate when fixed.
       # (

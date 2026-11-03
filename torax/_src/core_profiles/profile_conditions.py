@@ -102,8 +102,9 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     T_e: Prescribed or evolving values for temperature at different times.
     psi: Poloidal flux profile [Wb]. Used as the initial condition for psi when
       `initial_psi_source` is `PROFILE_CONDITIONS` (unless restarting from a
-      file). If `numerics.evolve_current` is False and `psi` is provided, it
-      prescribes `psi` for t > t_initial.
+      file), and prescribes `psi` for t > t_initial if
+      `numerics.evolve_current` is False. Must not be provided when
+      `initial_psi_source` is not `PROFILE_CONDITIONS`.
     psidot: Prescribed values for the time derivative of poloidal flux (loop
       voltage). If provided, and if `evolve_current` is False, this prescribed
       `psidot` will be used instead of the internally calculated one. This is
@@ -140,12 +141,15 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
       included in initial j_toroidal_total calculation.
-    initial_psi_source: Required source of the initial psi value. If
-      `PROFILE_CONDITIONS` is used, then the initial psi is taken from the `psi`
-      attribute (which must be provided unless restarting from a file). If
-      `GEOMETRY` is used, then the initial psi is taken from the numerical
-      geometry (not supported for `CircularGeometry`). If `J` is used, then the
-      psi calculation is based on the `current_profile_nu` current formula.
+    initial_psi_source: Source of the `psi` profile at initialization, and for
+      t > t_initial when `numerics.evolve_current` is False:
+      - `PROFILE_CONDITIONS`: Uses the `psi` attribute (required unless
+        restarting from a file).
+      - `GEOMETRY`: Uses `psi` from the numerical geometry (not supported for
+        `CircularGeometry`).
+      - `J`: Computes `psi` from the `current_profile_nu` formula at
+        initialization only (`psi` remains fixed for t > t_initial if
+        `numerics.evolve_current` is False).
   """
 
   I_p: torax_pydantic.TimeVaryingScalar | None = None
@@ -193,6 +197,8 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   ) = torax_pydantic.ValidatedDefault(ibc_config.NoIBCConfig())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  # TODO(b/581363815): Support updating psi from j for t > t_initial when
+  # numerics.evolve_current is False (or disallow this combination).
   initial_psi_source: Annotated[
       runtime_params_lib.InitialPsiSource, torax_pydantic.JAX_STATIC
   ]
