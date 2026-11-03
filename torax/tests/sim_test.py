@@ -289,7 +289,7 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Similar to test_iterhybrid_rampup with multi-slice IMAS geometry and
       # prescribed psi from geometry (evolve_current=False,
-      # initial_psi_source='geometry').
+      # psi_source='geometry').
       (
           'test_iterhybrid_rampup_imas_psi_from_geometry',
           'test_iterhybrid_rampup_imas_psi_from_geometry.py',
@@ -412,7 +412,7 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions': {
             'I_p': 3.0e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
             'n_e_bar_is_f_GW': False,
@@ -567,7 +567,7 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
         },
         'plasma_composition': {},
         'numerics': {

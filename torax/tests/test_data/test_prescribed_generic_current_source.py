@@ -36,7 +36,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e_bar': 0.85,
         'n_e_bar_is_f_GW': True,
         'normalize_n_e': True,

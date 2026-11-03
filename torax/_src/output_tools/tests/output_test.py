@@ -67,7 +67,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
             'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
@@ -682,7 +682,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
         },
@@ -769,7 +769,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
         },

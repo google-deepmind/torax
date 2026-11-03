@@ -37,21 +37,21 @@ import xarray as xr
 # pylint: disable=invalid-name
 class ProfileConditionsTest(parameterized.TestCase):
 
-  def test_missing_initial_psi_source_raises_error(self):
-    with self.assertRaisesRegex(pydantic.ValidationError, 'initial_psi_source'):
+  def test_missing_psi_source_raises_error(self):
+    with self.assertRaisesRegex(pydantic.ValidationError, 'psi_source'):
       profile_conditions.ProfileConditions.from_dict(
           {'I_p_source': 'profile_conditions'}
       )
 
   def test_I_p_and_I_p_source_defaults(self):
     pc = profile_conditions.ProfileConditions.from_dict(
-        {'I_p': 15e6, 'initial_psi_source': 'j'}
+        {'I_p': 15e6, 'psi_source': 'j'}
     )
     self.assertEqual(
         pc.I_p_source, core_profile_runtime_params.IpSource.PROFILE_CONDITIONS
     )
     pc_geo = profile_conditions.ProfileConditions.from_dict(
-        {'I_p_source': 'geometry', 'initial_psi_source': 'j'}
+        {'I_p_source': 'geometry', 'psi_source': 'j'}
     )
     self.assertIsNone(pc_geo.I_p)
 
@@ -61,12 +61,12 @@ class ProfileConditionsTest(parameterized.TestCase):
         "I_p must be provided when I_p_source is 'profile_conditions'.",
     ):
       profile_conditions.ProfileConditions.from_dict(
-          {'initial_psi_source': 'j'}
+          {'psi_source': 'j'}
       )
 
   def test_build_runtime_params_with_I_p_none_and_geometry_source(self):
     pc = profile_conditions.ProfileConditions.from_dict(
-        {'I_p_source': 'geometry', 'initial_psi_source': 'j'}
+        {'I_p_source': 'geometry', 'psi_source': 'j'}
     )
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -78,7 +78,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_profile_conditions_build_runtime_params_smoke_test(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -88,7 +88,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     initial_I_p = 1e6
     updated_I_p = 2e6
     pc = profile_conditions.ProfileConditions(
-        I_p=initial_I_p, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=initial_I_p, I_p_source='profile_conditions', psi_source='j'
     )
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -119,7 +119,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         T_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_e_right_bc=T_e_right_bc,
     )
@@ -141,7 +141,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         T_i={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_i_right_bc=T_i_right_bc,
     )
@@ -165,7 +165,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': {0: {0: 1.0e20, 1: 2.0e20}, 1.5: {0: 100.0e20, 1: 200.0e20}},
         'n_e_right_bc': n_e_right_bc,
     }
@@ -217,7 +217,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='profile_conditions' if psi is not None else 'j',
+        psi_source='profile_conditions' if psi is not None else 'j',
         psi=psi,
     )
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -313,7 +313,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       ):
         profile_conditions.ProfileConditions(
             I_p_source='profile_conditions',
-            initial_psi_source='j',
+            psi_source='j',
             T_i=values,
             T_i_right_bc=None,
         )
@@ -321,7 +321,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           T_i=values,
           T_i_right_bc=None,
       )
@@ -352,7 +352,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -429,7 +429,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -488,7 +488,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -529,7 +529,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -571,7 +571,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -611,7 +611,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -623,7 +623,7 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_multiple_validation_errors(self):
     config_overrides = {
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'I_p': 1e2,
         'T_e': {0: {0: 2e3, 1: 1.0}, 1.0: {0: 1e6, 1: 1e10}},
         'T_i_right_bc': 1e2,
@@ -633,7 +633,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_ne_bc_mode_defaults_to_prescribed(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
     self.assertEqual(
         pc.n_e_right_bc_mode,
@@ -677,7 +677,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': reference_rho,
         'n_e_right_bc_multiplier': multiplier,
@@ -693,7 +693,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           n_e_right_bc_mode='prescribed',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
@@ -711,7 +711,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           n_e_right_bc_mode='density_fraction',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
@@ -722,7 +722,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_fast_ions_default_is_none(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
     self.assertIsNone(pc.fast_ions)
 
@@ -731,7 +731,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           fast_ions=[
               {
                   'source': 'icrh',
@@ -748,7 +748,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         fast_ions=[
             {
                 'source': 'icrh',
@@ -769,7 +769,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         fast_ions=[
             {
                 'source': 'icrh',
@@ -804,7 +804,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         fast_ions=[
             {
                 'source': 'icrh',
@@ -828,7 +828,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_build_runtime_params_no_fast_ions_produces_empty_tuple(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -1028,7 +1028,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           n_e_right_bc_mode='density_fraction',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
@@ -1041,7 +1041,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'internal_boundary_conditions': {
             'model_name': 'prescribed',
             'T_i': {
@@ -1071,14 +1071,14 @@ class ProfileConditionsTest(parameterized.TestCase):
     ):
       profile_conditions.ProfileConditions(
           I_p=15e6,
-          initial_psi_source='j',
+          psi_source='j',
           psi_bc_source='v_loop',
       )
 
   def test_psi_bc_source_v_loop_sets_enum(self):
     pc_vloop = profile_conditions.ProfileConditions(
         I_p=15e6,
-        initial_psi_source='j',
+        psi_source='j',
         psi_bc_source='v_loop',
         v_loop_lcfs=0.5,
     )
@@ -1091,7 +1091,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     with self.assertLogs(level='WARNING') as cm:
       profile_conditions.ProfileConditions(
           I_p=15e6,
-          initial_psi_source='j',
+          psi_source='j',
           psi_bc_source='I_p',
           v_loop_lcfs=0.5,
       )

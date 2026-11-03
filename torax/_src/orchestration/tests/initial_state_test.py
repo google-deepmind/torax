@@ -126,8 +126,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
     runtime_params.profile_conditions.n_e = n_e
     runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
     runtime_params.profile_conditions.psi = psi
-    runtime_params.profile_conditions.initial_psi_source = (
-        core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+    runtime_params.profile_conditions.psi_source = (
+        core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
     )
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not

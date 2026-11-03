@@ -41,7 +41,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': {0: 3e6, 80: 10.5e6},  # total plasma current in A
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},

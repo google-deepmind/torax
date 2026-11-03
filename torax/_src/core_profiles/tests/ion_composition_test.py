@@ -52,7 +52,7 @@ class IonCompositionTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_bar_is_f_GW': False,
         'n_e_right_bc_is_f_GW': False,
@@ -176,7 +176,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e,
             'T_e': T_e,
             'T_e_right_bc': T_e,
@@ -268,7 +268,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e,
             'T_e': T_e,
             'T_e_right_bc': T_e,
@@ -365,7 +365,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
             'T_e_right_bc': t_e_keV,
@@ -441,7 +441,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
             'T_e_right_bc': t_e_keV,
@@ -541,7 +541,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
             'T_e_right_bc': t_e_keV,
@@ -632,7 +632,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
             'T_e_right_bc': t_e_keV,
@@ -725,7 +725,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
             'T_e_right_bc': t_e_keV,
@@ -840,7 +840,7 @@ class IonCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
         },
         'plasma_composition': {
             'main_ion': 'D',

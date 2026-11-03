@@ -219,7 +219,7 @@ class JitSimTest(sim_test_case.SimTestCase):
       ),
       # Similar to test_iterhybrid_rampup with multi-slice IMAS geometry and
       # prescribed psi from geometry (evolve_current=False,
-      # initial_psi_source='geometry').
+      # psi_source='geometry').
       (
           'test_iterhybrid_rampup_imas_psi_from_geometry',
           'test_iterhybrid_rampup_imas_psi_from_geometry.py',

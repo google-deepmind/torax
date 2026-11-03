@@ -34,7 +34,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
         'psi_bc_source': 'v_loop',
         'v_loop_lcfs': (times, v_loop),

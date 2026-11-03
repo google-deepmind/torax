@@ -234,7 +234,7 @@ def get_prescribed_psi(
   """Gets prescribed poloidal flux (psi) profile and boundary conditions.
 
   Supports two prescribed modes selected by
-  `profile_conditions_params.initial_psi_source`:
+  `profile_conditions_params.psi_source`:
   - `PROFILE_CONDITIONS`: Uses the prescribed `profile_conditions_params.psi`
     profile.
   - `GEOMETRY`: Uses `geo.psi_from_I_p` and `geo.psi_from_I_p_face[-1]` from a
@@ -249,20 +249,19 @@ def get_prescribed_psi(
     `I_p`.
 
   Raises:
-    ValueError: If `initial_psi_source` is not `PROFILE_CONDITIONS` or
-      `GEOMETRY`, if `initial_psi_source` is `PROFILE_CONDITIONS` and `psi` is
-      `None`, or if `initial_psi_source` is `GEOMETRY` and `geo` is not a
-      `StandardGeometry`.
+    ValueError: If `psi_source` is not `PROFILE_CONDITIONS` or `GEOMETRY`, if
+      `psi_source` is `PROFILE_CONDITIONS` and `psi` is `None`, or if
+      `psi_source` is `GEOMETRY` and `geo` is not a `StandardGeometry`.
   """
   use_v_loop = (
       profile_conditions_params.psi_bc_source
       == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
   )
-  match profile_conditions_params.initial_psi_source:
-    case core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS:
+  match profile_conditions_params.psi_source:
+    case core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS:
       if profile_conditions_params.psi is None:
         raise ValueError(
-            'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
+            'psi is None, but psi_source is PROFILE_CONDITIONS.'
         )
       return build_psi_cell_variable(
           psi_value=profile_conditions_params.psi,
@@ -271,10 +270,10 @@ def get_prescribed_psi(
           use_v_loop_lcfs_boundary_condition=use_v_loop,
       )
 
-    case core_profile_runtime_params.InitialPsiSource.GEOMETRY:
+    case core_profile_runtime_params.PsiSource.GEOMETRY:
       if not isinstance(geo, standard_geometry.StandardGeometry):
         raise ValueError(
-            'GEOMETRY initial_psi_source is only supported for standard'
+            'GEOMETRY psi_source is only supported for standard'
             ' geometry.'
         )
       # geo.psi_from_I_p_face[-1] is already made consistent with I_p by
@@ -289,8 +288,8 @@ def get_prescribed_psi(
 
     case _:
       raise ValueError(
-          'Unsupported prescribed initial_psi_source:'
-          f' {profile_conditions_params.initial_psi_source}'
+          'Unsupported prescribed psi_source:'
+          f' {profile_conditions_params.psi_source}'
       )
 
 
@@ -305,10 +304,10 @@ def get_updated_psi(
 ) -> cell_variable.CellVariable:
   """Updates the psi profile and/or boundary conditions for the next step.
 
-  - When `evolve_current` is False and `initial_psi_source` is `GEOMETRY` (or
+  - When `evolve_current` is False and `psi_source` is `GEOMETRY` (or
     `PROFILE_CONDITIONS` with `psi` provided), recomputes `psi` and its
     boundary condition via `get_prescribed_psi`.
-  - When `evolve_current` is True and `initial_psi_source` is `J`,
+  - When `evolve_current` is True and `psi_source` is `J`,
     keeps `original_psi.value` and updates only the boundary condition.
   - When restarting from a file with `psi=None`, keeps `original_psi.value` and
     updates only the boundary condition.
@@ -331,11 +330,11 @@ def get_updated_psi(
   # prescribed source is available (`GEOMETRY`, or `PROFILE_CONDITIONS` with a
   # non-None `psi`).
   has_prescribed_psi = (
-      profile_conditions_params.initial_psi_source
-      == core_profile_runtime_params.InitialPsiSource.GEOMETRY
+      profile_conditions_params.psi_source
+      == core_profile_runtime_params.PsiSource.GEOMETRY
   ) or (
-      profile_conditions_params.initial_psi_source
-      == core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+      profile_conditions_params.psi_source
+      == core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
       and profile_conditions_params.psi is not None
   )
   if not evolve_current and has_prescribed_psi:

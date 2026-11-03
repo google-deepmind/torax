@@ -55,10 +55,10 @@ time-dependence of temperature, density, and current.
 
 ``psi`` (**time-varying-array** | None [default = None])
   Poloidal flux :math:`\psi` profile in units of :math:`\text{Wb}`. Used as the
-  initial ``psi`` when ``initial_psi_source = 'profile_conditions'`` (required
+  initial ``psi`` when ``psi_source = 'profile_conditions'`` (required
   in that mode unless restarting from a file), and prescribes ``psi`` for
   :math:`t > t_{\text{initial}}` when ``numerics.evolve_current`` is False. Must
-  not be provided when ``initial_psi_source`` is not ``'profile_conditions'``.
+  not be provided when ``psi_source`` is not ``'profile_conditions'``.
 
 ``psidot`` (**time-varying-array** | None [default = None])
   Prescribed values for the time derivative of poloidal flux (loop voltage).
@@ -128,7 +128,7 @@ time-dependence of temperature, density, and current.
 ``current_profile_nu`` (float [default = 1.0])
   Peaking factor of initial current, either total or "Ohmic":
   :math:`j = j_0(1 - r^2/a^2)^\nu` where :math:`\nu` is ``current_profile_nu``. Used if
-  ``initial_psi_source`` is ``'j'``. In that case, then this sets the
+  ``psi_source`` is ``'j'``. In that case, then this sets the
   peaking factor of either the total or Ohmic initial current profile, depending
   on the ``initial_j_is_total_current`` flag.
 
@@ -138,7 +138,7 @@ time-dependence of temperature, density, and current.
   the Ohmic current is set such that the initial total non-inductive current +
   total Ohmic current equals ``I_p``
 
-``initial_psi_source`` (str)
+``psi_source`` (str)
   Source of poloidal flux :math:`\psi` at initialization, and for
   :math:`t > t_{\text{initial}}` when ``numerics.evolve_current`` is ``False``:
 

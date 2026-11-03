@@ -36,7 +36,7 @@ class SauterFormulasTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'geometry',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'current_profile_nu': 3,
             'n_e_bar_is_f_GW': True,
             'normalize_n_e': True,

@@ -174,7 +174,7 @@ class ConfigTest(parameterized.TestCase):
             "n_rho": new_n_rho,
             "geometry_type": "circular",
         },
-        "profile_conditions.initial_psi_source": "j",
+        "profile_conditions.psi_source": "j",
     })
 
     self.assertEqual(
@@ -317,10 +317,10 @@ class ConfigTest(parameterized.TestCase):
     else:
       config.ToraxConfig.from_dict(config_dict)
 
-  def test_missing_initial_psi_source_raises_error(self):
+  def test_missing_psi_source_raises_error(self):
     config_dict = default_configs.get_default_config_dict()
-    del config_dict["profile_conditions"]["initial_psi_source"]
-    with self.assertRaisesRegex(pydantic.ValidationError, "initial_psi_source"):
+    del config_dict["profile_conditions"]["psi_source"]
+    with self.assertRaisesRegex(pydantic.ValidationError, "psi_source"):
       config.ToraxConfig.from_dict(config_dict)
 
   @parameterized.named_parameters(
@@ -349,12 +349,12 @@ class ConfigTest(parameterized.TestCase):
           expect_error=False,
       ),
   )
-  def test_initial_psi_source_profile_conditions_requires_psi_unless_restarting(
+  def test_psi_source_profile_conditions_requires_psi_unless_restarting(
       self, psi, do_restart, expect_error
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict["profile_conditions"][
-        "initial_psi_source"
+        "psi_source"
     ] = "profile_conditions"
     config_dict["profile_conditions"]["psi"] = psi
     if do_restart is not None:
@@ -370,7 +370,7 @@ class ConfigTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError,
           "profile_conditions.psi must be provided when"
-          " profile_conditions.initial_psi_source is 'profile_conditions'",
+          " profile_conditions.psi_source is 'profile_conditions'",
       ):
         config.ToraxConfig.from_dict(config_dict)
     else:
@@ -391,14 +391,14 @@ class ConfigTest(parameterized.TestCase):
           expect_error=False,
       ),
   )
-  def test_initial_psi_source_geometry_validation(self, geometry, expect_error):
+  def test_psi_source_geometry_validation(self, geometry, expect_error):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = geometry
-    config_dict["profile_conditions"]["initial_psi_source"] = "geometry"
+    config_dict["profile_conditions"]["psi_source"] = "geometry"
     if expect_error:
       with self.assertRaisesRegex(
           ValueError,
-          "profile_conditions.initial_psi_source='geometry' is not supported"
+          "profile_conditions.psi_source='geometry' is not supported"
           " for CircularGeometry.",
       ):
         config.ToraxConfig.from_dict(config_dict)
@@ -408,7 +408,7 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="psi_set_source_j_evolve_current_true",
-          initial_psi_source="j",
+          psi_source="j",
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
@@ -416,7 +416,7 @@ class ConfigTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="psi_set_source_geometry_evolve_current_true",
-          initial_psi_source="geometry",
+          psi_source="geometry",
           geometry_type="chease",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
@@ -424,7 +424,7 @@ class ConfigTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="psi_set_source_j_evolve_current_false",
-          initial_psi_source="j",
+          psi_source="j",
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=False,
@@ -432,7 +432,7 @@ class ConfigTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="psi_set_source_geometry_evolve_current_false",
-          initial_psi_source="geometry",
+          psi_source="geometry",
           geometry_type="chease",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=False,
@@ -440,7 +440,7 @@ class ConfigTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="psi_set_source_profile_conditions_evolve_current_true",
-          initial_psi_source="profile_conditions",
+          psi_source="profile_conditions",
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
@@ -448,7 +448,7 @@ class ConfigTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="psi_none_source_j_evolve_current_true",
-          initial_psi_source="j",
+          psi_source="j",
           geometry_type="circular",
           psi=None,
           evolve_current=True,
@@ -457,7 +457,7 @@ class ConfigTest(parameterized.TestCase):
   )
   def test_psi_with_non_profile_conditions_source_raises_error(
       self,
-      initial_psi_source,
+      psi_source,
       geometry_type,
       psi,
       evolve_current,
@@ -469,7 +469,7 @@ class ConfigTest(parameterized.TestCase):
           "geometry_type": "chease",
           "geometry_file": "iterhybrid.mat2cols",
       }
-    config_dict["profile_conditions"]["initial_psi_source"] = initial_psi_source
+    config_dict["profile_conditions"]["psi_source"] = psi_source
     config_dict["profile_conditions"]["psi"] = psi
     config_dict["numerics"]["evolve_current"] = evolve_current
 
@@ -477,7 +477,7 @@ class ConfigTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError,
           "profile_conditions.psi cannot be provided when"
-          f" profile_conditions.initial_psi_source is '{initial_psi_source}'",
+          f" profile_conditions.psi_source is '{psi_source}'",
       ):
         config.ToraxConfig.from_dict(config_dict)
     else:
@@ -506,7 +506,7 @@ class ConfigTest(parameterized.TestCase):
       initial_j_is_total_current,
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict["profile_conditions"]["initial_psi_source"] = "j"
+    config_dict["profile_conditions"]["psi_source"] = "j"
     config_dict["profile_conditions"]["initial_j_is_total_current"] = (
         initial_j_is_total_current
     )
@@ -520,50 +520,50 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="source_j_evolve_current_false",
-          initial_psi_source="j",
+          psi_source="j",
           evolve_current=False,
           expect_warning=True,
       ),
       dict(
           testcase_name="source_j_evolve_current_true",
-          initial_psi_source="j",
+          psi_source="j",
           evolve_current=True,
           expect_warning=False,
       ),
       dict(
           testcase_name="source_geometry_evolve_current_false",
-          initial_psi_source="geometry",
+          psi_source="geometry",
           evolve_current=False,
           expect_warning=False,
       ),
       dict(
           testcase_name="source_profile_conditions_evolve_current_false",
-          initial_psi_source="profile_conditions",
+          psi_source="profile_conditions",
           evolve_current=False,
           expect_warning=False,
       ),
   )
   def test_psi_source_j_evolve_current_false_warning(
       self,
-      initial_psi_source,
+      psi_source,
       evolve_current,
       expect_warning,
   ):
     config_dict = default_configs.get_default_config_dict()
-    if initial_psi_source == "geometry":
+    if psi_source == "geometry":
       config_dict["geometry"] = {
           "geometry_type": "chease",
           "geometry_file": "iterhybrid.mat2cols",
       }
-    elif initial_psi_source == "profile_conditions":
+    elif psi_source == "profile_conditions":
       config_dict["profile_conditions"]["psi"] = {0: {0: 0.0, 1: 1.0}}
-    config_dict["profile_conditions"]["initial_psi_source"] = (
-        initial_psi_source
+    config_dict["profile_conditions"]["psi_source"] = (
+        psi_source
     )
     config_dict["numerics"]["evolve_current"] = evolve_current
 
     warning_snippet = (
-        "profile_conditions.initial_psi_source='j' does not update psi for"
+        "profile_conditions.psi_source='j' does not update psi for"
         " t > t_initial when numerics.evolve_current is False"
     )
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)

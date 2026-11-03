@@ -59,7 +59,7 @@ class UpdatersTest(parameterized.TestCase):
         'evolve_current': False,
     }
     config_dict['profile_conditions'][
-        'initial_psi_source'
+        'psi_source'
     ] = 'profile_conditions'
 
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -91,7 +91,7 @@ class UpdatersTest(parameterized.TestCase):
     )
 
   def test_psi_not_updated_if_not_prescribed(self):
-    """Tests that psi retains previous value when initial_psi_source is 'j'."""
+    """Tests that psi retains previous value when psi_source is 'j'."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics'] = {
         'evolve_current': False,
@@ -133,7 +133,7 @@ class UpdatersTest(parameterized.TestCase):
         },  # Prescribed varying
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'profile_conditions',
+        'psi_source': 'profile_conditions',
     }
 
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -169,7 +169,7 @@ class UpdatersTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'psi': {0.0: {0.0: 10.0, 1.0: 10.0}, 2.0: {0.0: 20.0, 1.0: 20.0}},
         'I_p': 15e6,
-        'initial_psi_source': 'profile_conditions',
+        'psi_source': 'profile_conditions',
     }
     config_dict['numerics'] = {
         'evolve_current': False,

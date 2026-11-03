@@ -221,49 +221,49 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_initial_psi_source(self) -> Self:
-    """Validates `profile_conditions.initial_psi_source` compatibility."""
-    initial_psi_source = self.profile_conditions.initial_psi_source
+  def _validate_psi_source(self) -> Self:
+    """Validates `profile_conditions.psi_source` compatibility."""
+    psi_source = self.profile_conditions.psi_source
     is_restarting = self.restart is not None and self.restart.do_restart
     if (
-        initial_psi_source
-        == core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
+        psi_source
+        == core_profile_runtime_params_lib.PsiSource.PROFILE_CONDITIONS
         and self.profile_conditions.psi is None
         and not is_restarting
     ):
       raise ValueError(
           'profile_conditions.psi must be provided when'
-          " profile_conditions.initial_psi_source is 'profile_conditions'"
+          " profile_conditions.psi_source is 'profile_conditions'"
           ' (unless restarting from a file).'
       )
     if (
-        initial_psi_source
-        == core_profile_runtime_params_lib.InitialPsiSource.GEOMETRY
+        psi_source
+        == core_profile_runtime_params_lib.PsiSource.GEOMETRY
         and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
     ):
       raise ValueError(
-          "profile_conditions.initial_psi_source='geometry' is not supported"
+          "profile_conditions.psi_source='geometry' is not supported"
           ' for CircularGeometry.'
       )
     if (
         self.profile_conditions.psi is not None
-        and initial_psi_source
-        != core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
+        and psi_source
+        != core_profile_runtime_params_lib.PsiSource.PROFILE_CONDITIONS
     ):
       raise ValueError(
           'profile_conditions.psi cannot be provided when'
-          ' profile_conditions.initial_psi_source is'
-          f' {initial_psi_source.value!r}.'
+          ' profile_conditions.psi_source is'
+          f' {psi_source.value!r}.'
       )
     # TODO(b/581363815): Support updating psi from j for t > t_initial when
     # numerics.evolve_current is False (or disallow this combination).
     if (
-        initial_psi_source
-        == core_profile_runtime_params_lib.InitialPsiSource.J
+        psi_source
+        == core_profile_runtime_params_lib.PsiSource.J
         and not self.numerics.evolve_current
     ):
       logging.warning(
-          "profile_conditions.initial_psi_source='j' does not update psi for"
+          "profile_conditions.psi_source='j' does not update psi for"
           ' t > t_initial when numerics.evolve_current is False; psi will'
           ' remain fixed at its initial profile.'
       )

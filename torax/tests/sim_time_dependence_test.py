@@ -83,7 +83,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
             'n_e_right_bc': 0.5e20,
         },

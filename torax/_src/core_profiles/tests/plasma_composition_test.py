@@ -460,7 +460,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
         },
         'plasma_composition': {
             'impurity': {

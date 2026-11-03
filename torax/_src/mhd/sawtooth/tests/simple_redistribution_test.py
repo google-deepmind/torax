@@ -51,7 +51,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
         'I_p': 15e6,
         'initial_j_is_total_current': True,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'current_profile_nu': 3,
     }
     config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
@@ -132,7 +132,7 @@ class MixingRadiusClampingTest(parameterized.TestCase):
         'I_p': 15e6,
         'initial_j_is_total_current': True,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'current_profile_nu': 3,
     }
     config_dict['mhd'] = {

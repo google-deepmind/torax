@@ -211,7 +211,7 @@ class FVMTest(parameterized.TestCase):
             profile_conditions=dict(
                 I_p=15e6,
                 I_p_source='profile_conditions',
-                initial_psi_source='j',
+                psi_source='j',
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),

@@ -22,7 +22,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 8.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 8.0, 1.0: 1.0}},

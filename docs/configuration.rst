@@ -368,7 +368,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
       'profile_conditions': {
           'I_p': {0: 3e6, 80: 10.5e6},
           'I_p_source': 'profile_conditions',
-          'initial_psi_source': 'geometry',
+          'psi_source': 'geometry',
           # initial condition ion temperature for r=0 and r=a_minor
           'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
           'T_i_right_bc': 0.1,  # boundary condition ion temp for r=a_minor

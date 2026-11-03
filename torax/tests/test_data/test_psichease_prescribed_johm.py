@@ -22,7 +22,7 @@ CONFIG = {
         'n_e_right_bc': 0.5e20,
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'initial_j_is_total_current': False,
         'current_profile_nu': 2,
         'n_e_bar_is_f_GW': True,

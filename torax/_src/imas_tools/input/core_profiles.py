@@ -109,7 +109,7 @@ def profile_conditions_from_IMAS(
   return {
       "I_p": I_p,
       "I_p_source": "profile_conditions",
-      "initial_psi_source": "profile_conditions",
+      "psi_source": "profile_conditions",
       "psi": psi,
       "T_i": T_i,
       "T_i_right_bc": None,

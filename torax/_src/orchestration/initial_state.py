@@ -379,8 +379,8 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
   )
-  runtime_params.profile_conditions.initial_psi_source = (
-      core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+  runtime_params.profile_conditions.psi_source = (
+      core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
   )
   # When loading from file we want ne not to have transformations.
   # Both ne and the boundary condition are given in absolute values (not f_GW).

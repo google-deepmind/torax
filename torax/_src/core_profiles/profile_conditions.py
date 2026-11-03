@@ -101,10 +101,10 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     T_i: Prescribed or evolving values for temperature at different times.
     T_e: Prescribed or evolving values for temperature at different times.
     psi: Poloidal flux profile [Wb]. Used as the initial condition for psi when
-      `initial_psi_source` is `PROFILE_CONDITIONS` (unless restarting from a
+      `psi_source` is `PROFILE_CONDITIONS` (unless restarting from a
       file), and prescribes `psi` for t > t_initial if
       `numerics.evolve_current` is False. Must not be provided when
-      `initial_psi_source` is not `PROFILE_CONDITIONS`.
+      `psi_source` is not `PROFILE_CONDITIONS`.
     psidot: Prescribed values for the time derivative of poloidal flux (loop
       voltage). If provided, and if `evolve_current` is False, this prescribed
       `psidot` will be used instead of the internally calculated one. This is
@@ -141,7 +141,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
       included in initial j_toroidal_total calculation.
-    initial_psi_source: Source of the `psi` profile at initialization, and for
+    psi_source: Source of the `psi` profile at initialization, and for
       t > t_initial when `numerics.evolve_current` is False:
       - `PROFILE_CONDITIONS`: Uses the `psi` attribute (required unless
         restarting from a file).
@@ -199,8 +199,8 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/581363815): Support updating psi from j for t > t_initial when
   # numerics.evolve_current is False (or disallow this combination).
-  initial_psi_source: Annotated[
-      runtime_params_lib.InitialPsiSource, torax_pydantic.JAX_STATIC
+  psi_source: Annotated[
+      runtime_params_lib.PsiSource, torax_pydantic.JAX_STATIC
   ]
   fast_ions: list[PrescribedFastIon] | None = None
 

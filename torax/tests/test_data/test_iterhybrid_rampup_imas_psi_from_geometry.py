@@ -26,5 +26,5 @@ CONFIG['geometry'] = {
 }
 del CONFIG['profile_conditions']['I_p']
 CONFIG['profile_conditions']['I_p_source'] = 'geometry'
-CONFIG['profile_conditions']['initial_psi_source'] = 'geometry'
+CONFIG['profile_conditions']['psi_source'] = 'geometry'
 CONFIG['numerics']['evolve_current'] = False

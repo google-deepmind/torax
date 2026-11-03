@@ -20,7 +20,7 @@ I_p from parameters. implicit, T_i+T_e, no Pei, no pedestal, constant chi.
 CONFIG = {
     'profile_conditions': {
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
         'I_p': 15e6,
         'n_e_bar_is_f_GW': True,

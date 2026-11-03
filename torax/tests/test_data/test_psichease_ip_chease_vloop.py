@@ -23,7 +23,7 @@
 CONFIG = {
     'profile_conditions': {
         'I_p_source': 'geometry',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
         'psi_bc_source': 'v_loop',
         # Physical loop voltage; psi BC is accelerated by

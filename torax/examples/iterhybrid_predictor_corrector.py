@@ -27,7 +27,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 10.5e6,  # Total plasma current [A]
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         # Boundary and initial conditions for T and n
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.2}},
         'T_i_right_bc': 0.2,

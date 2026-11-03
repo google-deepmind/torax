@@ -216,7 +216,7 @@ class BuilderTest(absltest.TestCase):
             profile_conditions=dict(
                 I_p=15e6,
                 I_p_source='profile_conditions',
-                initial_psi_source='j',
+                psi_source='j',
                 internal_boundary_conditions=dict(
                     model_name='prescribed',
                     T_e={0.0: {(0.0, 0.3): 10.0}},

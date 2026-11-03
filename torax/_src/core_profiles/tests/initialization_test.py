@@ -184,7 +184,7 @@ class InitializationTest(parameterized.TestCase):
         'psi': psi,
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'profile_conditions',
+        'psi_source': 'profile_conditions',
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, _ = _get_initial_state(torax_config)
@@ -199,7 +199,7 @@ class InitializationTest(parameterized.TestCase):
   def test_initial_psi_from_geo(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry']['geometry_type'] = 'chease'
-    config_dict['profile_conditions']['initial_psi_source'] = 'geometry'
+    config_dict['profile_conditions']['psi_source'] = 'geometry'
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
     core_profiles, geo, _ = _get_initial_state(torax_config)
@@ -215,7 +215,7 @@ class InitializationTest(parameterized.TestCase):
     config_dict['geometry']['geometry_type'] = 'chease'
     psi_profile = {0: {0: 42.0, 1: 43.0}}
     config_dict['profile_conditions'][
-        'initial_psi_source'
+        'psi_source'
     ] = 'profile_conditions'
     config_dict['profile_conditions']['psi'] = psi_profile
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -259,14 +259,14 @@ class InitializationTest(parameterized.TestCase):
         initial_j_is_total_current=True,
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
 
@@ -351,7 +351,7 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-  def test_initial_psi_source_j_with_bootstrap_is_consistent_with_case_without_bootstrap(
+  def test_psi_source_j_with_bootstrap_is_consistent_with_case_without_bootstrap(
       self,
   ):
     _CURRENT_PROFILE_NU = 2
@@ -368,7 +368,7 @@ class InitializationTest(parameterized.TestCase):
         initial_j_is_total_current=True,
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources1 = {
@@ -395,7 +395,7 @@ class InitializationTest(parameterized.TestCase):
         initial_j_is_total_current=False,
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources2 = {
@@ -666,7 +666,7 @@ class InitializationTest(parameterized.TestCase):
 
   def test_initial_core_profiles_psidot_consistent_with_final_psi(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['profile_conditions']['initial_psi_source'] = 'j'
+    config_dict['profile_conditions']['psi_source'] = 'j'
     config_dict['profile_conditions']['initial_j_is_total_current'] = False
     config_dict['sources'] = {
         'generic_current': {
@@ -720,7 +720,7 @@ class InitializationTest(parameterized.TestCase):
 
   def test_initial_core_profiles_does_not_mutate_caller_source_states(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['profile_conditions']['initial_psi_source'] = 'j'
+    config_dict['profile_conditions']['psi_source'] = 'j'
     config_dict['profile_conditions']['initial_j_is_total_current'] = False
     config_dict['sources'] = {
         'generic_current': {
@@ -758,29 +758,29 @@ class InitializationTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(
-          initial_psi_source=(
-              core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+          psi_source=(
+              core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
           )
       ),
       dict(
-          initial_psi_source=(
-              core_profile_runtime_params.InitialPsiSource.GEOMETRY
+          psi_source=(
+              core_profile_runtime_params.PsiSource.GEOMETRY
           )
       ),
-      dict(initial_psi_source=core_profile_runtime_params.InitialPsiSource.J),
+      dict(psi_source=core_profile_runtime_params.PsiSource.J),
   ])
   def test_initial_solver_state_modes(
       self,
-      initial_psi_source: core_profile_runtime_params.InitialPsiSource,
+      psi_source: core_profile_runtime_params.PsiSource,
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry']['geometry_type'] = 'chease'
     config_dict['profile_conditions'][
-        'initial_psi_source'
-    ] = initial_psi_source.value
+        'psi_source'
+    ] = psi_source.value
     if (
-        initial_psi_source
-        == core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+        psi_source
+        == core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
     ):
       config_dict['profile_conditions']['psi'] = {0.0: {0.0: 10.0, 1.0: 20.0}}
     torax_config = config.ToraxConfig.from_dict(config_dict)

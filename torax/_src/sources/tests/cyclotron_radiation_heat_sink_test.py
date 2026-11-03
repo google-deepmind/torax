@@ -143,7 +143,7 @@ class CyclotronRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     config_dict["profile_conditions"] = {
         "I_p": 15e6,
         "I_p_source": "profile_conditions",
-        "initial_psi_source": "j",
+        "psi_source": "j",
         "T_e": {0.0: te_profile},
         "n_e": {0.0: ne_profile},
         "n_e_bar_is_f_GW": False,

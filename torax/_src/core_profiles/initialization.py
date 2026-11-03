@@ -184,16 +184,16 @@ def _init_psi(
     Initial poloidal flux [Wb].
   """
 
-  match runtime_params.profile_conditions.initial_psi_source:
+  match runtime_params.profile_conditions.psi_source:
     # Case 1 & 2: retrieving prescribed psi from profile conditions or geometry.
     case (
-        core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
-        | core_profile_runtime_params.InitialPsiSource.GEOMETRY
+        core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
+        | core_profile_runtime_params.PsiSource.GEOMETRY
     ):
       return getters.get_prescribed_psi(runtime_params.profile_conditions, geo)
 
     # Case 3: calculating j according to nu formula and psi from j.
-    case core_profile_runtime_params.InitialPsiSource.J:
+    case core_profile_runtime_params.PsiSource.J:
       # calculate j and psi from the nu formula
       j_toroidal_total_hires = (
           _get_j_toroidal_total_hires_with_no_external_sources(
@@ -242,8 +242,8 @@ def _init_psi(
 
     case _:
       raise ValueError(
-          'Unknown initial_psi_source:'
-          f' {runtime_params.profile_conditions.initial_psi_source}'
+          'Unknown psi_source:'
+          f' {runtime_params.profile_conditions.psi_source}'
       )
 
 

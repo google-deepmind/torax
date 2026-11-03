@@ -128,7 +128,7 @@ class GettersTest(parameterized.TestCase):
         {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': {0: {0: 1.5e20, 1: 1e20}},
             'n_e_bar_is_f_GW': False,
             'n_e_right_bc_is_f_GW': False,
@@ -282,7 +282,7 @@ class GettersTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': n_e,
         'n_e_bar_is_f_GW': n_e_bar_is_f_GW,
         'n_e_right_bc_is_f_GW': n_e_right_bc_is_f_GW,
@@ -313,7 +313,7 @@ class GettersTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_bar_is_f_GW': False,
         'n_e_bar': n_e_bar,
@@ -354,7 +354,7 @@ class GettersTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': {0: {0: 1.5, 1: 1}},
         'n_e_bar_is_f_GW': True,
         'n_e_bar': 1.0,
@@ -395,7 +395,7 @@ class GettersTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'psi_bc_source': 'I_p',
         },
         'plasma_composition': {},
@@ -439,7 +439,7 @@ class GettersTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'psi_bc_source': psi_bc_source,
             'v_loop_lcfs': 0.1 if use_v_loop else None,
         },
@@ -482,7 +482,7 @@ class GettersTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'psi_bc_source': 'I_p',
         },
         'plasma_composition': {},
@@ -519,7 +519,7 @@ class GettersTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'profile_conditions',
+            'psi_source': 'profile_conditions',
             'psi': prescribed_psi,
             'psi_bc_source': 'I_p',
         },
@@ -560,7 +560,7 @@ class GettersTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'profile_conditions',
+            'psi_source': 'profile_conditions',
             'psi': {0.0: {0.0: 0.1, 1.0: 1.5}},
             'psi_bc_source': 'I_p',
         },

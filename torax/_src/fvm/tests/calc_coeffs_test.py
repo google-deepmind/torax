@@ -114,7 +114,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             profile_conditions=dict(
                 I_p=15e6,
                 I_p_source='profile_conditions',
-                initial_psi_source='j',
+                psi_source='j',
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
@@ -166,7 +166,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
         },
         'numerics': {},
         'sources': {},
@@ -228,7 +228,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         profile_conditions=dict(
             I_p=15e6,
             I_p_source='profile_conditions',
-            initial_psi_source='j',
+            psi_source='j',
             T_i={0.0: {0.0: 20.0, 0.7: 8.0, 0.9: 5.0, 1.0: 0.2}},
             T_e={0.0: {0.0: 18.0, 0.7: 7.0, 0.9: 4.5, 1.0: 0.2}},
             n_e={0.0: {0.0: 1.5e20, 0.85: 1.1e20, 1.0: 0.4e20}},
@@ -325,7 +325,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             profile_conditions=dict(
                 I_p=15e6,
                 I_p_source='profile_conditions',
-                initial_psi_source='j',
+                psi_source='j',
                 T_i={0.0: {0.0: 5.0, 1.0: 5.0}},
                 T_e={0.0: {0.0: 5.0, 1.0: 5.0}},
                 n_e={0.0: {0.0: 1.0e20, 1.0: 1.0e20}},
@@ -406,7 +406,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_current=True),
             plasma_composition=dict(),
-            profile_conditions=dict(I_p=15e6, initial_psi_source='j'),
+            profile_conditions=dict(I_p=15e6, psi_source='j'),
             geometry=dict(geometry_type='circular'),
             pedestal=dict(),
             neoclassical=dict(

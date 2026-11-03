@@ -187,7 +187,7 @@ CONFIG = {
         # bookkeeping.
         "n_e_bar": 4.77464829276e19,
         "I_p_source": "profile_conditions",
-        "initial_psi_source": "j",
+        "psi_source": "j",
         "initial_j_is_total_current": True,
         "current_profile_nu": 2.0,
     },
