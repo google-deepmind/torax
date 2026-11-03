@@ -101,6 +101,7 @@ class ComponentTransportConfigBase(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.ComponentRuntimeParams:
+    """Builds the runtime parameters for the transport model at time `t`."""
     return runtime_params.ComponentRuntimeParams(
         fast_ion_stabilization=self.fast_ion_stabilization.get_value(t),
         fast_ion_stabilization_model=tuple(
