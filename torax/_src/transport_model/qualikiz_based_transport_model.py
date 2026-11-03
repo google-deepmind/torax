@@ -24,7 +24,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import jax_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -283,7 +283,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       qualikiz_inputs: QualikizInputs,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Converts model output to TransportCoeffs."""
@@ -346,7 +346,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       self,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> QualikizInputs:
     """Constructs a `QualikizInputs` object from the TORAX state.

@@ -19,8 +19,8 @@
 from collections.abc import Mapping
 import jax
 import jax.numpy as jnp
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import (
@@ -116,7 +116,7 @@ def evaluate_psi_sources(
 def evaluate_dependent_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     source_models: source_models_lib.SourceModels,
     source_states: Mapping[str, source_state_lib.SourceState],
     basic_source_outputs: Mapping[str, source_profiles.SourceOutput],

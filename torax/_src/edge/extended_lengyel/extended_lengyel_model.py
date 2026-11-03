@@ -23,8 +23,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
 from torax._src.edge import runtime_params as edge_runtime_params_lib
@@ -136,7 +136,7 @@ class ExtendedLengyelModel(base.EdgeModel):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: base.EdgeModelOutputs | None = None,
   ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
@@ -313,7 +313,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
 def _resolve_geometric_parameters(
     geo: standard_geometry.StandardGeometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     edge_params: RuntimeParams,
     diverted: array_typing.BoolScalar,
 ) -> _ResolvedGeometricParams:

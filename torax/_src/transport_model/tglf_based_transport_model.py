@@ -24,7 +24,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
@@ -181,7 +181,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       self,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> TGLFInputs:
     """Construct a TGLFInputs object from the TORAX state.
@@ -445,7 +445,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     #   omega_0 = -dPhi/dpsi = E_r / (R B_pol).
     # For pure toroidal rotation, omega_0 is the toroidal angular velocity.
     def _get_v_ExB_shear(
-        core_profiles: state.CoreProfiles,
+        core_profiles: core_profiles_lib.CoreProfiles,
         geo: geometry.Geometry,
         two_point_mask: array_typing.BoolVectorFace,
     ):
@@ -569,7 +569,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       tglf_inputs: TGLFInputs,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     # Denormalised TGLF output fluxes.

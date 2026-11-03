@@ -23,6 +23,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge.extended_lengyel import config as extended_lengyel_config
@@ -48,8 +49,8 @@ from torax._src.test_utils import sim_test_case
 
 def _set_psi_norm_face(core_profiles: mock.MagicMock) -> None:
   """Sets psi_norm_face on a mocked CoreProfiles from its mocked psi."""
-  core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
-      core_profiles
+  core_profiles.psi_norm_face = (
+      core_profiles_lib.CoreProfiles.psi_norm_face.func(core_profiles)
   )
 
 
@@ -104,7 +105,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.diverted = np.bool(True)
 
     # Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -294,7 +295,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.ones(n_rho)
 
     # 2. Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -413,7 +414,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.ones(n_rho)
 
     # 2. Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -594,7 +595,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.delta_face = np.array([0.3] * (n_rho + 1))
     mock_geo.vpr = np.ones(n_rho)
 
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -757,7 +758,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     n_rho = 10
     geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
 
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -897,7 +898,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     n_rho = 10
     geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
 
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -1049,7 +1050,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.ones(n_rho)
 
     # 2. Mock CoreProfiles
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
@@ -1138,7 +1139,9 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
     super().setUp()
     self.model = extended_lengyel_model.ExtendedLengyelModel()
 
-    self.mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    self.mock_core_profiles = mock.MagicMock(
+        spec=core_profiles_lib.CoreProfiles
+    )
     self.mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.array([0.0, 0.5, 1.0])
@@ -1765,7 +1768,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
       )
 
   def _make_mock_core_profiles_and_sources(self, n_rho: int):
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()

@@ -25,7 +25,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as transport_runtime_params
@@ -52,7 +52,7 @@ class NormalizedLogarithmicGradients:
   @classmethod
   def from_profiles(
       cls,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       radial_coordinate: array_typing.FloatVectorCell,
       radial_face_coordinate: array_typing.FloatVectorFace,
       reference_length: array_typing.FloatScalar,
@@ -355,7 +355,7 @@ def _load_fi_stabilization_model(model: str):
 
 
 def _compute_fast_ion_stabilization_factor(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     smag: jax.Array,
     q: jax.Array,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
@@ -413,7 +413,7 @@ def _compute_fast_ion_stabilization_factor(
 
 
 def apply_fast_ion_stabilization(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     smag: jax.Array,
     q: jax.Array,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,

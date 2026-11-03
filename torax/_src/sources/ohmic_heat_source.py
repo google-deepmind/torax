@@ -17,8 +17,8 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 import jax.numpy as jnp
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
 from torax._src.sources import source as source_lib
@@ -48,7 +48,7 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.

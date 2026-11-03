@@ -28,6 +28,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
@@ -164,7 +165,7 @@ class StateHistory:
               v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
           ),
       )
-    self._core_profiles: state.CoreProfiles = core_profiles
+    self._core_profiles: core_profiles_lib.CoreProfiles = core_profiles
     self._core_sources: source_profiles_lib.SourceProfiles = (
         state_history.core_sources
     )
@@ -236,7 +237,7 @@ class StateHistory:
     return _unstack_pytree(self._geometry)
 
   @functools.cached_property
-  def core_profiles(self) -> Sequence[state.CoreProfiles]:
+  def core_profiles(self) -> Sequence[core_profiles_lib.CoreProfiles]:
     """Returns the core profiles."""
     return _unstack_pytree(self._core_profiles)
 

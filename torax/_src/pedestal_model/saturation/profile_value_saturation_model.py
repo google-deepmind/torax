@@ -18,8 +18,8 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import (
@@ -39,7 +39,7 @@ class ProfileValueSaturationModel(base.SaturationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       pedestal_output: pedestal_structure.PedestalStructure,
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates transport increase multipliers."""

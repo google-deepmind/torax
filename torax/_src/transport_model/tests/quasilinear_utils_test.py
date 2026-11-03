@@ -19,7 +19,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants as constants_module
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -258,7 +258,7 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     fast_ion_nonzero.T = self._make_face_cv(T_fi)
 
     core_profiles_zero = mock.create_autospec(
-        state.CoreProfiles,
+        core_profiles_lib.CoreProfiles,
         instance=True,
         fast_ions=(fast_ion_zero,),
     )
@@ -266,7 +266,7 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     core_profiles_zero.kinetic.T_e = self._make_face_cv(T_e)
 
     core_profiles_nonzero = mock.create_autospec(
-        state.CoreProfiles,
+        core_profiles_lib.CoreProfiles,
         instance=True,
         fast_ions=(fast_ion_nonzero,),
     )
@@ -348,7 +348,7 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     fast_ion_h.T = self._make_face_cv(T_fi)
 
     core_profiles = mock.create_autospec(
-        state.CoreProfiles,
+        core_profiles_lib.CoreProfiles,
         instance=True,
         fast_ions=(fast_ion_he3, fast_ion_h),
     )
@@ -404,7 +404,7 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     fast_ion_he4.T = self._make_face_cv(T_fi)
 
     core_profiles = mock.create_autospec(
-        state.CoreProfiles,
+        core_profiles_lib.CoreProfiles,
         instance=True,
         fast_ions=(fast_ion_he4,),
     )

@@ -48,7 +48,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -114,7 +114,7 @@ def calc_dvar_dpsi(
 
 
 def calc_pprime(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ) -> array_typing.FloatVectorFace:
   """Calculates total pressure gradient with respect to poloidal flux."""
   return calc_dvar_dpsi(
@@ -125,7 +125,7 @@ def calc_pprime(
 
 
 def calc_FFprime(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVector:
   r"""Calculates FF', an output quantity used for equilibrium coupling.
@@ -247,7 +247,7 @@ def calculate_greenwald_fraction(
 
 
 def calculate_betas(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates the beta_tor, beta_pol, and beta_N plasma beta quantities.
@@ -319,7 +319,7 @@ def calculate_betas(
 
 
 def calculate_beta_pol_profile(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Calculates the local poloidal beta profile on the cell grid.
@@ -358,7 +358,7 @@ def calculate_beta_pol_profile(
 
 
 def calculate_beta_pol_prime(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVectorFace:
   r"""Calculates beta_pol_prime on the face grid.
@@ -386,7 +386,7 @@ def calculate_beta_pol_prime(
 
 
 def calculate_alpha_mhd(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
     two_point_mask: array_typing.BoolVectorFace | None = None,
 ) -> array_typing.FloatVectorFace:
@@ -426,7 +426,7 @@ def calculate_alpha_mhd(
 
 
 def calculate_alpha_mhd_miller(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVectorFace:
   r"""Calculates the Miller general-geometry MHD ballooning parameter on faces.

@@ -22,6 +22,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import (
     solver_profiles as solver_profiles_lib,
 )
@@ -529,8 +530,8 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     """Tests cached properties behave correctly within a jitted function."""
 
     @jax.jit
-    def get_pressure_thermal_e(profiles):
-      return profiles.pressure_thermal_e.value
+    def get_pressure_thermal_e(core_profiles):
+      return core_profiles.pressure_thermal_e.value
 
     # Create two different CoreProfiles
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
@@ -657,10 +658,10 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         n=core_profile_helpers.make_constant_core_profile(geo, 1.0e19),
         T=core_profile_helpers.make_constant_core_profile(geo, 50.0),
     )
-    profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    profiles = dataclasses.replace(profiles, fast_ions=(fast_ion,))
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    core_profiles = dataclasses.replace(core_profiles, fast_ions=(fast_ion,))
     stacked_profiles = jax.tree.map(
-        lambda *xs: np.stack(xs), profiles, profiles
+        lambda *xs: np.stack(xs), core_profiles, core_profiles
     )
     rho_cell_plus_boundaries = np.concatenate(([0.0], geo.rho_norm, [1.0]))
     context = output_grid_context.OutputGridContext(
@@ -689,18 +690,18 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
   def test_core_profiles_to_output_dict_radial_a_impurity(self):
     """Tests non-constant A_impurity is packed as a spatial profile."""
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     # Set non-constant A_impurity across radius.
-    profiles = dataclasses.replace(
-        profiles,
+    core_profiles = dataclasses.replace(
+        core_profiles,
         ions=dataclasses.replace(
-            profiles.ions,
+            core_profiles.ions,
             A_impurity=np.arange(10, dtype=np.float32) + 1.0,
             A_impurity_face=np.arange(11, dtype=np.float32) + 1.0,
         ),
     )
     stacked_profiles = jax.tree.map(
-        lambda *xs: np.stack(xs), profiles, profiles
+        lambda *xs: np.stack(xs), core_profiles, core_profiles
     )
     rho_cell_plus_boundaries = np.concatenate(([0.0], geo.rho_norm, [1.0]))
     context = output_grid_context.OutputGridContext(
@@ -717,7 +718,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     self.assertEqual(data.shape, (2, len(rho_cell_plus_boundaries)))
     self.assertEqual(attrs['units'], 'amu')
     expected_extended = output_grid_context.extend_cell_grid_to_boundaries(
-        profiles.ions.A_impurity, profiles.ions.A_impurity_face
+        core_profiles.ions.A_impurity, core_profiles.ions.A_impurity_face
     )
     np.testing.assert_allclose(
         data, np.stack([expected_extended, expected_extended])
@@ -904,7 +905,7 @@ class SolverProfilesTest(parameterized.TestCase):
     )
 
   def test_core_profiles_pressures(self):
-    result = state.CoreProfiles(
+    result = core_profiles_lib.CoreProfiles(
         kinetic=self.base_profiles.kinetic,
         ions=self.base_profiles.ions,
         poloidal_flux=self.base_profiles.poloidal_flux,
@@ -914,7 +915,7 @@ class SolverProfilesTest(parameterized.TestCase):
         psidot=self.core_profiles.psidot,
     )
 
-    self.assertIsInstance(result, state.CoreProfiles)
+    self.assertIsInstance(result, core_profiles_lib.CoreProfiles)
     np.testing.assert_allclose(
         result.conductivity.sigma,
         self.core_profiles.conductivity.sigma,

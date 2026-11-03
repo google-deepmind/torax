@@ -18,8 +18,8 @@ Routines for providing SolverState at candidate timesteps.
 """
 
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import solver_state
 from torax._src.geometry import geometry
@@ -32,7 +32,7 @@ def provide_solver_state_t_plus_dt(
     runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
+    core_profiles_t: core_profiles_lib.CoreProfiles,
 ) -> solver_state.SolverState:
   """Provides primary solver state at t + dt with updated BCs and prescribed.
 

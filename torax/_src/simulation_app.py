@@ -63,6 +63,7 @@ from absl import logging
 import jax
 import numpy as np
 from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.orchestration import run_simulation
 from torax._src.torax_pydantic import config
 import xarray as xr
@@ -120,7 +121,7 @@ def write_output_to_file(path: str, data_tree: xr.DataTree):
 
 
 def _log_single_state(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     t: float | jax.Array,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
@@ -134,7 +135,7 @@ def _log_single_state(
 
 
 def log_simulation_output_to_stdout(
-    core_profile_history: Sequence[state.CoreProfiles],
+    core_profile_history: Sequence[core_profiles_lib.CoreProfiles],
     t: np.ndarray,
 ) -> None:
   _log_single_state(core_profile_history[0], t[0])

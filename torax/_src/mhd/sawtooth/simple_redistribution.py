@@ -21,9 +21,9 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles
 from torax._src.core_profiles import ion_composition as ion_composition_lib
 from torax._src.core_profiles import kinetic_profiles
 from torax._src.geometry import geometry
@@ -46,8 +46,8 @@ class SimpleRedistribution(
       rho_norm_q1: array_typing.FloatScalar,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-  ) -> state.CoreProfiles:
+      core_profiles_t: core_profiles.CoreProfiles,
+  ) -> core_profiles.CoreProfiles:
     """Applies redistribution of profiles with a user-predefined mixing radius.
 
     Redistributes the profiles to a radius of

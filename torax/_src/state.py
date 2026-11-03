@@ -21,18 +21,12 @@ from typing import Self
 from absl import logging
 import jax
 from torax._src import array_typing
-from torax._src.core_profiles import core_profiles
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
-
-
-# TODO(b/572586768): Remove alias in next CL after migrating callers.
-Conductivity = core_profiles.Conductivity
-CoreProfiles = core_profiles.CoreProfiles
 
 
 @jax.tree_util.register_dataclass
@@ -176,4 +170,3 @@ class SimError(enum.Enum):
         pass
       case _:
         raise ValueError(f'Unknown SimError: {self}')
-

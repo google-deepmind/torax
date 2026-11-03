@@ -17,9 +17,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import ion_composition
 from torax._src.core_profiles import kinetic_profiles
@@ -36,7 +36,7 @@ def make_initial_inputs(
     torax_config: config.ToraxConfig,
     t_override: float | None = None,
 ) -> tuple[
-    state.CoreProfiles,
+    core_profiles_lib.CoreProfiles,
     runtime_params_lib.RuntimeParams,
     geometry.Geometry,
 ]:
@@ -91,7 +91,7 @@ def make_zero_core_profiles(
     Z_impurity_face: jax.Array | None = None,
     impurity_names: tuple[str, ...] = ("dummy_impurity",),
     main_ion_names: tuple[str, ...] = ("dummy_main_ion",),
-) -> state.CoreProfiles:
+) -> core_profiles_lib.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho),
@@ -151,11 +151,11 @@ def make_zero_core_profiles(
       I_p_profile_face=jnp.zeros_like(geo.rho_face),
       v_loop_lcfs=jnp.array(0.0),
   )
-  conductivity = state.Conductivity(
+  conductivity = core_profiles_lib.Conductivity(
       sigma=jnp.zeros_like(geo.rho),
       sigma_face=jnp.zeros_like(geo.rho_face),
   )
-  return state.CoreProfiles(
+  return core_profiles_lib.CoreProfiles(
       kinetic=kinetic,
       ions=ions,
       poloidal_flux=poloidal_flux,
@@ -183,7 +183,7 @@ def make_constant_core_profile(
 def verify_core_profiles(
     ref_profiles: dict[str, array_typing.Array],
     index: int,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ):
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(

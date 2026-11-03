@@ -20,6 +20,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import math_utils
 from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
@@ -67,7 +68,9 @@ class PedestalStructureTest(parameterized.TestCase):
     )
     ibc = output.to_internal_boundary_conditions(
         self.geo,
-        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        core_profiles=mock.create_autospec(
+            core_profiles_lib.CoreProfiles, instance=True
+        ),
     )
     self.assertEqual(ibc.T_i.shape, (self.geo.rho_norm.shape[0],))
     self.assertEqual(ibc.T_e.shape, (self.geo.rho_norm.shape[0],))
@@ -658,9 +661,9 @@ class PedestalStructureTest(parameterized.TestCase):
 
 def _mtanh_core_profiles(
     geo: geometry.Geometry, psi: jax.Array | np.ndarray, psi_right_grad: float
-) -> state.CoreProfiles:
+) -> core_profiles_lib.CoreProfiles:
   """Returns core profiles with the given psi and flat T_i, T_e, n_e."""
-  core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+  core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
   core_profiles.poloidal_flux = mock.MagicMock()
   core_profiles.poloidal_flux.psi = cell_variable.CellVariable(
       value=psi,
@@ -684,9 +687,11 @@ def _mtanh_core_profiles(
             right_face_grad_constraint=None,
         ),
     )
-  core_profiles.psi_norm = state.CoreProfiles.psi_norm.func(core_profiles)
-  core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
+  core_profiles.psi_norm = core_profiles_lib.CoreProfiles.psi_norm.func(
       core_profiles
+  )
+  core_profiles.psi_norm_face = (
+      core_profiles_lib.CoreProfiles.psi_norm_face.func(core_profiles)
   )
   return core_profiles
 
@@ -694,7 +699,7 @@ def _mtanh_core_profiles(
 def _mtanh_ibc(
     geo: geometry.Geometry,
     rho_norm_ped_top: float,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ):
   """Returns the MTANH internal boundary conditions for T_i_ped = 4."""
   output = pedestal_model_output.IBCPedestalModelOutput(
@@ -751,7 +756,9 @@ class PedestalModelOutputTest(parameterized.TestCase):
     # SET_AT_PED_TOP
     ibc_set = output.to_internal_boundary_conditions(
         self.geo,
-        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        core_profiles=mock.create_autospec(
+            core_profiles_lib.CoreProfiles, instance=True
+        ),
         pedestal_profile_form=(
             pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
         ),

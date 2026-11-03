@@ -37,22 +37,22 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
       self,
       runtime_params: bootstrap_current_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: solver_profiles_lib.SolverProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> bootstrap_current_base.BootstrapCurrent:
     """Calculates bootstrap current according to the Sauter model."""
-    p_i = core_profiles.calculate_pressure_thermal_i(fast_ions)
+    p_i = solver_profiles.calculate_pressure_thermal_i(fast_ions)
     return _calculate_bootstrap_current(
         bootstrap_multiplier=runtime_params.bootstrap_multiplier,
-        Z_eff_face=core_profiles.ions.Z_eff_face,
-        n_e=core_profiles.kinetic.n_e,
-        n_i=core_profiles.kinetic.n_i,
-        T_e=core_profiles.kinetic.T_e,
-        T_i=core_profiles.kinetic.T_i,
-        p_e=core_profiles.pressure_thermal_e,
+        Z_eff_face=solver_profiles.ions.Z_eff_face,
+        n_e=solver_profiles.kinetic.n_e,
+        n_i=solver_profiles.kinetic.n_i,
+        T_e=solver_profiles.kinetic.T_e,
+        T_i=solver_profiles.kinetic.T_i,
+        p_e=solver_profiles.pressure_thermal_e,
         p_i=p_i,
-        psi=core_profiles.poloidal_flux.psi,
+        psi=solver_profiles.poloidal_flux.psi,
         geo=geometry,
         f_trap=neoclassical_intermediates.f_trap,
         nu_e_star=neoclassical_intermediates.nu_e_star,

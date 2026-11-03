@@ -12,18 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import ion_composition
-from torax._src.core_profiles import kinetic_profiles
-from torax._src.core_profiles import poloidal_flux_profiles
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 
@@ -66,48 +61,13 @@ class ConvertersTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
 
-    self.solver_profiles = state.CoreProfiles(
-        kinetic=kinetic_profiles.KineticProfiles(
-            T_i=T_i,
-            T_e=T_e,
-            n_e=n_e,
-            n_i=mock.ANY,
-            n_impurity=mock.ANY,
-            toroidal_angular_velocity=toroidal_angular_velocity,
-        ),
-        ions=ion_composition.IonComposition(
-            impurity_fractions=mock.ANY,
-            main_ion_fractions=mock.ANY,
-            Z_i=mock.ANY,
-            Z_i_face=mock.ANY,
-            A_i=mock.ANY,
-            Z_impurity=mock.ANY,
-            Z_impurity_face=mock.ANY,
-            A_impurity=mock.ANY,
-            A_impurity_face=mock.ANY,
-            Z_eff=mock.ANY,
-            Z_eff_face=mock.ANY,
-            charge_state_info=mock.ANY,
-            charge_state_info_face=mock.ANY,
-        ),
-        poloidal_flux=poloidal_flux_profiles.PoloidalFluxProfiles(
-            psi=psi,
-            q_face=mock.ANY,
-            s_face=mock.ANY,
-            j_toroidal_total=mock.ANY,
-            j_toroidal_total_face=mock.ANY,
-            I_p_profile_face=mock.ANY,
-            v_loop_lcfs=mock.ANY,
-        ),
-        fast_ions=mock.ANY,
-        conductivity=state.Conductivity(
-            sigma=mock.ANY,
-            sigma_face=mock.ANY,
-        ),
-        poloidal_velocity=mock.ANY,
-        psidot=mock.ANY,
+    self.base_solver_state = solver_state.SolverState(
+        T_i=T_i,
+        T_e=T_e,
+        psi=psi,
+        n_e=n_e,
+        toroidal_angular_velocity=toroidal_angular_velocity,
     )
-    self.base_solver_state = self.solver_profiles.to_solver_state()
 
   def test_solver_state_to_x_round_trip(self):
     evolving_names = ('T_i', 'T_e', 'psi', 'n_e')

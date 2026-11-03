@@ -19,6 +19,7 @@ model.
 """
 
 # pylint: disable=g-importing-member
+from torax._src.core_profiles.core_profiles import Conductivity
 from torax._src.neoclassical.bootstrap_current.base import BootstrapCurrent
 from torax._src.neoclassical.config import NeoclassicalConfigBase
 from torax._src.neoclassical.neoclassical_intermediates import NeoclassicalIntermediates
@@ -26,7 +27,6 @@ from torax._src.neoclassical.neoclassical_model import NeoclassicalModel
 from torax._src.neoclassical.poloidal_velocity.base import PoloidalVelocity
 from torax._src.neoclassical.register_model import register_neoclassical_model
 from torax._src.neoclassical.runtime_params import RuntimeParams
-from torax._src.state import Conductivity
 from torax._src.transport_model.transport_coeffs import NeoclassicalTransport
 
 __all__ = [

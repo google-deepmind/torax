@@ -23,8 +23,8 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import build_runtime_params
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
@@ -802,7 +802,7 @@ class InitializationTest(parameterized.TestCase):
 def _get_initial_state(
     torax_config: config.ToraxConfig,
 ) -> tuple[
-    state.CoreProfiles,
+    core_profiles_lib.CoreProfiles,
     geometry.Geometry,
     _Currents,
 ]:

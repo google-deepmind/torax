@@ -33,8 +33,8 @@ import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import qualikiz_based_transport_model
@@ -89,7 +89,7 @@ class QualikizTransportModel(
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
@@ -247,7 +247,7 @@ class QualikizTransportModel(
       qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Extracts QuaLiKiz run data from runpath."""
@@ -282,7 +282,7 @@ def _extract_qualikiz_plan(
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
     transport: RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ) -> qualikiz_inputtools.QuaLiKizPlan:
   """Converts TORAX parameters to QuaLiKiz input JSON.
 

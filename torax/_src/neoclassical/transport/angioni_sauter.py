@@ -30,7 +30,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import sauter as sauter_formulas
@@ -98,7 +98,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       self,
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients.
@@ -162,7 +162,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 
 def _calculate_angioni_sauter_transport(
     geometry: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
@@ -633,7 +633,7 @@ def _calculate_Lmn(
     Kmn_e: array_typing.Array,
     Kmn_i: array_typing.Array,
     geo: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     log_lambda_ei: array_typing.FloatVectorFace,
     log_lambda_ii: array_typing.FloatVectorFace,
 ) -> tuple[array_typing.Array, array_typing.Array]:
@@ -740,7 +740,7 @@ def _calculate_Lmn(
 def _calculate_shaing_transport(
     runtime_params: RuntimeParams,
     geometry: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Shaing transport model.

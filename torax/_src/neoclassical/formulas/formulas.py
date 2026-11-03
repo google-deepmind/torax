@@ -65,14 +65,14 @@ class AnalyticalNeoclassicalIntermediates(
 
 def compute_neoclassical_intermediates(
     geo: geometry_lib.Geometry,
-    core_profiles: solver_profiles_lib.SolverProfiles,
+    solver_profiles: solver_profiles_lib.SolverProfiles,
     fast_ions: tuple[fast_ion_lib.FastIon, ...],
 ) -> AnalyticalNeoclassicalIntermediates:
   """Computes shared quantities for analytical neoclassical models.
 
   Args:
     geo: Magnetic geometry.
-    core_profiles: Base core plasma profiles.
+    solver_profiles: Base core plasma profiles.
     fast_ions: Tuple of fast ion populations.
 
   Returns:
@@ -81,41 +81,41 @@ def compute_neoclassical_intermediates(
   """
   f_trap = geo.trapped_fraction_face
   log_lambda_ei = collisions.calculate_log_lambda_ei(
-      core_profiles.kinetic.T_e.face_value(),
-      core_profiles.kinetic.n_e.face_value(),
+      solver_profiles.kinetic.T_e.face_value(),
+      solver_profiles.kinetic.n_e.face_value(),
   )
   log_lambda_ii = collisions.calculate_log_lambda_ii(
-      core_profiles.kinetic.T_i.face_value(),
-      core_profiles.kinetic.n_i.face_value(),
-      core_profiles.ions.Z_i_face,
+      solver_profiles.kinetic.T_i.face_value(),
+      solver_profiles.kinetic.n_i.face_value(),
+      solver_profiles.ions.Z_i_face,
   )
   nu_e_star = _calculate_nu_e_star(
-      q=core_profiles.poloidal_flux.q_face,
+      q=solver_profiles.poloidal_flux.q_face,
       geo=geo,
-      n_e=core_profiles.kinetic.n_e.face_value(),
-      T_e=core_profiles.kinetic.T_e.face_value(),
-      Z_eff=core_profiles.ions.Z_eff_face,
+      n_e=solver_profiles.kinetic.n_e.face_value(),
+      T_e=solver_profiles.kinetic.T_e.face_value(),
+      Z_eff=solver_profiles.ions.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
-  n_i_total_thermal_face = core_profiles.calculate_n_i_total_thermal_face(
+  n_i_total_thermal_face = solver_profiles.calculate_n_i_total_thermal_face(
       fast_ions
   )
   # Total thermal ion collisionality (main ions + impurities)
   nu_i_star = calculate_nu_i_star(
-      q=core_profiles.poloidal_flux.q_face,
+      q=solver_profiles.poloidal_flux.q_face,
       geo=geo,
       n_i=n_i_total_thermal_face,
-      T_i=core_profiles.kinetic.T_i.face_value(),
-      Z_i=core_profiles.ions.Z_i_face,
+      T_i=solver_profiles.kinetic.T_i.face_value(),
+      Z_i=solver_profiles.ions.Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
   # Main-ion-only collisionality
   nu_i_star_main_ion = calculate_nu_i_star(
-      q=core_profiles.poloidal_flux.q_face,
+      q=solver_profiles.poloidal_flux.q_face,
       geo=geo,
-      n_i=core_profiles.kinetic.n_i.face_value(),
-      T_i=core_profiles.kinetic.T_i.face_value(),
-      Z_i=core_profiles.ions.Z_i_face,
+      n_i=solver_profiles.kinetic.n_i.face_value(),
+      T_i=solver_profiles.kinetic.T_i.face_value(),
+      Z_i=solver_profiles.ions.Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
   k_neo = _calculate_neoclassical_k_neo(nu_i_star_main_ion, geo.epsilon_face)

@@ -24,9 +24,9 @@ import dataclasses
 from typing import ClassVar
 
 from jax import numpy as jnp
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -156,7 +156,7 @@ class SourceUsingCoreProfiles(SourceBase):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the model-based value and updated state for this source."""
@@ -165,7 +165,7 @@ class SourceUsingCoreProfiles(SourceBase):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the cell grid profile and updated state for this source."""
@@ -214,7 +214,7 @@ class FinalSource(SourceBase):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
@@ -224,7 +224,7 @@ class FinalSource(SourceBase):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:

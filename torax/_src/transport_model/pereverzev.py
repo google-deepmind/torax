@@ -24,8 +24,8 @@ diffusion equation with a stiff transport", Computer Physics Communications 179
 import jax
 import jax.numpy as jnp
 from torax._src import constants
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import transport_coeffs
@@ -59,7 +59,7 @@ def _midpoint_face_value(var: cell_variable.CellVariable) -> jax.Array:
 def calculate_pereverzev_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ) -> transport_coeffs.PereverzevTransport:
   """Calculates Pereverzev-Corrigan transport coefficients.
 

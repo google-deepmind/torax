@@ -24,9 +24,9 @@ import numpy as np
 from torax._src import constants
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
@@ -42,7 +42,7 @@ from torax._src.torax_pydantic import config
 
 @dataclasses.dataclass(frozen=True)
 class _CalcCoeffsInputs:
-  core_profiles: state.CoreProfiles
+  core_profiles: core_profiles_lib.CoreProfiles
   runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
   models: models_lib.Models
