@@ -264,6 +264,107 @@ class BaseCoreProfiles:
         right_face_grad_constraint=None,
     )
 
+  def calculate_n_impurity_thermal(
+      self,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
+  ) -> cell_variable.CellVariable:
+    """True thermal impurity density without fast ions [m^-3].
+
+    TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
+    are originally from thermal species. This needs to be updated when we
+    introduce other sources of fast ions that do not deplete thermal species
+    (e.g. fusion).
+
+    Args:
+      fast_ions: Tuple of fast ion populations.
+
+    Returns:
+      Thermal impurity density CellVariable.
+    """
+    n_impurity_thermal_value = self.kinetic.n_impurity.value
+    n_impurity_thermal_right = self.kinetic.n_impurity.right_face_constraint
+    for fast_ion in fast_ions:
+      if fast_ion.species in self.ions.impurity_fractions:
+        n_impurity_thermal_value = n_impurity_thermal_value - fast_ion.n.value
+        if (
+            n_impurity_thermal_right is not None
+            and fast_ion.n.right_face_constraint is not None
+        ):
+          n_impurity_thermal_right = (
+              n_impurity_thermal_right - fast_ion.n.right_face_constraint
+          )
+    return cell_variable.CellVariable(
+        value=n_impurity_thermal_value,
+        face_centers=self.kinetic.n_impurity.face_centers,
+        right_face_constraint=n_impurity_thermal_right,
+        right_face_grad_constraint=None,
+    )
+
+  def _n_i_total_thermal_face_from_impurity(
+      self,
+      n_impurity_thermal: cell_variable.CellVariable,
+  ) -> array_typing.FloatVectorFace:
+    return (
+        self.kinetic.n_i.face_value()
+        + n_impurity_thermal.face_value() * self.impurity_density_scaling_face
+    )
+
+  def calculate_n_i_total_thermal_face(
+      self,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
+  ) -> array_typing.FloatVectorFace:
+    """Total thermal ion particle density (main ions + impurities) [m^-3].
+
+    On the face grid. The bundled impurity density (charge Z_impurity =
+    <Z^2>/<Z>) is rescaled to the true impurity particle density with
+    `impurity_density_scaling_face` before being summed with the main ions.
+
+    Args:
+      fast_ions: Tuple of fast ion populations.
+
+    Returns:
+      Total thermal ion particle density on face grid.
+    """
+    return self._n_i_total_thermal_face_from_impurity(
+        self.calculate_n_impurity_thermal(fast_ions)
+    )
+
+  def _pressure_thermal_i_from_impurity(
+      self,
+      n_impurity_thermal: cell_variable.CellVariable,
+  ) -> cell_variable.CellVariable:
+    right_face_constraint = (
+        self.kinetic.T_i.get_right_bc()
+        * constants.CONSTANTS.keV_to_J
+        * (self.kinetic.n_i.get_right_bc() + n_impurity_thermal.get_right_bc())
+    )
+    return cell_variable.CellVariable(
+        value=(
+            self.kinetic.T_i.value
+            * constants.CONSTANTS.keV_to_J
+            * (self.kinetic.n_i.value + n_impurity_thermal.value)
+        ),
+        face_centers=self.kinetic.n_i.face_centers,
+        right_face_constraint=right_face_constraint,
+        right_face_grad_constraint=None,
+    )
+
+  def calculate_pressure_thermal_i(
+      self,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
+  ) -> cell_variable.CellVariable:
+    """Ion thermal pressure [Pa].
+
+    Args:
+      fast_ions: Tuple of fast ion populations.
+
+    Returns:
+      Ion thermal pressure CellVariable.
+    """
+    return self._pressure_thermal_i_from_impurity(
+        self.calculate_n_impurity_thermal(fast_ions)
+    )
+
   @jax.jit
   def quasineutrality_satisfied(self) -> jax.Array:
     """Checks if quasineutrality is satisfied."""
@@ -577,78 +678,24 @@ class CoreProfiles(BaseCoreProfiles):
 
   @functools.cached_property
   def n_impurity_thermal(self) -> cell_variable.CellVariable:
-    """True thermal impurity density without fast ions [m^-3].
-
-    TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
-    are originally from thermal species. This needs to be updated when we
-    introduce other sources of fast ions that do not deplete thermal species
-    (e.g. fusion).
-    """
-    n_impurity_thermal_value = self.kinetic.n_impurity.value
-    n_impurity_thermal_right = self.kinetic.n_impurity.right_face_constraint
-    for fast_ion in self.fast_ions:
-      if fast_ion.species in self.ions.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value
-        if (
-            n_impurity_thermal_right is not None
-            and fast_ion.n.right_face_constraint is not None
-        ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
-    return cell_variable.CellVariable(
-        value=n_impurity_thermal_value,
-        face_centers=self.kinetic.n_impurity.face_centers,
-        right_face_constraint=n_impurity_thermal_right,
-        right_face_grad_constraint=None,
-    )
+    """True thermal impurity density without fast ions [m^-3]."""
+    return self.calculate_n_impurity_thermal(self.fast_ions)
 
   @functools.cached_property
   def n_i_total_thermal_face(self) -> array_typing.FloatVectorFace:
-    """Total thermal ion particle density (main ions + impurities) [m^-3].
-
-    On the face grid. The bundled impurity density (charge Z_impurity =
-    <Z^2>/<Z>) is rescaled to the true impurity particle density with
-    `impurity_density_scaling_face` before being summed with the main ions.
-    """
-    return (
-        self.kinetic.n_i.face_value()
-        + self.n_impurity_thermal.face_value()
-        * self.impurity_density_scaling_face
-    )
+    """Total thermal ion particle density (main ions + impurities) [m^-3]."""
+    return self._n_i_total_thermal_face_from_impurity(self.n_impurity_thermal)
 
   @functools.cached_property
   def pressure_thermal_i(self) -> cell_variable.CellVariable:
     """Ion thermal pressure [Pa]."""
-    right_face_constraint = (
-        self.kinetic.T_i.get_right_bc()
-        * constants.CONSTANTS.keV_to_J
-        * (
-            self.kinetic.n_i.get_right_bc()
-            + self.n_impurity_thermal.get_right_bc()
-        )
-    )
-    return cell_variable.CellVariable(
-        value=(
-            self.kinetic.T_i.value
-            * constants.CONSTANTS.keV_to_J
-            * (self.kinetic.n_i.value + self.n_impurity_thermal.value)
-        ),
-        face_centers=self.kinetic.n_i.face_centers,
-        right_face_constraint=right_face_constraint,
-        right_face_grad_constraint=None,
-    )
+    return self._pressure_thermal_i_from_impurity(self.n_impurity_thermal)
 
   @functools.cached_property
   def pressure_thermal_total(self) -> cell_variable.CellVariable:
     """Total thermal pressure [Pa]."""
-    right_face_constraint = (
-        self.pressure_thermal_e.get_right_bc()
-        + self.pressure_thermal_i.get_right_bc()
-    )
-    return cell_variable.CellVariable(
-        value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
-        face_centers=self.pressure_thermal_e.face_centers,
-        right_face_constraint=right_face_constraint,
-        right_face_grad_constraint=None,
+    return cell_variable.add_cell_variables(
+        self.pressure_thermal_e, self.pressure_thermal_i
     )
 
   @functools.cached_property
@@ -690,29 +737,15 @@ class CoreProfiles(BaseCoreProfiles):
   @functools.cached_property
   def pressure_total_i(self) -> cell_variable.CellVariable:
     """Total ion pressure (thermal + fast) [Pa]."""
-    right_face_constraint = (
-        self.pressure_thermal_i.get_right_bc()
-        + self.pressure_fast_i.get_right_bc()
-    )
-    return cell_variable.CellVariable(
-        value=self.pressure_thermal_i.value + self.pressure_fast_i.value,
-        face_centers=self.pressure_thermal_i.face_centers,
-        right_face_constraint=right_face_constraint,
-        right_face_grad_constraint=None,
+    return cell_variable.add_cell_variables(
+        self.pressure_thermal_i, self.pressure_fast_i
     )
 
   @functools.cached_property
   def pressure_total(self) -> cell_variable.CellVariable:
     """Total pressure (thermal + fast) [Pa]."""
-    right_face_constraint = (
-        self.pressure_thermal_total.get_right_bc()
-        + self.pressure_fast_i.get_right_bc()
-    )
-    return cell_variable.CellVariable(
-        value=self.pressure_thermal_total.value + self.pressure_fast_i.value,
-        face_centers=self.pressure_thermal_total.face_centers,
-        right_face_constraint=right_face_constraint,
-        right_face_grad_constraint=None,
+    return cell_variable.add_cell_variables(
+        self.pressure_thermal_total, self.pressure_fast_i
     )
 
   def to_output_dict(

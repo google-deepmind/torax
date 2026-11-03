@@ -21,20 +21,21 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import updaters
+from torax._src.core_profiles import convertors
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.internal_boundary_conditions import builder as ibc_builder
 from torax._src.orchestration import (
     explicit_model_outputs as explicit_model_outputs_lib,
 )
 from torax._src.orchestration import sim_state
+from torax._src.orchestration import state_evaluation
 from torax._src.output_tools import post_processing
+from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
-from torax._src.transport_model import transport_coefficients_builder
 
 # pylint: disable=invalid-name
 
@@ -158,80 +159,49 @@ def finalize_outputs(
     model_state_t: model_state_lib.ModelState,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
-  explicit_source_outputs = explicit_model_outputs.sources
-  (
-      final_core_profiles,
-      final_source_profiles,
-      final_source_states,
-      neoclassical_intermediates,
-  ) = updaters.update_core_and_source_profiles_after_step(
-      dt=dt,
-      x_new=x_new,
-      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-      geo=geometry_t_plus_dt,
-      core_profiles_t=core_profiles_t,
-      solver_state_t_plus_dt=solver_state_t_plus_dt,
-      explicit_source_outputs=explicit_source_outputs,
-      source_models=models.source_models,
-      neoclassical_model=models.neoclassical_model,
-      evolving_names=evolving_names,
-      source_states=model_state_t.sources,
+  updated_solver_state = convertors.solver_x_tuple_to_solver_state(
+      x_new,
+      evolving_names,
+      solver_state_t_plus_dt,
   )
-  final_pedestal_output, final_pedestal_state = models.pedestal_model(
+  time_reduction_factor = (
+      runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
+  )
+  profile_conditions = runtime_params_t_plus_dt.profile_conditions
+  match profile_conditions.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      v_loop_lcfs = psi_calculations.calculate_v_loop_lcfs_from_psi(
+          core_profiles_t.flux.psi,
+          updated_solver_state.psi,
+          dt,
+          current_diffusion_time_reduction_factor=time_reduction_factor,
+      )
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      v_loop_lcfs = profile_conditions.v_loop_lcfs
+    case _:
+      raise ValueError(
+          f'Unknown psi_bc_source: {profile_conditions.psi_bc_source}'
+      )
+  evaluated_state, final_model_state = state_evaluation.evaluate_state(
       runtime_params=runtime_params_t_plus_dt,
       geo=geometry_t_plus_dt,
-      core_profiles=final_core_profiles,
-      source_profiles=final_source_profiles,
-      pedestal_state=model_state_t.pedestal,
-      explicit_pedestal_structure=explicit_model_outputs.pedestal,
-  )
-  final_neoclassical_transport = models.neoclassical_model.calculate_transport(
-      runtime_params_t_plus_dt,
-      geometry_t_plus_dt,
-      final_core_profiles,
-      neoclassical_intermediates,
-  )
-  internal_boundary_conditions = (
-      ibc_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params_t_plus_dt,
-          geo=geometry_t_plus_dt,
-          core_profiles=final_core_profiles,
-          pedestal_model_output=final_pedestal_output,
-          internal_boundary_condition_model=(
-              models.internal_boundary_condition_model
-          ),
-          source_profiles=final_source_profiles,
-      )
-  )
-  final_total_transport, final_transport_state = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
-          runtime_params=runtime_params_t_plus_dt,
-          geo=geometry_t_plus_dt,
-          core_profiles=final_core_profiles,
-          pedestal_model_output=final_pedestal_output,
-          transport_state=model_state_t.transport,
-          neoclassical_transport=final_neoclassical_transport,
-          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
-              geometry_t_plus_dt
-          ),
-      )
-  )
-  final_model_state = model_state_lib.ModelState(
-      pedestal=final_pedestal_state,
-      transport=final_transport_state,
-      sources=final_source_states,
+      solver_state=updated_solver_state,
+      models=models,
+      explicit_model_outputs=explicit_model_outputs,
+      model_state=model_state_t,
+      v_loop_lcfs=v_loop_lcfs,
+      use_pereverzev=False,
   )
   output_state = sim_state.SimState(
       t=t + dt,
       dt=dt,
-      core_profiles=final_core_profiles,
-      core_sources=final_source_profiles,
-      core_transport=final_total_transport,
+      core_profiles=evaluated_state.core_profiles,
+      core_sources=evaluated_state.core_sources,
+      core_transport=evaluated_state.core_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
       edge_outputs=edge_outputs,
-      pedestal_output=final_pedestal_output,
+      pedestal_output=evaluated_state.pedestal_output,
       model_state=final_model_state,
       time_step_calculator_state=time_step_calculator_state_t,
   )

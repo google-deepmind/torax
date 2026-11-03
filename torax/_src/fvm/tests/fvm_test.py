@@ -245,7 +245,9 @@ class FVMTest(parameterized.TestCase):
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=sim_state.geometry,
-        core_profiles=sim_state.core_profiles,
+        solver_state=state.SolverState.from_core_profiles(
+            sim_state.core_profiles
+        ),
         models=step_fn.solver.models,
         explicit_model_outputs=explicit_model_outputs,
         evolving_names=evolving_names,

@@ -409,3 +409,84 @@ class CellVariable:
         [left_value, self.value, right_value],
         axis=-1,
     )
+
+
+def add_cell_variables(
+    a: CellVariable,
+    b: CellVariable,
+) -> CellVariable:
+  """Sums two CellVariables with matching boundary constraint types.
+
+  Args:
+    a: First CellVariable on the mesh.
+    b: Second CellVariable on the same mesh.
+
+  Returns:
+    A CellVariable whose cell values and active boundary constraints are the
+    elementwise sum of `a` and `b`.
+
+  Raises:
+    ValueError: If `a` and `b` do not configure the same left or right
+      boundary constraint type (value vs. gradient).
+  """
+  if a.left_face_constraint is not None and b.left_face_constraint is not None:
+    left_face_constraint = a.left_face_constraint + b.left_face_constraint
+    left_face_grad_constraint = None
+  elif (
+      a.left_face_grad_constraint is not None
+      and b.left_face_grad_constraint is not None
+  ):
+    left_face_grad_constraint = (
+        a.left_face_grad_constraint + b.left_face_grad_constraint
+    )
+    left_face_constraint = None
+  elif (
+      a.left_face_constraint is None
+      and b.left_face_constraint is None
+      and a.left_face_grad_constraint is None
+      and b.left_face_grad_constraint is None
+  ):
+    left_face_constraint = None
+    left_face_grad_constraint = None
+  else:
+    raise ValueError(
+        'Cannot add CellVariables with mismatched left boundary constraint'
+        ' types.'
+    )
+
+  if (
+      a.right_face_constraint is not None
+      and b.right_face_constraint is not None
+  ):
+    right_face_constraint = a.right_face_constraint + b.right_face_constraint
+    right_face_grad_constraint = None
+  elif (
+      a.right_face_grad_constraint is not None
+      and b.right_face_grad_constraint is not None
+  ):
+    right_face_grad_constraint = (
+        a.right_face_grad_constraint + b.right_face_grad_constraint
+    )
+    right_face_constraint = None
+  elif (
+      a.right_face_constraint is None
+      and b.right_face_constraint is None
+      and a.right_face_grad_constraint is None
+      and b.right_face_grad_constraint is None
+  ):
+    right_face_constraint = None
+    right_face_grad_constraint = None
+  else:
+    raise ValueError(
+        'Cannot add CellVariables with mismatched right boundary constraint'
+        ' types.'
+    )
+
+  return CellVariable(
+      value=a.value + b.value,
+      face_centers=a.face_centers,
+      left_face_constraint=left_face_constraint,
+      left_face_grad_constraint=left_face_grad_constraint,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=right_face_grad_constraint,
+  )

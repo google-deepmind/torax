@@ -647,6 +647,165 @@ class CellVariableTest(parameterized.TestCase):
     np.testing.assert_allclose(grad_multi[2], grad_standard[2])
     np.testing.assert_allclose(grad_multi[4], grad_standard[4])
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='neumann_left_dirichlet_right',
+          left_constraint_type='grad',
+          left_a=0.0,
+          left_b=1.5,
+          right_constraint_type='val',
+          right_a=2.0,
+          right_b=3.0,
+          expected_left_grad=1.5,
+          expected_right=5.0,
+      ),
+      dict(
+          testcase_name='dirichlet_left_neumann_right',
+          left_constraint_type='val',
+          left_a=1.0,
+          left_b=4.0,
+          right_constraint_type='grad',
+          right_a=-0.5,
+          right_b=2.5,
+          expected_left=5.0,
+          expected_right_grad=2.0,
+      ),
+  )
+  def test_add_cell_variables_sums_values_and_matching_constraints(
+      self,
+      left_constraint_type,
+      left_a,
+      left_b,
+      right_constraint_type,
+      right_a,
+      right_b,
+      expected_left=None,
+      expected_left_grad=None,
+      expected_right=None,
+      expected_right_grad=None,
+  ):
+    face_centers = _make_face_centers(0.1, 4)
+    if left_constraint_type == 'grad':
+      left_a_kwargs = {
+          'left_face_grad_constraint': jnp.array(left_a),
+          'left_face_constraint': None,
+      }
+      left_b_kwargs = {
+          'left_face_grad_constraint': jnp.array(left_b),
+          'left_face_constraint': None,
+      }
+    else:
+      left_a_kwargs = {
+          'left_face_constraint': jnp.array(left_a),
+          'left_face_grad_constraint': None,
+      }
+      left_b_kwargs = {
+          'left_face_constraint': jnp.array(left_b),
+          'left_face_grad_constraint': None,
+      }
+
+    if right_constraint_type == 'grad':
+      right_a_kwargs = {
+          'right_face_grad_constraint': jnp.array(right_a),
+          'right_face_constraint': None,
+      }
+      right_b_kwargs = {
+          'right_face_grad_constraint': jnp.array(right_b),
+          'right_face_constraint': None,
+      }
+    else:
+      right_a_kwargs = {
+          'right_face_constraint': jnp.array(right_a),
+          'right_face_grad_constraint': None,
+      }
+      right_b_kwargs = {
+          'right_face_constraint': jnp.array(right_b),
+          'right_face_grad_constraint': None,
+      }
+    var_a = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        face_centers=face_centers,
+        **left_a_kwargs,
+        **right_a_kwargs,
+    )
+    var_b = cell_variable.CellVariable(
+        value=jnp.array([10.0, 20.0, 30.0, 40.0]),
+        face_centers=face_centers,
+        **left_b_kwargs,
+        **right_b_kwargs,
+    )
+    res = cell_variable.add_cell_variables(var_a, var_b)
+    np.testing.assert_allclose(res.value, jnp.array([11.0, 22.0, 33.0, 44.0]))
+    if expected_left is not None:
+      self.assertIsNotNone(res.left_face_constraint)
+      self.assertIsNone(res.left_face_grad_constraint)
+      np.testing.assert_allclose(res.left_face_constraint, expected_left)
+    if expected_left_grad is not None:
+      self.assertIsNotNone(res.left_face_grad_constraint)
+      self.assertIsNone(res.left_face_constraint)
+      np.testing.assert_allclose(
+          res.left_face_grad_constraint, expected_left_grad
+      )
+    if expected_right is not None:
+      self.assertIsNotNone(res.right_face_constraint)
+      self.assertIsNone(res.right_face_grad_constraint)
+      np.testing.assert_allclose(res.right_face_constraint, expected_right)
+    if expected_right_grad is not None:
+      self.assertIsNotNone(res.right_face_grad_constraint)
+      self.assertIsNone(res.right_face_constraint)
+      np.testing.assert_allclose(
+          res.right_face_grad_constraint, expected_right_grad
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='mismatched_left',
+          left_a_type='val',
+          left_b_type='grad',
+          right_a_type='val',
+          right_b_type='val',
+          match_regex='left boundary constraint',
+      ),
+      dict(
+          testcase_name='mismatched_right',
+          left_a_type='grad',
+          left_b_type='grad',
+          right_a_type='val',
+          right_b_type='grad',
+          match_regex='right boundary constraint',
+      ),
+  )
+  def test_add_cell_variables_mismatched_constraints_raises(
+      self, left_a_type, left_b_type, right_a_type, right_b_type, match_regex
+  ):
+    face_centers = _make_face_centers(0.1, 4)
+    var_a = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        face_centers=face_centers,
+        left_face_constraint=jnp.array(1.0) if left_a_type == 'val' else None,
+        left_face_grad_constraint=(
+            jnp.array(0.0) if left_a_type == 'grad' else None
+        ),
+        right_face_constraint=jnp.array(1.0) if right_a_type == 'val' else None,
+        right_face_grad_constraint=(
+            jnp.array(0.0) if right_a_type == 'grad' else None
+        ),
+    )
+    var_b = cell_variable.CellVariable(
+        value=jnp.array([10.0, 20.0, 30.0, 40.0]),
+        face_centers=face_centers,
+        left_face_constraint=jnp.array(1.0) if left_b_type == 'val' else None,
+        left_face_grad_constraint=(
+            jnp.array(0.0) if left_b_type == 'grad' else None
+        ),
+        right_face_constraint=jnp.array(1.0) if right_b_type == 'val' else None,
+        right_face_grad_constraint=(
+            jnp.array(0.0) if right_b_type == 'grad' else None
+        ),
+    )
+    with self.assertRaisesRegex(ValueError, match_regex):
+      cell_variable.add_cell_variables(var_a, var_b)
+
 
 if __name__ == '__main__':
   absltest.main()

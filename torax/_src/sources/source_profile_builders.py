@@ -145,17 +145,6 @@ def _evaluate_final_sources(
     )
 
 
-# TODO(b/572586768): Remove once legacy callers migrate to physics_pipeline.
-def build_all_zero_profiles(
-    geo: geometry.Geometry,
-) -> source_profiles.SourceProfiles:
-  """Returns a SourceProfiles object with all zero profiles."""
-  return source_profiles.SourceProfiles(
-      bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
-      qei=source_profiles.QeiInfo.zeros(geo),
-  )
-
-
 def evaluate_basic_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,

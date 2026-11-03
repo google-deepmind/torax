@@ -130,6 +130,14 @@ class SourceProfiles:
       default_factory=dict
   )
 
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> Self:
+    """Returns a SourceProfiles object with all zero profiles."""
+    return cls(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
+        qei=QeiInfo.zeros(geo),
+    )
+
   def total_psi_sources(self, geo: geometry.Geometry) -> array_typing.Array:
     """Returns the total psi sources."""
     # All psi sources are assumed to be parallel to the magnetic field, ie

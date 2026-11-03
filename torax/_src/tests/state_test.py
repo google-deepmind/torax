@@ -487,6 +487,30 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         core_profiles.pressure_thermal_i.value,
         2.7e20 * constants.CONSTANTS.keV_to_J,
     )
+    np.testing.assert_allclose(
+        core_profiles.pressure_thermal_total.value,
+        8.7e20 * constants.CONSTANTS.keV_to_J,
+    )
+    np.testing.assert_allclose(
+        core_profiles.pressure_thermal_total.get_right_bc(),
+        8.7e20 * constants.CONSTANTS.keV_to_J,
+    )
+    np.testing.assert_allclose(
+        core_profiles.pressure_total_i.value,
+        7.7e20 * constants.CONSTANTS.keV_to_J,
+    )
+    np.testing.assert_allclose(
+        core_profiles.pressure_total_i.get_right_bc(),
+        7.7e20 * constants.CONSTANTS.keV_to_J,
+    )
+    np.testing.assert_allclose(
+        core_profiles.pressure_total.value,
+        13.7e20 * constants.CONSTANTS.keV_to_J,
+    )
+    np.testing.assert_allclose(
+        core_profiles.pressure_total.get_right_bc(),
+        13.7e20 * constants.CONSTANTS.keV_to_J,
+    )
 
   def test_cached_properties_with_jit(self):
     """Tests cached properties behave correctly within a jitted function."""
