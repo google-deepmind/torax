@@ -188,7 +188,6 @@ class CollisionsTest(parameterized.TestCase):
         j_toroidal_total=jnp.zeros(1),
         j_toroidal_total_face=jnp.zeros(2),
         I_p_profile_face=jnp.zeros(2),
-        v_loop_lcfs=jnp.array(0.0),
     )
     core_profiles = solver_profiles.SolverProfiles(
         kinetic=kinetic,

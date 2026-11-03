@@ -21,7 +21,6 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
@@ -52,6 +51,7 @@ def initial_solver_state(
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_states: Mapping[str, source_state_lib.SourceState],
+    psidot_right_face_grad_constraint: array_typing.FloatScalar | None = None,
 ) -> solver_state_lib.SolverState:
   """Calculates the initial SolverState.
 
@@ -61,6 +61,10 @@ def initial_solver_state(
     source_models: All models for TORAX sources/sinks.
     neoclassical_model: The neoclassical model.
     source_states: Initial source states mapping.
+    psidot_right_face_grad_constraint: Optional right-face radial gradient
+      constraint on psidot [Wb/s] (e.g. reconstructed from a restart file under
+      I_p boundary conditions). On a fresh start at t=t_initial without a prior
+      time step, this is None (defaulting to 0.0 in `calculate_psidot`).
 
   Returns:
     Initial SolverState.
@@ -94,6 +98,7 @@ def initial_solver_state(
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
 
 
@@ -257,26 +262,12 @@ def _iterate_psi_and_sources(
     iterations: int,
 ) -> cell_variable.CellVariable:
   """Iterates psi and sources to converge to a consistent state."""
-  match runtime_params.profile_conditions.psi_bc_source:
-    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
-      v_loop_lcfs = jnp.asarray(0.0, dtype=jax_utils.get_dtype())
-    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
-      v_loop_lcfs = jnp.asarray(
-          runtime_params.profile_conditions.v_loop_lcfs,
-          dtype=jax_utils.get_dtype(),
-      )
-    case _:
-      raise ValueError(
-          'Unknown psi_bc_source:'
-          f' {runtime_params.profile_conditions.psi_bc_source}'
-      )
   source_states_i = source_states
   for _ in range(iterations):
     base_profiles = solver_profiles_lib.SolverProfiles.from_solver_state(
         runtime_params=runtime_params,
         geo=geo,
         solver_state=solver_state,
-        v_loop_lcfs=v_loop_lcfs,
     )
     basic_source_outputs, source_states_i = (
         source_profile_builders.evaluate_basic_sources(

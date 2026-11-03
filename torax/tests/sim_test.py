@@ -532,7 +532,7 @@ class SimTest(sim_test_case.SimTestCase):
     config_dict_v_loop_bc['profile_conditions']['psi_bc_source'] = 'v_loop'
     config_dict_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
-        sim_outputs_ip_bc._core_profiles.poloidal_flux.v_loop_lcfs,
+        sim_outputs_ip_bc._core_profiles.v_loop_lcfs,
     )
     torax_config = config.ToraxConfig.from_dict(config_dict_v_loop_bc)
     sim_outputs_v_loop_bc = run_simulation.run_simulation(
@@ -631,13 +631,15 @@ class SimTest(sim_test_case.SimTestCase):
         test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
 
-    # Compare Runs 1 and 3 - v_loop (cell grid) should be identical
-    # We ignore the v_loop_lcfs since it does not impact cell-grid Ohmic power,
-    # and it is correct that v_loop_lcfs is different between psi-evolving and
-    # psi-fixed simulations.
+    # Compare Runs 1 and 3 - full v_loop profile and v_loop_lcfs should match.
     np.testing.assert_allclose(
-        ref_output_xr.profiles.v_loop.values[:, :-1],
-        test_output_xr_same.profiles.v_loop.values[:, :-1],
+        ref_output_xr.profiles.v_loop.values,
+        test_output_xr_same.profiles.v_loop.values,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        ref_output_xr.scalars.v_loop_lcfs.values,
+        test_output_xr_same.scalars.v_loop_lcfs.values,
         rtol=1e-6,
     )
 

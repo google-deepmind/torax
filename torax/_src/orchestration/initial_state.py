@@ -18,6 +18,7 @@ import dataclasses
 from absl import logging
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -101,6 +102,7 @@ def _get_initial_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
+    psidot_right_face_grad_constraint: array_typing.FloatScalar | None = None,
 ) -> sim_state.SimState:
   """Returns the initial state to be used by run_simulation()."""
   models = step_fn.solver.models
@@ -110,6 +112,7 @@ def _get_initial_state(
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
       source_states=models.source_models.initial_state(runtime_params),
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
   evaluated_state, initial_model_state = (
       state_evaluation.evaluate_initial_state(
@@ -214,21 +217,46 @@ def get_initial_state_and_post_processed_outputs_from_file(
           is_initialization=True,
       )
   )
+  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
+  scalars_dataset = scalars_dataset.squeeze()
   runtime_params_for_init, geo_for_init = (
       _override_initial_runtime_params_from_file(
           runtime_params_for_init,
           geo_for_init,
           t_restart,
           profiles_dataset,
+          scalars_dataset,
       )
   )
+  if (
+      runtime_params_for_init.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.I_P
+  ):
+    v_loop_last_cell = (
+        profiles_dataset.data_vars[output_keys.V_LOOP]
+        .sel(rho_norm=profiles_dataset.coords[output_keys.RHO_CELL_NORM][-1])
+        .to_numpy()
+    )
+    d_right = (
+        profiles_dataset.coords[output_keys.RHO_FACE_NORM][-1]
+        - profiles_dataset.coords[output_keys.RHO_CELL_NORM][-1]
+    ).to_numpy()
+    psidot_right_face_grad_constraint = jnp.asarray(
+        (
+            scalars_dataset.data_vars[output_keys.V_LOOP_LCFS].to_numpy()
+            - v_loop_last_cell
+        )
+        / d_right,
+        dtype=jax_utils.get_dtype(),
+    )
+  else:
+    psidot_right_face_grad_constraint = None
   initial_state = _get_initial_state(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
-  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
-  scalars_dataset = scalars_dataset.squeeze()
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=initial_state,
       runtime_params=runtime_params_for_init,
@@ -254,13 +282,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
       dW_thermal_e_dt_smoothed=scalars_dataset.data_vars[
           'dW_thermal_e_dt_smoothed'
       ].to_numpy(),
-  )
-  core_profiles = dataclasses.replace(
-      initial_state.core_profiles,
-      poloidal_flux=dataclasses.replace(
-          initial_state.core_profiles.poloidal_flux,
-          v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
-      ),
   )
   pedestal_state = initial_state.model_state.pedestal
   # TODO(b/434175938): Have model states reconstruct themselves from restart
@@ -304,7 +325,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
   return (
       dataclasses.replace(
           initial_state,
-          core_profiles=core_profiles,
           model_state=model_state,
           solver_numeric_outputs=state.SolverNumericOutputs(
               sawtooth_crash=sawtooth_crash,
@@ -326,6 +346,7 @@ def _override_initial_runtime_params_from_file(
     geo: geometry.Geometry,
     t_restart: float,
     profiles_ds: xr.Dataset,
+    scalars_ds: xr.Dataset,
 ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
@@ -343,6 +364,9 @@ def _override_initial_runtime_params_from_file(
   runtime_params.profile_conditions.I_p = profiles_ds.data_vars[
       output_keys.I_P_PROFILE
   ].to_numpy()[-1]
+  runtime_params.profile_conditions.v_loop_lcfs = scalars_ds.data_vars[
+      output_keys.V_LOOP_LCFS
+  ].to_numpy()
   runtime_params.profile_conditions.T_e = (
       profiles_ds.data_vars[output_keys.T_E]
       .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])

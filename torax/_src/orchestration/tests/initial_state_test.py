@@ -14,6 +14,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
+import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.orchestration import initial_state
@@ -64,6 +66,18 @@ class InitialStateTest(sim_test_case.SimTestCase):
     self.assertNotEqual(result.t, non_restart.t)
     assert torax_config.restart is not None
     self.assertEqual(result.t, torax_config.restart.time)
+    self.assertIsInstance(
+        result.core_profiles.v_loop_lcfs, jax.Array
+    )
+    np.testing.assert_allclose(
+        result.core_profiles.v_loop_lcfs,
+        result.core_profiles.psidot.face_value()[-1],
+        rtol=1e-6,
+    )
+    assert result.core_profiles.psidot.right_face_grad_constraint is not None
+    self.assertNotEqual(
+        float(result.core_profiles.psidot.right_face_grad_constraint), 0.0
+    )
 
   @parameterized.parameters(
       'test_psi_heat_dens',
