@@ -262,16 +262,16 @@ class QuasilinearUtilsTest(parameterized.TestCase):
         instance=True,
         fast_ions=(fast_ion_zero,),
     )
-    core_profiles_zero.n_e = self._make_face_cv(n_e)
-    core_profiles_zero.T_e = self._make_face_cv(T_e)
+    core_profiles_zero.kinetic.n_e = self._make_face_cv(n_e)
+    core_profiles_zero.kinetic.T_e = self._make_face_cv(T_e)
 
     core_profiles_nonzero = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
         fast_ions=(fast_ion_nonzero,),
     )
-    core_profiles_nonzero.n_e = self._make_face_cv(n_e)
-    core_profiles_nonzero.T_e = self._make_face_cv(T_e)
+    core_profiles_nonzero.kinetic.n_e = self._make_face_cv(n_e)
+    core_profiles_nonzero.kinetic.T_e = self._make_face_cv(T_e)
 
     gradients_base = quasilinear_utils.NormalizedLogarithmicGradients(
         lref_over_lti=lref_over_lti,
@@ -352,8 +352,8 @@ class QuasilinearUtilsTest(parameterized.TestCase):
         instance=True,
         fast_ions=(fast_ion_he3, fast_ion_h),
     )
-    core_profiles.n_e = self._make_face_cv(n_e)
-    core_profiles.T_e = self._make_face_cv(T_e)
+    core_profiles.kinetic.n_e = self._make_face_cv(n_e)
+    core_profiles.kinetic.T_e = self._make_face_cv(T_e)
 
     gradients = quasilinear_utils.NormalizedLogarithmicGradients(
         lref_over_lti=jnp.zeros(n_rho),
@@ -408,8 +408,8 @@ class QuasilinearUtilsTest(parameterized.TestCase):
         instance=True,
         fast_ions=(fast_ion_he4,),
     )
-    core_profiles.n_e = self._make_face_cv(n_e)
-    core_profiles.T_e = self._make_face_cv(T_e)
+    core_profiles.kinetic.n_e = self._make_face_cv(n_e)
+    core_profiles.kinetic.T_e = self._make_face_cv(T_e)
 
     gradients = quasilinear_utils.NormalizedLogarithmicGradients(
         lref_over_lti=jnp.zeros(n_rho),
