@@ -52,6 +52,8 @@ CONFIG = {
         },
         'pellet': {
             'S_total': 1.0e22,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
         },
         'generic_current': {},
     },

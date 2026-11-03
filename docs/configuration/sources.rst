@@ -425,11 +425,14 @@ implemented in TORAX.
 
 ``mode`` (str [default = 'model'])
 
-``pellet_deposition_location`` (**time-varying-scalar** [default = 0.85])
-  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+``pellet_deposition_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``pellet_width`` (**time-varying-scalar** [default = 0.1])
-  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+``pellet_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``S_total`` (**time-varying-scalar** [default = 2e22])
-  Total particle source in units of particles/s
+``S_total`` (**time-varying-scalar** [default = None])
+  Total particle source in units of particles/s. Required when
+  ``mode == 'model_based'``.

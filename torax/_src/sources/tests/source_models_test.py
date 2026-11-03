@@ -86,7 +86,11 @@ class SourceModelsTest(parameterized.TestCase):
         'minority_species': 'He3',
         'P_total': 10e6,
     }
-    sources_dict['pellet'] = {}
+    sources_dict['pellet'] = {
+        'S_total': 1e22,
+        'pellet_width': 0.1,
+        'pellet_deposition_location': 0.85,
+    }
     sources_dict['impurity_radiation'] = {
         'model_name': 'P_in_scaled_flat_profile',
         'fraction_P_heating': 0.1,
@@ -120,7 +124,11 @@ class SourceModelsTest(parameterized.TestCase):
         'minority_species': 'He3',
         'P_total': 10e6,
     }
-    sources_dict['pellet'] = {}
+    sources_dict['pellet'] = {
+        'S_total': 1e22,
+        'pellet_width': 0.1,
+        'pellet_deposition_location': 0.85,
+    }
     sources_dict['impurity_radiation'] = {
         'model_name': 'P_in_scaled_flat_profile',
         'fraction_P_heating': 0.1,

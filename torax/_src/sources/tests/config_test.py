@@ -335,6 +335,10 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=2e22,
           updated_value=3e22,
+          extra_fields={
+              'pellet_width': 0.1,
+              'pellet_deposition_location': 0.85,
+          },
       ),
   )
   def test_sources_under_jit(
@@ -418,6 +422,12 @@ class SourcesConfigTest(parameterized.TestCase):
               "fraction_P_heating must be provided when mode is 'model_based'"
           ),
       ),
+      dict(
+          testcase_name='pellet',
+          source_name='pellet',
+          source_kwargs={},
+          expected_error="S_total must be provided when mode is 'model_based'",
+      ),
   )
   def test_missing_amplitude_raises_in_model_based_mode(
       self,
@@ -459,6 +469,12 @@ class SourcesConfigTest(parameterized.TestCase):
           source_name='impurity_radiation',
           source_kwargs={'model_name': 'P_in_scaled_flat_profile'},
           zero_fields=('fraction_P_heating',),
+      ),
+      dict(
+          testcase_name='pellet',
+          source_name='pellet',
+          source_kwargs={},
+          zero_fields=('S_total',),
       ),
   )
   def test_missing_amplitude_allowed_in_zero_and_prescribed_modes(
@@ -510,6 +526,26 @@ class SourcesConfigTest(parameterized.TestCase):
           source_kwargs={'S_total': 1e22},
           expected_error=(
               "puff_decay_length must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='pellet_missing_width',
+          source_name='pellet',
+          source_kwargs={
+              'S_total': 2e22,
+              'pellet_deposition_location': 0.85,
+          },
+          expected_error=(
+              "pellet_width must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='pellet_missing_location',
+          source_name='pellet',
+          source_kwargs={'S_total': 2e22, 'pellet_width': 0.1},
+          expected_error=(
+              'pellet_deposition_location must be provided when mode is'
+              " 'model_based'"
           ),
       ),
   )

@@ -13,9 +13,11 @@
 # limitations under the License.
 """Pellet source for the n_e equation."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
+
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
@@ -68,6 +70,14 @@ class PelletSource(source.Source):
     del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.pellet_width is None:
+      raise ValueError('PelletSource requires `pellet_width` to be set.')
+    if source_params.pellet_deposition_location is None:
+      raise ValueError(
+          'PelletSource requires `pellet_deposition_location` to be set.'
+      )
+    if source_params.S_total is None:
+      raise ValueError('PelletSource requires `S_total` to be set.')
     profile = formulas.gaussian_profile(
         center=source_params.pellet_deposition_location,
         width=source_params.pellet_width,
@@ -80,19 +90,20 @@ class PelletSource(source.Source):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
-  pellet_width: array_typing.FloatScalar
-  pellet_deposition_location: array_typing.FloatScalar
-  S_total: array_typing.FloatScalar
+  pellet_width: array_typing.FloatScalar | None
+  pellet_deposition_location: array_typing.FloatScalar | None
+  S_total: array_typing.FloatScalar | None
 
 
 class PelletSourceConfig(base.SourceConfigBase):
   """Pellet source for the n_e equation.
 
   Attributes:
-    pellet_width: Gaussian width of pellet deposition [normalized radial coord]
+    pellet_width: Gaussian width of pellet deposition [normalized radial coord].
+      Required when mode is 'model_based'.
     pellet_deposition_location: Gaussian center of pellet deposition [normalized
-      radial coord]
-    S_total: total pellet particles/s
+      radial coord]. Required when mode is 'model_based'.
+    S_total: total pellet particles/s. Required when mode is 'model_based'.
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
@@ -100,15 +111,27 @@ class PelletSourceConfig(base.SourceConfigBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  pellet_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.1)
-  )
-  pellet_deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.85)
-  )
-  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      2e22
-  )
+  pellet_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  pellet_deposition_location: (
+      torax_pydantic.UnitIntervalTimeVaryingScalar | None
+  ) = None
+  S_total: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.S_total is None:
+        raise ValueError("S_total must be provided when mode is 'model_based'.")
+      if self.pellet_width is None:
+        raise ValueError(
+            "pellet_width must be provided when mode is 'model_based'."
+        )
+      if self.pellet_deposition_location is None:
+        raise ValueError(
+            'pellet_deposition_location must be provided when mode is'
+            " 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -117,9 +140,17 @@ class PelletSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        pellet_width=self.pellet_width.get_value(t),
-        pellet_deposition_location=self.pellet_deposition_location.get_value(t),
-        S_total=self.S_total.get_value(t),
+        pellet_width=(
+            None
+            if self.pellet_width is None
+            else self.pellet_width.get_value(t)
+        ),
+        pellet_deposition_location=(
+            None
+            if self.pellet_deposition_location is None
+            else self.pellet_deposition_location.get_value(t)
+        ),
+        S_total=(None if self.S_total is None else self.S_total.get_value(t)),
     )
 
   def build_source(self) -> PelletSource:
