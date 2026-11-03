@@ -97,6 +97,7 @@ class ConstantGeometryProvider(GeometryProvider):
   geo: geometry.Geometry
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
+    """Returns the constant `Geometry` instance regardless of time `t`."""
     # The API includes time as an arg even though it is unused in order
     # to match the API of a GeometryProvider.
     del t  # Ignored.
@@ -104,6 +105,7 @@ class ConstantGeometryProvider(GeometryProvider):
 
   @property
   def torax_mesh(self) -> torax_pydantic.Grid1D:
+    """Returns the radial mesh used by TORAX."""
     return self.geo.torax_mesh
 
 
@@ -166,7 +168,21 @@ class TimeDependentGeometryProvider:
       geometries: Mapping[float, geometry.Geometry],
       calc_Phi_b_dot: bool,
   ) -> Self:
-    """Creates a GeometryProvider from a mapping of times to geometries."""
+    """Creates a GeometryProvider from a mapping of times to geometries.
+
+    Args:
+      geometries: Mapping from time [s] to `Geometry` instances.
+      calc_Phi_b_dot: Whether to calculate the time derivative of the boundary
+        toroidal flux (`Phi_b_dot`).
+
+    Returns:
+      A `TimeDependentGeometryProvider` instance that interpolates between the
+      given geometries.
+
+    Raises:
+      ValueError: If the geometries do not all share the same `geometry_type`
+        and `torax_mesh`.
+    """
     # Create a list of times and geometries.
     times = np.asarray(list(geometries.keys()), dtype=jax_utils.get_np_dtype())
     geos = list(geometries.values())
@@ -240,7 +256,7 @@ class TimeDependentGeometryProvider:
     return geometry_class(**kwargs)  # pyrefly: ignore[missing-argument]
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
-    """Returns a Geometry instance at the given time."""
+    """Returns an interpolated `Geometry` instance at time `t`."""
     chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, geometry.Geometry)
 

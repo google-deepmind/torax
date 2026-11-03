@@ -391,7 +391,14 @@ class Geometry:
     return (self.R_in_face + self.R_out_face) / 2
 
   def z_magnetic_axis(self) -> chex.Numeric:
-    """z position of magnetic axis [m]."""
+    """Returns the z position of the magnetic axis [m].
+
+    Returns:
+      z position of the magnetic axis [m].
+
+    Raises:
+      ValueError: If the geometry does not have a z magnetic axis.
+    """
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:
       return z_magnetic_axis
@@ -401,7 +408,25 @@ class Geometry:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked Geometry into a dictionary of OutputVar tuples."""
+    """Packs time-stacked geometry profiles and scalars into xarray variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from geometry output variable names to `(dims, data, attrs)`
+      `OutputVar` tuples:
+        - Extended flux, metric, and radial profiles (`Phi`, `volume`,
+          `area`, `vpr`, `spr`, `elongation`, `g*`, `r_in`, `r_out`,
+          `r_mid`, `R_major_profile`, etc.): `('time', 'rho_norm')` with
+          shape `(n_time, n_rho_cell + 2)`.
+        - Face profiles (`delta`, `trapped_fraction`, `g0_over_vpr`):
+          `('time', 'rho_face_norm')` with shape `(n_time, n_rho_face)`.
+        - Scalar geometry quantities (`R_major`, `a_minor`, `B_0`, boundary
+          fluxes, `z_magnetic_axis` if set): `('time',)` with shape
+          `(n_time,)`.
+    """
     extend = output_grid_context.extend_cell_grid_to_boundaries
     extended_vars = (
         (output_keys.PHI, self.Phi, self.Phi_face),

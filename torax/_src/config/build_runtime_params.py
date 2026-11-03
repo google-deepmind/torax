@@ -119,7 +119,7 @@ class RuntimeParamsProvider:
       self,
       t: chex.Numeric,
   ) -> runtime_params_lib.RuntimeParams:
-    """Returns a runtime_params.RuntimeParams to use during time t."""
+    """Returns a `RuntimeParams` instance evaluated at time `t`."""
     return runtime_params_lib.RuntimeParams(
         t=jnp.asarray(t, dtype=jax_utils.get_dtype()),
         transport=self.transport_model.build_runtime_params(t),
@@ -192,6 +192,12 @@ class RuntimeParamsProvider:
 
     Args:
       path: A dot-separated sequence of attributes or dictionary keys.
+
+    Returns:
+      The attribute or dictionary value located at `path`.
+
+    Raises:
+      ValueError: If any segment of `path` is not found.
     """
 
     x = self

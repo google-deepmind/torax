@@ -123,7 +123,24 @@ class StandardGeometry(geometry.Geometry):
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked StandardGeometry into a flat dictionary of OutputVar tuples."""
+    """Packs time-stacked standard geometry outputs into xarray variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      All entries from `Geometry.to_output_dict` plus equilibrium and SOL
+      variables:
+        - `psi_from_I_p`: `('time', 'rho_norm')` with shape
+          `(n_time, n_rho_cell + 2)`.
+        - `psi_from_geo`: `('time', 'rho_cell_norm')` with shape
+          `(n_time, n_rho_cell)`.
+        - `I_p_profile_from_geo`, `delta_upper`, `delta_lower`:
+          `('time', 'rho_face_norm')` with shape `(n_time, n_rho_face)`.
+        - Optional divertor/separatrix scalars (when set): `('time',)` with
+          shape `(n_time,)`.
+    """
     output_dict = super().to_output_dict(context)
     vars_to_pack: dict[output_keys.OutputKey, chex.Numeric] = {
         output_keys.I_P_PROFILE_FROM_GEO: self.I_p_profile_face,
@@ -183,7 +200,7 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   diverted: interpolated_param.InterpolatedVarSingleAxis | None
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
-    """Returns a Geometry instance at the given time."""
+    """Returns an interpolated `StandardGeometry` instance at time `t`."""
     chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, StandardGeometry)
 
