@@ -19,26 +19,51 @@ internal boundary conditions, and transport coefficients that depend on the
 primary SolverState and runtime configuration.
 """
 
+from collections.abc import Mapping
 import dataclasses
 
 import jax
+from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import builders
+from torax._src.core_profiles import core_profiles as core_profiles_lib
+from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import (
+    runtime_params as core_profile_runtime_params,
+)
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
-from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
+from torax._src.internal_boundary_conditions import (
+    builder as internal_boundary_conditions_builder,
+)
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
+from torax._src.neoclassical import (
+    neoclassical_intermediates as neoclassical_intermediates_lib,
+)
+from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
+from torax._src.neoclassical.bootstrap_current import (
+    base as bootstrap_current_base,
+)
+from torax._src.orchestration import (
+    explicit_model_outputs as explicit_model_outputs_lib,
+)
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
+from torax._src.physics import psi_calculations
+from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import source_state as source_state_lib
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -56,7 +81,7 @@ class EvaluatedState:
     internal_boundary_conditions: Active internal boundary conditions.
   """
 
-  core_profiles: state.CoreProfiles
+  core_profiles: core_profiles_lib.CoreProfiles
   core_sources: source_profiles_lib.SourceProfiles
   core_transport: state.CoreTransport
   pedestal_output: pedestal_model_output_lib.PedestalModelOutput
@@ -100,7 +125,7 @@ def evaluate_state(
       basic_source_states,
       bootstrap_current,
       neoclassical_intermediates,
-  ) = builders.build_core_profiles(
+  ) = _build_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       solver_state=solver_state,
@@ -167,10 +192,144 @@ def evaluate_state(
   return evaluated_state, updated_model_state
 
 
+def _build_core_profiles(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    solver_state: solver_state_lib.SolverState,
+    source_models: source_models_lib.SourceModels,
+    neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
+    source_states: Mapping[str, source_state_lib.SourceState],
+    *,
+    explicit: bool,
+    explicit_source_outputs: (
+        Mapping[str, source_profiles_lib.SourceOutput] | None
+    ) = None,
+    calculate_anyway: bool = False,
+    v_loop_lcfs: array_typing.FloatScalar | None = None,
+) -> tuple[
+    core_profiles_lib.CoreProfiles,
+    dict[str, source_profiles_lib.SourceOutput],
+    dict[str, source_state_lib.SourceState],
+    bootstrap_current_base.BootstrapCurrent,
+    neoclassical_intermediates_lib.NeoclassicalIntermediates,
+]:
+  """Builds core profiles, basic source outputs, and neoclassical outputs.
+
+  Args:
+    runtime_params: Runtime configuration parameters.
+    geo: Geometry of the tokamak.
+    solver_state: The current set of primary profiles.
+    source_models: Source models.
+    neoclassical_model: Neoclassical model.
+    source_states: Source states mapping.
+    explicit: Whether to evaluate explicit sources.
+    explicit_source_outputs: Pre-evaluated explicit source outputs, if any.
+    calculate_anyway: Whether to calculate sources even if inactive.
+    v_loop_lcfs: Optional loop voltage at the LCFS [V].
+
+  Returns:
+    A tuple containing:
+      - core_profiles: Fully constructed CoreProfiles.
+      - basic_source_outputs: Fast-ion and psi source outputs.
+      - updated_source_states: Source states updated by basic sources.
+      - bootstrap_current: Bootstrap current output.
+      - neoclassical_intermediates: Neoclassical intermediates for transport.
+  """
+  if (
+      v_loop_lcfs is None
+      and runtime_params.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  ):
+    v_loop_lcfs = jnp.asarray(
+        runtime_params.profile_conditions.v_loop_lcfs,
+        dtype=jax_utils.get_dtype(),
+    )
+
+  # Construct profiles that depend only on the solver variables.
+  solver_profiles = solver_profiles_lib.SolverProfiles.from_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_state=solver_state,
+      v_loop_lcfs=v_loop_lcfs,
+  )
+
+  # Evaluate sources that only depend on the solver profiles. These sources
+  # may produce fast ions and current drive.
+  basic_source_outputs, updated_source_states = (
+      source_profile_builders.evaluate_basic_sources(
+          runtime_params=runtime_params,
+          geo=geo,
+          solver_profiles=solver_profiles,
+          source_models=source_models,
+          source_states=source_states,
+          explicit=explicit,
+          calculate_anyway=calculate_anyway,
+      )
+  )
+  if explicit_source_outputs is not None:
+    basic_source_outputs = {
+        **explicit_source_outputs,
+        **basic_source_outputs,
+    }
+  if runtime_params.numerics.enable_fast_ions:
+    fast_ions = profile_conditions.apply_prescribed_fast_ions(
+        source_profiles_lib.extract_fast_ions(basic_source_outputs),
+        runtime_params.profile_conditions.prescribed_fast_ions,
+        geo.rho_face_norm,
+    )
+  else:
+    fast_ions = ()
+
+  # Evaluate neoclassical conductivity, bootstrap current, and poloidal
+  # velocity. These depend on fast ions.
+  (
+      conductivity,
+      bootstrap_current,
+      poloidal_velocity,
+      neoclassical_intermediates,
+  ) = neoclassical_model.calculate_conductivity_current_and_rotation(
+      runtime_params, geo, solver_profiles, fast_ions=fast_ions
+  )
+
+  total_psi_sources = source_profiles_lib.sum_total_psi_sources(
+      basic_source_outputs=basic_source_outputs,
+      source_models=source_models,
+      bootstrap_current=bootstrap_current,
+      geo=geo,
+  )
+  # Combine psi sources with core profiles to compute psidot.
+  psidot = psi_calculations.calculate_psidot(
+      psi=solver_profiles.poloidal_flux.psi,
+      sigma=conductivity.sigma,
+      psi_sources=total_psi_sources,
+      geo=geo,
+      evolve_current=runtime_params.numerics.evolve_current,
+      prescribed_psidot=runtime_params.profile_conditions.psidot,
+      v_loop_lcfs=v_loop_lcfs,
+  )
+  core_profiles = core_profiles_lib.CoreProfiles(
+      kinetic=solver_profiles.kinetic,
+      ions=solver_profiles.ions,
+      poloidal_flux=solver_profiles.poloidal_flux,
+      fast_ions=fast_ions,
+      conductivity=conductivity,
+      poloidal_velocity=poloidal_velocity.poloidal_velocity,
+      psidot=psidot,
+  )
+
+  return (
+      core_profiles,
+      basic_source_outputs,
+      updated_source_states,
+      bootstrap_current,
+      neoclassical_intermediates,
+  )
+
+
 def _evaluate_ibc_and_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
     models: models_lib.Models,
     source_profiles: source_profiles_lib.SourceProfiles,
@@ -248,7 +407,7 @@ def evaluate_initial_state(
       basic_source_states,
       bootstrap_current,
       neoclassical_intermediates,
-  ) = builders.build_core_profiles(
+  ) = _build_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       solver_state=solver_state,
