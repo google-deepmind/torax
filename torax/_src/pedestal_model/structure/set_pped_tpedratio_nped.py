@@ -82,11 +82,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
 
     # Calculate T_e_ped.
     temperature_ratio = structure_params.T_i_T_e_ratio
-    Z_impurity = core_profiles.Z_impurity
-    Z_i = core_profiles.Z_i
+    Z_impurity = core_profiles.ions.Z_impurity
+    Z_i = core_profiles.ions.Z_i
     # Find the value of Z_eff at the pedestal top.
     rho_norm_ped_top = structure_params.rho_norm_ped_top
-    Z_eff = core_profiles.Z_eff
+    Z_eff = core_profiles.ions.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
     Z_eff_ped = jnp.take(Z_eff, ped_idx)

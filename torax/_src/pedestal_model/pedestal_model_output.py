@@ -120,9 +120,9 @@ def _tanh_internal_boundary_conditions(
   psi_mid = 1.0 - delta / 2.0
 
   # Separatrix values from the rightmost face of core_profiles.
-  T_i_sep = core_profiles.T_i.right_face_value
-  T_e_sep = core_profiles.T_e.right_face_value
-  n_e_sep = core_profiles.n_e.right_face_value
+  T_i_sep = core_profiles.kinetic.T_i.right_face_value
+  T_e_sep = core_profiles.kinetic.T_e.right_face_value
+  n_e_sep = core_profiles.kinetic.n_e.right_face_value
 
   # A pedestal top at or beyond the LCFS means no pedestal: Δ collapses to eps
   # and would otherwise pin the last cell to a zero-width step at ~q_top.
