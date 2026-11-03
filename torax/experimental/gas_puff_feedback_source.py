@@ -181,6 +181,7 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    """Builds the runtime parameters for the gas puff source at time `t`."""
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
@@ -192,4 +193,5 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
     )
 
   def build_source(self) -> GasPuffFeedbackSource:
+    """Builds a `GasPuffFeedbackSource` from the config."""
     return GasPuffFeedbackSource()

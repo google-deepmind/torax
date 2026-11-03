@@ -68,7 +68,7 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
-    """Builds runtime parameters for the source."""
+    """Builds the runtime parameters for the source at time `t`."""
     return runtime_params.RuntimeParams(
         prescribed_values=tuple(v.get_value(t) for v in self.prescribed_values),
         mode=self.mode,

@@ -193,9 +193,19 @@ class SourceProfiles:
     )
 
   def total_psi_sources(self, geo: geometry.Geometry) -> array_typing.Array:
-    """Returns the total psi sources."""
-    # All psi sources are assumed to be parallel to the magnetic field, ie
-    # self.psi.values() is <j.B> / B0
+    """Returns the total poloidal flux source terms on the cell grid.
+
+    All `psi` sources (`bootstrap_current.j_parallel_bootstrap` and
+    `self.psi.values()`) are assumed to follow the `<j.B> / B_0` convention
+    (flux-surface-averaged `j.B` normalized by the on-axis vacuum toroidal
+    field `B_0`).
+
+    Args:
+      geo: The magnetic geometry of the tokamak.
+
+    Returns:
+      Array of total poloidal flux source terms on the cell grid.
+    """
     total_j_parallel = self.bootstrap_current.j_parallel_bootstrap + sum(
         self.psi.values(), start=jnp.zeros_like(geo.rho)
     )
@@ -206,6 +216,17 @@ class SourceProfiles:
       source_type: Literal['n_e', 'T_i', 'T_e'],
       geo: geometry.Geometry,
   ) -> array_typing.Array:
+    """Returns the total volume-weighted sources for a given profile channel.
+
+    To compute `psi` sources, use `total_psi_sources` instead.
+
+    Args:
+      source_type: The core profile channel ('n_e', 'T_i', or 'T_e').
+      geo: The magnetic geometry of the tokamak.
+
+    Returns:
+      Array of total source terms weighted by `geo.vpr` on the cell grid.
+    """
     source: dict[str, jax.Array] = getattr(self, source_type)
     if not source:
       return jnp.zeros_like(geo.vpr)
@@ -350,7 +371,21 @@ class SourceProfiles:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts source profiles into an OutputVar mapping."""
+    """Packs time-stacked source profiles into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from source output variable names to `(dims, data, attrs)`
+      `OutputVar` tuples:
+        - `j_parallel_bootstrap`: `('time', 'rho_norm')` with shape
+          `(n_time, n_rho_cell + 2)`.
+        - `ei_exchange` and per-source heating/current/particle channels
+          (`p_*_i`, `p_*_e`, `j_parallel_*`, `s_*`):
+          `('time', 'rho_cell_norm')` with shape `(n_time, n_rho_cell)`.
+    """
     out_dict = self.bootstrap_current.to_output_dict(context)
     out_dict.update(self.qei.to_output_dict(context))
     for key, data in self._iterate_channels_for_output(
