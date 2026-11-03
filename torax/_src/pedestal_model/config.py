@@ -313,7 +313,7 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.StructureRuntimeParams:
-    """Builds the runtime params."""
+    """Builds the runtime parameters for the pedestal structure model."""
     del t
     return runtime_params.StructureRuntimeParams(
         pedestal_profile_form=self.pedestal_profile_form,
