@@ -29,6 +29,7 @@ def _build_torax_config(
   config_dict["sources"] = {
       electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: {
           "P_total": power,
+          "gaussian_width": 0.1,
           "gaussian_location": 0.3,
           "current_drive_efficiency": {
               0.0: {
@@ -71,6 +72,11 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
 
   source_config_class = electron_cyclotron_source.ElectronCyclotronSourceConfig
   source_name = electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID
+  extra_source_config_kwargs = {
+      "P_total": 0.0,
+      "gaussian_width": 0.1,
+      "gaussian_location": 0.0,
+  }
 
   def test_negative_current_drive_efficiency_reverses_current(self):
     positive_config = _build_torax_config(
@@ -107,6 +113,97 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
     j_parallel = _calc_ec_current(runtime_params, geo, core_profiles)
 
     np.testing.assert_array_equal(j_parallel, 0.0)
+
+  def test_p_total_only_sets_extra_prescribed_power_density_to_none(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["sources"] = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: {
+            "P_total": 5e6,
+            "gaussian_width": 0.1,
+            "gaussian_location": 0.3,
+        }
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    runtime_params = _build_runtime_params(torax_config)
+    geo, core_profiles = _build_plasma_state(torax_config, runtime_params)
+    ecrh_params = runtime_params.sources[
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID
+    ]
+    self.assertIsNotNone(ecrh_params.P_total)
+    self.assertIsNone(ecrh_params.extra_prescribed_power_density)
+    source = electron_cyclotron_source.ElectronCyclotronSource()
+    output, _ = source.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        solver_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
+    )
+    q_e, _ = output.profiles
+    self.assertTrue(np.any(np.asarray(q_e) > 0.0))
+
+  def test_extra_prescribed_power_density_only_sets_gaussian_params_to_none(
+      self,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["sources"] = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: {
+            "extra_prescribed_power_density": {0.0: {0.0: 1e6, 1.0: 2e6}},
+        }
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    runtime_params = _build_runtime_params(torax_config)
+    geo, core_profiles = _build_plasma_state(torax_config, runtime_params)
+    ecrh_params = runtime_params.sources[
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID
+    ]
+    self.assertIsNone(ecrh_params.P_total)
+    self.assertIsNone(ecrh_params.gaussian_width)
+    self.assertIsNone(ecrh_params.gaussian_location)
+    self.assertIsNotNone(ecrh_params.extra_prescribed_power_density)
+    source = electron_cyclotron_source.ElectronCyclotronSource()
+    output, _ = source.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        solver_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
+    )
+    q_e, _ = output.profiles
+    np.testing.assert_allclose(
+        np.asarray(q_e), np.asarray(ecrh_params.extra_prescribed_power_density)
+    )
+
+  def test_both_p_total_and_prescribed_power_density_sum_profiles(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["sources"] = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: {
+            "P_total": 5e6,
+            "gaussian_width": 0.1,
+            "gaussian_location": 0.3,
+            "extra_prescribed_power_density": {0.0: {0.0: 1e6, 1.0: 2e6}},
+        }
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    runtime_params = _build_runtime_params(torax_config)
+    geo, core_profiles = _build_plasma_state(torax_config, runtime_params)
+    ecrh_params = runtime_params.sources[
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID
+    ]
+    self.assertIsNotNone(ecrh_params.P_total)
+    self.assertIsNotNone(ecrh_params.extra_prescribed_power_density)
+    source = electron_cyclotron_source.ElectronCyclotronSource()
+    output, _ = source.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        solver_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
+    )
+    q_e, _ = output.profiles
+    self.assertTrue(
+        np.all(
+            np.asarray(q_e)
+            > np.asarray(ecrh_params.extra_prescribed_power_density)
+        )
+    )
 
 
 if __name__ == "__main__":

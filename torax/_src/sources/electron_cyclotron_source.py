@@ -15,11 +15,12 @@
 """Electron cyclotron heating and current drive."""
 
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_params as runtime_params_lib
@@ -42,10 +43,10 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   """Runtime parameters for the electron-cyclotron source."""
 
   current_drive_efficiency: array_typing.FloatVector
-  extra_prescribed_power_density: array_typing.FloatVector
-  gaussian_width: array_typing.FloatScalar
-  gaussian_location: array_typing.FloatScalar
-  P_total: array_typing.FloatScalar
+  extra_prescribed_power_density: array_typing.FloatVector | None
+  gaussian_width: array_typing.FloatScalar | None
+  gaussian_location: array_typing.FloatScalar | None
+  P_total: array_typing.FloatScalar | None
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -89,15 +90,28 @@ class ElectronCyclotronSource(source.Source):
     assert isinstance(source_params, RuntimeParams)
 
     # Build the EC power deposition profile
-    ec_power_density = (
-        source_params.extra_prescribed_power_density
-        + formulas.gaussian_profile(
-            center=source_params.gaussian_location,
-            width=source_params.gaussian_width,
-            total=source_params.P_total,
-            geo=geo,
+    ec_power_density = jnp.zeros_like(solver_profiles.kinetic.T_e.value)
+    if source_params.extra_prescribed_power_density is not None:
+      ec_power_density = (
+          ec_power_density + source_params.extra_prescribed_power_density
+      )
+    if source_params.P_total is not None:
+      if source_params.gaussian_width is None:
+        raise ValueError(
+            "ElectronCyclotronSource requires `gaussian_width` to be set when"
+            " `P_total` is provided."
         )
-    )
+      if source_params.gaussian_location is None:
+        raise ValueError(
+            "ElectronCyclotronSource requires `gaussian_location` to be set"
+            " when `P_total` is provided."
+        )
+      ec_power_density = ec_power_density + formulas.gaussian_profile(
+          center=source_params.gaussian_location,
+          width=source_params.gaussian_width,
+          total=source_params.P_total,
+          geo=geo,
+      )
 
     j_tor_ec = (
         jnp.exp(
@@ -142,16 +156,20 @@ class ElectronCyclotronSourceConfig(base.SourceConfigBase):
     current_drive_efficiency: Dimensionless current drive efficiency profile
       defined on the cell grid, :math:`\zeta = \frac{e^2\ln\Lambda_{ee}}{8
       \varepsilon_0^2} \frac{1}{\left\langle\frac{1}{R}\right\rangle} \frac{n_e
-      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec}
-      [\mathrm{A}]}{P_{ec} [\mathrm{W}]}`.
-      See
+      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec} [\mathrm{A}]}{P_{ec}
+      [\mathrm{W}]}`. See
       https://torax.readthedocs.io/en/latest/physics_models/electron-cyclotron-derivation.html
-      for more details.
+        for more details.
     extra_prescribed_power_density: Manual EC power density profile on the rho
-      grid.
-    gaussian_width: Gaussian EC power density profile width.
-    gaussian_location: Gaussian EC power density profile location.
-    P_total: Gaussian EC total power.
+      grid. At least one of P_total or extra_prescribed_power_density must be
+      provided when mode is 'model_based'.
+    gaussian_width: Gaussian EC power density profile width. Required when mode
+      is 'model_based' and P_total is provided.
+    gaussian_location: Gaussian EC power density profile location. Required when
+      mode is 'model_based' and P_total is provided.
+    P_total: Gaussian EC total power. At least one of P_total or
+      extra_prescribed_power_density must be provided when mode is
+      'model_based'.
   """
 
   model_name: Annotated[
@@ -160,18 +178,31 @@ class ElectronCyclotronSourceConfig(base.SourceConfigBase):
   current_drive_efficiency: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.25, 1.0: 0.25}})
   )
-  extra_prescribed_power_density: torax_pydantic.TimeVaryingArray = (
-      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.0, 1.0: 0.0}})
-  )
-  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.1)
-  )
-  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.0
-  )
+  extra_prescribed_power_density: torax_pydantic.TimeVaryingArray | None = None
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = None
+  P_total: torax_pydantic.TimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode="after")
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.P_total is None and self.extra_prescribed_power_density is None:
+        raise ValueError(
+            "At least one of P_total or extra_prescribed_power_density must be"
+            " provided when mode is 'model_based'."
+        )
+      if self.P_total is not None:
+        if self.gaussian_width is None:
+          raise ValueError(
+              "gaussian_width must be provided when mode is 'model_based' and"
+              " P_total is provided."
+          )
+        if self.gaussian_location is None:
+          raise ValueError(
+              "gaussian_location must be provided when mode is 'model_based'"
+              " and P_total is provided."
+          )
+    return self
 
   def build_runtime_params(
       self,
@@ -181,12 +212,22 @@ class ElectronCyclotronSourceConfig(base.SourceConfigBase):
     return RuntimeParams(
         **vars(base_params),
         current_drive_efficiency=self.current_drive_efficiency.get_value(t),
-        extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
-            t
+        extra_prescribed_power_density=(
+            None
+            if self.extra_prescribed_power_density is None
+            else self.extra_prescribed_power_density.get_value(t)
         ),
-        gaussian_width=self.gaussian_width.get_value(t),
-        gaussian_location=self.gaussian_location.get_value(t),
-        P_total=self.P_total.get_value(t),
+        gaussian_width=(
+            None
+            if self.gaussian_width is None
+            else self.gaussian_width.get_value(t)
+        ),
+        gaussian_location=(
+            None
+            if self.gaussian_location is None
+            else self.gaussian_location.get_value(t)
+        ),
+        P_total=(None if self.P_total is None else self.P_total.get_value(t)),
     )
 
   def build_source(self) -> ElectronCyclotronSource:

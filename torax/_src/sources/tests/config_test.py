@@ -258,6 +258,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='P_total',
           initial_value=0.0,
           updated_value=1e6,
+          extra_fields={'gaussian_width': 0.1, 'gaussian_location': 0.0},
       ),
       dict(
           testcase_name='ei_exchange',
@@ -383,6 +384,15 @@ class SourcesConfigTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
+          testcase_name='ecrh',
+          source_name='ecrh',
+          source_kwargs={},
+          expected_error=(
+              'At least one of P_total or extra_prescribed_power_density must'
+              " be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
           testcase_name='icrh_scaled_profile',
           source_name='icrh',
           source_kwargs={
@@ -414,6 +424,12 @@ class SourcesConfigTest(parameterized.TestCase):
           )
 
   @parameterized.named_parameters(
+      dict(
+          testcase_name='ecrh',
+          source_name='ecrh',
+          source_kwargs={},
+          zero_fields=('P_total', 'extra_prescribed_power_density'),
+      ),
       dict(
           testcase_name='icrh_scaled_profile',
           source_name='icrh',
@@ -453,6 +469,35 @@ class SourcesConfigTest(parameterized.TestCase):
         self.assertEqual(runtime_params.mode, mode)
         for field in zero_fields:
           self.assertIsNone(getattr(runtime_params, field))
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='ecrh_missing_width',
+          source_name='ecrh',
+          source_kwargs={'P_total': 5e6, 'gaussian_location': 0.0},
+          expected_error=(
+              'gaussian_width must be provided when mode is'
+              " 'model_based' and P_total is provided"
+          ),
+      ),
+      dict(
+          testcase_name='ecrh_missing_location',
+          source_name='ecrh',
+          source_kwargs={'P_total': 5e6, 'gaussian_width': 0.1},
+          expected_error=(
+              'gaussian_location must be provided when mode is'
+              " 'model_based' and P_total is provided"
+          ),
+      ),
+  )
+  def test_missing_shape_parameter_raises_in_model_based_mode(
+      self,
+      source_name: str,
+      source_kwargs: dict[str, Any],
+      expected_error: str,
+  ):
+    with self.assertRaisesRegex(pydantic.ValidationError, expected_error):
+      sources_config.SourcesConfig.from_dict({source_name: source_kwargs})
 
 
 if __name__ == '__main__':

@@ -150,23 +150,26 @@ corresponding EC-driven current density profile. The user has three options:
    ``gaussian_location``, and ``P_total``).
 3. Any combination of the above.
 
-By default, both the manual and Gaussian profiles are zero. The manual and
-Gaussian profiles are summed together to produce the final EC deposition
-profile.
+At least one of ``P_total`` or ``extra_prescribed_power_density`` must be
+provided when ``mode`` is ``'model_based'``. Any omitted component contributes
+zero, and the manual and Gaussian profiles are summed together to produce the
+final EC deposition profile.
 
     ``mode`` (str [default = 'model'])
 
-    ``extra_prescribed_power_density`` (**time-varying-array** [default = {0: {0: 0, 1: 0}}])
+    ``extra_prescribed_power_density`` (**time-varying-array** [default = None])
         EC power density deposition profile, in units of :math:`W/m^3`.
 
-    ``gaussian_width`` (**time-varying-scalar** [default = 0.1])
-        Width of Gaussian EC power density deposition profile.
+    ``gaussian_width`` (**time-varying-scalar** [default = None])
+        Width of Gaussian EC power density deposition profile. Required when
+        ``mode == 'model_based'`` and ``P_total`` is provided.
 
-    ``gaussian_location`` (**time-varying-scalar** [default = 0.0])
+    ``gaussian_location`` (**time-varying-scalar** [default = None])
         Location of Gaussian EC power density deposition profile on the
-        normalized rho grid.
+        normalized rho grid. Required when ``mode == 'model_based'`` and
+        ``P_total`` is provided.
 
-    ``P_total`` (**time-varying-scalar** [default = 0.0])
+    ``P_total`` (**time-varying-scalar** [default = None])
         Integral of the Gaussian EC power density profile, setting the total
         power.
 

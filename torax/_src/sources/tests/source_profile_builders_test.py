@@ -104,6 +104,8 @@ class SourceModelsTest(parameterized.TestCase):
     config_dict['sources']['ecrh'] = {
         'is_explicit': is_explicit,
         'P_total': 5e6,
+        'gaussian_width': 0.1,
+        'gaussian_location': 0.5,
     }
     config_dict['sources']['icrh'] = {
         'model_name': 'scaled_profile',

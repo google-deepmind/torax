@@ -76,7 +76,11 @@ class SourceModelsTest(parameterized.TestCase):
 
   def test_basic_sources(self):
     sources_dict = default_sources.get_default_source_config()
-    sources_dict['ecrh'] = {}
+    sources_dict['ecrh'] = {
+        'P_total': 1e6,
+        'gaussian_width': 0.1,
+        'gaussian_location': 0.5,
+    }
     sources_dict['icrh'] = {
         'model_name': 'scaled_profile',
         'minority_species': 'He3',
@@ -106,7 +110,11 @@ class SourceModelsTest(parameterized.TestCase):
 
   def test_source_partitioning(self):
     sources_dict = default_sources.get_default_source_config()
-    sources_dict['ecrh'] = {}
+    sources_dict['ecrh'] = {
+        'P_total': 1e6,
+        'gaussian_width': 0.1,
+        'gaussian_location': 0.5,
+    }
     sources_dict['icrh'] = {
         'model_name': 'scaled_profile',
         'minority_species': 'He3',
