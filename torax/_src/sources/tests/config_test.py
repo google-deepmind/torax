@@ -284,12 +284,10 @@ class SourcesConfigTest(parameterized.TestCase):
           testcase_name='generic_current',
           source_name='generic_current',
           model_name='gaussian',
-          field_to_update='use_absolute_current',
-          initial_value=False,
-          updated_value=True,
+          field_to_update='fraction_of_total_current',
+          initial_value=0.2,
+          updated_value=0.3,
           extra_fields={
-              'fraction_of_total_current': 0.2,
-              'I_generic': 3.0e6,
               'gaussian_width': 0.05,
               'gaussian_location': 0.4,
           },
@@ -415,6 +413,24 @@ class SourcesConfigTest(parameterized.TestCase):
           expected_error="S_total must be provided when mode is 'model_based'",
       ),
       dict(
+          testcase_name='generic_current_relative',
+          source_name='generic_current',
+          source_kwargs={'use_absolute_current': False},
+          expected_error=(
+              'fraction_of_total_current must be provided when mode is'
+              " 'model_based' and use_absolute_current is False"
+          ),
+      ),
+      dict(
+          testcase_name='generic_current_absolute',
+          source_name='generic_current',
+          source_kwargs={'use_absolute_current': True},
+          expected_error=(
+              "I_generic must be provided when mode is 'model_based' and"
+              ' use_absolute_current is True'
+          ),
+      ),
+      dict(
           testcase_name='generic_heat',
           source_name='generic_heat',
           source_kwargs={},
@@ -477,6 +493,18 @@ class SourcesConfigTest(parameterized.TestCase):
           zero_fields=('S_total',),
       ),
       dict(
+          testcase_name='generic_current_relative',
+          source_name='generic_current',
+          source_kwargs={'use_absolute_current': False},
+          zero_fields=('I_generic', 'fraction_of_total_current'),
+      ),
+      dict(
+          testcase_name='generic_current_absolute',
+          source_name='generic_current',
+          source_kwargs={'use_absolute_current': True},
+          zero_fields=('I_generic', 'fraction_of_total_current'),
+      ),
+      dict(
           testcase_name='generic_heat',
           source_name='generic_heat',
           source_kwargs={},
@@ -536,6 +564,42 @@ class SourcesConfigTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
+          testcase_name='relative_warns_on_i_generic',
+          use_absolute_current=False,
+          expected_warning=(
+              'I_generic is set but will be ignored because'
+              ' use_absolute_current is False'
+          ),
+      ),
+      dict(
+          testcase_name='absolute_warns_on_fraction_of_total_current',
+          use_absolute_current=True,
+          expected_warning=(
+              'fraction_of_total_current is set but will be ignored because'
+              ' use_absolute_current is True'
+          ),
+      ),
+  )
+  def test_generic_current_warns_when_unused_amplitude_is_set(
+      self,
+      use_absolute_current: bool,
+      expected_warning: str,
+  ):
+    with self.assertLogs(level='WARNING') as logs:
+      sources = sources_config.SourcesConfig.from_dict({
+          'generic_current': {
+              'use_absolute_current': use_absolute_current,
+              'fraction_of_total_current': 0.2,
+              'I_generic': 3.0e6,
+              'gaussian_width': 0.05,
+              'gaussian_location': 0.4,
+          }
+      })
+    self.assertTrue(any(expected_warning in msg for msg in logs.output))
+    self.assertIsNotNone(sources.generic_current)
+
+  @parameterized.named_parameters(
+      dict(
           testcase_name='ecrh_missing_width',
           source_name='ecrh',
           source_kwargs={'P_total': 5e6, 'gaussian_location': 0.0},
@@ -559,6 +623,28 @@ class SourcesConfigTest(parameterized.TestCase):
           source_kwargs={'S_total': 1e22},
           expected_error=(
               "puff_decay_length must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='generic_current_missing_width',
+          source_name='generic_current',
+          source_kwargs={
+              'fraction_of_total_current': 0.2,
+              'gaussian_location': 0.4,
+          },
+          expected_error=(
+              "gaussian_width must be provided when mode is 'model_based'"
+          ),
+      ),
+      dict(
+          testcase_name='generic_current_missing_location',
+          source_name='generic_current',
+          source_kwargs={
+              'fraction_of_total_current': 0.2,
+              'gaussian_width': 0.05,
+          },
+          expected_error=(
+              "gaussian_location must be provided when mode is 'model_based'"
           ),
       ),
       dict(

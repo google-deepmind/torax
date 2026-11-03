@@ -15,11 +15,13 @@
 """External current source profile."""
 
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+import logging
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
@@ -41,11 +43,11 @@ from torax._src.torax_pydantic import torax_pydantic
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   """Runtime parameters for the external current source."""
 
-  I_generic: array_typing.FloatScalar
-  fraction_of_total_current: array_typing.FloatScalar
-  gaussian_width: array_typing.FloatScalar
-  gaussian_location: array_typing.FloatScalar
-  use_absolute_current: bool
+  I_generic: array_typing.FloatScalar | None
+  fraction_of_total_current: array_typing.FloatScalar | None
+  gaussian_width: array_typing.FloatScalar | None
+  gaussian_location: array_typing.FloatScalar | None
+  use_absolute_current: bool = jax.tree.static()
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -82,14 +84,31 @@ class GenericCurrentSource(source.Source):
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
 
-    I_generic = jnp.where(
-        source_params.use_absolute_current,
-        source_params.I_generic,
-        (
-            runtime_params.profile_conditions.I_p
-            * source_params.fraction_of_total_current
-        ),
-    )
+    if source_params.gaussian_width is None:
+      raise ValueError(
+          'GenericCurrentSource requires `gaussian_width` to be set.'
+      )
+    if source_params.gaussian_location is None:
+      raise ValueError(
+          'GenericCurrentSource requires `gaussian_location` to be set.'
+      )
+    if source_params.use_absolute_current:
+      if source_params.I_generic is None:
+        raise ValueError(
+            'GenericCurrentSource requires `I_generic` to be set when'
+            ' `use_absolute_current=True`.'
+        )
+      I_generic = source_params.I_generic
+    else:
+      if source_params.fraction_of_total_current is None:
+        raise ValueError(
+            'GenericCurrentSource requires `fraction_of_total_current` to be'
+            ' set when `use_absolute_current=False`.'
+        )
+      I_generic = (
+          runtime_params.profile_conditions.I_p
+          * source_params.fraction_of_total_current
+      )
     # form of external current on cell grid
     generic_current_form = jnp.exp(
         -((geo.rho_norm - source_params.gaussian_location) ** 2)
@@ -109,11 +128,14 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    I_generic: total "external" current in A. Used if use_absolute_current=True.
-    fraction_of_total_current: total "external" current fraction. Used if
-      use_absolute_current=False.
-    gaussian_width: width of "external" Gaussian current profile
-    gaussian_location: normalized radius of "external" Gaussian current profile
+    I_generic: total "external" current [A]. Required when mode is 'model_based'
+      and use_absolute_current=True.
+    fraction_of_total_current: total "external" current fraction. Required when
+      mode is 'model_based' and use_absolute_current=False.
+    gaussian_width: width of "external" Gaussian current profile. Required when
+      mode is 'model_based'.
+    gaussian_location: normalized radius of "external" Gaussian current profile.
+      Required when mode is 'model_based'.
     use_absolute_current: Toggles if external current is provided absolutely or
       as a fraction of I_p.
   """
@@ -121,19 +143,48 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      3.0e6
-  )
-  fraction_of_total_current: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.2)
-  )
-  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.4)
-  )
-  use_absolute_current: bool = False
+  I_generic: torax_pydantic.TimeVaryingScalar | None = None
+  fraction_of_total_current: (
+      torax_pydantic.UnitIntervalTimeVaryingScalar | None
+  ) = None
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = None
+  use_absolute_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.use_absolute_current:
+        if self.I_generic is None:
+          raise ValueError(
+              "I_generic must be provided when mode is 'model_based' and"
+              ' use_absolute_current is True.'
+          )
+        if self.fraction_of_total_current is not None:
+          logging.warning(
+              'fraction_of_total_current is set but will be ignored because'
+              ' use_absolute_current is True.'
+          )
+      else:
+        if self.fraction_of_total_current is None:
+          raise ValueError(
+              'fraction_of_total_current must be provided when mode is'
+              " 'model_based' and use_absolute_current is False."
+          )
+        if self.I_generic is not None:
+          logging.warning(
+              'I_generic is set but will be ignored because'
+              ' use_absolute_current is False.'
+          )
+      if self.gaussian_width is None:
+        raise ValueError(
+            "gaussian_width must be provided when mode is 'model_based'."
+        )
+      if self.gaussian_location is None:
+        raise ValueError(
+            "gaussian_location must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -142,10 +193,24 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        I_generic=self.I_generic.get_value(t),
-        fraction_of_total_current=self.fraction_of_total_current.get_value(t),
-        gaussian_width=self.gaussian_width.get_value(t),
-        gaussian_location=self.gaussian_location.get_value(t),
+        I_generic=(
+            None if self.I_generic is None else self.I_generic.get_value(t)
+        ),
+        fraction_of_total_current=(
+            None
+            if self.fraction_of_total_current is None
+            else self.fraction_of_total_current.get_value(t)
+        ),
+        gaussian_width=(
+            None
+            if self.gaussian_width is None
+            else self.gaussian_width.get_value(t)
+        ),
+        gaussian_location=(
+            None
+            if self.gaussian_location is None
+            else self.gaussian_location.get_value(t)
+        ),
         use_absolute_current=self.use_absolute_current,
     )
 

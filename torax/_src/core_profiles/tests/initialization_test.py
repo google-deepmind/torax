@@ -249,7 +249,9 @@ class InitializationTest(parameterized.TestCase):
     config_dict['geometry']['n_rho'] = _NRHO
     config_dict['sources'] = {
         'generic_current': {
-            'fraction_of_total_current': _FRACTION_OF_TOTAL_CURRENT
+            'fraction_of_total_current': _FRACTION_OF_TOTAL_CURRENT,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
         },
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -373,6 +375,8 @@ class InitializationTest(parameterized.TestCase):
     sources1 = {
         'generic_current': {
             'fraction_of_total_current': 0.0,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
     }
@@ -398,6 +402,8 @@ class InitializationTest(parameterized.TestCase):
     sources2 = {
         'generic_current': {
             'fraction_of_total_current': 0.0,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
     }
@@ -664,6 +670,8 @@ class InitializationTest(parameterized.TestCase):
     config_dict['sources'] = {
         'generic_current': {
             'fraction_of_total_current': 0.25,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
             'mode': 'model_based',
         },
     }
@@ -716,6 +724,8 @@ class InitializationTest(parameterized.TestCase):
     config_dict['sources'] = {
         'generic_current': {
             'fraction_of_total_current': 0.25,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
             'mode': 'model_based',
         },
     }

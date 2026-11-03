@@ -54,7 +54,11 @@ CONFIG = {
             'P_total': 120e6,
             'gaussian_location': 0.0,
         },
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
     },
     'pedestal': {},
     'transport': {

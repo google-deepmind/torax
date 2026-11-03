@@ -134,7 +134,13 @@ def circular_references() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
-      'sources': {'generic_current': {}},
+      'sources': {
+          'generic_current': {
+              'fraction_of_total_current': 0.2,
+              'gaussian_width': 0.05,
+              'gaussian_location': 0.4,
+          }
+      },
   })
   return _build_references_from_case_data('circular_references', torax_config)
 
@@ -160,7 +166,13 @@ def chease_references_I_p_from_chease() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
-      'sources': {'generic_current': {}},
+      'sources': {
+          'generic_current': {
+              'fraction_of_total_current': 0.2,
+              'gaussian_width': 0.05,
+              'gaussian_location': 0.4,
+          }
+      },
   })
   return _build_references_from_case_data(
       'chease_references_I_p_from_chease', torax_config
@@ -188,7 +200,13 @@ def chease_references_I_p_from_runtime_params() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
-      'sources': {'generic_current': {}},
+      'sources': {
+          'generic_current': {
+              'fraction_of_total_current': 0.2,
+              'gaussian_width': 0.05,
+              'gaussian_location': 0.4,
+          }
+      },
   })
   return _build_references_from_case_data(
       'chease_references_I_p_from_runtime_params', torax_config

@@ -33,7 +33,11 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             'S_total': 1e22,

@@ -268,18 +268,22 @@ Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str [default = 'model'])
 
-``gaussian_location`` (**time-varying-scalar** [default = 0.4])
-  Gaussian center of current profile in units of :math:`\hat{\rho}`.
+``gaussian_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of current profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``gaussian_width`` (**time-varying-scalar** [default = 0.05])
-  Gaussian width of current profile in units of :math:`\hat{\rho}`.
+``gaussian_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of current profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``I_generic`` (**time-varying-scalar** [default = 3.0e6])
-  Total current in A. Only used if ``use_absolute_current==True``.
+``I_generic`` (**time-varying-scalar** [default = None])
+  Total current in A. Required when ``mode == 'model_based'`` and
+  ``use_absolute_current == True``; ignored otherwise.
 
-``fraction_of_total_current`` (**time-varying-scalar** [default = 0.2])
+``fraction_of_total_current`` (**time-varying-scalar** [default = None])
   Sets total ``generic_current`` to be a fraction ``fraction_of_total_current``
-  of the total plasma current. Only used if ``use_absolute_current==False``.
+  of the total plasma current. Required when ``mode == 'model_based'`` and
+  ``use_absolute_current == False``; ignored otherwise.
 
 ``use_absolute_current`` (bool [default = False])
   Toggles relative vs absolute external current setting.
