@@ -82,6 +82,7 @@ class QLKNNModelWrapper(base_qlknn_model.BaseQLKNNModel):
         dtype=jax_utils.get_dtype(),
     ).T
 
+  @jax_utils.pointwise_jvp(nondiff_argnums=(0,), mode='rev')
   def predict(self, inputs: jax.Array) -> dict[str, jax.Array]:
     """Predicts the fluxes given the inputs."""
     model_predictions = self._model.predict(inputs)

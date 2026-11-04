@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import jax.numpy as jnp
+import numpy as np
 import numpy.testing as npt
 from torax._src.geometry import geometry
 from torax._src.transport_model import qlknn_10d
@@ -221,6 +224,65 @@ class QlknnTransportModelTest(parameterized.TestCase):
     qlknn_transport_model.get_model(path='', name='bar')
     qlknn_transport_model.get_model(path='', name='bar')
     mock_qlknn_model_wrapper.assert_called_once_with('', 'bar')
+
+  def test_qualikiz_ndnn_jacobian_and_grad_parity(self):
+    feature_names = [f'f{i}' for i in range(9)]
+    target_names = ['efiitg_gb']
+    rng = np.random.default_rng(0)
+    model_config = {
+        'feature_names': feature_names,
+        'target_names': target_names,
+        'prescale_factor': {k: 1.2 for k in feature_names + target_names},
+        'prescale_bias': {k: -0.1 for k in feature_names + target_names},
+        'hidden_activation': ['tanh', 'tanh'],
+        'output_activation': 'none',
+        'layer1/weights/Variable:0': rng.normal(0.0, 0.3, (9, 16)).tolist(),
+        'layer1/biases/Variable:0': rng.normal(0.0, 0.1, (16,)).tolist(),
+        'layer2/weights/Variable:0': rng.normal(0.0, 0.3, (16, 16)).tolist(),
+        'layer2/biases/Variable:0': rng.normal(0.0, 0.1, (16,)).tolist(),
+        'layer3/weights/Variable:0': rng.normal(0.0, 0.3, (16, 1)).tolist(),
+        'layer3/biases/Variable:0': rng.normal(0.0, 0.1, (1,)).tolist(),
+    }
+    net = qlknn_10d.QuaLiKizNDNN(model_config)
+    inputs = jax.random.normal(jax.random.key(0), (8, 9), dtype=jnp.float64)
+    tangents = jax.random.normal(jax.random.key(1), (8, 9), dtype=jnp.float64)
+
+    unwrapped_call = inspect.unwrap(qlknn_10d.QuaLiKizNDNN.__call__)
+
+    def ref_call(x: jax.Array) -> jax.Array:
+      return unwrapped_call(net, x)
+
+    y_fast, dy_fast = jax.jvp(net, (inputs,), (tangents,))
+    y_ref, dy_ref = jax.jvp(ref_call, (inputs,), (tangents,))
+    npt.assert_allclose(y_fast, y_ref, atol=1e-13, rtol=1e-13)
+    npt.assert_allclose(dy_fast, dy_ref, atol=1e-12, rtol=1e-12)
+
+    npt.assert_allclose(
+        jax.jit(jax.jacfwd(net))(inputs),
+        jax.jit(jax.jacfwd(ref_call))(inputs),
+        atol=1e-12,
+        rtol=1e-12,
+    )
+    npt.assert_allclose(
+        jax.jit(jax.jacrev(net))(inputs),
+        jax.jit(jax.jacrev(ref_call))(inputs),
+        atol=1e-12,
+        rtol=1e-12,
+    )
+    npt.assert_allclose(
+        jax.jit(jax.grad(lambda x: jnp.sum(net(x) ** 2)))(inputs),
+        jax.jit(jax.grad(lambda x: jnp.sum(ref_call(x) ** 2)))(inputs),
+        atol=1e-12,
+        rtol=1e-12,
+    )
+
+    batched_inputs = jnp.stack([inputs, inputs * 0.85], axis=0)
+    npt.assert_allclose(
+        jax.jit(jax.vmap(jax.jacfwd(net)))(batched_inputs),
+        jax.jit(jax.vmap(jax.jacfwd(ref_call)))(batched_inputs),
+        atol=1e-12,
+        rtol=1e-12,
+    )
 
 
 class ShearSuppressionModelTest(parameterized.TestCase):

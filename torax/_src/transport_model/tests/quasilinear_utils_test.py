@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
+import inspect
 from unittest import mock
 
 from absl.testing import absltest
@@ -494,6 +495,49 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     np.testing.assert_allclose(gradients.lref_over_lni1, expected_lni1)
     self.assertFalse(np.allclose(gradients.lref_over_lni1, unscaled_lni1))
 
+  def test_fast_ion_stabilization_jacobian_and_grad_parity(self):
+    fi_model = quasilinear_utils._get_default_fi_stabilization_model('He3')
+    stats = fi_model.config.input_stats
+    mid = 0.5 * (jnp.asarray(stats.min) + jnp.asarray(stats.max))
+    span = 0.2 * (jnp.asarray(stats.max) - jnp.asarray(stats.min))
+    offsets = jax.random.uniform(
+        jax.random.key(0), (6, len(stats.min)), minval=-1.0, maxval=1.0
+    )
+    inputs = (mid + span * offsets).astype(jnp.float64)
+
+    unwrapped_predict = inspect.unwrap(
+        quasilinear_utils._predict_fast_ion_stabilization_factor
+    )
+
+    def fast_fn(x: jax.Array) -> jax.Array:
+      return quasilinear_utils._predict_fast_ion_stabilization_factor(
+          fi_model, x
+      )
+
+    def ref_fn(x: jax.Array) -> jax.Array:
+      return unwrapped_predict(fi_model, x)
+
+    np.testing.assert_allclose(
+        fast_fn(inputs), ref_fn(inputs), atol=1e-6, rtol=1e-6
+    )
+    np.testing.assert_allclose(
+        jax.jit(jax.jacfwd(fast_fn))(inputs),
+        jax.jit(jax.jacfwd(ref_fn))(inputs),
+        atol=1e-5,
+        rtol=1e-5,
+    )
+    np.testing.assert_allclose(
+        jax.jit(jax.jacrev(fast_fn))(inputs),
+        jax.jit(jax.jacrev(ref_fn))(inputs),
+        atol=1e-5,
+        rtol=1e-5,
+    )
+    np.testing.assert_allclose(
+        jax.jit(jax.grad(lambda x: jnp.sum(fast_fn(x) ** 2)))(inputs),
+        jax.jit(jax.grad(lambda x: jnp.sum(ref_fn(x) ** 2)))(inputs),
+        atol=1e-5,
+        rtol=1e-5,
+    )
 
 if __name__ == '__main__':
   absltest.main()

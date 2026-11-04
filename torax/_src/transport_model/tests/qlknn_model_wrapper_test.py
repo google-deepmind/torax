@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 import tempfile
 from unittest import mock
 
@@ -19,7 +20,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from fusion_surrogates.qlknn import qlknn_model
 from fusion_surrogates.qlknn import qlknn_model_test_utils
+import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 
@@ -61,6 +64,71 @@ class QlknnModelWrapperTest(parameterized.TestCase):
     outputs = self._qlknn_model_wrapper.predict(inputs)
     for flux_name in self._flux_name_map.values():
       self.assertIn(flux_name, outputs)
+
+  def test_predict_jacobian_and_grad_parity(self):
+    n_in = len(self._config.input_names)
+    inputs = jax.random.uniform(
+        jax.random.key(0),
+        (self._batch_dim, n_in),
+        minval=0.2,
+        maxval=0.8,
+    )
+    tangents = jax.random.normal(
+        jax.random.key(1), (self._batch_dim, n_in), dtype=inputs.dtype
+    )
+    unwrapped_predict = inspect.unwrap(
+        qlknn_model_wrapper.QLKNNModelWrapper.predict
+    )
+
+    def ref_predict(x: jax.Array) -> dict[str, jax.Array]:
+      return unwrapped_predict(self._qlknn_model_wrapper, x)
+
+    y_fast, dy_fast = jax.jvp(
+        self._qlknn_model_wrapper.predict, (inputs,), (tangents,)
+    )
+    y_ref, dy_ref = jax.jvp(ref_predict, (inputs,), (tangents,))
+    for k in y_ref:
+      np.testing.assert_allclose(y_fast[k], y_ref[k], atol=1e-6, rtol=1e-6)
+      np.testing.assert_allclose(dy_fast[k], dy_ref[k], atol=1e-5, rtol=1e-5)
+
+    jac_fwd_fast = jax.jit(jax.jacfwd(self._qlknn_model_wrapper.predict))(
+        inputs
+    )
+    jac_fwd_ref = jax.jit(jax.jacfwd(ref_predict))(inputs)
+    jac_rev_fast = jax.jit(jax.jacrev(self._qlknn_model_wrapper.predict))(
+        inputs
+    )
+    for k in jac_fwd_ref:
+      np.testing.assert_allclose(
+          jac_fwd_fast[k], jac_fwd_ref[k], atol=1e-5, rtol=1e-5
+      )
+      np.testing.assert_allclose(
+          jac_rev_fast[k], jac_fwd_ref[k], atol=1e-5, rtol=1e-5
+      )
+
+    def scalar_loss(pred_fn):
+      return lambda x: sum(jnp.sum(v**2) for v in pred_fn(x).values())
+
+    grad_fast_fn = jax.jit(
+        jax.grad(scalar_loss(self._qlknn_model_wrapper.predict))
+    )
+    np.testing.assert_allclose(
+        grad_fast_fn(inputs),
+        jax.jit(jax.grad(scalar_loss(ref_predict)))(inputs),
+        atol=1e-5,
+        rtol=1e-5,
+    )
+
+    batched_inputs = jnp.stack([inputs, inputs * 1.05], axis=0)
+    jac_vmap_fast = jax.jit(
+        jax.vmap(jax.jacfwd(scalar_loss(self._qlknn_model_wrapper.predict)))
+    )(batched_inputs)
+    jac_vmap_ref = jax.jit(
+        jax.vmap(jax.jacfwd(scalar_loss(ref_predict)))
+    )(batched_inputs)
+    np.testing.assert_allclose(
+        jac_vmap_fast, jac_vmap_ref, atol=1e-5, rtol=1e-5
+    )
 
   @mock.patch.object(
       qlknn_model.QLKNNModel, 'load_model_from_path', autospec=True

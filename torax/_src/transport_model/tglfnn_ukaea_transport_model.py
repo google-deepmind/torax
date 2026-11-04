@@ -22,12 +22,27 @@ from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_model
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
+
+
+@jax_utils.pointwise_jvp(nondiff_argnums=(0,), mode="rev")
+def _predict_tglfnn_fluxes(
+    model: tglfnn_ukaea_model.TGLFNNukaeaModel,
+    tglfnn_inputs: jax.Array,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+  """Predicts mean ion heat, electron heat, and particle fluxes."""
+  predictions = model.predict(tglfnn_inputs)
+  return (
+      predictions["efi_gb"][..., 0],
+      predictions["efe_gb"][..., 0],
+      predictions["pfi_gb"][..., 0],
+  )
 
 
 # pylint: disable=invalid-name
@@ -148,15 +163,17 @@ class TGLFNNukaeaTransportModel(
         two_point_mask=two_point_mask,
     )
     tglfnn_inputs = self._prepare_tglfnn_inputs(tglf_inputs)
-    predictions = self.model.predict(tglfnn_inputs)
+    ion_heat_flux_GB, electron_heat_flux_GB, electron_particle_flux_GB = (
+        _predict_tglfnn_fluxes(self.model, tglfnn_inputs)
+    )
 
     # TODO(b/323504363): expose variance outputs
     return (
         self._make_transport_coeffs(
-            ion_heat_flux_GB=predictions["efi_gb"][..., 0],
-            electron_heat_flux_GB=predictions["efe_gb"][..., 0],
+            ion_heat_flux_GB=ion_heat_flux_GB,
+            electron_heat_flux_GB=electron_heat_flux_GB,
             # TODO(b/323504363): Convert pfi to pfe for multi-ion plasmas
-            electron_particle_flux_GB=predictions["pfi_gb"][..., 0],
+            electron_particle_flux_GB=electron_particle_flux_GB,
             tglf_inputs=tglf_inputs,
             transport=transport,
             geo=geo,
