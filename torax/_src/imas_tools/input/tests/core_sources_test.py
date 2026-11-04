@@ -91,10 +91,68 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     ids_name = "core_sources"
     ids_in = loader.load_imas_data(path, ids_name, directory=directory)
     sources = core_sources.sources_from_IMAS(ids_in, None, False)
+    self.assertIn("nbi", sources)
     config_dict["sources"] |= sources
     # Checks the config can be built properly with input sources.
     torax_config = config.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config, progress_bar=False)
+
+  def _make_nbi_ids(self, num_sources: int = 1):
+    ids = imas.IDSFactory().core_sources()
+    ids.source.resize(num_sources)
+    for i in range(num_sources):
+      src = ids.source[i]
+      src.identifier.name = "nbi"
+      src.profiles_1d.resize(1)
+      src.profiles_1d[0].time = 0.0
+      src.profiles_1d[0].grid.rho_tor_norm = [0.0, 0.5, 1.0]
+      src.profiles_1d[0].total_ion_energy = [1e5, 5e4, 0.0]
+      src.profiles_1d[0].electrons.energy = [5e4, 2.5e4, 0.0]
+      src.profiles_1d[0].j_parallel = [-1e4, -5e3, 0.0]
+      src.profiles_1d[0].electrons.particles = [1e19, 5e18, 0.0]
+    return ids
+
+  def test_nbi_source_profiles_and_external_filter(self):
+    ids = self._make_nbi_ids()
+    sources = core_sources.sources_from_IMAS(
+        ids, load_only_external_sources=True
+    )
+    self.assertEqual(sources["nbi"]["mode"], "prescribed")
+    prescribed = sources["nbi"]["prescribed_values"]
+    self.assertCountEqual(
+        prescribed.keys(),
+        [
+            "power_density_i",
+            "power_density_e",
+            "j_parallel",
+            "particle_source_e",
+        ],
+    )
+    np.testing.assert_allclose(
+        prescribed["power_density_i"][2][0], [1e5, 5e4, 0.0]
+    )
+    np.testing.assert_allclose(
+        prescribed["power_density_e"][2][0], [5e4, 2.5e4, 0.0]
+    )
+    np.testing.assert_allclose(prescribed["j_parallel"][2][0], [1e4, 5e3, 0.0])
+    np.testing.assert_allclose(
+        prescribed["particle_source_e"][2][0], [1e19, 5e18, 0.0]
+    )
+
+  def test_combine_multiple_nbi_sources(self):
+    ids = self._make_nbi_ids(num_sources=2)
+    sources = core_sources.sources_from_IMAS(ids)
+    prescribed = sources["nbi"]["prescribed_values"]
+    np.testing.assert_allclose(
+        prescribed["power_density_i"][2][0], [2e5, 1e5, 0.0]
+    )
+    np.testing.assert_allclose(
+        prescribed["power_density_e"][2][0], [1e5, 5e4, 0.0]
+    )
+    np.testing.assert_allclose(prescribed["j_parallel"][2][0], [2e4, 1e4, 0.0])
+    np.testing.assert_allclose(
+        prescribed["particle_source_e"][2][0], [2e19, 1e19, 0.0]
+    )
 
   def test_get_particle_profile(self):
     """Tests that particle profile is extracted correctly.

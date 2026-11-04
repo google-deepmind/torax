@@ -22,6 +22,7 @@ from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
+from torax._src.sources import neutral_beam_injection_source
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources import pellet_source
 from torax._src.sources import qei_source
@@ -57,6 +58,11 @@ IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING: Final[
     "ic": _SourceMappingEntry(
         ion_cyclotron_source.IonCyclotronSource.POPULATED_SOURCE_OUTPUTS,
         ion_cyclotron_source.IonCyclotronSource.SOURCE_ID,
+        True,
+    ),
+    "nbi": _SourceMappingEntry(
+        neutral_beam_injection_source.NeutralBeamInjectionSource.POPULATED_SOURCE_OUTPUTS,
+        neutral_beam_injection_source.NeutralBeamInjectionSource.SOURCE_ID,
         True,
     ),
     "ohmic": _SourceMappingEntry(

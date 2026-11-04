@@ -125,8 +125,9 @@ def sources_from_IMAS(
       time slices will be shifted such that the first time slice has time =
       t_initial.
     load_only_external_sources: If True, only loads sources from auxiliary
-      systems for which models exist in TORAX (pellet, gas puff, ecrh, icrh). If
-      False, also loads physics-based sources such as radiation sources.
+      systems for which models exist in TORAX (pellet, gas puff, ecrh, icrh,
+      nbi). If False, also loads physics-based sources such as radiation
+      sources.
 
   Returns:
     The fields read from the IDS that can be used to completely or partially
