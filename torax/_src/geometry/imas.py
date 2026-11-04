@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing an IMAS geometry."""
+
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 

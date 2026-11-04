@@ -18,6 +18,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
+from jax import numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import array_typing
@@ -87,6 +88,27 @@ class GeometryTest(parameterized.TestCase):
     )
     geo = standard_geometry.build_standard_geometry(intermediate)
     foo(geo)
+
+    @jax.jit
+    def loss_fn(r_maj, a_min, b0):
+      inter = dataclasses.replace(
+          intermediate, R_major=r_maj, a_minor=a_min, B_0=b0
+      )
+      g = standard_geometry.build_standard_geometry(inter)
+      return jnp.sum(g.Phi) + g.R_major + g.a_minor + g.B_0
+
+    loss, grads = jax.value_and_grad(loss_fn, argnums=(0, 1, 2))(6.2, 2.0, 5.3)
+    self.assertTrue(np.isfinite(loss))
+    for grad in grads:
+      self.assertTrue(np.isfinite(grad))
+
+    jax.test_util.check_grads(
+        loss_fn,
+        (6.2, 2.0, 5.3),
+        order=1,
+        modes=['rev'],
+        eps=1e-3,
+    )
 
   def test_stack_geometries_standard_geometries(self):
     """Test stack_geometries for standard geometries."""
@@ -517,6 +539,48 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_array_less(normalized, 1.5)
     np.testing.assert_array_less(0.5, normalized)
 
+  @parameterized.parameters([False, True])
+  def test_build_standard_geometry_jit_and_grad(self, diverted: bool):
+    n = 100
+    Phi_base = jnp.linspace(0.0, 1.0, n) ** 2
+    psi_base = jnp.linspace(0.0, 1.0, n)
+    I_p_base = jnp.linspace(0.0, 1e6, n)
+    F_base = jnp.linspace(30.0, 33.0, n)
+    B_0_base = 5.3
+
+    def loss_fn(Phi, psi, I_p_profile, F, B_0):
+      intermediates = self._make_intermediates(
+          Phi=Phi,
+          psi=psi,
+          I_p_profile=I_p_profile,
+          F=F,
+          B_0=B_0,
+          diverted=diverted,
+      )
+      geo = standard_geometry.build_standard_geometry(intermediates)
+      return (
+          jnp.sum(geo.vpr)
+          + jnp.sum(geo.g0)
+          + jnp.sum(geo.g1)
+          + jnp.sum(geo.g2)
+          + jnp.sum(geo.psi_from_I_p)
+          + jnp.sum(geo.j_toroidal_total)
+      )
+
+    loss_and_grad_fn = jax.jit(
+        jax.value_and_grad(loss_fn, argnums=(0, 1, 2, 3, 4))
+    )
+    loss, grads = loss_and_grad_fn(
+        Phi_base, psi_base, I_p_base, F_base, B_0_base
+    )
+    self.assertTrue(jnp.isfinite(loss))
+    for i, grad in enumerate(grads):
+      self.assertTrue(
+          jnp.all(jnp.isfinite(grad)),
+          f'Gradient for arg {i} contains non-finite values'
+          f' (diverted={diverted})',
+      )
+
 
 class PsiFromIPTest(absltest.TestCase):
   """Tests j_toroidal_total derived from psi_from_I_p on a mesh finer than the equilibrium."""
@@ -619,7 +683,17 @@ class OffAxisGridTest(parameterized.TestCase):
         cls.intermediates_off_axis
     )
 
-  @parameterized.parameters(*standard_geometry._ZERO_ON_AXIS)
+  @parameterized.parameters(
+      'I_p_profile',
+      'Phi',
+      'flux_surf_avg_grad_psi',
+      'flux_surf_avg_grad_psi2',
+      'flux_surf_avg_grad_psi2_over_R2',
+      'delta_upper_face',
+      'delta_lower_face',
+      'vpr',
+      'trapped_fraction',
+  )
   def test_vanishes_on_axis(self, name):
     self.assertEqual(getattr(self.intermediates_off_axis, name)[0], 0.0)
 
@@ -639,7 +713,8 @@ class OffAxisGridTest(parameterized.TestCase):
       )
       # Poloidal flux profiles are shifted by a constant offset psi[0] (tested
       # below), and iterhybrid.mat2cols has a small non-zero triangularity
-      # artifact (~8.5e-3) at the axis row whereas _ZERO_ON_AXIS enforces 0.
+      # artifact (~8.5e-3) at the axis row whereas _CHEASE_ZERO_ON_AXIS
+      # enforces 0.
       and f.name not in {
           'psi',
           'psi_from_I_p',

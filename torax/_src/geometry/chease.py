@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing a CHEASE geometry."""
+
 from collections.abc import Mapping
 from typing import Annotated, Any, Final, Literal, Self
 import numpy as np
@@ -44,6 +45,38 @@ _MAT2COLS_KEY_MAP: Final[dict[str, str]] = {
     'delta_bottom': 'delta_bottom',
     'elongation': 'elongation',
 }
+
+_CHEASE_ZERO_ON_AXIS = frozenset({
+    'Ipprofile',
+    'RHO_TOR=sqrt(Phi/pi/B0)',
+    '<|grad(psi)|>',
+    '<|grad(psi)|**2>',
+    '<Bp**2>',
+    'delta_upper',
+    'delta_bottom',
+    'FTRAP',
+})
+
+
+def _maybe_prepend_magnetic_axis(
+    chease_data: Mapping[str, np.ndarray],
+) -> dict[str, np.ndarray]:
+  """Prepends the magnetic axis (rho_norm=0) to off-axis CHEASE profiles."""
+  out = dict(chease_data)
+  if abs(float(np.asarray(out['RHO_TOR=sqrt(Phi/pi/B0)'])[0])) == 0.0:
+    return out
+  r_axis = 0.5 * (
+      np.asarray(out['R_INBOARD'])[0] + np.asarray(out['R_OUTBOARD'])[0]
+  )
+  axis_values = dict.fromkeys(_CHEASE_ZERO_ON_AXIS, 0.0)
+  axis_values['R_INBOARD'] = r_axis
+  axis_values['R_OUTBOARD'] = r_axis
+  for name, profile in out.items():
+    if np.ndim(profile) != 1:
+      continue
+    axis_value = axis_values.get(name, np.asarray(profile)[0])
+    out[name] = np.insert(profile, 0, axis_value)
+  return out
 
 
 # pylint: disable=invalid-name
@@ -96,6 +129,8 @@ class CheaseData(torax_pydantic.ConfigBase):
     if not isinstance(data, Mapping):
       return data
     data_dict = dict(data)
+    if 'RHO_TOR=sqrt(Phi/pi/B0)' in data_dict:
+      data_dict = _maybe_prepend_magnetic_axis(data_dict)
     renamed: dict[str, Any] = {}
     for k, v in data_dict.items():
       target_key = _MAT2COLS_KEY_MAP.get(k, k)
