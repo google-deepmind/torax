@@ -387,7 +387,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
     # Calculate ion properties
     n_i_sep = core_profiles.kinetic.n_i.right_face_value[0]
-    n_imp_sep = core_profiles.kinetic.n_impurity.right_face_value[0]
+    n_imp_sep = core_profiles.kinetic.n_impurity_total.right_face_value[0]
     A_i_sep = core_profiles.ions.A_i
     A_imp_sep = core_profiles.ions.A_impurity_face[-1]
     mean_ion_charge_state = separatrix_electron_density / (n_i_sep + n_imp_sep)

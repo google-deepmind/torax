@@ -49,7 +49,7 @@ class FormulasTest(parameterized.TestCase):
             n_i=core_profile_helpers.make_constant_core_profile(
                 self.geo, 2.5e20
             ),
-            n_impurity=core_profile_helpers.make_constant_core_profile(
+            n_impurity_total=core_profile_helpers.make_constant_core_profile(
                 self.geo, 0.25e20
             ),
         ),
@@ -61,19 +61,20 @@ class FormulasTest(parameterized.TestCase):
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
-      dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.0, expected=1.0),
-      dict(Z_i=1.0, Z_impurity=5.0, Z_eff=1.0, expected=1.0),
-      dict(Z_i=2.0, Z_impurity=10.0, Z_eff=2.0, expected=0.5),
-      dict(Z_i=2.0, Z_impurity=5.0, Z_eff=2.0, expected=0.5),
-      dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.9, expected=0.9),
-      dict(Z_i=2.0, Z_impurity=10.0, Z_eff=3.6, expected=0.4),
+      dict(Z_i=1.0, Z_impurity_bundled=10.0, Z_eff=1.0, expected=1.0),
+      dict(Z_i=1.0, Z_impurity_bundled=5.0, Z_eff=1.0, expected=1.0),
+      dict(Z_i=2.0, Z_impurity_bundled=10.0, Z_eff=2.0, expected=0.5),
+      dict(Z_i=2.0, Z_impurity_bundled=5.0, Z_eff=2.0, expected=0.5),
+      dict(Z_i=1.0, Z_impurity_bundled=10.0, Z_eff=1.9, expected=0.9),
+      dict(Z_i=2.0, Z_impurity_bundled=10.0, Z_eff=3.6, expected=0.4),
   ])
   def test_calculate_main_ion_dilution_factor(
-      self, Z_i, Z_impurity, Z_eff, expected
+      self, Z_i, Z_impurity_bundled, Z_eff, expected
   ):
-    """Unit test of `calculate_main_ion_dilution_factor`."""
     np.testing.assert_allclose(
-        formulas.calculate_main_ion_dilution_factor(Z_i, Z_impurity, Z_eff),
+        formulas.calculate_main_ion_dilution_factor(
+            Z_i, Z_impurity_bundled, Z_eff
+        ),
         expected,
     )
 

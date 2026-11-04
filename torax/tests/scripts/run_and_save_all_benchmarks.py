@@ -25,6 +25,8 @@ from absl import flags
 from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
+from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
 
@@ -72,8 +74,28 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         ' or a CONFIG dictionary.'
     )
   try:
+    max_steps = torax_config.time_step_calculator.max_steps
+    if max_steps is None:
+      try:
+        max_steps = torax_config.time_step_calculator.default_max_steps
+      except NotImplementedError:
+        existing_ref = os.path.join(test_data_dir, f'{config_name}.nc')
+        if os.path.exists(existing_ref):
+          try:
+            data_tree = output.load_state_file(existing_ref)
+            ref_time = (
+                data_tree.children[output_keys.PROFILES]
+                .dataset[output_keys.TIME]
+                .to_numpy()
+            )
+            max_steps = len(ref_time) * 2
+          except Exception:  # pylint: disable=broad-except
+            max_steps = 1000
+        else:
+          max_steps = 1000
+
     simulation_xr = run_simulation.run_simulation(
-        torax_config, progress_bar=False
+        torax_config, progress_bar=False, max_steps=max_steps
     ).simulation_output_to_xr()
     output_file = os.path.join(output_dir, f'{config_name}.nc')
     simulation_app.write_output_to_file(output_file, simulation_xr)

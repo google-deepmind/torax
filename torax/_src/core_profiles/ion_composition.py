@@ -44,13 +44,13 @@ class IonComposition:
     main_ion_fractions: Fractional abundances of individual main ion species.
     Z_i: Main ion charge on cell grid [dimensionless].
     Z_i_face: Main ion charge on face grid [dimensionless].
-    Z_impurity: Effective charge <Z^2> / <Z> of bundled impurity on cell grid
+    Z_impurity_average: Mean impurity charge <Z> = sum(f_k * Z_k) on cell grid
       [dimensionless].
-    Z_impurity_face: Effective charge <Z^2> / <Z> of bundled impurity on face
+    Z_impurity_average_face: Mean impurity charge <Z> = sum(f_k * Z_k) on face
       grid [dimensionless].
-    Z_avg: Mean impurity charge <Z> = sum(f_k * Z_k) on cell grid
+    Z_impurity_bundled: Bundled impurity charge <Z^2> / <Z> on cell grid
       [dimensionless].
-    Z_avg_face: Mean impurity charge <Z> = sum(f_k * Z_k) on face grid
+    Z_impurity_bundled_face: Bundled impurity charge <Z^2> / <Z> on face grid
       [dimensionless].
     Z_impurity_per_species: Charge state for each individual impurity species on
       cell grid [dimensionless].
@@ -67,10 +67,10 @@ class IonComposition:
   main_ion_fractions: Mapping[str, array_typing.FloatScalar]
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
-  Z_impurity: array_typing.FloatVectorCell
-  Z_impurity_face: array_typing.FloatVectorFace
-  Z_avg: array_typing.FloatVectorCell
-  Z_avg_face: array_typing.FloatVectorFace
+  Z_impurity_average: array_typing.FloatVectorCell
+  Z_impurity_average_face: array_typing.FloatVectorFace
+  Z_impurity_bundled: array_typing.FloatVectorCell
+  Z_impurity_bundled_face: array_typing.FloatVectorFace
   Z_impurity_per_species: Mapping[str, array_typing.FloatVectorCell]
   Z_impurity_per_species_face: Mapping[str, array_typing.FloatVectorFace]
   A_i: array_typing.FloatScalar
@@ -78,6 +78,28 @@ class IonComposition:
   A_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
+
+  @jax.jit
+  def get_bundled_impurity_density(
+      self,
+      n_impurity_total: cell_variable.CellVariable,
+  ) -> cell_variable.CellVariable:
+    """Computes bundled impurity density [m^-3].
+
+    Args:
+      n_impurity_total: Total impurity density profile [m^-3].
+
+    Returns:
+      Bundled impurity density
+      `n_impurity_total * Z_impurity_average / Z_impurity_bundled`.
+    """
+    return _get_bundled_impurity_density(
+        n_impurity_total=n_impurity_total,
+        Z_impurity_average=self.Z_impurity_average,
+        Z_impurity_average_face=self.Z_impurity_average_face,
+        Z_impurity_bundled=self.Z_impurity_bundled,
+        Z_impurity_bundled_face=self.Z_impurity_bundled_face,
+    )
 
 
 def get_ion_composition_and_density(
@@ -88,7 +110,7 @@ def get_ion_composition_and_density(
 ) -> tuple[
     IonComposition, cell_variable.CellVariable, cell_variable.CellVariable
 ]:
-  """Computes ion composition, main ion density, and impurity density.
+  """Computes ion composition, main ion density, and total impurity density.
 
   Args:
     plasma_composition: Plasma composition runtime parameters.
@@ -97,7 +119,7 @@ def get_ion_composition_and_density(
     T_e: Electron temperature profile [keV].
 
   Returns:
-    Tuple of `(ion_composition, n_i, n_impurity)`.
+    Tuple of `(ion_composition, n_i, n_impurity_total)`.
   """
   composition_cell = _IonCompositionIntermediates.from_grid(
       plasma_composition, T_e.value, is_face=False
@@ -115,12 +137,12 @@ def get_ion_composition_and_density(
           n_e_right_bc * composition_face.dilution_factor[-1]
       ),
   )
-  n_impurity = cell_variable.CellVariable(
+  n_impurity_total = cell_variable.CellVariable(
       value=_impurity_density_from_quasineutrality(
           n_e.value,
           n_i.value,
           composition_cell.Z_i,
-          composition_cell.Z_impurity,
+          composition_cell.Z_impurity_average,
           composition_cell.dilution_factor,
       ),
       face_centers=geo.rho_face_norm,
@@ -129,13 +151,20 @@ def get_ion_composition_and_density(
           n_e_right_bc,
           n_i.get_right_bc(),
           composition_face.Z_i[-1],
-          composition_face.Z_impurity[-1],
+          composition_face.Z_impurity_average[-1],
           composition_face.dilution_factor[-1],
       ),
   )
+  n_impurity_bundled = _get_bundled_impurity_density(
+      n_impurity_total=n_impurity_total,
+      Z_impurity_average=composition_cell.Z_impurity_average,
+      Z_impurity_average_face=composition_face.Z_impurity_average,
+      Z_impurity_bundled=composition_cell.Z_impurity_bundled,
+      Z_impurity_bundled_face=composition_face.Z_impurity_bundled,
+  )
   Z_eff_face = (
       composition_face.Z_i**2 * n_i.face_value()
-      + composition_face.Z_impurity**2 * n_impurity.face_value()
+      + composition_face.Z_impurity_bundled**2 * n_impurity_bundled.face_value()
   ) / n_e.face_value()
 
   ion_composition = IonComposition(
@@ -143,10 +172,10 @@ def get_ion_composition_and_density(
       main_ion_fractions=plasma_composition.main_ion.fractions,
       Z_i=composition_cell.Z_i,
       Z_i_face=composition_face.Z_i,
-      Z_impurity=composition_cell.Z_impurity,
-      Z_impurity_face=composition_face.Z_impurity,
-      Z_avg=composition_cell.Z_avg,
-      Z_avg_face=composition_face.Z_avg,
+      Z_impurity_average=composition_cell.Z_impurity_average,
+      Z_impurity_average_face=composition_face.Z_impurity_average,
+      Z_impurity_bundled=composition_cell.Z_impurity_bundled,
+      Z_impurity_bundled_face=composition_face.Z_impurity_bundled,
       Z_impurity_per_species=composition_cell.Z_impurity_per_species,
       Z_impurity_per_species_face=composition_face.Z_impurity_per_species,
       A_i=plasma_composition.main_ion.A_avg,
@@ -155,7 +184,7 @@ def get_ion_composition_and_density(
       Z_eff=composition_cell.Z_eff,
       Z_eff_face=Z_eff_face,
   )
-  return ion_composition, n_i, n_impurity
+  return ion_composition, n_i, n_impurity_total
 
 
 def _calculate_average_mass(
@@ -177,18 +206,18 @@ def _calculate_average_mass(
 
 def _calculate_dilution_from_Z_eff(
     Z_i: array_typing.FloatVector,
-    Z_impurity: array_typing.FloatVector,
+    Z_impurity_bundled: array_typing.FloatVector,
     Z_eff: array_typing.FloatVector,
 ) -> array_typing.FloatVector:
   """Calculates the main ion dilution factor n_i / n_e from Z_eff."""
   pure_plasma = Z_eff == Z_i
-  denom = Z_i * (Z_impurity - Z_i)
+  denom = Z_i * (Z_impurity_bundled - Z_i)
   # Guard jnp.where dead branch against zero division to prevent NaN gradients.
   safe_denom = jnp.where(pure_plasma, 1.0, denom)
   return jnp.where(
       pure_plasma,
       1.0 / Z_i,
-      (Z_impurity - Z_eff) / safe_denom,
+      (Z_impurity_bundled - Z_eff) / safe_denom,
   )
 
 
@@ -196,17 +225,58 @@ def _impurity_density_from_quasineutrality(
     n_e: array_typing.FloatVector | array_typing.FloatScalar,
     n_i: array_typing.FloatVector | array_typing.FloatScalar,
     Z_i: array_typing.FloatVector | array_typing.FloatScalar,
-    Z_impurity: array_typing.FloatVector | array_typing.FloatScalar,
+    Z_impurity_average: array_typing.FloatVector | array_typing.FloatScalar,
     dilution_factor: array_typing.FloatVector | array_typing.FloatScalar,
 ) -> jax.Array:
-  """Calculates bundled impurity density (n_e - n_i * Z_i) / Z_impurity."""
+  """Calculates total impurity density (n_e - n_i * Z_i) / Z_impurity_average."""
   no_impurities = dilution_factor == 1.0 / Z_i
-  # Guard jnp.where dead branch against zero division when Z_impurity == 0.
-  safe_Z_impurity = jnp.where(no_impurities, 1.0, Z_impurity)
+  # Guard jnp.where dead branch against zero division when
+  # Z_impurity_average == 0.
+  safe_Z_impurity = jnp.where(no_impurities, 1.0, Z_impurity_average)
   return jnp.where(
       no_impurities,
       0.0,
       (n_e - n_i * Z_i) / safe_Z_impurity,
+  )
+
+
+def _scale_bundled_density(
+    n_impurity_total: array_typing.FloatVector | array_typing.FloatScalar,
+    Z_impurity_average: array_typing.FloatVector | array_typing.FloatScalar,
+    Z_impurity_bundled: array_typing.FloatVector | array_typing.FloatScalar,
+) -> jax.Array:
+  """Scales impurity density by Z_impurity_average / Z_impurity_bundled."""
+  # Guard jnp.where dead branch against zero division when
+  # Z_impurity_bundled == 0.
+  safe_Z_impurity_bundled = jnp.where(
+      Z_impurity_bundled == 0.0, 1.0, Z_impurity_bundled
+  )
+  return jnp.where(
+      Z_impurity_bundled == 0.0,
+      0.0,
+      n_impurity_total * Z_impurity_average / safe_Z_impurity_bundled,
+  )
+
+
+def _get_bundled_impurity_density(
+    n_impurity_total: cell_variable.CellVariable,
+    Z_impurity_average: array_typing.FloatVectorCell,
+    Z_impurity_average_face: array_typing.FloatVectorFace,
+    Z_impurity_bundled: array_typing.FloatVectorCell,
+    Z_impurity_bundled_face: array_typing.FloatVectorFace,
+) -> cell_variable.CellVariable:
+  """Computes bundled impurity density CellVariable [m^-3]."""
+  return cell_variable.CellVariable(
+      value=_scale_bundled_density(
+          n_impurity_total.value, Z_impurity_average, Z_impurity_bundled
+      ),
+      face_centers=n_impurity_total.face_centers,
+      right_face_constraint=_scale_bundled_density(
+          n_impurity_total.get_right_bc(),
+          Z_impurity_average_face[..., -1],
+          Z_impurity_bundled_face[..., -1],
+      ),
+      right_face_grad_constraint=None,
   )
 
 
@@ -223,8 +293,8 @@ class _IonCompositionIntermediates:
   Z_impurity_per_species: Mapping[str, array_typing.FloatVector]
   impurity_fractions: Mapping[str, array_typing.FloatVector]
   A_impurity: array_typing.FloatVector
-  Z_avg: array_typing.FloatVector
-  Z_impurity: array_typing.FloatVector
+  Z_impurity_average: array_typing.FloatVector
+  Z_impurity_bundled: array_typing.FloatVector
   Z_eff: array_typing.FloatVector
   dilution_factor: array_typing.FloatVector
 
@@ -246,7 +316,7 @@ class _IonCompositionIntermediates:
         ion_symbols=plasma_composition.main_ion_names,
         Z_override=plasma_composition.main_ion.Z_override,
     )
-    Z_i = charge_states.get_effective_charge_state(
+    Z_i = charge_states.get_bundled_charge_state(
         Z_per_species=Z_main_ion_per_species,
         fractions=plasma_composition.main_ion.fractions,
     )
@@ -312,24 +382,26 @@ class _IonCompositionIntermediates:
   ) -> Self:
     """Resolves 1D ion composition from impurity fractions and Z_eff."""
     A_avg = _calculate_average_mass(fractions, A_override)
-    Z_avg = charge_states.get_average_charge_state(
+    Z_impurity_average = charge_states.get_average_charge_state(
         Z_per_species=Z_per_species,
         fractions=fractions,
     )
-    Z_impurity = charge_states.get_effective_charge_state(
+    Z_impurity_bundled = charge_states.get_bundled_charge_state(
         Z_per_species=Z_per_species,
         fractions=fractions,
-        Z_avg=Z_avg,
+        Z_avg=Z_impurity_average,
     )
     if dilution_factor is None:
-      dilution_factor = _calculate_dilution_from_Z_eff(Z_i, Z_impurity, Z_eff)
+      dilution_factor = _calculate_dilution_from_Z_eff(
+          Z_i, Z_impurity_bundled, Z_eff
+      )
     return cls(
         Z_i=Z_i,
         Z_impurity_per_species=Z_per_species,
         impurity_fractions=fractions,
         A_impurity=A_avg,
-        Z_avg=Z_avg,
-        Z_impurity=Z_impurity,
+        Z_impurity_average=Z_impurity_average,
+        Z_impurity_bundled=Z_impurity_bundled,
         Z_eff=Z_eff,
         dilution_factor=dilution_factor,
     )

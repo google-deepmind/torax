@@ -80,53 +80,44 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         structure_params.n_e_top,
     )
 
-    # Calculate T_e_top.
     temperature_ratio = structure_params.T_i_T_e_ratio
-    Z_impurity = core_profiles.ions.Z_impurity
-    Z_i = core_profiles.ions.Z_i
-    # Find the value of Z_eff at the pedestal top.
-    rho_norm_top = structure_params.rho_norm_top
-    Z_eff = core_profiles.ions.Z_eff
-
-    top_idx = jnp.abs(geo.rho_norm - rho_norm_top).argmin()
-    Z_eff_top = jnp.take(Z_eff, top_idx)
-    Z_i_top = jnp.take(Z_i, top_idx)
-    Z_impurity_top = jnp.take(Z_impurity, top_idx)
+    top_idx = jnp.abs(geo.rho_norm - structure_params.rho_norm_top).argmin()
+    Z_eff_top = jnp.take(core_profiles.ions.Z_eff, top_idx)
+    Z_i_top = jnp.take(core_profiles.ions.Z_i, top_idx)
+    Z_impurity_average_top = jnp.take(
+        core_profiles.ions.Z_impurity_average, top_idx
+    )
+    Z_impurity_bundled_top = jnp.take(
+        core_profiles.ions.Z_impurity_bundled, top_idx
+    )
     dilution_factor_top = jnp.where(
         Z_eff_top == 1.0,
         1.0,
         formulas.calculate_main_ion_dilution_factor(
-            Z_i_top, Z_impurity_top, Z_eff_top
+            Z_i_top, Z_impurity_bundled_top, Z_eff_top
         ),
     )
-    # Calculate n_i and n_impurity.
     n_i_top = dilution_factor_top * n_e_top
-    # Guard against division by zero when Z_impurity_top is zero or
-    # degenerate (pure plasma case).
-    safe_Z_impurity_top = jnp.where(Z_eff_top == 1.0, 1.0, Z_impurity_top)
+    # Guard jnp.where dead branch against zero division in pure plasmas.
+    safe_Z_impurity_top = jnp.where(
+        Z_eff_top == 1.0, 1.0, Z_impurity_average_top
+    )
     n_impurity_top = jnp.where(
         Z_eff_top == 1.0,
         0.0,
         (n_e_top - Z_i_top * n_i_top) / safe_Z_impurity_top,
     )
-    # Assumption that impurity is at the same temperature as the ion AND
-    # the pressure p = p_e + p_i + p_imp.
-    # p = T_e*n_e + T_i*n_i + T_i*n_imp.
+    # Assumes T_imp = T_i and total thermal pressure p = p_e + p_i + p_imp.
     T_e_top = (
-        (
-            structure_params.p_top
-            * structure_params.p_top_multiplier
-        )
+        structure_params.p_top
+        * structure_params.p_top_multiplier
         / (
-            n_e_top  # Electron pressure contribution.
-            + temperature_ratio * n_i_top  # Ion pressure contribution.
-            + temperature_ratio
-            * n_impurity_top  # Impurity pressure contribution.
+            n_e_top
+            + temperature_ratio * n_i_top
+            + temperature_ratio * n_impurity_top
         )
         / constants.CONSTANTS.keV_to_J
     )
-
-    # Calculate T_i_top
     T_i_top = temperature_ratio * T_e_top
 
     return (

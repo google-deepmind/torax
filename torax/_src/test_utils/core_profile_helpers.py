@@ -86,8 +86,11 @@ def make_initial_inputs(
 def make_zero_core_profiles(
     geo: geometry.Geometry,
     T_e: cell_variable.CellVariable | None = None,
-    Z_impurity: jax.Array | None = None,
-    Z_impurity_face: jax.Array | None = None,
+    Z_impurity_average: jax.Array | None = None,
+    Z_impurity_average_face: jax.Array | None = None,
+    Z_impurity_bundled: jax.Array | None = None,
+    Z_impurity_bundled_face: jax.Array | None = None,
+    n_impurity_total: cell_variable.CellVariable | None = None,
     impurity_names: tuple[str, ...] = ("dummy_impurity",),
     main_ion_names: tuple[str, ...] = ("dummy_main_ion",),
 ) -> core_profiles_lib.CoreProfiles:
@@ -113,7 +116,11 @@ def make_zero_core_profiles(
       T_e=T_e if T_e is not None else zero_cell_variable,
       n_e=zero_cell_variable,
       n_i=zero_cell_variable,
-      n_impurity=zero_cell_variable,
+      n_impurity_total=(
+          n_impurity_total
+          if n_impurity_total is not None
+          else zero_cell_variable
+      ),
       toroidal_angular_velocity=zero_cell_variable,
   )
   ions = ion_composition.IonComposition(
@@ -121,14 +128,26 @@ def make_zero_core_profiles(
       main_ion_fractions=main_ion_fractions_dict,
       Z_i=jnp.zeros_like(geo.rho),
       Z_i_face=jnp.zeros_like(geo.rho_face),
-      Z_impurity=Z_impurity
-      if Z_impurity is not None
-      else jnp.zeros_like(geo.rho),
-      Z_impurity_face=Z_impurity_face
-      if Z_impurity_face is not None
-      else jnp.zeros_like(geo.rho_face),
-      Z_avg=jnp.zeros_like(geo.rho),
-      Z_avg_face=jnp.zeros_like(geo.rho_face),
+      Z_impurity_average=(
+          Z_impurity_average
+          if Z_impurity_average is not None
+          else jnp.zeros_like(geo.rho)
+      ),
+      Z_impurity_average_face=(
+          Z_impurity_average_face
+          if Z_impurity_average_face is not None
+          else jnp.zeros_like(geo.rho_face)
+      ),
+      Z_impurity_bundled=(
+          Z_impurity_bundled
+          if Z_impurity_bundled is not None
+          else jnp.zeros_like(geo.rho)
+      ),
+      Z_impurity_bundled_face=(
+          Z_impurity_bundled_face
+          if Z_impurity_bundled_face is not None
+          else jnp.zeros_like(geo.rho_face)
+      ),
       Z_impurity_per_species=Z_impurity_per_species,
       Z_impurity_per_species_face=Z_impurity_per_species_face,
       A_i=jnp.zeros(()),

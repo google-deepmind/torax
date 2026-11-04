@@ -61,7 +61,7 @@ class RedlTest(absltest.TestCase):
                 right_face_constraint=200.0,
                 right_face_grad_constraint=None,
             ),
-            n_impurity=cell_variable.CellVariable(
+            n_impurity_total=cell_variable.CellVariable(
                 value=np.linspace(10, 20, n_rho),
                 face_centers=geo.rho_face_norm,
                 right_face_constraint=20.0,

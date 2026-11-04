@@ -378,7 +378,7 @@ def _extract_qualikiz_plan(
   )
 
   Zi0 = core_profiles.ions.Z_i_face
-  Zi1 = core_profiles.ions.Z_impurity_face
+  Zi1 = core_profiles.ions.Z_impurity_bundled_face
 
   # Calculate main ion dilution
   ni0 = (

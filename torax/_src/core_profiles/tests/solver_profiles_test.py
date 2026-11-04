@@ -132,14 +132,15 @@ class SolverProfilesTest(parameterized.TestCase):
         geo=self.geo,
         solver_state=self.solver_state,
     )
-    n_imp = profiles.calculate_n_impurity_thermal(())
-    np.testing.assert_allclose(n_imp.value, profiles.kinetic.n_impurity.value)
+    n_imp = profiles.calculate_n_impurity_total_thermal(())
+    np.testing.assert_allclose(
+        n_imp.value, profiles.kinetic.n_impurity_total.value
+    )
 
     n_i_face = profiles.calculate_n_i_total_thermal_face(())
     expected_n_i_face = (
         profiles.kinetic.n_i.face_value()
-        + profiles.kinetic.n_impurity.face_value()
-        * profiles.impurity_density_scaling_face
+        + profiles.kinetic.n_impurity_total.face_value()
     )
     np.testing.assert_allclose(n_i_face, expected_n_i_face)
 
@@ -147,7 +148,7 @@ class SolverProfilesTest(parameterized.TestCase):
     expected_p_i_val = (
         profiles.kinetic.T_i.value
         * constants.CONSTANTS.keV_to_J
-        * (profiles.kinetic.n_i.value + profiles.kinetic.n_impurity.value)
+        * (profiles.kinetic.n_i.value + profiles.kinetic.n_impurity_total.value)
     )
     np.testing.assert_allclose(p_i.value, expected_p_i_val)
 
@@ -158,9 +159,11 @@ class SolverProfilesTest(parameterized.TestCase):
         solver_state=self.solver_state,
     )
     fast_ion_n = cell_variable.CellVariable(
-        value=0.1 * profiles.kinetic.n_impurity.value,
+        value=0.1 * profiles.kinetic.n_impurity_total.value,
         face_centers=self.geo.rho_face_norm,
-        right_face_constraint=0.1 * profiles.kinetic.n_impurity.get_right_bc(),
+        right_face_constraint=(
+            0.1 * profiles.kinetic.n_impurity_total.get_right_bc()
+        ),
         right_face_grad_constraint=None,
     )
     fast_ion_temp = cell_variable.CellVariable(
@@ -176,7 +179,9 @@ class SolverProfilesTest(parameterized.TestCase):
         T=fast_ion_temp,
     )
     impurity_fractions = dict(profiles.ions.impurity_fractions)
-    impurity_fractions['He3'] = jnp.ones_like(profiles.kinetic.n_impurity.value)
+    impurity_fractions['He3'] = jnp.ones_like(
+        profiles.kinetic.n_impurity_total.value
+    )
     profiles = dataclasses.replace(
         profiles,
         ions=dataclasses.replace(
@@ -185,18 +190,18 @@ class SolverProfilesTest(parameterized.TestCase):
         ),
     )
 
-    n_imp = profiles.calculate_n_impurity_thermal((fast_ion,))
+    n_imp = profiles.calculate_n_impurity_total_thermal((fast_ion,))
     np.testing.assert_allclose(
-        n_imp.value, 0.9 * profiles.kinetic.n_impurity.value
+        n_imp.value, 0.9 * profiles.kinetic.n_impurity_total.value
     )
     np.testing.assert_allclose(
-        n_imp.get_right_bc(), 0.9 * profiles.kinetic.n_impurity.get_right_bc()
+        n_imp.get_right_bc(),
+        0.9 * profiles.kinetic.n_impurity_total.get_right_bc(),
     )
 
     n_i_face = profiles.calculate_n_i_total_thermal_face((fast_ion,))
     expected_n_i_face = (
-        profiles.kinetic.n_i.face_value()
-        + n_imp.face_value() * profiles.impurity_density_scaling_face
+        profiles.kinetic.n_i.face_value() + n_imp.face_value()
     )
     np.testing.assert_allclose(n_i_face, expected_n_i_face)
 

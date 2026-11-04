@@ -423,14 +423,14 @@ class StateHistoryTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
     # pylint: disable=invalid-name
-    Z_impurity = jnp.ones_like(self.geo.rho) * 2
-    Z_impurity_face = jnp.ones_like(self.geo.rho_face) * 3
+    Z_impurity_average = jnp.ones_like(self.geo.rho) * 2
+    Z_impurity_average_face = jnp.ones_like(self.geo.rho_face) * 3
     # pylint: enable=invalid-name
     core_profiles = core_profile_helpers.make_zero_core_profiles(
         self.geo,
         T_e=T_e,
-        Z_impurity=Z_impurity,
-        Z_impurity_face=Z_impurity_face,
+        Z_impurity_average=Z_impurity_average,
+        Z_impurity_average_face=Z_impurity_average_face,
     )
     torax_state = dataclasses.replace(torax_state, core_profiles=core_profiles)
     post_processed_outputs = post_processing.PostProcessedOutputs.zeros(
@@ -448,7 +448,7 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = state_history.simulation_output_to_xr()
     np.testing.assert_equal(
         output_xr.children[output_keys.PROFILES]
-        .dataset.data_vars[output_keys.Z_IMPURITY]
+        .dataset.data_vars[output_keys.Z_IMPURITY_AVERAGE]
         .values,
         np.array([[3, 2, 2, 2, 2, 3], [3, 2, 2, 2, 2, 3]]),
     )

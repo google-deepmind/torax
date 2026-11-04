@@ -79,19 +79,28 @@ class CoreProfiles(solver_profiles.SolverProfiles):
   psidot: cell_variable.CellVariable
 
   @functools.cached_property
-  def n_impurity_thermal(self) -> cell_variable.CellVariable:
-    """True thermal impurity density without fast ions [m^-3]."""
-    return self.calculate_n_impurity_thermal(self.fast_ions)
+  def n_impurity_total_thermal(self) -> cell_variable.CellVariable:
+    """Total thermal impurity density without fast ions [m^-3]."""
+    return self.calculate_n_impurity_total_thermal(self.fast_ions)
+
+  @functools.cached_property
+  def n_impurity_bundled_thermal(self) -> cell_variable.CellVariable:
+    """Bundled thermal impurity density for 2-ion models [m^-3]."""
+    return self.ions.get_bundled_impurity_density(self.n_impurity_total_thermal)
 
   @functools.cached_property
   def n_i_total_thermal_face(self) -> array_typing.FloatVectorFace:
     """Total thermal ion particle density (main ions + impurities) [m^-3]."""
-    return self._n_i_total_thermal_face_from_impurity(self.n_impurity_thermal)
+    return self._n_i_total_thermal_face_from_impurity(
+        self.n_impurity_total_thermal
+    )
 
   @functools.cached_property
   def pressure_thermal_i(self) -> cell_variable.CellVariable:
     """Ion thermal pressure [Pa]."""
-    return self._pressure_thermal_i_from_impurity(self.n_impurity_thermal)
+    return self._pressure_thermal_i_from_impurity(
+        self.n_impurity_total_thermal
+    )
 
   @functools.cached_property
   def pressure_thermal_total(self) -> cell_variable.CellVariable:
@@ -182,7 +191,12 @@ class CoreProfiles(solver_profiles.SolverProfiles):
         output_keys.V_LOOP: self.psidot.cell_plus_boundaries(),
         output_keys.N_E: self.kinetic.n_e.cell_plus_boundaries(),
         output_keys.N_I: self.kinetic.n_i.cell_plus_boundaries(),
-        output_keys.N_IMPURITY: self.kinetic.n_impurity.cell_plus_boundaries(),
+        output_keys.N_IMPURITY_TOTAL: (
+            self.kinetic.n_impurity_total.cell_plus_boundaries()
+        ),
+        output_keys.N_IMPURITY_BUNDLED: (
+            self.n_impurity_bundled.cell_plus_boundaries()
+        ),
         output_keys.TOROIDAL_ANGULAR_VELOCITY: (
             self.kinetic.toroidal_angular_velocity.cell_plus_boundaries()
         ),
@@ -209,9 +223,14 @@ class CoreProfiles(solver_profiles.SolverProfiles):
     cell_face_pairs = [
         (output_keys.Z_I, self.ions.Z_i, self.ions.Z_i_face),
         (
-            output_keys.Z_IMPURITY,
-            self.ions.Z_impurity,
-            self.ions.Z_impurity_face,
+            output_keys.Z_IMPURITY_AVERAGE,
+            self.ions.Z_impurity_average,
+            self.ions.Z_impurity_average_face,
+        ),
+        (
+            output_keys.Z_IMPURITY_BUNDLED,
+            self.ions.Z_impurity_bundled,
+            self.ions.Z_impurity_bundled_face,
         ),
         (
             output_keys.A_IMPURITY,

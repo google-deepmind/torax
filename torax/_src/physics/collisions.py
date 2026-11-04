@@ -318,8 +318,8 @@ def _calculate_weighted_Z_eff(
           core_profiles.kinetic.n_i.value
           * core_profiles.ions.Z_i**2
           / core_profiles.ions.A_i
-          + core_profiles.kinetic.n_impurity.value
-          * core_profiles.ions.Z_impurity**2
+          + core_profiles.n_impurity_bundled.value
+          * core_profiles.ions.Z_impurity_bundled**2
           / core_profiles.ions.A_impurity
       )
       / core_profiles.kinetic.n_e.value

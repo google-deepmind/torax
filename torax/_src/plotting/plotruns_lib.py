@@ -384,7 +384,8 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
       'W_thermal_total': 1e6,  # J to MJ
       output_keys.N_E: 1e20,  # m^-3 to 10^{20} m^-3
       output_keys.N_I: 1e20,  # m^-3 to 10^{20} m^-3
-      output_keys.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_IMPURITY_TOTAL: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_IMPURITY_BUNDLED: 1e20,  # m^-3 to 10^{20} m^-3
   }
 
   for var_name, scale in transformations.items():

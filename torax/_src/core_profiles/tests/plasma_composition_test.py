@@ -586,7 +586,7 @@ class IonMixtureTest(parameterized.TestCase):
         ion_symbols=tuple(mixture_params.fractions.keys()),
         Z_override=mixture_params.Z_override,
     )
-    calculated_Z = charge_states.get_effective_charge_state(
+    calculated_Z = charge_states.get_bundled_charge_state(
         Z_per_species=Z_per_species,
         fractions=mixture_params.fractions,
     )
@@ -613,7 +613,7 @@ class IonMixtureTest(parameterized.TestCase):
         ion_symbols=tuple(mixture_params.fractions.keys()),
         Z_override=mixture_params.Z_override,
     )
-    calculated_Z = charge_states.get_effective_charge_state(
+    calculated_Z = charge_states.get_bundled_charge_state(
         Z_per_species=Z_per_species,
         fractions=mixture_params.fractions,
     )

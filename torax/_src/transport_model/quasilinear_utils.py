@@ -65,7 +65,7 @@ class NormalizedLogarithmicGradients:
         "lref_over_lte": core_profiles.kinetic.T_e,
         "lref_over_lne": core_profiles.kinetic.n_e,
         "lref_over_lni0": core_profiles.kinetic.n_i,
-        "lref_over_lni1": core_profiles.n_impurity_thermal,
+        "lref_over_lni1": core_profiles.n_impurity_bundled_thermal,
     }.items():
       gradients[name] = calculate_normalized_logarithmic_gradient(
           var=profile,

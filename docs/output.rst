@@ -343,12 +343,14 @@ toroidal (``j_toroidal_*``) current densities:
 ``n_i`` (time, rho_norm)
   Main ion density [:math:`m^{-3}`].
 
-``n_impurity`` (time, rho_norm)
-  Impurity density for a single effective bundled impurity species
-  [:math:`m^{-3}`].
+``n_impurity_bundled`` (time, rho_norm)
+  Bundled impurity particle density for 2-ion transport models [:math:`m^{-3}`].
 
 ``n_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   True impurity density per species [:math:`m^{-3}`].
+
+``n_impurity_total`` (time, rho_norm)
+  Total impurity particle density [:math:`m^{-3}`].
 
 ``p_alpha_e`` (time, rho_cell_norm)
   Fusion alpha heating power density to electrons [:math:`W/m^3`]. Only output
@@ -526,14 +528,18 @@ toroidal (``j_toroidal_*``) current densities:
 
 ``Z_eff`` (time, rho_norm)
   Effective charge profile defined as
-  :math:`(Z_i^2n_i + Z_{impurity}^2n_{impurity})/n_e` [dimensionless].
+  :math:`(Z_i^2 n_i + \sum_k Z_k^2 n_k) / n_e` [dimensionless].
 
 ``Z_i`` (time, rho_norm)
   Averaged main ion charge profile [dimensionless].
 
-``Z_impurity`` (time, rho_norm)
-  Averaged bundled impurity charge profile corresponding to <Z^2>/<Z> where
-  < > is a weighted average by fractional impurity abundance [dimensionless].
+``Z_impurity_average`` (time, rho_norm)
+  Mean impurity charge profile :math:`\langle Z \rangle = \sum_k f_k Z_k`,
+  weighted by fractional impurity abundance [dimensionless].
+
+``Z_impurity_bundled`` (time, rho_norm)
+  Bundled impurity charge profile :math:`\langle Z^2 \rangle / \langle Z \rangle`
+  [dimensionless].
 
 ``Z_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   True averaged impurity charge state per species [dimensionless].

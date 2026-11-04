@@ -131,7 +131,7 @@ class SimpleRedistribution(
       (
           ions_redistributed,
           n_i_redistributed,
-          n_impurity_redistributed,
+          n_impurity_total_redistributed,
       ) = ion_composition_lib.get_ion_composition_and_density(
           runtime_params.plasma_composition,
           geo,
@@ -141,7 +141,7 @@ class SimpleRedistribution(
     else:
       ions_redistributed = core_profiles_t.ions
       n_i_redistributed = core_profiles_t.kinetic.n_i
-      n_impurity_redistributed = core_profiles_t.kinetic.n_impurity
+      n_impurity_total_redistributed = core_profiles_t.kinetic.n_impurity_total
     if runtime_params.numerics.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
@@ -171,7 +171,7 @@ class SimpleRedistribution(
         T_e=te_redistributed,
         n_e=n_e_redistributed,
         n_i=n_i_redistributed,
-        n_impurity=n_impurity_redistributed,
+        n_impurity_total=n_impurity_total_redistributed,
         toroidal_angular_velocity=core_profiles_t.kinetic.toroidal_angular_velocity,
     )
     poloidal_flux = dataclasses.replace(

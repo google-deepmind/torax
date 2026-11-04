@@ -73,7 +73,7 @@ class SolverProfiles:
     Returns:
       SolverProfiles with kinetic, ions, and poloidal_flux.
     """
-    ion_composition, n_i, n_impurity = (
+    ion_composition, n_i, n_impurity_total = (
         ion_composition_lib.get_ion_composition_and_density(
             runtime_params.plasma_composition,
             geo,
@@ -92,7 +92,7 @@ class SolverProfiles:
         T_e=solver_state.T_e,
         n_e=solver_state.n_e,
         n_i=n_i,
-        n_impurity=n_impurity,
+        n_impurity_total=n_impurity_total,
         toroidal_angular_velocity=solver_state.toroidal_angular_velocity,
     )
     return cls(
@@ -101,15 +101,15 @@ class SolverProfiles:
         poloidal_flux=poloidal_flux,
     )
 
-  @functools.cached_property
-  def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
-    """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
-    return self.ions.Z_impurity / self.ions.Z_avg
+  @property
+  def n_impurity_bundled(self) -> cell_variable.CellVariable:
+    """Bundled impurity density for 2-ion models [m^-3].
 
-  @functools.cached_property
-  def impurity_density_scaling_face(self) -> array_typing.FloatVectorFace:
-    """Scaling factor for impurity density on the face grid."""
-    return self.ions.Z_impurity_face / self.ions.Z_avg_face
+    Scaled by <Z> / (<Z^2>/<Z>) = Z_impurity_average / Z_impurity_bundled so
+    that the pair (n_impurity_bundled, Z_impurity_bundled) simultaneously
+    satisfies quasineutrality and Z_eff.
+    """
+    return self.ions.get_bundled_impurity_density(self.kinetic.n_impurity_total)
 
   def get_species_concentration(
       self,
@@ -135,12 +135,10 @@ class SolverProfiles:
 
     if species in self.ions.impurity_fractions:
       fraction = self.ions.impurity_fractions[species]
-      n_imp_species = (
-          fraction
-          * self.kinetic.n_impurity.value
-          * self.impurity_density_scaling
+      return jnp.divide(
+          self.kinetic.n_impurity_total.value * fraction,
+          self.kinetic.n_e.value,
       )
-      return jnp.divide(n_imp_species, self.kinetic.n_e.value)
 
     raise ValueError(
         f'Species {species} not found.'
@@ -186,7 +184,7 @@ class SolverProfiles:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(
         self.kinetic.n_i.value * self.ions.Z_i
-        + self.kinetic.n_impurity.value * self.ions.Z_impurity,
+        + self.kinetic.n_impurity_total.value * self.ions.Z_impurity_average,
         self.kinetic.n_e.value,
     )
 
@@ -198,7 +196,7 @@ class SolverProfiles:
         self.kinetic.T_e,
         self.kinetic.n_e,
         self.kinetic.n_i,
-        self.kinetic.n_impurity,
+        self.kinetic.n_impurity_total,
         self.ions.impurity_fractions,
     )
     # Check if any profile is less than -eps
@@ -232,11 +230,11 @@ class SolverProfiles:
         toroidal_angular_velocity=(self.kinetic.toroidal_angular_velocity),
     )
 
-  def calculate_n_impurity_thermal(
+  def calculate_n_impurity_total_thermal(
       self,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> cell_variable.CellVariable:
-    """True thermal impurity density without fast ions [m^-3].
+    """Total thermal impurity density without fast ions [m^-3].
 
     TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
     are originally from thermal species. This needs to be updated when we
@@ -249,8 +247,10 @@ class SolverProfiles:
     Returns:
       Thermal impurity density CellVariable.
     """
-    n_impurity_thermal_value = self.kinetic.n_impurity.value
-    n_impurity_thermal_right = self.kinetic.n_impurity.right_face_constraint
+    n_impurity_thermal_value = self.kinetic.n_impurity_total.value
+    n_impurity_thermal_right = (
+        self.kinetic.n_impurity_total.right_face_constraint
+    )
     for fast_ion in fast_ions:
       if fast_ion.species in self.ions.impurity_fractions:
         n_impurity_thermal_value = n_impurity_thermal_value - fast_ion.n.value
@@ -263,7 +263,7 @@ class SolverProfiles:
           )
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
-        face_centers=self.kinetic.n_impurity.face_centers,
+        face_centers=self.kinetic.n_impurity_total.face_centers,
         right_face_constraint=n_impurity_thermal_right,
         right_face_grad_constraint=None,
     )
@@ -272,20 +272,13 @@ class SolverProfiles:
       self,
       n_impurity_thermal: cell_variable.CellVariable,
   ) -> array_typing.FloatVectorFace:
-    return (
-        self.kinetic.n_i.face_value()
-        + n_impurity_thermal.face_value() * self.impurity_density_scaling_face
-    )
+    return self.kinetic.n_i.face_value() + n_impurity_thermal.face_value()
 
   def calculate_n_i_total_thermal_face(
       self,
       fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> array_typing.FloatVectorFace:
     """Total thermal ion particle density (main ions + impurities) [m^-3].
-
-    On the face grid. The bundled impurity density (charge Z_impurity =
-    <Z^2>/<Z>) is rescaled to the true impurity particle density with
-    `impurity_density_scaling_face` before being summed with the main ions.
 
     Args:
       fast_ions: Tuple of fast ion populations.
@@ -294,7 +287,7 @@ class SolverProfiles:
       Total thermal ion particle density on face grid.
     """
     return self._n_i_total_thermal_face_from_impurity(
-        self.calculate_n_impurity_thermal(fast_ions)
+        self.calculate_n_impurity_total_thermal(fast_ions)
     )
 
   def _pressure_thermal_i_from_impurity(
@@ -330,5 +323,5 @@ class SolverProfiles:
       Ion thermal pressure CellVariable.
     """
     return self._pressure_thermal_i_from_impurity(
-        self.calculate_n_impurity_thermal(fast_ions)
+        self.calculate_n_impurity_total_thermal(fast_ions)
     )

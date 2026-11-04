@@ -453,6 +453,47 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       quasilinear_utils._get_default_fi_stabilization_model('Ar')
 
+  def test_from_profiles_uses_bundled_impurity_density_for_lref_over_lni1(
+      self,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': {'He3': 0.75, 'W': 0.25},
+        },
+        'Z_eff': 2.0,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
+    )
+    gradients = quasilinear_utils.NormalizedLogarithmicGradients.from_profiles(
+        core_profiles=core_profiles,
+        radial_coordinate=geo.r_mid,
+        radial_face_coordinate=geo.r_mid_face,
+        reference_length=geo.R_major,
+    )
+    expected_lni1 = (
+        quasilinear_utils.calculate_normalized_logarithmic_gradient(
+            var=core_profiles.n_impurity_bundled_thermal,
+            radial_coordinate=geo.r_mid,
+            radial_face_coordinate=geo.r_mid_face,
+            reference_length=geo.R_major,
+        )
+    )
+    unscaled_lni1 = (
+        quasilinear_utils.calculate_normalized_logarithmic_gradient(
+            var=core_profiles.n_impurity_total_thermal,
+            radial_coordinate=geo.r_mid,
+            radial_face_coordinate=geo.r_mid_face,
+            reference_length=geo.R_major,
+        )
+    )
+    np.testing.assert_allclose(gradients.lref_over_lni1, expected_lni1)
+    self.assertFalse(np.allclose(gradients.lref_over_lni1, unscaled_lni1))
+
 
 if __name__ == '__main__':
   absltest.main()

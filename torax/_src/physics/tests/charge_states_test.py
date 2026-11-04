@@ -160,7 +160,7 @@ class ChargeStatesTest(parameterized.TestCase):
           [9.42307536, 23.895752, 35.35459338],
       ),
   )
-  def test_get_effective_charge_state(
+  def test_get_bundled_charge_state(
       self,
       species,
       T_e,
@@ -171,7 +171,7 @@ class ChargeStatesTest(parameterized.TestCase):
     Z_per_species = charge_states.get_average_charge_state_per_species(
         T_e, tuple(species.keys())
     )
-    Z_calculated = charge_states.get_effective_charge_state(
+    Z_calculated = charge_states.get_bundled_charge_state(
         Z_per_species,
         species,
     )

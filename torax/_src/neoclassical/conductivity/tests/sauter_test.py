@@ -55,7 +55,7 @@ class SauterTest(parameterized.TestCase):
                 value=jnp.linspace(100, 200, self.n_rho),
                 face_centers=self.geo.rho_face_norm,
             ),
-            n_impurity=cell_variable.CellVariable(
+            n_impurity_total=cell_variable.CellVariable(
                 value=jnp.linspace(10, 20, self.n_rho),
                 face_centers=self.geo.rho_face_norm,
                 right_face_constraint=20.0,

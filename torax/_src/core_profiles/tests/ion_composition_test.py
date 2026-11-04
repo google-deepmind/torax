@@ -95,7 +95,7 @@ class IonCompositionTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         n_impurity.value,
-        (expected_value - n_i.value * ions.Z_i) / ions.Z_impurity,
+        (expected_value - n_i.value * ions.Z_i) / ions.Z_impurity_average,
         rtol=1e-6,
     )
 
@@ -114,14 +114,14 @@ class IonCompositionTest(parameterized.TestCase):
 
     calculated_Z_eff = (
         core_profiles.ions.Z_i**2 * core_profiles.kinetic.n_i.value
-        + core_profiles.ions.Z_impurity**2
-        * core_profiles.kinetic.n_impurity.value
+        + core_profiles.ions.Z_impurity_bundled**2
+        * core_profiles.n_impurity_bundled.value
     ) / core_profiles.kinetic.n_e.value
 
     calculated_Z_eff_face = (
         core_profiles.ions.Z_i_face**2 * core_profiles.kinetic.n_i.face_value()
-        + core_profiles.ions.Z_impurity_face**2
-        * core_profiles.kinetic.n_impurity.face_value()
+        + core_profiles.ions.Z_impurity_bundled_face**2
+        * core_profiles.n_impurity_bundled.face_value()
     ) / core_profiles.kinetic.n_e.face_value()
 
     np.testing.assert_allclose(
@@ -226,15 +226,25 @@ class IonCompositionTest(parameterized.TestCase):
     expected_Z2_avg = (
         impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
     )
-    expected_Z_impurity = expected_Z2_avg / expected_Z_avg
-    np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
+    expected_Z_impurity_bundled = expected_Z2_avg / expected_Z_avg
+    np.testing.assert_allclose(
+        ions.Z_impurity_average, expected_Z_avg, rtol=1e-6
+    )
+    np.testing.assert_allclose(
+        ions.Z_impurity_bundled, expected_Z_impurity_bundled, rtol=1e-6
+    )
 
     calculated_dilution = n_i.value / n_e_cell_variable.value
     np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
+    np.testing.assert_allclose(
+        n_impurity.value / n_e_cell_variable.value,
+        n_e_ratio_w + n_e_ratio_he3,
+        rtol=1e-6,
+    )
 
     reconstructed_zeff = (n_i.value / n_e_cell_variable.value) * ions.Z_i**2 + (
         n_impurity.value / n_e_cell_variable.value
-    ) * ions.Z_impurity**2
+    ) * ions.Z_impurity_average * ions.Z_impurity_bundled
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
   def test_from_profiles_impurity_mixture_radially_dependent(self):
@@ -320,15 +330,25 @@ class IonCompositionTest(parameterized.TestCase):
     expected_Z2_avg = (
         impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
     )
-    expected_Z_impurity = expected_Z2_avg / expected_Z_avg
-    np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
+    expected_Z_impurity_bundled = expected_Z2_avg / expected_Z_avg
+    np.testing.assert_allclose(
+        ions.Z_impurity_average, expected_Z_avg, rtol=1e-6
+    )
+    np.testing.assert_allclose(
+        ions.Z_impurity_bundled, expected_Z_impurity_bundled, rtol=1e-6
+    )
 
     calculated_dilution = n_i.value / n_e_cell_variable.value
     np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
+    np.testing.assert_allclose(
+        n_impurity.value / n_e_cell_variable.value,
+        n_e_ratio_w + n_e_ratio_he3,
+        rtol=1e-6,
+    )
 
     reconstructed_zeff = (n_i.value / n_e_cell_variable.value) * ions.Z_i**2 + (
         n_impurity.value / n_e_cell_variable.value
-    ) * ions.Z_impurity**2
+    ) * ions.Z_impurity_average * ions.Z_impurity_bundled
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
   def test_from_profiles_with_n_e_ratios(self):

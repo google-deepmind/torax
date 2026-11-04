@@ -176,7 +176,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_n_impurity.right_face_value = mock_n_impurity.face_value.return_value[
         -1:
     ]
-    mock_core_profiles.kinetic.n_impurity = mock_n_impurity
+    mock_core_profiles.kinetic.n_impurity_total = mock_n_impurity
 
     # Set up CoreSources to give P_SOL_total = 5.5e6 W.
     target_P_SOL = 5.5e6
@@ -363,7 +363,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.kinetic.n_e = mock_n_e
     mock_core_profiles.kinetic.n_i = mock_n_i
-    mock_core_profiles.kinetic.n_impurity = mock_n_impurity
+    mock_core_profiles.kinetic.n_impurity_total = mock_n_impurity
     mock_core_profiles.ions.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.ions.A_i = np.array(2.0)
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 4.0
@@ -466,7 +466,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
-    for attr in ['n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity_total']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
       m.right_face_value = m.face_value.return_value[-1:]
@@ -663,7 +663,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
-    for attr in ['n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity_total']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
       m.right_face_value = m.face_value.return_value[-1:]
@@ -841,7 +841,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
-    for attr in ['n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity_total']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
       m.right_face_value = m.face_value.return_value[-1:]
@@ -965,7 +965,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
-    for attr in ['n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity_total']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
       m.right_face_value = m.face_value.return_value[-1:]
@@ -1094,7 +1094,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
     # Setup minimal profiles to avoid index errors
-    for attr in ['n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity_total']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
       m.right_face_value = m.face_value.return_value[-1:]
@@ -1714,7 +1714,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         self.torax_config, max_steps=100
     ).simulation_output_to_xr()
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
-    core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
+    core_impurity_value = outputs.profiles.n_impurity_total.values[:, -1]
 
     for i in range(len(calculated_enrichment)):
       if i == 0:
@@ -1740,7 +1740,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     outputs = run_simulation.run_simulation(
         self.torax_config, max_steps=100
     ).simulation_output_to_xr()
-    core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
+    core_impurity_value = outputs.profiles.n_impurity_total.values[:, -1]
     for i in range(len(core_impurity_value)):
       if i == 0:
         continue
@@ -1762,7 +1762,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     ).simulation_output_to_xr()
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
     edge_impurity_bc = outputs.edge.impurity_right_bc.sel(impurity='Ne').values
-    core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
+    core_impurity_value = outputs.profiles.n_impurity_total.values[:, -1]
     for i in range(len(calculated_enrichment)):
       if i == 0:
         continue
@@ -1790,7 +1790,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         self.torax_config, max_steps=100
     ).simulation_output_to_xr()
     edge_impurity_bc = outputs.edge.impurity_right_bc.sel(impurity='Ne').values
-    core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
+    core_impurity_value = outputs.profiles.n_impurity_total.values[:, -1]
     for i in range(len(core_impurity_value)):
       if i == 0:
         continue
@@ -1811,7 +1811,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     mock_core_profiles.poloidal_flux = mock.MagicMock()
     mock_core_profiles.ions = mock.MagicMock()
     mock_core_profiles.kinetic = mock.MagicMock()
-    for attr in ['n_e', 'n_i', 'n_impurity']:
+    for attr in ['n_e', 'n_i', 'n_impurity_total']:
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
       m.right_face_value = m.face_value.return_value[-1:]
@@ -2018,7 +2018,7 @@ class ExtendedLengyelModelStateThreadingTest(parameterized.TestCase):
     mock_n_impurity.right_face_value = mock_n_impurity.face_value.return_value[
         -1:
     ]
-    mock_core_profiles.kinetic.n_impurity = mock_n_impurity
+    mock_core_profiles.kinetic.n_impurity_total = mock_n_impurity
 
     target_P_SOL = 5.5e6
     profile = formulas.gaussian_profile(

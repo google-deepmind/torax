@@ -194,24 +194,24 @@ def get_average_charge_state(
   )
 
 
-def get_effective_charge_state(
+def get_bundled_charge_state(
     Z_per_species: Mapping[str, array_typing.FloatVector],
     fractions: Mapping[
         str, array_typing.FloatVector | array_typing.FloatScalar
     ],
     Z_avg: array_typing.FloatVector | None = None,
 ) -> array_typing.FloatVector:
-  """Calculates the effective mixture charge state <Z^2> / <Z>.
+  """Calculates the bundled mixture charge state <Z^2> / <Z>.
 
   When bundling an ion mixture with per-species densities n_k = f_k * n_tot and
-  charge states Z_k into a single effective species (n_eff, Z_mix_eff) that
+  charge states Z_k into a single bundled species (n_bundled, Z_bundled) that
   simultaneously preserves total charge density and Z_eff contribution:
 
-    sum_k n_k * Z_k = n_eff * Z_mix_eff
-    sum_k n_k * Z_k**2 = n_eff * Z_mix_eff**2
+    sum_k n_k * Z_k = n_bundled * Z_bundled
+    sum_k n_k * Z_k**2 = n_bundled * Z_bundled**2
 
   Taking the ratio gives
-  Z_mix_eff = sum_k(f_k * Z_k**2) / sum_k(f_k * Z_k) = <Z^2> / <Z>.
+  Z_bundled = sum_k(f_k * Z_k**2) / sum_k(f_k * Z_k) = <Z^2> / <Z>.
 
   Args:
     Z_per_species: Mapping of ion symbols to per-species charge states.
@@ -220,7 +220,7 @@ def get_effective_charge_state(
       None, it is computed via `get_average_charge_state`.
 
   Returns:
-    Effective charge state <Z^2> / <Z> of the mixture.
+    Bundled charge state <Z^2> / <Z> of the mixture.
   """
   if Z_avg is None:
     Z_avg = get_average_charge_state(Z_per_species, fractions)

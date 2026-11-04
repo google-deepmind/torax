@@ -265,7 +265,8 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     # Assuming T_i = T_imp,
     # p_thermal = n_e * T_e * (1 + (T_i / T_e) * (n_i + n_imp) / n_e).
     n_i_n_e_ratio = (
-        core_profiles.kinetic.n_i.value + core_profiles.n_impurity_thermal.value
+        core_profiles.kinetic.n_i.value
+        + core_profiles.n_impurity_total_thermal.value
     ) / (core_profiles.kinetic.n_e.value + constants.CONSTANTS.eps)
 
     T_e_edge_profile = p_thermal_cell / (

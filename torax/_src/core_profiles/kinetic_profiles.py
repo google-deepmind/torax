@@ -31,7 +31,7 @@ class KineticProfiles:
     T_e: Electron temperature [keV].
     n_e: Electron density [m^-3].
     n_i: Main ion density [m^-3].
-    n_impurity: Impurity density of bundled impurity [m^-3].
+    n_impurity_total: Total impurity particle density [m^-3].
     toroidal_angular_velocity: Toroidal angular velocity [rad/s].
   """
 
@@ -39,5 +39,5 @@ class KineticProfiles:
   T_e: cell_variable.CellVariable
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
-  n_impurity: cell_variable.CellVariable
+  n_impurity_total: cell_variable.CellVariable
   toroidal_angular_velocity: cell_variable.CellVariable

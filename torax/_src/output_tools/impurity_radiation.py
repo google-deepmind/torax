@@ -89,11 +89,9 @@ def calculate_impurity_species_output(
 
   for symbol in impurity_names:
     core_profiles = sim_state.core_profiles
-    impurity_density_scaling = core_profiles.impurity_density_scaling
     n_imp = (
         impurity_fractions[symbol]
-        * core_profiles.kinetic.n_impurity.value
-        * impurity_density_scaling
+        * core_profiles.kinetic.n_impurity_total.value
     )
     Z_imp = Z_impurity_per_species[symbol]
     if radiation_active:

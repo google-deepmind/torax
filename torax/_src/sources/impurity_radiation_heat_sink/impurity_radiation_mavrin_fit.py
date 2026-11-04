@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Routines for calculating impurity radiation based on a polynomial fit."""
+
 import dataclasses
 from typing import Annotated, Literal, Sequence
 import chex
@@ -111,28 +112,12 @@ class MavrinImpurityRadiationHeatSink(
         impurity_fractions=impurity_fractions_arr,
         T_e=solver_profiles.kinetic.T_e.value,
     )
-    # The impurity density must be scaled to account for the true total impurity
-    # density. This is because in an IonMixture, the impurity density is an
-    # effective density as follows:
-    # n_imp_true * sum(fraction_imp * Z_imp) = n_imp_eff * Z_imp_eff
-    # where solver_profiles.ions.Z_impurity is the effective impurity charge
-    # for the IonMixture and solver_profiles.kinetic.n_impurity is effective
-    # total impurity density.
-    # However, the input fractions correspond to fractions of the true total
-    # impurity density which must be scaled from the effective density as
-    # follows:
-    # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
-    # It is important that the calculated radiation corresponds to the true
-    # total impurity density, not the effective one.
-    impurity_density_scaling = solver_profiles.impurity_density_scaling
-
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     radiation_profile = (
         effective_LZ
         * solver_profiles.kinetic.n_e.value
-        * solver_profiles.kinetic.n_impurity.value
-        * impurity_density_scaling
+        * solver_profiles.kinetic.n_impurity_total.value
         * source_params.radiation_multiplier
     )
 

@@ -56,7 +56,7 @@ class RedlConductivityTest(parameterized.TestCase):
                 value=jnp.linspace(0.8e20, 0.4e20, self.n_rho),
                 face_centers=self.geo.rho_face_norm,
             ),
-            n_impurity=cell_variable.CellVariable(
+            n_impurity_total=cell_variable.CellVariable(
                 value=jnp.linspace(0.2e20, 0.1e20, self.n_rho),
                 face_centers=self.geo.rho_face_norm,
                 right_face_constraint=0.1e20,

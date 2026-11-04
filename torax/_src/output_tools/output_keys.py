@@ -238,13 +238,23 @@ Q: Final[OutputKey] = OutputKey(
 MAGNETIC_SHEAR: Final[OutputKey] = OutputKey(
     "magnetic_shear", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
-N_IMPURITY: Final[OutputKey] = OutputKey(
-    "n_impurity",
+N_IMPURITY_TOTAL: Final[OutputKey] = OutputKey(
+    "n_impurity_total",
     units=Units.INVERSE_CUBIC_METER,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-Z_IMPURITY: Final[OutputKey] = OutputKey(
-    "Z_impurity",
+N_IMPURITY_BUNDLED: Final[OutputKey] = OutputKey(
+    "n_impurity_bundled",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Z_IMPURITY_AVERAGE: Final[OutputKey] = OutputKey(
+    "Z_impurity_average",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Z_IMPURITY_BUNDLED: Final[OutputKey] = OutputKey(
+    "Z_impurity_bundled",
     units=Units.DIMENSIONLESS,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )

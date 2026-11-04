@@ -199,9 +199,9 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('Z_impurity',),
+            attrs=('Z_impurity_average',),
             labels=(r'$\langle Z_{impurity} \rangle$',),
-            ylabel=r'Average impurity charge [amu]',
+            ylabel=r'Average impurity charge [dimensionless]',
         ),
     ),
 )
