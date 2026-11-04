@@ -27,8 +27,10 @@ Most existing workflows require updates in the following areas:
   identifiers now use ``lower_snake_case`` (e.g. ``'zero'``, ``'prescribed'``,
   ``'bohm_gyrobohm'``; see :ref:`migration_global_config`).
 * **Timestep settings**: All timestep settings have moved from ``numerics`` to
-  ``time_step_calculator`` (see :ref:`migration_numerics`).
-* **Profile conditions**: ``profile_conditions['initial_psi_source']`` (``'j'``,
+  ``time_step_calculator``, and ``max_steps`` is required when using the
+  ``'chi'`` (default) or ``'from_previous_dt'`` calculator (see
+  :ref:`migration_numerics`).
+* **Profile conditions**: ``profile_conditions['psi_source']`` (``'j'``,
   ``'profile_conditions'``, or ``'geometry'``) is now required, ``Ip`` is
   renamed to ``I_p``, and ``nbar`` / ``fGW`` keys are standardized to
   ``n_e_bar`` / ``f_GW`` (see :ref:`migration_profile_conditions`).
@@ -84,13 +86,14 @@ Running simulations and Python / JAX API
   ``torax.run_simulation`` directly, or use ``torax.experimental.run_loop_jit``
   for lower-level step-function execution with runtime parameter overrides (see
   :ref:`jitted_simulation`).
-* **Bounded step count** (``max_steps``): ``torax.run_simulation`` accepts an
-  optional ``max_steps: int | None`` argument (also configurable via
-  ``time_step_calculator['max_steps']`` or the ``--max_steps`` CLI flag on
-  ``run_torax``) to bound the pre-allocated output buffer in the compiled loop.
-  If ``max_steps`` is reached before ``t_final``,
-  ``state_history.sim_error`` is set to ``torax.SimError.DID_NOT_REACH_T_FINAL``
-  (code ``6``).
+* **Bounded step count** (``max_steps``): To bound the pre-allocated output
+  buffer in the compiled loop, ``max_steps`` **must** be specified (via
+  ``time_step_calculator['max_steps']``, ``torax.run_simulation(...,
+  max_steps=...)``, or ``run_torax --max_steps``) whenever ``calculator_type``
+  is ``'chi'`` (the default) or ``'from_previous_dt'``; only
+  ``calculator_type='fixed'`` computes a default automatically. If
+  ``max_steps`` is reached before ``t_final``, ``state_history.sim_error`` is
+  set to ``torax.SimError.DID_NOT_REACH_T_FINAL`` (code ``6``).
 * **In-place config updates** (``update_fields``): When mutating frozen
   ``ToraxConfig`` instances across parameter sweeps via
   ``torax_config.update_fields({...})``, update dotted field paths to match the
@@ -142,7 +145,9 @@ internal modules have moved into dedicated public subpackages:
    * - ``torax.PedestalModelOutput``
      - ``torax.pedestal.PedestalStructure``
    * - ``torax.SourceProfiles``
-     - ``torax.sources.SourceProfiles``
+     - ``torax.CoreSources`` (also ``torax.sources.CoreSources``;
+       ``state_history.source_profiles`` is now ``state_history.core_sources``,
+       with per-source ``SourceOutput`` entries in ``core_sources.sources``)
    * - ``torax_pydantic.BaseModelFrozen``
      - ``torax.torax_pydantic.ConfigBase``
    * - ``torax.experimental.run_simulation_jitted``
@@ -151,7 +156,8 @@ internal modules have moved into dedicated public subpackages:
 TORAX v2 exposes the public subpackages ``torax.constants``, ``torax.edge``,
 ``torax.experimental``, ``torax.math_utils``, ``torax.neoclassical``,
 ``torax.pedestal``, ``torax.sources``, ``torax.torax_pydantic``, and
-``torax.transport``, as well as ``torax.SolverProfiles`` at the top level.
+``torax.transport``, as well as ``torax.CoreSources`` and
+``torax.SolverProfiles`` at the top level.
 
 ``CoreProfiles`` nested container structure
 -------------------------------------------
@@ -177,10 +183,11 @@ Density profiles ``n_e``, ``n_i``, and ``n_impurity`` are stored in SI units of
      - ``core_profiles.ions.Z_i``, ``Z_i_face``, ``Z_impurity``,
        ``Z_impurity_face``, ``A_i``, ``A_impurity``, ``A_impurity_face``,
        ``Z_eff``, ``Z_eff_face``
-   * - ``core_profiles.main_ion_fractions``, ``impurity_fractions``,
-       ``charge_state_info``, ``charge_state_info_face``
-     - ``core_profiles.ions.main_ion_fractions``, ``impurity_fractions``,
-       ``charge_state_info``, ``charge_state_info_face``
+   * - ``core_profiles.main_ion_fractions``, ``impurity_fractions``
+     - ``core_profiles.ions.main_ion_fractions``, ``impurity_fractions``
+   * - ``core_profiles.charge_state_info``, ``charge_state_info_face``
+     - Flattened onto ``core_profiles.ions`` as ``Z_avg``, ``Z_avg_face``,
+       ``Z_impurity_per_species``, and ``Z_impurity_per_species_face``
    * - ``core_profiles.psi``, ``q_face``, ``s_face``
      - ``core_profiles.poloidal_flux.psi``, ``q_face``, ``s_face``
    * - ``core_profiles.Ip_profile_face``
@@ -196,10 +203,13 @@ Density profiles ``n_e``, ``n_i``, and ``n_impurity`` are stored in SI units of
    * - ``core_profiles.internal_plasma_energy``
      - Removed (use ``scalars.W_thermal_total`` in post-processed outputs)
 
-``psidot``, ``fast_ions``, ``poloidal_velocity``, and pressure properties
-(``pressure_thermal_e``, ``pressure_thermal_i``, ``pressure_thermal_total``,
-``pressure_fast_i``, ``pressure_total_i``, ``pressure_total``) remain direct
-attributes/properties on ``CoreProfiles``.
+``psidot``, ``fast_ions``, ``poloidal_velocity`` (newly added in v2), and
+pressure properties (``pressure_thermal_e``, ``pressure_thermal_i``,
+``pressure_thermal_total``, ``pressure_fast_i``, ``pressure_total_i``,
+``pressure_total``) are direct attributes/properties on ``CoreProfiles``.
+Similarly, ``state_history.core_transport`` (``torax.CoreTransport``) now
+groups transport coefficients into ``.total``, ``.turbulent``,
+``.neoclassical``, and ``.pereverzev`` ``TransportCoeffs`` containers.
 
 ``torax.experimental.SimulationStepFn``
 ---------------------------------------
@@ -244,11 +254,14 @@ pedestal structure/formation separation, and stateful models. See
   * ``SourceModelBase`` → ``SourceConfigBase``
   * ``register_source_model_config`` → ``register_source_config``
   * ``SOURCE_NAME`` class attribute → ``SOURCE_ID``
+  * ``AffectedCoreProfile`` / ``AFFECTED_CORE_PROFILES`` →
+    ``PopulatedSourceOutput`` / ``POPULATED_SOURCE_OUTPUTS``
   * The ``SourceProfileFunction`` callback pattern has been replaced by
-    subclassing ``Source``, ``SourceUsingCoreProfiles``, or ``FinalSource`` and
+    subclassing ``Source``, ``SourceUsingCoreProfiles``, or ``FinalSource``
+    (whose ``_get_model_value`` now receives ``calculated_core_sources``) and
     implementing ``_get_model_value`` returning ``(SourceOutput, SourceState)``
     (where ``SourceOutput`` takes named keyword fields ``power_density_i``,
-    ``power_density_e``, ``j_parallel``, ``particle_source``, and optional
+    ``power_density_e``, ``j_parallel``, ``particle_source_e``, and optional
     ``fast_ions``).
 
 * **Edge and neoclassical** (``torax.edge``, ``torax.neoclassical``): New public
@@ -358,6 +371,10 @@ keys were renamed or removed:
      - Removed (obsoleted by exact Dirichlet internal boundary conditions)
    * - ``numerics.calcphibdot``
      - ``geometry.calc_Phi_b_dot``
+   * - *(Unbounded step count)*
+     - ``time_step_calculator.max_steps`` (required when ``calculator_type`` is
+       ``'chi'`` or ``'from_previous_dt'``; computed automatically when
+       ``'fixed'``)
 
 .. tab-set::
 
@@ -410,17 +427,21 @@ See :ref:`profile_conditions <profile_conditions>` for the full v2 parameter
 reference.
 
 .. important::
-   ``profile_conditions['initial_psi_source']`` is **required** in TORAX v2 and
-   has no default value. Set it explicitly in every configuration:
+   ``profile_conditions['psi_source']`` is **required** in TORAX v2 and has no
+   default value (governing :math:`\psi` at initialization and for
+   :math:`t > t_{\mathrm{initial}}` when ``numerics.evolve_current=False``).
+   Set it explicitly in every configuration:
 
-   * ``'j'``: initialize :math:`\psi` from the initial current profile (replaces
-     ``initial_psi_mode='j'`` or ``psi=None`` with ``initial_psi_from_j=True``).
-   * ``'geometry'``: initialize :math:`\psi` from the equilibrium geometry
-     (replaces ``initial_psi_mode='geometry'`` or ``psi=None`` with
+   * ``'j'``: compute :math:`\psi` from the initial current profile at
+     initialization (replaces ``initial_psi_mode='j'`` or ``psi=None`` with
+     ``initial_psi_from_j=True``).
+   * ``'geometry'``: take :math:`\psi` from the equilibrium geometry (replaces
+     ``initial_psi_mode='geometry'`` or ``psi=None`` with
      ``initial_psi_from_j=False``; not available for ``circular`` geometry).
-   * ``'profile_conditions'``: initialize :math:`\psi` from a prescribed
+   * ``'profile_conditions'``: take :math:`\psi` from a prescribed
      ``profile_conditions['psi']`` profile (replaces
-     ``initial_psi_mode='profile_conditions'`` or providing ``psi`` directly).
+     ``initial_psi_mode='profile_conditions'`` or providing ``psi`` directly;
+     ``psi`` must be ``None`` when ``psi_source != 'profile_conditions'``).
 
 .. list-table::
    :header-rows: 1
@@ -434,14 +455,14 @@ reference.
    * - ``geometry.Ip_from_parameters: True / False``
      - ``I_p_source: 'profile_conditions'`` (default) or ``'geometry'``
    * - ``initial_psi_from_j`` / ``initial_psi_mode``
-     - ``initial_psi_source`` (required: ``'j'``, ``'geometry'``, or
+     - ``psi_source`` (required: ``'j'``, ``'geometry'``, or
        ``'profile_conditions'``)
    * - ``use_vloop_lcfs_boundary_condition`` /
        ``use_v_loop_lcfs_boundary_condition``
      - ``psi_bc_source``: ``'I_p'`` (default) or ``'v_loop'``
    * - ``vloop_lcfs``
      - ``v_loop_lcfs`` (defaults to ``None``; required when
-       ``psi_bc_source='v_loop'``)
+       ``psi_bc_source='v_loop'`` and rejected when ``psi_bc_source='I_p'``)
    * - ``nbar``
      - ``n_e_bar``
    * - ``n_e_nbar_is_fGW``
@@ -481,7 +502,7 @@ reference.
          'profile_conditions': {
              'I_p': {0: 3e6, 80: 10.5e6},
              'I_p_source': 'profile_conditions',
-             'initial_psi_source': 'geometry',
+             'psi_source': 'geometry',
              'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
              'n_e_bar': 0.85,
              'n_e_bar_is_f_GW': True,
@@ -600,11 +621,16 @@ than a flat single-model dictionary or ``'model_name': 'combined'`` list:
      ``'merge_mode': 'add'`` sums the patch onto the turbulence model instead of
      replacing it.
 
-* **Localized smoothing**: ``smooth_everywhere`` has been removed. Global
-  ``smoothing_width`` and ``pedestal_smoothing_width`` remain on ``transport``;
-  to restrict smoothing to specific radial intervals, specify
-  ``smoothing_zones`` with ``{'rho_min', 'rho_max', 'smoothing_width'}``
-  dictionaries.
+* **Top-level clipping and localized smoothing**: ``chi_min``, ``chi_max``,
+  ``D_e_min``, ``D_e_max``, ``V_e_min``, ``V_e_max``, ``smoothing_width``, and
+  ``pedestal_smoothing_width`` live only on top-level ``transport`` (no longer
+  accepted inside individual component dictionaries), and ``smooth_everywhere``
+  has been removed. Note that ``transport['smoothing_width']`` defaults to
+  ``0.0`` even when ``'qlknn'`` is used (whereas v1 ``'qlknn'`` defaulted
+  ``smoothing_width=0.1`` on ``QLKNN_7_11``), so set ``'smoothing_width': 0.1``
+  explicitly to retain radial smoothing. To restrict smoothing to specific
+  radial intervals, specify ``smoothing_zones`` with ``{'rho_min', 'rho_max',
+  'smoothing_width'}`` dictionaries.
 * **Model name renames**: ``'constant'`` → ``'prescribed'``, ``'CGM'`` →
   ``'cgm'``, ``'bohm-gyrobohm'`` → ``'bohm_gyrobohm'``, ``'tglfnn-ukaea'`` →
   ``'tglfnn_ukaea'``.
@@ -613,7 +639,10 @@ than a flat single-model dictionary or ``'model_name': 'combined'`` list:
   True`` when you need separate ITG/TEM/ETG transport outputs.
 * **In-memory TGLF** (``model_name='tglf'``): TGLF now executes in memory via
   ``tglf2py``; subprocess options ``tglf_exec_path``, ``output_directory``,
-  ``verbose``, and ``use_legacy_torax_defaults`` have been removed.
+  ``verbose``, and ``use_legacy_torax_defaults`` have been removed, and flat
+  lowercase TGLF namelist fields (``sat_rule``, ``use_bper``, ``n_ky``, etc.)
+  must be passed inside ``tglf_settings`` using uppercase TGLF keys
+  (``'SAT_RULE'``, ``'USE_BPER'``, etc.).
 
 .. tab-set::
 
@@ -686,9 +715,10 @@ and pedestal-top quantities are standardized to ``*_top`` (rather than
   * ``pedestal_profile_form``: ``'set_at_top'`` (default; replaces
     ``'SET_AT_PED_TOP'``) or ``'mtanh'`` (replaces ``'MTANH'``)
 
-* ``formation_model``: ``'prescribed'`` (with ``pedestal_active: bool``),
-  ``'martin_scaling'``, or ``'delabie_scaling'``. Scaling-law models now own
-  ``P_LH_hysteresis_factor``, ``include_dW_dt_in_P_SOL``, and
+* ``formation_model``: ``'prescribed'`` (with ``pedestal_active``, a ``bool``
+  or time-varying step schedule), ``'martin_scaling'``, or
+  ``'delabie_scaling'``. Scaling-law models now own ``P_LH_hysteresis_factor``
+  and ``include_dW_dt_in_P_SOL``, while ``'delabie_scaling'`` also owns
   ``divertor_configuration`` (``'horizontal_target'`` or ``'vertical_target'``,
   replacing ``'HT'`` / ``'VT'``).
 * ``saturation_model``: ``'profile_value'`` (used with
@@ -765,6 +795,11 @@ See :ref:`sources <sources_config>` for the full v2 parameter reference.
   when omitted rather than ``{'mode': 'ZERO'}``). When a source dictionary *is*
   present, its ``mode`` defaults to ``'model_based'`` (lowercase ``'zero'``,
   ``'model_based'``, or ``'prescribed'``).
+* **Named-channel** ``prescribed_values``: When ``mode='prescribed'``,
+  ``prescribed_values`` must be provided explicitly as a dictionary keyed by
+  output channel name (``'power_density_i'``, ``'power_density_e'``,
+  ``'j_parallel'``, ``'particle_source_e'``, plus optional ``'fast_ions'`` on
+  fast-ion sources) rather than a bare radial array or positional tuple.
 * **Arbitrary physical defaults removed**: Passing an empty ``{}`` dictionary
   for parameterized sources (which previously injected arbitrary default powers,
   particle rates, or Gaussian locations) now raises ``pydantic.ValidationError``
@@ -804,10 +839,13 @@ See :ref:`sources <sources_config>` for the full v2 parameter reference.
 
 * **ICRH** ``toric_nn`` **moved to external package**: The built-in default ICRH
   model is now ``'model_name': 'scaled_profile'`` (``minority_concentration``
-  has been removed, and ``minority_species`` must be present in
-  ``plasma_composition``). The neural-network surrogate ``'toric_nn'`` has moved
-  out of core TORAX into the external ``toric_surrogate`` package, which must be
-  installed and imported before building a config with
+  has been removed, ``minority_species`` must be present in
+  ``plasma_composition``, and non-zero ``heat_profile_ion`` /
+  ``heat_profile_electron`` profiles must be supplied since they default to
+  zero). The neural-network surrogate ``'toric_nn'`` has moved out of core
+  TORAX into the external ``toric_surrogate`` package; register
+  ``ToricNNIonCyclotronSourceConfig`` via
+  ``torax.sources.register_source_config(...)`` before building a config with
   ``'model_name': 'toric_nn'``.
 
 .. _migration_solver_edge_neoclassical:
@@ -957,7 +995,7 @@ Complete v1 to v2 ``CONFIG`` example
              'profile_conditions': {
                  'I_p': {0: 3e6, 80: 10.5e6},
                  'I_p_source': 'profile_conditions',
-                 'initial_psi_source': 'geometry',
+                 'psi_source': 'geometry',
                  'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
                  'n_e_bar': 0.85,
                  'n_e_bar_is_f_GW': True,
@@ -974,9 +1012,9 @@ Complete v1 to v2 ``CONFIG`` example
              },
              'sources': {
                  'generic_heat': {
-                     'P_total': 20.0e6,
-                     'gaussian_location': 0.13,
-                     'gaussian_width': 0.07,
+                     'P_total': 120.0e6,
+                     'gaussian_location': 0.0,
+                     'gaussian_width': 0.25,
                  },
                  'fusion': {'mode': 'model_based'},
                  'ohmic': {},
@@ -1030,19 +1068,20 @@ Simulation outputs (``xr.DataTree`` and NetCDF) and plotting
 Hierarchy and metadata updates
 ------------------------------
 
-* **Physical units metadata**: Every output ``xarray.DataArray`` now carries
-  physical units in ``.attrs['units']`` (e.g. ``'keV'``, ``'m^-3'``, ``'A'``,
+* **Physical units metadata**: Every physical output ``xarray.DataArray`` now
+  carries units in ``.attrs['units']`` (e.g. ``'keV'``, ``'m^-3'``, ``'A'``,
   ``'W'``, ``'dimensionless'``).
 * ``auxiliary`` **DataTree node**: Per-model and per-mode turbulent transport
   coefficients have moved out of ``profiles`` into
   ``data_tree['auxiliary/turbulent_transport/core/<model_key>']`` and
   ``data_tree['auxiliary/turbulent_transport/pedestal/<model_key>']``:
 
-  * **QLKNN / QuaLiKiz**: ``chi_itg_e``, ``chi_tem_e``, ``chi_etg_e``,
-    ``chi_itg_i``, ``chi_tem_i``, ``D_itg_e``, ``D_tem_e``, ``V_itg_e``,
-    ``V_tem_e`` (on ``'qlknn'``, set ``'output_mode_contributions': True`` in
-    the transport component config to emit these per-mode splits; defaults to
-    ``False``).
+  * **All components**: unclipped/unsmoothed per-component ``chi_turb_i``,
+    ``chi_turb_e``, ``D_turb_e``, and ``V_turb_e``.
+  * **QLKNN** (when ``'output_mode_contributions': True``; defaults to
+    ``False``): ``chi_itg_e``, ``chi_tem_e``, ``chi_etg_e``, ``chi_itg_i``,
+    ``chi_tem_i``, ``D_itg_e``, ``D_tem_e``, ``V_itg_e``, ``V_tem_e`` (not
+    emitted by full ``'qualikiz'``).
   * **Bohm–GyroBohm**: ``chi_bohm_e``, ``chi_gyrobohm_e``, ``chi_bohm_i``,
     ``chi_gyrobohm_i``.
 
@@ -1082,10 +1121,11 @@ NetCDF / ``xarray`` post-processing scripts according to the table below:
      - ``P_cyclotron_e``, ``P_radiation_e``
      - ``P_cyclotron_radiation_e``, ``P_impurity_radiation_e``
    * - ``scalars``
-     - ``P_LH``, ``P_LH_high_density``, ``P_LH_low_density``, ``P_LH_min``
+     - ``P_LH``, ``P_LH_high_density``, ``P_LH_low_density``, ``P_LH_min``,
+       ``n_e_min_P_LH``
      - ``P_LH_martin``, ``P_LH_martin_high_density``,
-       ``P_LH_martin_low_density``, ``P_LH_martin_min`` (alongside
-       ``P_LH_delabie*``)
+       ``P_LH_martin_low_density``, ``P_LH_martin_min``,
+       ``n_e_min_P_LH_martin`` (alongside ``*_delabie*``)
    * - ``scalars``
      - ``E_aux`` (v1.0)
      - Split into ``E_aux_total``, ``E_ohmic_e``, ``E_external_injected``, and
@@ -1109,9 +1149,14 @@ NetCDF / ``xarray`` post-processing scripts according to the table below:
      - ``p_ei_exchange_i`` (to ions) and ``p_ei_exchange_e``
        (``= -p_ei_exchange_i``, to electrons)
    * - ``profiles``
+     - ``sigma_parallel`` on ``(time, rho_cell_norm)``
+     - ``sigma_parallel`` on ``(time, rho_norm)`` (extended grid including
+       boundaries)
+   * - ``scalars``
      - ``drho``, ``drho_norm``
-     - Removed (compute via ``np.diff(data_tree.rho_face_norm)`` and
-       ``data_tree.scalars.rho_b``)
+     - Removed (compute ``drho_norm = xr.DataArray(
+       np.diff(data_tree.rho_face_norm), dims=['rho_cell_norm'])`` and
+       ``drho = drho_norm * data_tree.scalars.rho_b``)
    * - ``numerics``
      - ``sim_status``
      - Removed (check ``data_tree.numerics.sim_error == 0`` or
@@ -1120,14 +1165,19 @@ NetCDF / ``xarray`` post-processing scripts according to the table below:
      - ``calculated_enrichment`` dimension ``'impurity'``
      - Renamed to ``'enrichment_impurity'`` (distinct from ``'seed_impurity'``)
 
+Disabled (``None``) sources now omit their ``p_*``, ``s_*``, and
+``j_parallel_*`` arrays from ``data_tree.profiles`` rather than writing
+all-zero arrays.
+
 Custom plotting configurations (``PLOT_CONFIG``)
 ------------------------------------------------
 
 If you maintain custom ``--plot_config`` files (see :ref:`plotting`), update any
 ``attrs`` tuples referencing old profile or scalar names:
 
-* ``'Ip_profile'`` → ``'I_p_profile'`` (the legacy ``PlotData.Ip_profile``
-  property alias has been removed).
+* ``'Ip_profile'`` → ``'I_p'`` in ``PlotType.TIME_SERIES`` subplots (v1
+  aliased ``'Ip_profile'`` to scalar ``Ip``), or ``'I_p_profile'`` in
+  ``PlotType.SPATIAL`` subplots.
 * ``'j_total'``, ``'j_ohmic'``, ``'j_bootstrap'``, ``'j_external'``,
   ``'j_ecrh'``, ``'j_generic_current'``, ``'j_non_inductive'`` →
   ``'j_toroidal_total'``, ``'j_toroidal_ohmic'``, ``'j_toroidal_bootstrap'``,
@@ -1139,9 +1189,8 @@ If you maintain custom ``--plot_config`` files (see :ref:`plotting`), update any
 * ``'I_aux_generic'`` → ``'I_generic_current'``, ``'P_aux_generic_i'`` /
   ``'P_aux_generic_e'`` / ``'P_aux_generic_total'`` → ``'P_generic_heat_i'`` /
   ``'P_generic_heat_e'`` / ``'P_generic_heat_total'``, ``'P_cyclotron_e'`` →
-  ``'P_cyclotron_radiation_e'``, ``'P_radiation_e'`` →
-  ``'P_impurity_radiation_e'``, and ``'P_ecrh'`` → ``'P_ecrh_e'`` (the legacy
-  ``PlotData.P_ecrh`` property alias has been removed).
+  ``'P_cyclotron_radiation_e'``, and ``'P_radiation_e'`` →
+  ``'P_impurity_radiation_e'``.
 
 .. _migration_physics:
 
@@ -1159,14 +1208,17 @@ improvements:
   (``ADAPTIVE_SOURCE``). This eliminates artificial source spikes and avoids
   distorting integrated power/particle diagnostics such as
   :math:`P_{\mathrm{SOL}}` and :math:`\tau_E`.
-* **Scharfetter–Gummel FVM convection and ghost-cell extrapolation**: The
-  finite-volume discretization now uses unconditionally stable exponential
-  Péclet-number weighting for convection-diffusion fluxes and ghost-cell
-  extrapolation at the outer boundary, improving accuracy at high Péclet number.
+* **Scharfetter–Gummel FVM convection and Pereverzev–Corrigan cancellation**:
+  The finite-volume discretization now uses unconditionally stable exponential
+  Péclet-number weighting for convection-diffusion fluxes and exact discrete
+  stationary cancellation for Pereverzev–Corrigan stabilization terms across
+  uniform and stretched grids.
 * **Flux-surface-averaged Ohmic heating**: Ohmic power deposition now evaluates
-  exact flux-surface-averaged :math:`\langle \mathbf{j} \cdot \mathbf{E} \rangle
-  = E_\parallel j_{\parallel,\Omega}` rather than the cylindrical approximation
-  :math:`j_{\mathrm{tor},\Omega} (\partial \psi / \partial t) / (2\pi R_0)`.
+  exact flux-surface-averaged Joule heating :math:`\langle \mathbf{j}_\Omega
+  \cdot \mathbf{E} \rangle = \sigma_\parallel \langle \mathbf{E} \cdot
+  \mathbf{B} \rangle^2 / \langle B^2 \rangle` (at fixed toroidal flux) rather
+  than v1's approximation
+  :math:`|j_{\mathrm{tor,total}} (\partial \psi / \partial t) / (2\pi R)|`.
 * **Isolated current-diffusion scaling**:
   ``numerics['current_diffusion_time_reduction_factor']`` scales only the
   current-diffusion timescale in the :math:`\psi` equation without unphysically
@@ -1174,11 +1226,13 @@ improvements:
   voltage, or the neoclassical Ware pinch (unlike v1's
   ``resistivity_multiplier``).
 * **Analytical volume-conserving sawtooth redistribution**: The sawtooth crash
-  model now uses exact analytical conservation of volume-integrated particles,
-  thermal energy, poloidal flux, fast ions, and toroidal angular momentum across
-  shaped flux surfaces.
-* **Transport, neoclassical, and radiation fixes**: Fixes have been applied to
-  the Angioni–Sauter neoclassical particle flux sign and trapped-particle terms,
-  the :math:`E \times B` shear rate sign and units in turbulent transport
-  models, and Mavrin radiation handling so impurity Bremsstrahlung is not
-  subtracted when ``impurity_radiation`` has ``mode='zero'``.
+  model now uses smoothstep + :math:`C^1` cubic Hermite redistribution with
+  analytical conservation of volume-integrated particles, thermal energy, and
+  toroidal current across shaped flux surfaces.
+* **Transport, neoclassical, current-drive, and radiation fixes**: Fixes have
+  been applied to the Angioni–Sauter neoclassical particle flux sign and
+  trapped-particle terms, the :math:`E \times B` shear rate sign and units in
+  turbulent transport models, the :math:`1/B_0` factor in ECCD parallel current
+  density ``j_parallel``, and Mavrin radiation handling so impurity
+  Bremsstrahlung is not subtracted when ``impurity_radiation`` has
+  ``mode='zero'``.
