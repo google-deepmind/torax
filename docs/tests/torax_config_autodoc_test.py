@@ -58,7 +58,6 @@ _spec.loader.exec_module(torax_config_autodoc)
 # abstract base classes, or experimental models not meant to be top-level
 # entries in `docs/configuration/*.rst`.
 _INTERNAL_OR_BASE_CONFIG_CLASSES: frozenset[str] = frozenset({
-    'torax.experimental.gas_puff_feedback_source.GasPuffFeedbackSourceConfig',
     'torax._src.geometry.tokamaker.TokaMakerEquilibrium',
     'torax._src.mhd.sawtooth.redistribution_base.RedistributionConfig',
     'torax._src.mhd.sawtooth.trigger_base.TriggerConfig',
