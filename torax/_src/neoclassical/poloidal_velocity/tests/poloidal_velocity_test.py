@@ -14,8 +14,10 @@
 """Tests for neoclassical poloidal velocity models."""
 
 from absl.testing import absltest
+import jax.numpy as jnp
 import numpy as np
 from torax._src.neoclassical.formulas import formulas
+from torax._src.neoclassical.poloidal_velocity import base
 from torax._src.neoclassical.poloidal_velocity import kim
 from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.poloidal_velocity import zeros
@@ -126,6 +128,45 @@ class PoloidalVelocityTest(absltest.TestCase):
         output.poloidal_velocity.face_value(),
         np.zeros_like(self.geo.rho_face_norm),
     )
+
+  def test_poloidal_velocity_from_arrays(self):
+    v_pol = jnp.ones_like(self.geo.rho_norm) * 2.5
+    output = base.PoloidalVelocity.from_arrays(
+        geometry=self.geo,
+        poloidal_velocity=v_pol,
+        right_face_constraint=jnp.asarray(1.5),
+    )
+    np.testing.assert_allclose(output.poloidal_velocity.value, v_pol)
+    np.testing.assert_allclose(
+        output.poloidal_velocity.face_centers, self.geo.rho_face_norm
+    )
+    self.assertIsNotNone(output.poloidal_velocity.right_face_constraint)
+    np.testing.assert_allclose(
+        output.poloidal_velocity.right_face_constraint, 1.5
+    )
+    self.assertIsNone(output.poloidal_velocity.right_face_grad_constraint)
+    np.testing.assert_allclose(output.poloidal_velocity.face_value()[-1], 1.5)
+
+  def test_poloidal_velocity_from_arrays_default_right_face_constraint(self):
+    v_pol = jnp.ones_like(self.geo.rho_norm) * 2.5
+    output = base.PoloidalVelocity.from_arrays(
+        geometry=self.geo,
+        poloidal_velocity=v_pol,
+    )
+    self.assertIsNotNone(output.poloidal_velocity.right_face_constraint)
+    np.testing.assert_allclose(
+        output.poloidal_velocity.right_face_constraint, 0.0
+    )
+    self.assertIsNone(output.poloidal_velocity.right_face_grad_constraint)
+    np.testing.assert_allclose(output.poloidal_velocity.face_value()[-1], 0.0)
+
+  def test_poloidal_velocity_from_arrays_mismatched_shape_raises(self):
+    face_sized = jnp.ones_like(self.geo.rho_face_norm)
+    with self.assertRaisesRegex(ValueError, 'consistent with face_centers'):
+      base.PoloidalVelocity.from_arrays(
+          geometry=self.geo,
+          poloidal_velocity=face_sized,
+      )
 
 
 if __name__ == '__main__':

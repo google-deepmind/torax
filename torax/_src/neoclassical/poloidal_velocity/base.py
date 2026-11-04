@@ -38,15 +38,43 @@ class PoloidalVelocity:
   poloidal_velocity: cell_variable.CellVariable
 
   @classmethod
-  def zeros(cls, geometry: geometry_lib.Geometry) -> Self:
-    """Returns a PoloidalVelocity with all values set to zero."""
-    poloidal_velocity = cell_variable.CellVariable(
-        value=jnp.zeros_like(geometry.rho_norm),
+  def from_arrays(
+      cls,
+      geometry: geometry_lib.Geometry,
+      poloidal_velocity: array_typing.FloatVectorCell,
+      right_face_constraint: array_typing.FloatScalar | None = None,
+  ) -> Self:
+    """Constructs a PoloidalVelocity object from arrays.
+
+    Args:
+      geometry: The magnetic geometry of the tokamak.
+      poloidal_velocity: Poloidal velocity profile on the cell grid [m/s].
+      right_face_constraint: Optional right boundary condition for poloidal
+        velocity [m/s]. Defaults to 0.0.
+
+    Returns:
+      A `PoloidalVelocity` instance with a `CellVariable` profile for
+      `poloidal_velocity`.
+    """
+    poloidal_velocity_cell_var = cell_variable.CellVariable(
+        value=poloidal_velocity,
         face_centers=geometry.rho_face_norm,
-        right_face_constraint=jnp.zeros(()),
+        right_face_constraint=(
+            right_face_constraint
+            if right_face_constraint is not None
+            else jnp.zeros(())
+        ),
         right_face_grad_constraint=None,
     )
-    return cls(poloidal_velocity=poloidal_velocity)
+    return cls(poloidal_velocity=poloidal_velocity_cell_var)
+
+  @classmethod
+  def zeros(cls, geometry: geometry_lib.Geometry) -> Self:
+    """Returns a PoloidalVelocity with all values set to zero."""
+    return cls.from_arrays(
+        geometry=geometry,
+        poloidal_velocity=jnp.zeros_like(geometry.rho_norm),
+    )
 
 
 class PoloidalVelocityModel(abc.ABC):
