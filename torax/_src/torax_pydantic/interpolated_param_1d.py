@@ -246,6 +246,9 @@ def scalar_bounds_validator(
 PositiveTimeVaryingScalar: TypeAlias = Annotated[
     TimeVaryingScalar, scalar_bounds_validator(gt=0.0)
 ]
+PositiveTimeVaryingScalarStep: TypeAlias = Annotated[
+    TimeVaryingScalarStep, scalar_bounds_validator(gt=0.0)
+]
 NonNegativeTimeVaryingScalar: TypeAlias = Annotated[
     TimeVaryingScalar, scalar_bounds_validator(ge=0.0)
 ]

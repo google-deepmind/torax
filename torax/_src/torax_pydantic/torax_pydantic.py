@@ -56,6 +56,9 @@ scalar_bounds_validator = interpolated_param_1d.scalar_bounds_validator
 array_bounds_validator = interpolated_param_2d.array_bounds_validator
 NonNegativeTimeVaryingArray = interpolated_param_2d.NonNegativeTimeVaryingArray
 PositiveTimeVaryingScalar = interpolated_param_1d.PositiveTimeVaryingScalar
+PositiveTimeVaryingScalarStep = (
+    interpolated_param_1d.PositiveTimeVaryingScalarStep
+)
 NonNegativeTimeVaryingScalar = (
     interpolated_param_1d.NonNegativeTimeVaryingScalar
 )

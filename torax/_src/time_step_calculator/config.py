@@ -183,7 +183,7 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
     calculator_type: The type of time step calculator to use, hardcoded to
       `'fixed'`.
     dt: Timestep [s] used for `'fixed'` `time_step_calculator`. All
-      values must be non-negative. Specifying a time-dependent `dt` can be
+      values must be positive. Specifying a time-dependent `dt` can be
       useful in cases where there are known transitions (e.g. ramp-up,
       ramp-down, and/or LH transitions) and a different granularity of
       simulation is required for each phase. Note that the default
@@ -199,7 +199,7 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
   calculator_type: Annotated[Literal['fixed'], torax_pydantic.JAX_STATIC] = (
       'fixed'
   )
-  dt: torax_pydantic.NonNegativeTimeVaryingScalarStep = (
+  dt: torax_pydantic.PositiveTimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(1e-1)
   )
 

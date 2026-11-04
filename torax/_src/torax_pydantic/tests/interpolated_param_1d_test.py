@@ -94,22 +94,33 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       torax_pydantic.TimeVaryingScalar.model_validate({})
 
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='negative_value',
-          values={0.0: 1.0, 2.0: -1},
-      ),
-      dict(
-          testcase_name='zero_value',
-          values=0.0,
-      ),
+  @parameterized.product(
+      field_type=[
+          torax_pydantic.PositiveTimeVaryingScalar,
+          torax_pydantic.PositiveTimeVaryingScalarStep,
+      ],
+      values=[{0.0: 1.0, 2.0: -1}, 0.0],
   )
-  def test_raises_error_when_value_is_not_positive(self, values):
-    class TestModel(torax_pydantic.ConfigBase):
-      a: torax_pydantic.PositiveTimeVaryingScalar
+  def test_raises_error_when_value_is_not_positive(self, field_type, values):
+    test_model_cls = pydantic.create_model(
+        'TestModel',
+        a=(field_type, ...),
+        __base__=torax_pydantic.ConfigBase,
+    )
 
     with self.assertRaisesRegex(pydantic.ValidationError, 'greater than 0'):
-      TestModel.model_validate({'a': values})
+      test_model_cls.model_validate({'a': values})
+
+  def test_positive_time_varying_scalar_step_defaults_to_step_mode(self):
+    class TestModel(torax_pydantic.ConfigBase):
+      a: torax_pydantic.PositiveTimeVaryingScalarStep
+
+    model = TestModel.model_validate({'a': {0.0: 1.0, 2.0: 3.0}})
+    self.assertEqual(
+        model.a.interpolation_mode,
+        interpolated_param.InterpolationMode.STEP,
+    )
+    self.assertEqual(model.a.get_value(t=1.0), 1.0)
 
   @parameterized.named_parameters(
       dict(
