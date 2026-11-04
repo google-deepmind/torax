@@ -286,3 +286,11 @@ class PereverzevTransport(TransportCoeffs):
 
   full_v_heat_face_ion: array_typing.FloatVectorFace
   full_v_heat_face_el: array_typing.FloatVectorFace
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> Self:
+    """Raises an error; PereverzevTransport should not be zero-initialized."""
+    raise NotImplementedError(
+        'PereverzevTransport does not support zeros(); use None when'
+        ' Pereverzev transport is disabled.'
+    )
