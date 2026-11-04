@@ -158,7 +158,7 @@ class InitializationTest(parameterized.TestCase):
     _, geo, _ = _get_initial_state(config.ToraxConfig.from_dict(config_dict))
     config_dict['profile_conditions']['toroidal_angular_velocity'] = {
         0.0: {
-            rho: value
+            float(rho): value
             for rho, value in zip(geo.rho_norm, toroidal_angular_velocity_test)
         }
     }
@@ -217,9 +217,7 @@ class InitializationTest(parameterized.TestCase):
     config_dict['geometry']['model_name'] = 'chease'
     config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     psi_profile = {0: {0: 42.0, 1: 43.0}}
-    config_dict['profile_conditions'][
-        'psi_source'
-    ] = 'profile_conditions'
+    config_dict['profile_conditions']['psi_source'] = 'profile_conditions'
     config_dict['profile_conditions']['psi'] = psi_profile
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
@@ -766,15 +764,9 @@ class InitializationTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(
-          psi_source=(
-              core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
-          )
+          psi_source=(core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS)
       ),
-      dict(
-          psi_source=(
-              core_profile_runtime_params.PsiSource.GEOMETRY
-          )
-      ),
+      dict(psi_source=(core_profile_runtime_params.PsiSource.GEOMETRY)),
       dict(psi_source=core_profile_runtime_params.PsiSource.J),
   ])
   def test_initial_solver_state_modes(
@@ -784,13 +776,8 @@ class InitializationTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry']['model_name'] = 'chease'
     config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
-    config_dict['profile_conditions'][
-        'psi_source'
-    ] = psi_source.value
-    if (
-        psi_source
-        == core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
-    ):
+    config_dict['profile_conditions']['psi_source'] = psi_source.value
+    if psi_source == core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS:
       config_dict['profile_conditions']['psi'] = {0.0: {0.0: 10.0, 1.0: 20.0}}
     torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()

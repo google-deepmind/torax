@@ -16,6 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
@@ -143,6 +144,27 @@ class CircularGeometryTest(parameterized.TestCase):
           R_major={0.0: 2.0, 1.0: 1.0},
           a_minor={0.0: 1.0, 1.0: 1.5},
       )
+
+  def test_build_circular_geometry_jit_and_grad(self):
+    face_centers = np.linspace(0.0, 1.0, 25)
+
+    def loss_fn(r_maj, a_min, b0, elong):
+      geo = circular_geometry._build_circular_geometry(
+          face_centers=face_centers,
+          elongation_LCFS=elong,
+          R_major=r_maj,
+          a_minor=a_min,
+          B_0=b0,
+          hires_factor=4,
+      )
+      return jnp.sum(geo.vpr) + jnp.sum(geo.Phi) + jnp.sum(geo.volume)
+
+    jax.test_util.check_grads(
+        jax.jit(loss_fn),
+        (6.2, 2.0, 5.3, 1.72),
+        order=1,
+        modes=['rev'],
+    )
 
 
 if __name__ == '__main__':
