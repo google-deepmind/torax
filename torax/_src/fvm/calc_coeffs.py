@@ -461,7 +461,7 @@ def _calc_coeffs_full(
   internal_boundary_condition_mask, internal_boundary_condition_target_vec = (
       internal_boundary_conditions.to_solver_coeffs(
           evolving_names=evolving_names,
-          nx=geo.torax_mesh.nx,
+          nx=geo.n_rho,
       )
   )
 

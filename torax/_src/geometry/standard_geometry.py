@@ -35,7 +35,6 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
@@ -579,11 +578,10 @@ def build_standard_geometry(
 
   # fill geometry structure
   # normalized grid
-  mesh = torax_pydantic.Grid1D(face_centers=intermediates.face_centers)
   rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
-  rho_face_norm = mesh.face_centers
-  rho_norm = mesh.cell_centers
+  rho_face_norm = np.asarray(intermediates.face_centers)
+  rho_norm = geometry.face_to_cell(rho_face_norm)
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
@@ -706,7 +704,7 @@ def build_standard_geometry(
 
   return StandardGeometry(
       geometry_type=intermediates.geometry_type,
-      torax_mesh=mesh,
+      rho_face_norm=rho_face_norm,
       Phi=Phi,
       Phi_face=Phi_face,
       R_major=intermediates.R_major,

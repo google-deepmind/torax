@@ -50,6 +50,10 @@ class GeometryTest(parameterized.TestCase):
 
     np.testing.assert_allclose(cell_jax, cell_np)
 
+    cell_from_np = geometry.face_to_cell(np.asarray(face))
+    self.assertIsInstance(cell_from_np, np.ndarray)
+    np.testing.assert_allclose(cell_from_np, cell_np)
+
   def test_none_z_magnetic_axis_raises_an_error(self):
     geo = circular_geometry.CircularConfig().build_geometry()
     geo = dataclasses.replace(geo, _z_magnetic_axis=None)
@@ -235,10 +239,10 @@ class GeometryTest(parameterized.TestCase):
     times = np.array([0.0, 1.0])
     context = output_grid_context.OutputGridContext(
         times=times,
-        rho_face_norm=stacked_geo.rho_face_norm,
-        rho_cell_norm=stacked_geo.rho_norm,
+        rho_face_norm=geo0.rho_face_norm,
+        rho_cell_norm=geo0.rho_norm,
         rho_cell_plus_boundaries_norm=np.concatenate(
-            [[0.0], stacked_geo.rho_norm, [1.0]]
+            [[0.0], geo0.rho_norm, [1.0]]
         ),
     )
 
@@ -311,6 +315,16 @@ class GeometryTest(parameterized.TestCase):
     geo_none_z = dataclasses.replace(stacked_geo, _z_magnetic_axis=None)
     out_none_z = geo_none_z.to_output_dict(context)
     self.assertNotIn(output_keys.Z_MAGNETIC_AXIS, out_none_z)
+
+  def test_n_rho(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    self.assertEqual(geo.n_rho, 10)
+    self.assertLen(geo.rho_norm, geo.n_rho)
+
+  def test_torax_mesh_under_jit(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    cell_centers = jax.jit(lambda g: g.torax_mesh.cell_centers)(geo)
+    np.testing.assert_allclose(cell_centers, geo.rho_norm)
 
 
 def _pint_face_to_cell(n_rho, face):

@@ -28,22 +28,20 @@ from torax._src.output_tools import output_keys
 from torax._src.torax_pydantic import torax_pydantic
 
 
-@jax.jit
 def face_to_cell(
-    face: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorCell:
+    face: array_typing.Array,
+) -> array_typing.Array:
   """Infers cell values corresponding to a vector of face values.
 
   Simply a linear interpolation between face values.
 
   Args:
-    face: An array containing face values.
+    face: An array containing face values, with the radial face axis last.
 
   Returns:
     cell: An array containing cell values.
   """
-
-  return 0.5 * (face[:-1] + face[1:])
+  return 0.5 * (face[..., :-1] + face[..., 1:])
 
 
 @enum.unique
@@ -78,7 +76,8 @@ class Geometry:
 
   Attributes:
     geometry_type: Type of geometry model used. See `GeometryType` for options.
-    torax_mesh: `Grid1D` object representing the radial mesh used by TORAX.
+    rho_face_norm: Normalized toroidal flux coordinate on face grid
+      [dimensionless].
     Phi: Toroidal magnetic flux at each radial grid point [:math:`\mathrm{Wb}`].
     Phi_face: Toroidal magnetic flux at each radial face [:math:`\mathrm{Wb}`].
     R_major: Major radius defined as midplane average of the LCFS radius,
@@ -187,7 +186,7 @@ class Geometry:
   """
 
   geometry_type: GeometryType = jax.tree.static()
-  torax_mesh: torax_pydantic.Grid1D
+  rho_face_norm: array_typing.FloatVectorFace
   Phi: array_typing.FloatVectorCell
   Phi_face: array_typing.FloatVectorFace
   R_major: array_typing.FloatScalar
@@ -255,19 +254,29 @@ class Geometry:
     )
 
   @property
-  def rho_norm(self) -> array_typing.Array:
-    r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
-    return self.torax_mesh.cell_centers
+  def n_rho(self) -> int:
+    """Number of radial cells."""
+    return self.rho_face_norm.shape[-1] - 1
 
   @property
-  def rho_face_norm(self) -> array_typing.Array:
-    r"""Normalized toroidal flux coordinate on face grid [dimensionless]."""
-    return self.torax_mesh.face_centers
+  def torax_mesh(self) -> torax_pydantic.Grid1D:
+    """Transitional Grid1D compatibility property for legacy tests and callers; removed in follow-up CL."""
+    face_centers = self.rho_face_norm
+    if face_centers.ndim > 1:
+      face_centers = face_centers[0]
+    if isinstance(face_centers, jax.core.Tracer):
+      return torax_pydantic.Grid1D.model_construct(face_centers=face_centers)
+    return torax_pydantic.Grid1D(face_centers=np.asarray(face_centers))
+
+  @property
+  def rho_norm(self) -> array_typing.Array:
+    r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
+    return face_to_cell(self.rho_face_norm)
 
   @property
   def drho_norm(self) -> array_typing.Array:
     """Cell widths [dimensionless]."""
-    return self.torax_mesh.cell_widths
+    return jnp.diff(self.rho_face_norm, axis=-1)
 
   @property
   def rho_face(self) -> array_typing.Array:
@@ -501,19 +510,16 @@ def stack_geometries[GeometryT: Geometry](
     raise ValueError('No geometries provided.')
   # Ensure that all geometries have same mesh and are of same type.
   first_geo = geometries[0]
-  torax_mesh = first_geo.torax_mesh
-  geometry_type = first_geo.geometry_type
   for geo in geometries[1:]:
-    if geo.torax_mesh != torax_mesh:
+    if (
+        geo.rho_face_norm.shape != first_geo.rho_face_norm.shape
+        or not np.allclose(geo.rho_face_norm, first_geo.rho_face_norm)
+    ):
       raise ValueError('All geometries must have the same mesh.')
-    if geo.geometry_type != geometry_type:
+    if geo.geometry_type != first_geo.geometry_type:
       raise ValueError('All geometries must have the same geometry type.')
 
-  stacked = jax.tree.map(lambda *xs: np.stack(xs), *geometries)
-  return dataclasses.replace(
-      stacked,
-      torax_mesh=first_geo.torax_mesh,
-  )
+  return jax.tree.map(lambda *xs: np.stack(xs), *geometries)
 
 
 def update_geometries_with_Phibdot(

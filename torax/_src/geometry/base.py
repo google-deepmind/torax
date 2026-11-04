@@ -146,6 +146,10 @@ class GeometryConfigBase(torax_pydantic.ConfigBase):
       return self.face_centers
     return interpolated_param_2d.get_face_centers(self.n_rho)
 
+  def get_grid(self) -> torax_pydantic.Grid1D:
+    """Returns the radial `Grid1D` for this geometry configuration."""
+    return torax_pydantic.Grid1D(face_centers=self.get_face_centers())
+
   def __eq__(self, other: object) -> bool:
     """Equality operator for GeometryConfigBase."""
     if not isinstance(other, GeometryConfigBase) or type(other) is not type(

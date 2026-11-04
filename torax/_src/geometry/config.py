@@ -137,6 +137,10 @@ class GeometryConfig(torax_pydantic.ConfigBase):
     else:
       return self.geometry_configs.get_face_centers()
 
+  def get_grid(self) -> torax_pydantic.Grid1D:
+    """Returns the radial `Grid1D` for this geometry."""
+    return torax_pydantic.Grid1D(face_centers=self.get_face_centers())
+
 
 def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
   """Conform the user geometry dict to the pydantic model."""

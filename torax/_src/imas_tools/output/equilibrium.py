@@ -94,7 +94,7 @@ def torax_state_to_imas_equilibrium(
   eq.global_quantities.volume = geometry.volume_face[-1]
   eq.global_quantities.area = geometry.area_face[-1]
   eq.profiles_1d.rho_tor = geometry.rho_face
-  eq.profiles_1d.rho_tor_norm = geometry.torax_mesh.face_centers
+  eq.profiles_1d.rho_tor_norm = geometry.rho_face_norm
 
   dvoldpsi = (
       1 * np.gradient(eq.profiles_1d.volume) / np.gradient(eq.profiles_1d.psi)

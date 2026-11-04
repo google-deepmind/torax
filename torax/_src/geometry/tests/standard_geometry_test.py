@@ -397,10 +397,10 @@ class GeometryTest(parameterized.TestCase):
     times = np.array([0.0, 1.0])
     context = output_grid_context.OutputGridContext(
         times=times,
-        rho_face_norm=stacked_geo.rho_face_norm,
-        rho_cell_norm=stacked_geo.rho_norm,
+        rho_face_norm=geo0.rho_face_norm,
+        rho_cell_norm=geo0.rho_norm,
         rho_cell_plus_boundaries_norm=np.concatenate(
-            [[0.0], stacked_geo.rho_norm, [1.0]]
+            [[0.0], geo0.rho_norm, [1.0]]
         ),
     )
 

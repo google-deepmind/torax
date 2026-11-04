@@ -97,7 +97,7 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
     # This is monotonically increasing with ρ, unlike the flux-surface-averaged
     # R_major_profile which can be constant (e.g. circular geometry).
     R_out = geo.R_out
-    rho = geo.torax_mesh.cell_centers
+    rho = geo.rho_norm
 
     # Shifted major radius for each grid point.
     R_shifted = R_out / B_ratio

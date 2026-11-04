@@ -26,6 +26,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import geometry
@@ -115,8 +116,7 @@ class TimeDependentGeometryProvider:
   """A geometry provider which holds values to interpolate based on time."""
 
   geometry_type: geometry.GeometryType = jax.tree.static()
-  torax_mesh: torax_pydantic.Grid1D
-  drho_norm: interpolated_param.InterpolatedVarSingleAxis
+  rho_face_norm: array_typing.FloatVectorFace
   Phi: interpolated_param.InterpolatedVarSingleAxis
   Phi_face: interpolated_param.InterpolatedVarSingleAxis
   R_major: interpolated_param.InterpolatedVarSingleAxis
@@ -162,6 +162,11 @@ class TimeDependentGeometryProvider:
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
   calc_Phi_b_dot: bool = jax.tree.static()
 
+  @property
+  def torax_mesh(self) -> torax_pydantic.Grid1D:
+    """Returns the mesh used by Torax, this is consistent across time."""
+    return torax_pydantic.Grid1D(face_centers=np.asarray(self.rho_face_norm))
+
   @classmethod
   def create_provider(
       cls,
@@ -190,20 +195,19 @@ class TimeDependentGeometryProvider:
     for geo in geos:
       if geo.geometry_type != initial_geometry.geometry_type:
         raise ValueError('All geometries must have the same geometry type.')
-      if geo.torax_mesh != initial_geometry.torax_mesh:
+      if (
+          geo.rho_face_norm.shape != initial_geometry.rho_face_norm.shape
+          or not np.allclose(geo.rho_face_norm, initial_geometry.rho_face_norm)
+      ):
         raise ValueError('All geometries must have the same mesh.')
     # Create a list of interpolated parameters for each geometry attribute.
     kwargs = {
         'geometry_type': initial_geometry.geometry_type,
-        'torax_mesh': initial_geometry.torax_mesh,
+        'rho_face_norm': initial_geometry.rho_face_norm,
         'calc_Phi_b_dot': calc_Phi_b_dot,
     }
     for attr in dataclasses.fields(cls):
-      if (
-          attr.name == 'geometry_type'
-          or attr.name == 'torax_mesh'
-          or attr.name == 'calc_Phi_b_dot'
-      ):
+      if attr.name in ('geometry_type', 'rho_face_norm', 'calc_Phi_b_dot'):
         continue
       # We assume that if an attribute is None for the initial geometry, it is
       # None for all geometries.
@@ -232,10 +236,10 @@ class TimeDependentGeometryProvider:
     """Returns a Geometry instance of the given type at the given time."""
     kwargs = {
         'geometry_type': self.geometry_type,
-        'torax_mesh': self.torax_mesh,
+        'rho_face_norm': self.rho_face_norm,
     }
     for attr in dataclasses.fields(geometry_class):
-      if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
+      if attr.name in ('geometry_type', 'rho_face_norm'):
         continue
       if attr.name == 'Phi_b_dot':
         if self.calc_Phi_b_dot:

@@ -73,7 +73,7 @@ class InternalBoundaryConditions:
   @classmethod
   def empty(cls, geo: geometry.Geometry) -> 'InternalBoundaryConditions':
     """Return an empty InternalBoundaryConditions object."""
-    nx = geo.torax_mesh.nx
+    nx = geo.n_rho
     return cls(
         T_i=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
         T_e=jnp.zeros(nx, dtype=jax_utils.get_dtype()),

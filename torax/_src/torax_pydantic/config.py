@@ -537,9 +537,9 @@ class ToraxConfig(torax_pydantic.ConfigBase):
         will be raised if this is not the case.
     """
 
-    old_mesh = self.geometry.build_provider.torax_mesh
+    old_mesh = self.geometry.get_grid()
     self._update_fields(x)
-    new_mesh = self.geometry.build_provider.torax_mesh
+    new_mesh = self.geometry.get_grid()
 
     if old_mesh != new_mesh:
       # The grid has changed, e.g. due to a new n_rho.
@@ -554,10 +554,9 @@ class ToraxConfig(torax_pydantic.ConfigBase):
 
   @pydantic.model_validator(mode='after')
   def _set_grid(self) -> Self:
-    # Interpolated `TimeVaryingArray` objects require a mesh, only available
-    # once the geometry provider is built. This could be done in the before
-    # validator, but is harder than setting it after construction.
-    mesh = self.geometry.build_provider.torax_mesh
+    # Interpolated `TimeVaryingArray` objects require a mesh, obtained
+    # directly from `geometry.get_grid()` without building the provider.
+    mesh = self.geometry.get_grid()
     # Note that the grid could already be set, eg. if the config is serialized
     # and deserialized. In this case, we do not want to overwrite it nor fail
     # when trying to set it, which is why mode='relaxed'.

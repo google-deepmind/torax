@@ -94,16 +94,14 @@ def _build_circular_geometry(
   """
   # circular geometry assumption of r/a_minor = rho_norm, the normalized
   # toroidal flux coordinate.
-  # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  mesh = torax_pydantic.Grid1D(face_centers=face_centers)
   # toroidal flux coordinate (rho) at boundary (last closed flux surface)
   rho_b = np.asarray(a_minor)
 
   # normalized and unnormalized toroidal flux coordinate (rho)
   # on face and cell grids. See fvm documentation and paper for details on
   # face and cell grids.
-  rho_face_norm = mesh.face_centers
-  rho_norm = mesh.cell_centers
+  rho_face_norm = np.asarray(face_centers)
+  rho_norm = geometry.face_to_cell(rho_face_norm)
   rho_face = rho_face_norm * rho_b
   rho = rho_norm * rho_b
 
@@ -242,7 +240,7 @@ def _build_circular_geometry(
   return geometry.Geometry(
       # Set the standard geometry params.
       geometry_type=geometry.GeometryType.CIRCULAR,
-      torax_mesh=mesh,
+      rho_face_norm=rho_face_norm,
       Phi=Phi,
       Phi_face=Phi_face,
       R_major=R_major,
