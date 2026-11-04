@@ -18,7 +18,6 @@ import dataclasses
 
 import jax
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import core_profiles as core_profiles_lib
@@ -32,6 +31,9 @@ from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import runtime_params as solver_runtime_params_lib
 from torax._src.solver import solver
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 
 
 @jax.tree_util.register_dataclass
@@ -72,7 +74,7 @@ class NonlinearThetaMethod(solver.Solver):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs_lib.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
 
@@ -118,7 +120,7 @@ class NonlinearThetaMethod(solver.Solver):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs_lib.SolverNumericOutputs,
   ]:
     """Abstract method for subclasses to implement the specific nonlinear solve.
 
@@ -174,7 +176,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs_lib.SolverNumericOutputs,
   ]:
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
@@ -230,7 +232,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs_lib.SolverNumericOutputs,
   ]:
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver

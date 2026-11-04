@@ -18,7 +18,6 @@ from absl.testing import absltest
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import circular_geometry
 from torax._src.pedestal_model import (
@@ -30,7 +29,7 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_coefficients_builder
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_model as transport_model_lib
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -47,15 +46,15 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     )
 
     # Dummy turbulent transport output.
-    self.turbulent_total = transport_coeffs_lib.TransportCoeffs(
+    self.turbulent_total = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones(self.n_face) * 2.0,
         chi_face_el=jnp.ones(self.n_face) * 3.0,
         d_face_el=jnp.ones(self.n_face) * 0.5,
         v_face_el=jnp.zeros(self.n_face),
     )
-    self.turbulent_transport = transport_coeffs_lib.TurbulentTransport(
+    self.turbulent_transport = transport_coeffs.TurbulentTransport(
         core=self.turbulent_total,
-        pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+        pedestal=transport_coeffs.TransportCoeffs.zeros(self.geo),
         core_components={'mock': self.turbulent_total},
         pedestal_components={},
     )
@@ -69,7 +68,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     )
 
     # Dummy neoclassical transport output.
-    self.neoclassical_transport = transport_coeffs_lib.NeoclassicalTransport(
+    self.neoclassical_transport = transport_coeffs.NeoclassicalTransport(
         chi_face_ion=jnp.ones(self.n_face) * 0.1,
         chi_face_el=jnp.ones(self.n_face) * 0.05,
         d_face_el=jnp.ones(self.n_face) * 0.02,
@@ -100,7 +99,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     )
 
     # Dummy Pereverzev transport output.
-    self.pereverzev_transport = transport_coeffs_lib.PereverzevTransport(
+    self.pereverzev_transport = transport_coeffs.PereverzevTransport(
         chi_face_ion=jnp.ones(self.n_face) * 10.0,
         chi_face_el=jnp.ones(self.n_face) * 10.0,
         full_v_heat_face_ion=jnp.ones(self.n_face) * 5.0,
@@ -128,7 +127,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     self.assertEqual(result.turbulent, self.turbulent_transport)
     self.assertEqual(result.neoclassical, self.neoclassical_transport)
     self.assertEqual(new_state, self.transport_state)
-    expected_total = transport_coeffs_lib.sum_transport_coeffs(
+    expected_total = transport_coeffs.sum_transport_coeffs(
         self.turbulent_total, self.neoclassical_transport
     )
     np.testing.assert_allclose(
@@ -164,7 +163,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         self.core_profiles,
     )
     self.assertIsNotNone(result.pereverzev)
-    expected_total = transport_coeffs_lib.sum_transport_coeffs(
+    expected_total = transport_coeffs.sum_transport_coeffs(
         self.turbulent_total,
         self.neoclassical_transport,
         self.pereverzev_transport,
@@ -250,7 +249,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
 
   def test_applies_adaptive_transport_modification_in_adaptive_mode(self):
     mock_modified_transport = mock.create_autospec(
-        state.CoreTransport, instance=True
+        transport_coeffs.CoreTransport, instance=True
     )
     mock_ped_output = mock.create_autospec(
         pedestal_model_output_lib.AdaptiveTransportPedestalModelOutput,
@@ -285,7 +284,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         pedestal_model_output=self.ibc_pedestal_output,
         use_pereverzev=False,
     )
-    expected_total = transport_coeffs_lib.sum_transport_coeffs(
+    expected_total = transport_coeffs.sum_transport_coeffs(
         self.turbulent_total, self.neoclassical_transport
     )
     np.testing.assert_allclose(

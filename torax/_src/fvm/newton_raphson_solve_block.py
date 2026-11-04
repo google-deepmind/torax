@@ -26,7 +26,6 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state as state_module
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import solver_state
@@ -39,6 +38,9 @@ from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import fixed_point_method
 from torax._src.solver import jax_root_finding
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
@@ -82,7 +84,7 @@ def newton_raphson_solve_block(
     log_iterations: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
-    state_module.SolverNumericOutputs,
+    solver_numeric_outputs_lib.SolverNumericOutputs,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.
@@ -154,9 +156,9 @@ def newton_raphson_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    solver_numeric_outputs: state_module.SolverNumericOutputs. Iteration and
-      error info. For the error, 0 signifies residual < tol at exit, 1 signifies
-      residual > tol, steps became small.
+    solver_numeric_outputs: Iteration and error info. For the error, 0
+      signifies residual < tol at exit, 1 signifies residual > tol, steps
+      became small.
   """
   # pyformat: enable
 
@@ -258,7 +260,7 @@ def newton_raphson_solve_block(
   x_new = fvm_conversions.vec_to_cell_variable_tuple(
       x_root, solver_state_t_plus_dt, evolving_names
   )
-  solver_numeric_outputs = state_module.SolverNumericOutputs(
+  solver_numeric_outputs = solver_numeric_outputs_lib.SolverNumericOutputs(
       inner_solver_iterations=jnp.array(
           metadata.iterations, jax_utils.get_int_dtype()
       ),

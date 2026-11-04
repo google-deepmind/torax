@@ -18,7 +18,6 @@ import dataclasses
 import jax
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -36,6 +35,9 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import state_evaluation
 from torax._src.output_tools import post_processing
 from torax._src.physics import psi_calculations
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.sources import source_profile_builders
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
@@ -146,7 +148,7 @@ def finalize_outputs(
     t: jax.Array,
     dt: jax.Array,
     x_new: tuple[cell_variable.CellVariable, ...],
-    solver_numeric_outputs: state.SolverNumericOutputs,
+    solver_numeric_outputs: solver_numeric_outputs_lib.SolverNumericOutputs,
     geometry_t_plus_dt: geometry.Geometry,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     core_profiles_t: core_profiles_lib.CoreProfiles,

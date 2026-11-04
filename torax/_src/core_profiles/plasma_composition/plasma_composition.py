@@ -40,7 +40,7 @@ _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class RuntimeParams:
   """Runtime parameters for the plasma composition."""
 

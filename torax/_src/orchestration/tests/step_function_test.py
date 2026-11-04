@@ -27,6 +27,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+from torax._src.solver import solver_numeric_outputs
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
@@ -135,7 +136,7 @@ class StepFunctionTest(parameterized.TestCase):
     new_sim_state = dataclasses.replace(
         sim_state,
         dt=jnp.array(3.0),
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=1,
             outer_solver_iterations=0,
             inner_solver_iterations=0,
@@ -163,7 +164,7 @@ class StepFunctionTest(parameterized.TestCase):
         sim_state,
         dt=jnp.array(1.0),
         t=jnp.array(5.0),
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=0,
             outer_solver_iterations=0,
             inner_solver_iterations=0,

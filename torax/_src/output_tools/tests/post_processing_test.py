@@ -32,11 +32,13 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
+from torax._src.solver import solver_numeric_outputs
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import sim_test_case
+from torax._src.test_utils import transport_helpers
 from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
@@ -235,10 +237,10 @@ class PostProcessingTest(parameterized.TestCase):
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
         core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
+        core_transport=transport_helpers.make_zero_core_transport(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=np.array(0, jax_utils.get_int_dtype()),
             outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
@@ -300,10 +302,10 @@ class PostProcessingTest(parameterized.TestCase):
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
         core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
+        core_transport=transport_helpers.make_zero_core_transport(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=np.array(0, jax_utils.get_int_dtype()),
             outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
@@ -408,10 +410,10 @@ class PostProcessingTest(parameterized.TestCase):
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
         core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
+        core_transport=transport_helpers.make_zero_core_transport(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=np.array(0, jax_utils.get_int_dtype()),
             outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),

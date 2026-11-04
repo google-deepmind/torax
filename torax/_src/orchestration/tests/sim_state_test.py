@@ -18,7 +18,6 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -27,8 +26,10 @@ from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
+from torax._src.solver import solver_numeric_outputs
 from torax._src.sources import core_sources
 from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import transport_helpers
 from torax._src.time_step_calculator import time_step_calculator_state
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -79,7 +80,7 @@ class SimStateTest(parameterized.TestCase):
 
   def _make_sim_state(self, geo: geometry.Geometry) -> sim_state.SimState:
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    core_transport = state.CoreTransport.zeros(geo)
+    core_transport = transport_helpers.make_zero_core_transport(geo)
 
     sp = core_sources.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
@@ -94,7 +95,7 @@ class SimStateTest(parameterized.TestCase):
         core_sources=sp,
         edge_outputs=None,
         geometry=geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,

@@ -18,7 +18,6 @@ import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import core_profiles
@@ -29,6 +28,9 @@ from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import fixed_point_method
 from torax._src.solver import solver as solver_lib
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 
 
 class LinearThetaMethod(solver_lib.Solver):
@@ -54,7 +56,7 @@ class LinearThetaMethod(solver_lib.Solver):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs_lib.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
 
@@ -108,7 +110,7 @@ class LinearThetaMethod(solver_lib.Solver):
     else:
       inner_solver_iterations = 1
 
-    solver_numeric_outputs = state.SolverNumericOutputs(
+    solver_numeric_outputs = solver_numeric_outputs_lib.SolverNumericOutputs(
         inner_solver_iterations=jnp.array(
             inner_solver_iterations, jax_utils.get_int_dtype()
         ),

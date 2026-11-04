@@ -29,8 +29,12 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.time_step_calculator import time_step_calculator_state
+from torax._src.transport_model import transport_coeffs
 
 _EXCLUDE_FROM_NAN_CHECK = ("edge_outputs",)
 _GEOMETRY_EXCLUDE_FROM_NAN_CHECK = (
@@ -91,11 +95,11 @@ class SimState:
   t: array_typing.FloatScalar
   dt: array_typing.FloatScalar
   core_profiles: core_profiles_lib.CoreProfiles
-  core_transport: state.CoreTransport
+  core_transport: transport_coeffs.CoreTransport
   core_sources: core_sources_lib.CoreSources
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
-  solver_numeric_outputs: state.SolverNumericOutputs
+  solver_numeric_outputs: solver_numeric_outputs_lib.SolverNumericOutputs
   # TODO(b/434175938): Separate states required for models from states of the
   # PDE system.
   time_step_calculator_state: time_step_calculator_state.TimeStepCalculatorState

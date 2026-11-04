@@ -40,6 +40,9 @@ from torax._src.orchestration import step_function_processing
 from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
 from torax._src.solver import solver as solver_lib
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.time_step_calculator import time_step_calculator as ts
 
 
@@ -564,19 +567,21 @@ class SimulationStepFn:
         result.state, adaptive_step.AdaptiveStepState
     ), 'adaptive step state is not the expected type.'
 
-    final_solver_numeric_outputs = state.SolverNumericOutputs(
-        solver_error_state=jnp.array(
-            result.state.solver_numeric_outputs.solver_error_state,
-            jax_utils.get_int_dtype(),
-        ),
-        outer_solver_iterations=jnp.array(
-            result.counter, jax_utils.get_int_dtype()
-        ),
-        inner_solver_iterations=jnp.array(
-            result.loop_statistics['inner_solver_iterations'],
-            jax_utils.get_int_dtype(),
-        ),
-        sawtooth_crash=False,
+    final_solver_numeric_outputs = (
+        solver_numeric_outputs_lib.SolverNumericOutputs(
+            solver_error_state=jnp.array(
+                result.state.solver_numeric_outputs.solver_error_state,
+                jax_utils.get_int_dtype(),
+            ),
+            outer_solver_iterations=jnp.array(
+                result.counter, jax_utils.get_int_dtype()
+            ),
+            inner_solver_iterations=jnp.array(
+                result.loop_statistics['inner_solver_iterations'],
+                jax_utils.get_int_dtype(),
+            ),
+            sawtooth_crash=False,
+        )
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(

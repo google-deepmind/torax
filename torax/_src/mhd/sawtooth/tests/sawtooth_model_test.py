@@ -26,6 +26,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
+from torax._src.solver import solver_numeric_outputs
 from torax._src.torax_pydantic import config
 from torax.tests.scripts import regenerate_sawtooth_refs
 
@@ -173,7 +174,7 @@ class SawtoothModelTest(parameterized.TestCase):
     new_input_state_should_crash = dataclasses.replace(
         output_state0,
         core_profiles=self.initial_state.core_profiles,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             inner_solver_iterations=np.array(0, np.int64),
             outer_solver_iterations=np.array(0, np.int64),
             solver_error_state=np.array(0, np.int64),

@@ -40,12 +40,13 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
+from torax._src.solver import solver_numeric_outputs
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
 # pylint: disable=invalid-name
@@ -128,23 +129,19 @@ class StateHistoryTest(parameterized.TestCase):
     self.core_profiles, _, _ = core_profile_helpers.make_initial_inputs(
         self.torax_config
     )
-    self.core_transport = state.CoreTransport(
-        total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
-        turbulent=transport_coeffs_lib.TurbulentTransport(
-            core=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
-            pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+    self.core_transport = transport_coeffs.CoreTransport(
+        total=transport_coeffs.TransportCoeffs.zeros(self.geo),
+        turbulent=transport_coeffs.TurbulentTransport(
+            core=transport_coeffs.TransportCoeffs.zeros(self.geo),
+            pedestal=transport_coeffs.TransportCoeffs.zeros(self.geo),
             core_components={
-                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
-                    self.geo
-                )
+                'prescribed': transport_coeffs.TransportCoeffs.zeros(self.geo)
             },
             pedestal_components={
-                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
-                    self.geo
-                )
+                'prescribed': transport_coeffs.TransportCoeffs.zeros(self.geo)
             },
         ),
-        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo),
+        neoclassical=transport_coeffs.NeoclassicalTransport.zeros(self.geo),
     )
     self.source_models = models.source_models
     pedestal_output, pedestal_state = models.pedestal_model.initialize(
@@ -162,7 +159,7 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,

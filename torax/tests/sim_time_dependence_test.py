@@ -40,6 +40,7 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.solver import config as solver_config
 from torax._src.solver import linear_theta_method
+from torax._src.solver import solver_numeric_outputs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
@@ -252,7 +253,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs.SolverNumericOutputs,
   ]:
     combined = getattr(
         runtime_params_t.profile_conditions, self._param
@@ -277,13 +278,13 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
     )
 
     def _get_return_value(error_code: int):
-      solver_numeric_outputs = state.SolverNumericOutputs(
+      outputs = solver_numeric_outputs.SolverNumericOutputs(
           outer_solver_iterations=1,
           solver_error_state=error_code,
           inner_solver_iterations=current_inner_solver_iterations,
           sawtooth_crash=False,
       )
-      return (x_new,), solver_numeric_outputs
+      return (x_new,), outputs
 
     return jax.lax.cond(
         combined < self._max_value,
