@@ -239,6 +239,10 @@ class EdgeTest(absltest.TestCase):
     assert other_T_e is not None
     np.testing.assert_allclose(other_T_e, 0.99)
 
+  def test_edge_state_public_export(self):
+    state = edge.EdgeState()
+    self.assertIsInstance(state, edge.EdgeState)
+
 
 if __name__ == '__main__':
   absltest.main()

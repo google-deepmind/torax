@@ -27,6 +27,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
+from torax._src.edge import edge_state as edge_state_lib
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
@@ -55,6 +56,25 @@ class InitialGuessRuntimeParams:
   T_e_target: array_typing.FloatScalar
   c_z_prefactor: array_typing.FloatScalar
   use_previous_step_as_guess: bool = jax.tree.static()
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ExtendedLengyelEdgeState(edge_state_lib.EdgeState):
+  """Cross-timestep state for ExtendedLengyelModel.
+
+  Attributes:
+    pressure_neutral_divertor: Divertor neutral pressure [Pa] from the previous
+      step.
+    warm_start_guess: Solver initial guess (`ForwardInitialGuess` or
+      `InverseInitialGuess`, with temperatures in [eV]) from the previous step.
+    has_viable_warm_start: Whether `warm_start_guess` came from a viable
+      previous solve.
+  """
+
+  pressure_neutral_divertor: jax.Array
+  warm_start_guess: divertor_sol_1d_lib.ExtendedLengyelInitialGuess
+  has_viable_warm_start: jax.Array
 
 
 @jax.tree_util.register_dataclass
