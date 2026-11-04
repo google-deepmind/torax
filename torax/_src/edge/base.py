@@ -206,6 +206,32 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
     del edge_runtime_params
     return edge_state_lib.EdgeState()
 
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.EdgeState:
+    """Reconstructs EdgeState at restart time from a single-time-slice DataTree.
+
+    During simulation restart from file, this method reconstructs the initial
+    `EdgeState` at the restart time from an xr.DataTree with the `time`
+    dimension already selected (e.g. via `.sel(time=...)`), or `None` if no
+    edge state was saved in the file.
+
+    Stateless edge models inherit this default implementation returning an empty
+    `EdgeState()`. Stateful subclasses (e.g. `ExtendedLengyelModel`,
+    `CombinedEdgeModel`) override this method to deserialize their state.
+
+    Args:
+      datatree: Single-time-slice DataTree containing edge state, or None.
+      edge_runtime_params: Runtime parameters for the edge model.
+
+    Returns:
+      Reconstructed EdgeState at restart time.
+    """
+    del datatree, edge_runtime_params
+    return edge_state_lib.EdgeState()
+
   @abc.abstractmethod
   def __call__(
       self,
@@ -256,6 +282,39 @@ class CombinedEdgeModel(EdgeModel):
     return edge_state_lib.CombinedEdgeState(
         sub_models={
             name: sub_model.initial_state(
+                edge_runtime_params.sub_models[name],
+            )
+            for name, sub_model in self.sub_models.items()
+        }
+    )
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.CombinedEdgeState:
+    """Reconstructs CombinedEdgeState from a single-time-slice DataTree.
+
+    During simulation restart from file, this method reconstructs the initial
+    `CombinedEdgeState` at the restart time by delegating reconstruction of each
+    sub-model's state to that sub-model's `initial_state_from_datatree` method
+    using child nodes of the single-time-slice `datatree`.
+
+    Args:
+      datatree: Single-time-slice DataTree containing edge state, or None.
+      edge_runtime_params: Runtime parameters for the combined edge model.
+
+    Returns:
+      Reconstructed CombinedEdgeState at restart time.
+    """
+    assert isinstance(
+        edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
+    )
+    children = datatree.children if datatree is not None else {}
+    return edge_state_lib.CombinedEdgeState(
+        sub_models={
+            name: sub_model.initial_state_from_datatree(
+                children.get(name),
                 edge_runtime_params.sub_models[name],
             )
             for name, sub_model in self.sub_models.items()

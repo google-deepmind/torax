@@ -19,6 +19,7 @@ import logging
 from typing import Mapping
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -37,10 +38,12 @@ from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import psi_calculations
 from torax._src.solver import jax_root_finding
 from torax._src.sources import core_sources as core_sources_lib
-
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -89,6 +92,60 @@ class ExtendedLengyelEdgeState(edge_state_lib.EdgeState):
   pressure_neutral_divertor: jax.Array
   warm_start_guess: divertor_sol_1d_lib.ExtendedLengyelInitialGuess
   has_viable_warm_start: jax.Array
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree:
+    """Builds an xr.DataTree of ExtendedLengyelEdgeState.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of ExtendedLengyelEdgeState.
+    """
+    data_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.PRESSURE_NEUTRAL_DIVERTOR: context.pack(
+            output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+            np.atleast_1d(np.asarray(self.pressure_neutral_divertor)),
+        ),
+        output_keys.WARM_START_ALPHA_T: context.pack(
+            output_keys.WARM_START_ALPHA_T,
+            np.atleast_1d(np.asarray(self.warm_start_guess.alpha_t)),
+        ),
+        output_keys.WARM_START_KAPPA_E: context.pack(
+            output_keys.WARM_START_KAPPA_E,
+            np.atleast_1d(np.asarray(self.warm_start_guess.kappa_e)),
+        ),
+        output_keys.WARM_START_T_E_SEPARATRIX: context.pack(
+            output_keys.WARM_START_T_E_SEPARATRIX,
+            np.atleast_1d(np.asarray(self.warm_start_guess.T_e_separatrix)),
+        ),
+        output_keys.HAS_VIABLE_WARM_START: context.pack(
+            output_keys.HAS_VIABLE_WARM_START,
+            np.atleast_1d(np.asarray(self.has_viable_warm_start)),
+        ),
+    }
+    if isinstance(
+        self.warm_start_guess, divertor_sol_1d_lib.ForwardInitialGuess
+    ):
+      data_vars[output_keys.WARM_START_T_E_TARGET] = context.pack(
+          output_keys.WARM_START_T_E_TARGET,
+          np.atleast_1d(np.asarray(self.warm_start_guess.T_e_target)),
+      )
+    elif isinstance(
+        self.warm_start_guess, divertor_sol_1d_lib.InverseInitialGuess
+    ):
+      data_vars[output_keys.WARM_START_C_Z_PREFACTOR] = context.pack(
+          output_keys.WARM_START_C_Z_PREFACTOR,
+          np.atleast_1d(np.asarray(self.warm_start_guess.c_z_prefactor)),
+      )
+    else:
+      raise ValueError(
+          f'Unsupported warm_start_guess type: {type(self.warm_start_guess)}'
+      )
+    return xr.DataTree(dataset=context.build_dataset(data_vars))
 
 
 @jax.tree_util.register_dataclass
@@ -183,6 +240,103 @@ class ExtendedLengyelModel(base.EdgeModel):
             edge_runtime_params.computation_mode
         ),
         has_viable_warm_start=jnp.asarray(False, dtype=jnp.bool_),
+    )
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> ExtendedLengyelEdgeState:
+    """Reconstructs ExtendedLengyelEdgeState from a time-sliced DataTree.
+
+    Args:
+      datatree: Time-sliced DataTree containing edge state.
+      edge_runtime_params: Runtime parameters for the edge model.
+
+    Returns:
+      Reconstructed ExtendedLengyelEdgeState.
+
+    Raises:
+      ValueError: If datatree is None or required data variables are missing.
+    """
+    assert isinstance(edge_runtime_params, RuntimeParams)
+    if datatree is None:
+      raise ValueError(
+          'ExtendedLengyelModel requires a non-None edge state DataTree.'
+      )
+
+    ds = datatree.dataset
+    is_forward = (
+        edge_runtime_params.computation_mode
+        == extended_lengyel_enums.ComputationMode.FORWARD
+    )
+    mode_key = (
+        output_keys.WARM_START_T_E_TARGET
+        if is_forward
+        else output_keys.WARM_START_C_Z_PREFACTOR
+    )
+    required_keys = (
+        output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+        output_keys.WARM_START_ALPHA_T,
+        output_keys.WARM_START_KAPPA_E,
+        output_keys.WARM_START_T_E_SEPARATRIX,
+        output_keys.HAS_VIABLE_WARM_START,
+        mode_key,
+    )
+    missing = [k for k in required_keys if k not in ds.data_vars]
+    if missing:
+      raise ValueError(
+          'Missing required variables in ExtendedLengyelEdgeState DataTree: '
+          f'{missing}'
+      )
+
+    dtype = jax_utils.get_dtype()
+    pressure_neutral_divertor = jnp.asarray(
+        np.squeeze(ds[output_keys.PRESSURE_NEUTRAL_DIVERTOR].values),
+        dtype=dtype,
+    )
+    alpha_t = jnp.asarray(
+        np.squeeze(ds[output_keys.WARM_START_ALPHA_T].values),
+        dtype=dtype,
+    )
+    kappa_e = jnp.asarray(
+        np.squeeze(ds[output_keys.WARM_START_KAPPA_E].values),
+        dtype=dtype,
+    )
+    T_e_separatrix = jnp.asarray(
+        np.squeeze(ds[output_keys.WARM_START_T_E_SEPARATRIX].values),
+        dtype=dtype,
+    )
+    has_viable_warm_start = jnp.asarray(
+        np.squeeze(ds[output_keys.HAS_VIABLE_WARM_START].values),
+        dtype=jnp.bool_,
+    )
+
+    if is_forward:
+      T_e_target = jnp.asarray(
+          np.squeeze(ds[output_keys.WARM_START_T_E_TARGET].values),
+          dtype=dtype,
+      )
+      c_z_prefactor = None
+    else:
+      T_e_target = None
+      c_z_prefactor = jnp.asarray(
+          np.squeeze(ds[output_keys.WARM_START_C_Z_PREFACTOR].values),
+          dtype=dtype,
+      )
+    warm_start_guess = divertor_sol_1d_lib.build_initial_guess(
+        edge_runtime_params.computation_mode,
+        alpha_t=alpha_t,
+        kappa_e=kappa_e,
+        T_e_separatrix=T_e_separatrix,
+        T_e_target=T_e_target,
+        c_z_prefactor=c_z_prefactor,
+    )
+
+    return ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=pressure_neutral_divertor,
+        warm_start_guess=warm_start_guess,
+        has_viable_warm_start=has_viable_warm_start,
     )
 
   def __call__(

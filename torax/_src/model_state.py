@@ -60,6 +60,13 @@ class ModelState:
         sources_children[name] = source_tree
     if sources_children:
       children[output_keys.SOURCES] = xr.DataTree(children=sources_children)
+    if self.edge is not None:
+      edge_tree = self.edge.to_xr_datatree(context)
+      # Stateful edge models serialize cross-timestep state into
+      # /model_state/edge. Stateless edge models omit /model_state/edge and
+      # fall back to edge_model.initial_state during reconstruction.
+      if edge_tree is not None:
+        children[output_keys.EDGE] = edge_tree
     if not children:
       return None
     return xr.DataTree(children=children)

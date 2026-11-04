@@ -15,7 +15,9 @@
 """Tests for the ExtendedLengyelModel integration."""
 
 import dataclasses
+import os
 from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -29,6 +31,9 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import base as edge_base
+from torax._src.edge import edge_state as edge_state_lib
+from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import divertor_sol_1d
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
@@ -43,10 +48,14 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
+from torax._src.output_tools import output
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.solver import jax_root_finding
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.sources import formulas
 from torax._src.test_utils import sim_test_case
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -2181,6 +2190,224 @@ class ExtendedLengyelModelStateThreadingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         resolved_fallback.alpha_t,
         edge_params.initial_guess.alpha_t,
+    )
+
+  def test_initial_state_from_datatree_forward_roundtrip(self):
+    model, edge_params, _, geo, _, _ = self._build_test_inputs(
+        use_previous_step_as_guess=True
+    )
+    edge_params = dataclasses.replace(
+        edge_params,
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        use_enrichment_model=True,
+    )
+    guess = divertor_sol_1d.ForwardInitialGuess(
+        alpha_t=jnp.asarray([1.1, 1.25], dtype=jax_utils.get_dtype()),
+        kappa_e=jnp.asarray([2100.0, 2250.0], dtype=jax_utils.get_dtype()),
+        T_e_separatrix=jnp.asarray([110.0, 115.0], dtype=jax_utils.get_dtype()),
+        T_e_target=jnp.asarray([12.0, 14.0], dtype=jax_utils.get_dtype()),
+    )
+    edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(
+            [2.5, 3.2], dtype=jax_utils.get_dtype()
+        ),
+        warm_start_guess=guess,
+        has_viable_warm_start=jnp.asarray([True, True], dtype=jnp.bool_),
+    )
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    tree = edge_state.to_xr_datatree(context)
+    self.assertIsNotNone(tree)
+
+    filepath = os.path.join(self.create_tempdir().full_path, 'edge_state.nc')
+    tree.to_netcdf(filepath)
+    loaded_tree = output.load_state_file(filepath)
+
+    slice_tree = loaded_tree.sel(time=1.0, method='nearest')
+    restored = model.initial_state_from_datatree(slice_tree, edge_params)
+
+    self.assertIsNotNone(restored.pressure_neutral_divertor)
+    np.testing.assert_allclose(restored.pressure_neutral_divertor, 3.2)
+    assert isinstance(restored.pressure_neutral_divertor, jax.Array)
+    self.assertEqual(
+        restored.pressure_neutral_divertor.dtype, jax_utils.get_dtype()
+    )
+    self.assertFalse(restored.pressure_neutral_divertor.aval.weak_type)
+
+    self.assertIsInstance(
+        restored.warm_start_guess, divertor_sol_1d.ForwardInitialGuess
+    )
+    assert isinstance(
+        restored.warm_start_guess, divertor_sol_1d.ForwardInitialGuess
+    )
+    np.testing.assert_allclose(restored.warm_start_guess.alpha_t, 1.25)
+    np.testing.assert_allclose(restored.warm_start_guess.kappa_e, 2250.0)
+    np.testing.assert_allclose(restored.warm_start_guess.T_e_separatrix, 115.0)
+    np.testing.assert_allclose(restored.warm_start_guess.T_e_target, 14.0)
+    assert isinstance(restored.warm_start_guess.alpha_t, jax.Array)
+    self.assertEqual(
+        restored.warm_start_guess.alpha_t.dtype, jax_utils.get_dtype()
+    )
+    self.assertFalse(restored.warm_start_guess.alpha_t.aval.weak_type)
+
+    self.assertIsNotNone(restored.has_viable_warm_start)
+    self.assertTrue(bool(restored.has_viable_warm_start))
+    assert isinstance(restored.has_viable_warm_start, jax.Array)
+    self.assertEqual(restored.has_viable_warm_start.dtype, jnp.bool_)
+    self.assertFalse(restored.has_viable_warm_start.aval.weak_type)
+
+  def test_initial_state_from_datatree_inverse_roundtrip(self):
+    model, edge_params, _, geo, _, _ = self._build_test_inputs(
+        use_previous_step_as_guess=True
+    )
+    edge_params = dataclasses.replace(
+        edge_params,
+        computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
+        use_enrichment_model=True,
+    )
+    guess = divertor_sol_1d.InverseInitialGuess(
+        alpha_t=jnp.asarray([0.85, 0.95], dtype=jax_utils.get_dtype()),
+        kappa_e=jnp.asarray([1950.0, 2050.0], dtype=jax_utils.get_dtype()),
+        T_e_separatrix=jnp.asarray([88.0, 92.0], dtype=jax_utils.get_dtype()),
+        c_z_prefactor=jnp.asarray([0.012, 0.016], dtype=jax_utils.get_dtype()),
+    )
+    edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(
+            [1.8, 2.2], dtype=jax_utils.get_dtype()
+        ),
+        warm_start_guess=guess,
+        has_viable_warm_start=jnp.asarray([False, False], dtype=jnp.bool_),
+    )
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    tree = edge_state.to_xr_datatree(context)
+    self.assertIsNotNone(tree)
+    slice_tree = tree.sel(time=1.0)
+    restored = model.initial_state_from_datatree(slice_tree, edge_params)
+    self.assertIsInstance(
+        restored.warm_start_guess, divertor_sol_1d.InverseInitialGuess
+    )
+    assert isinstance(
+        restored.warm_start_guess, divertor_sol_1d.InverseInitialGuess
+    )
+    np.testing.assert_allclose(restored.warm_start_guess.c_z_prefactor, 0.016)
+    self.assertFalse(bool(restored.has_viable_warm_start))
+
+  def test_initial_state_from_datatree_none_raises(self):
+    model, edge_params, _, _, _, _ = self._build_test_inputs(
+        use_previous_step_as_guess=False
+    )
+    with self.assertRaises(ValueError):
+      model.initial_state_from_datatree(None, edge_params)
+
+  def test_initial_state_from_datatree_missing_vars_raises(self):
+    model, edge_params, _, _, _, _ = self._build_test_inputs(
+        use_previous_step_as_guess=False
+    )
+    empty_tree = xr.DataTree()
+    with self.assertRaises(ValueError):
+      model.initial_state_from_datatree(empty_tree, edge_params)
+
+  def test_initial_state_from_datatree_mode_mismatch_raises(self):
+    model, edge_params, _, geo, _, _ = self._build_test_inputs(
+        use_previous_step_as_guess=False
+    )
+    forward_guess = divertor_sol_1d.ForwardInitialGuess(
+        alpha_t=jnp.asarray([1.0], dtype=jax_utils.get_dtype()),
+        kappa_e=jnp.asarray([2000.0], dtype=jax_utils.get_dtype()),
+        T_e_separatrix=jnp.asarray([100.0], dtype=jax_utils.get_dtype()),
+        T_e_target=jnp.asarray([10.0], dtype=jax_utils.get_dtype()),
+    )
+    state_fwd = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(
+            [2.5], dtype=jax_utils.get_dtype()
+        ),
+        warm_start_guess=forward_guess,
+        has_viable_warm_start=jnp.asarray([True], dtype=jnp.bool_),
+    )
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    fwd_tree = state_fwd.to_xr_datatree(context)
+    edge_params_inv = dataclasses.replace(
+        edge_params,
+        computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
+    )
+    with self.assertRaises(ValueError):
+      model.initial_state_from_datatree(fwd_tree, edge_params_inv)
+
+  def test_combined_edge_model_initial_state_from_datatree(self):
+    model, edge_params, _, geo, _, _ = self._build_test_inputs(
+        use_previous_step_as_guess=True
+    )
+    combined_model = edge_base.CombinedEdgeModel(sub_models={'lengyel': model})
+    combined_params = edge_runtime_params_lib.CombinedRuntimeParams(
+        update_T_e=True,
+        update_T_i=True,
+        update_n_e=True,
+        update_n_impurities=True,
+        sub_models={'lengyel': edge_params},
+    )
+    sub_state = model.initial_state(edge_params)
+    combined_state = edge_state_lib.CombinedEdgeState(
+        sub_models={'lengyel': sub_state}
+    )
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    tree = combined_state.to_xr_datatree(context)
+    self.assertIsNotNone(tree)
+    self.assertIn('lengyel', tree.children)
+
+    restored = combined_model.initial_state_from_datatree(tree, combined_params)
+    self.assertIn('lengyel', restored.sub_models)
+    self.assertIsInstance(
+        restored.sub_models['lengyel'],
+        extended_lengyel_model.ExtendedLengyelEdgeState,
+    )
+
+  def test_edge_state_concat_datatrees(self):
+    guess = divertor_sol_1d.ForwardInitialGuess(
+        alpha_t=jnp.asarray([1.0], dtype=jax_utils.get_dtype()),
+        kappa_e=jnp.asarray([2000.0], dtype=jax_utils.get_dtype()),
+        T_e_separatrix=jnp.asarray([100.0], dtype=jax_utils.get_dtype()),
+        T_e_target=jnp.asarray([10.0], dtype=jax_utils.get_dtype()),
+    )
+    edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(
+            [2.0], dtype=jax_utils.get_dtype()
+        ),
+        warm_start_guess=guess,
+        has_viable_warm_start=jnp.asarray([True], dtype=jnp.bool_),
+    )
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=np.linspace(0, 1, 5),
+        rho_cell_norm=np.linspace(0.1, 0.9, 4),
+        rho_cell_plus_boundaries_norm=np.linspace(0, 1, 6),
+    )
+    tree1 = edge_state.to_xr_datatree(context)
+    self.assertIsNotNone(tree1)
+    concatenated = output.concat_datatrees(tree1, tree1)
+    self.assertIn(
+        output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+        concatenated.dataset.data_vars,
     )
 
 

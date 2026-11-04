@@ -949,6 +949,45 @@ IMPURITY_RIGHT_BC: Final[OutputKey] = OutputKey(
 )
 
 # ---------------------------------------------------------------------------
+# Extended Lengyel edge model state.
+# ---------------------------------------------------------------------------
+PRESSURE_NEUTRAL_DIVERTOR: Final[OutputKey] = OutputKey(
+    "pressure_neutral_divertor",
+    units=Units.PASCAL,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_ALPHA_T: Final[OutputKey] = OutputKey(
+    "warm_start_alpha_t",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_KAPPA_E: Final[OutputKey] = OutputKey(
+    "warm_start_kappa_e",
+    units=Units.W_PER_M_EV35,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_T_E_SEPARATRIX: Final[OutputKey] = OutputKey(
+    "warm_start_T_e_separatrix",
+    units=Units.EV,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_T_E_TARGET: Final[OutputKey] = OutputKey(
+    "warm_start_T_e_target",
+    units=Units.EV,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_C_Z_PREFACTOR: Final[OutputKey] = OutputKey(
+    "warm_start_c_z_prefactor",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+HAS_VIABLE_WARM_START: Final[OutputKey] = OutputKey(
+    "has_viable_warm_start",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+
+# ---------------------------------------------------------------------------
 # Numerics.
 # ---------------------------------------------------------------------------
 SIM_ERROR: Final[OutputKey] = OutputKey(

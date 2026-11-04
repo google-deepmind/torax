@@ -105,11 +105,7 @@ T_E_TARGET = output_keys.OutputKey(
     units=output_keys.Units.EV,
     grid_type=output_keys.GridType.SCALAR,
 )
-PRESSURE_NEUTRAL_DIVERTOR = output_keys.OutputKey(
-    'pressure_neutral_divertor',
-    units=output_keys.Units.PASCAL,
-    grid_type=output_keys.GridType.SCALAR,
-)
+PRESSURE_NEUTRAL_DIVERTOR = output_keys.PRESSURE_NEUTRAL_DIVERTOR
 ALPHA_T = output_keys.OutputKey(
     'alpha_t',
     units=output_keys.Units.DIMENSIONLESS,
