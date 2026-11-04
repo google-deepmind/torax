@@ -150,7 +150,7 @@ This is not an officially supported Google product.
 
 [pytest-badge]: https://github.com/google-deepmind/torax/actions/workflows/pytest.yml/badge.svg
 [pytest-workflow]: https://github.com/google-deepmind/torax/actions/workflows/pytest.yml
-[docs-badge]: https://readthedocs.org/projects/torax/badge/?version=latest
+[docs-badge]: https://img.shields.io/readthedocs/torax/latest
 [docs]: https://torax.readthedocs.io/
 [jax]: https://docs.jax.dev/
 [fusion-surrogates]: https://github.com/google-deepmind/fusion_surrogates

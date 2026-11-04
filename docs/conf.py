@@ -38,7 +38,7 @@ copyright = '2024, The TORAX authors'
 author = 'The TORAX authors'
 
 # The short X.Y version
-version = 'v1.4.3'
+version = 'v2.0.0'
 # The full version, including alpha/beta/rc tags
 release = ''
 github_base_url = f'https://github.com/google-deepmind/torax/tree/{version}'
