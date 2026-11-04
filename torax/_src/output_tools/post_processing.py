@@ -102,10 +102,14 @@ class PostProcessedOutputs:
     P_fusion: Generated fusion power (5*P_alpha_total) [W]
     I_ecrh: Total electron cyclotron source current [A]
     I_generic_current: Total generic_current source current [A]
+    I_nbi: Total neutral beam injection source current [A]
     Q_fusion: Fusion power gain (P_fusion / P_external_total) [dimensionless]
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
+    P_nbi_e: Neutral beam injection heating power to electrons [W]
+    P_nbi_i: Neutral beam injection heating power to ions [W]
+    P_nbi_total: Total neutral beam injection heating power [W]
     P_LH_martin_high_density: H-mode transition power from the Martin scaling
       law for high density branch [W]
     P_LH_martin_min: Minimum H-mode transition power from the Martin scaling law
@@ -183,6 +187,8 @@ class PostProcessedOutputs:
       source [Am^-2]
     j_toroidal_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
+    j_toroidal_nbi: Toroidal current density from neutral beam injection source
+      [Am^-2]
     j_toroidal_non_inductive: Total toroidal non-inductive current density
       [Am^-2]
     j_parallel_non_inductive: Total parallel non-inductive current density
@@ -195,6 +201,7 @@ class PostProcessedOutputs:
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
+    S_nbi: Integrated neutral beam injection particle source [s^-1]
     S_total: Total integrated particle sources [s^-1]
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
@@ -257,11 +264,15 @@ class PostProcessedOutputs:
   P_impurity_radiation_e: array_typing.FloatScalar
   I_ecrh: array_typing.FloatScalar
   I_generic_current: array_typing.FloatScalar
+  I_nbi: array_typing.FloatScalar
   P_fusion: array_typing.FloatScalar
   Q_fusion: array_typing.FloatScalar
   P_icrh_e: array_typing.FloatScalar
   P_icrh_i: array_typing.FloatScalar
   P_icrh_total: array_typing.FloatScalar
+  P_nbi_e: array_typing.FloatScalar
+  P_nbi_i: array_typing.FloatScalar
+  P_nbi_total: array_typing.FloatScalar
   P_LH_martin_high_density: array_typing.FloatScalar
   P_LH_martin_min: array_typing.FloatScalar
   P_LH_martin_low_density: array_typing.FloatScalar
@@ -312,6 +323,7 @@ class PostProcessedOutputs:
   j_toroidal_bootstrap_face: array_typing.FloatVector
   j_toroidal_generic_current: array_typing.FloatVector
   j_toroidal_ecrh: array_typing.FloatVector
+  j_toroidal_nbi: array_typing.FloatVector
   j_toroidal_non_inductive: array_typing.FloatVector
   j_parallel_non_inductive: array_typing.FloatVector
   I_external: array_typing.FloatScalar
@@ -321,6 +333,7 @@ class PostProcessedOutputs:
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
+  S_nbi: array_typing.FloatScalar
   beta_tor: array_typing.FloatScalar
   beta_pol: array_typing.FloatScalar
   beta_N: array_typing.FloatScalar
@@ -376,11 +389,15 @@ class PostProcessedOutputs:
         P_impurity_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_generic_current=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_nbi=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_nbi_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_nbi_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_nbi_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_martin_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_martin_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_martin_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -427,6 +444,7 @@ class PostProcessedOutputs:
         j_toroidal_external=jnp.zeros(geo.rho.shape),
         j_toroidal_generic_current=jnp.zeros(geo.rho.shape),
         j_toroidal_ecrh=jnp.zeros(geo.rho.shape),
+        j_toroidal_nbi=jnp.zeros(geo.rho.shape),
         j_toroidal_non_inductive=jnp.zeros(geo.rho.shape),
         j_parallel_external=jnp.zeros(geo.rho.shape),
         j_parallel_non_inductive=jnp.zeros(geo.rho.shape),
@@ -437,6 +455,7 @@ class PostProcessedOutputs:
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        S_nbi=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -530,6 +549,7 @@ class PostProcessedOutputs:
         output_keys.J_PARALLEL_OHMIC: self.j_parallel_ohmic,
         output_keys.J_TOROIDAL_GENERIC_CURRENT: self.j_toroidal_generic_current,
         output_keys.J_TOROIDAL_ECRH: self.j_toroidal_ecrh,
+        output_keys.J_TOROIDAL_NBI: self.j_toroidal_nbi,
         output_keys.J_TOROIDAL_NON_INDUCTIVE: self.j_toroidal_non_inductive,
         output_keys.J_PARALLEL_NON_INDUCTIVE: self.j_parallel_non_inductive,
     }
@@ -590,6 +610,9 @@ class PostProcessedOutputs:
         output_keys.P_ICRH_E: self.P_icrh_e,
         output_keys.P_ICRH_I: self.P_icrh_i,
         output_keys.P_ICRH_TOTAL: self.P_icrh_total,
+        output_keys.P_NBI_E: self.P_nbi_e,
+        output_keys.P_NBI_I: self.P_nbi_i,
+        output_keys.P_NBI_TOTAL: self.P_nbi_total,
         # L-H transition thresholds
         output_keys.P_LH_MARTIN_HIGH_DENSITY: self.P_LH_martin_high_density,
         output_keys.P_LH_MARTIN_MIN: self.P_LH_martin_min,
@@ -631,6 +654,7 @@ class PostProcessedOutputs:
         output_keys.I_EXTERNAL: self.I_external,
         output_keys.I_ECRH: self.I_ecrh,
         output_keys.I_GENERIC_CURRENT: self.I_generic_current,
+        output_keys.I_NBI: self.I_nbi,
         output_keys.I_NON_INDUCTIVE: self.I_non_inductive,
         output_keys.F_NON_INDUCTIVE: self.f_non_inductive,
         output_keys.F_BOOTSTRAP: self.f_bootstrap,
@@ -638,6 +662,7 @@ class PostProcessedOutputs:
         output_keys.S_GAS_PUFF: self.S_gas_puff,
         output_keys.S_PELLET: self.S_pellet,
         output_keys.S_GENERIC_PARTICLE: self.S_generic_particle,
+        output_keys.S_NBI: self.S_nbi,
         output_keys.S_TOTAL: self.S_total,
         # Plasma beta
         output_keys.BETA_TOR: self.beta_tor,
@@ -694,6 +719,7 @@ ION_EL_HEAT_SOURCES: Final[Sequence[str]] = (
     'generic_heat',
     'fusion',
     'icrh',
+    'nbi',
 )
 EL_HEAT_SOURCES: Final[Sequence[str]] = (
     'ohmic',
@@ -706,15 +732,18 @@ EXTERNAL_HEATING_SOURCES: Final[Sequence[str]] = (
     'generic_heat',
     'ecrh',
     'icrh',
+    'nbi',
 )
 CURRENT_SOURCES: Final[Sequence[str]] = (
     'generic_current',
     'ecrh',
+    'nbi',
 )
 PARTICLE_SOURCES: Final[Sequence[str]] = (
     'gas_puff',
     'pellet',
     'generic_particle',
+    'nbi',
 )
 
 
@@ -1210,7 +1239,7 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_sources = {}
-  for source_name in ['ecrh', 'generic_current']:
+  for source_name in ['ecrh', 'generic_current', 'nbi']:
     source_output = sim_state.core_sources.sources.get(source_name)
     if source_output is not None and source_output.j_parallel is not None:
       j_toroidal_sources[f'j_toroidal_{source_name}'] = (
@@ -1323,6 +1352,7 @@ def make_post_processed_outputs(
       j_toroidal_generic_current=j_toroidal_sources[
           'j_toroidal_generic_current'
       ],
+      j_toroidal_nbi=j_toroidal_sources['j_toroidal_nbi'],
       j_toroidal_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
       j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,

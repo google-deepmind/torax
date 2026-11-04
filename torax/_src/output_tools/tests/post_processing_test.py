@@ -122,6 +122,9 @@ class PostProcessingTest(parameterized.TestCase):
         'P_icrh_i',
         'P_icrh_e',
         'P_icrh_total',
+        'P_nbi_i',
+        'P_nbi_e',
+        'P_nbi_total',
         'P_impurity_radiation_e',
         'P_cyclotron_radiation_e',
         'P_heat_i',
@@ -133,9 +136,11 @@ class PostProcessingTest(parameterized.TestCase):
         'P_external_injected',
         'I_ecrh',
         'I_generic_current',
+        'I_nbi',
         'S_gas_puff',
         'S_pellet',
         'S_generic_particle',
+        'S_nbi',
         'S_total',
     }
 
@@ -375,6 +380,78 @@ class PostProcessingTest(parameterized.TestCase):
         math_utils.safe_divide(num=outputs.I_bootstrap, denom=I_p, eps=1e-7),
         rtol=1e-5,
     )
+
+  def test_nbi_outputs(self):
+    """Checks calculation of NBI heat, current, and particle outputs."""
+    ones = np.ones_like(self.geo.rho)
+    source_profiles = core_sources_lib.CoreSources(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
+            self.geo
+        ),
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
+        sources={
+            'nbi': core_sources_lib.SourceOutput(
+                power_density_i=2.0 * ones,
+                power_density_e=3.0 * ones,
+                j_parallel=4.0 * ones,
+                particle_source_e=5.0 * ones,
+            )
+        },
+    )
+    _, pedestal_state = self.models.pedestal_model.initialize(
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        source_profiles,
+    )
+    input_state = sim_state.SimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=state.CoreTransport.zeros(self.geo),
+        core_sources=source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
+        pedestal_output=(
+            pedestal_model_output_lib.IBCPedestalModelOutput.empty()
+        ),
+        model_state=model_state_lib.ModelState(
+            pedestal=pedestal_state,
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
+    )
+    outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
+    )
+    volume = np.sum(self.geo.vpr * self.geo.drho_norm)
+    np.testing.assert_allclose(outputs.P_nbi_i, 2.0 * volume)
+    np.testing.assert_allclose(outputs.P_nbi_e, 3.0 * volume)
+    np.testing.assert_allclose(outputs.P_nbi_total, 5.0 * volume)
+    np.testing.assert_allclose(outputs.P_aux_total, 5.0 * volume)
+    np.testing.assert_allclose(outputs.S_nbi, 5.0 * volume)
+    np.testing.assert_allclose(outputs.S_total, 5.0 * volume)
+    np.testing.assert_allclose(
+        outputs.j_toroidal_nbi, outputs.j_toroidal_external
+    )
+    np.testing.assert_allclose(outputs.I_nbi, outputs.I_external)
 
   def test_to_output_dict(self):
     """Tests that to_output_dict produces the expected OutputVar mappings."""

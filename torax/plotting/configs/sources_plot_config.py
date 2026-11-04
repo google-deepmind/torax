@@ -40,6 +40,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 'j_toroidal_bootstrap',
                 'j_toroidal_generic_current',
                 'j_toroidal_ecrh',
+                'j_toroidal_nbi',
             ),
             labels=(
                 r'$j_\mathrm{tot}$',
@@ -47,6 +48,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$j_\mathrm{bs}$',
                 r'$j_\mathrm{generic}$',
                 r'$j_\mathrm{ecrh}$',
+                r'$j_\mathrm{nbi}$',
             ),
             ylabel=r'Toroidal current $[MA~m^{-2}]$',
             suppress_zero_values=True,  # Do not plot all-zero data
@@ -77,6 +79,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             attrs=(
                 'p_icrh_i',
                 'p_icrh_e',
+                'p_nbi_i',
+                'p_nbi_e',
                 'p_ecrh_e',
                 'p_generic_heat_i',
                 'p_generic_heat_e',
@@ -84,6 +88,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             labels=(
                 r'$Q_\mathrm{ICRH,i}$',
                 r'$Q_\mathrm{ICRH,e}$',
+                r'$Q_\mathrm{NBI,i}$',
+                r'$Q_\mathrm{NBI,e}$',
                 r'$Q_\mathrm{ECRH,e}$',
                 r'$Q_\mathrm{generic,i}$',
                 r'$Q_\mathrm{generic,e}$',
@@ -122,10 +128,11 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('s_gas_puff', 's_generic_particle', 's_pellet'),
+            attrs=('s_gas_puff', 's_generic_particle', 's_nbi', 's_pellet'),
             labels=(
                 r'$S_\mathrm{puff}$',
                 r'$S_\mathrm{generic}$',
+                r'$S_\mathrm{NBI}$',
                 r'$S_\mathrm{pellet}$',
             ),
             ylabel=r'Particle sources $[10^{20}~m^{-3}~s^{-1}]$',

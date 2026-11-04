@@ -48,9 +48,9 @@ The configurable runtime parameters of each source are as follows:
     ``particle_source_e``) to :ref:`Time-varying arrays`. Note that each channel
     is evaluated independently at each time step.
     Only channels matching the source's ``POPULATED_SOURCE_OUTPUTS`` should be
-    specified. Sources that produce fast ions (``fusion``, ``icrh``) may also
-    include ``'fast_ions'`` mapping fast-ion species symbols (``'H'``, ``'D'``,
-    ``'T'``, ``'He3'``, ``'He4'``) to dictionaries with non-negative
+    specified. Sources that produce fast ions (``fusion``, ``icrh``, ``nbi``)
+    may also include ``'fast_ions'`` mapping fast-ion species symbols (``'H'``,
+    ``'D'``, ``'T'``, ``'He3'``, ``'He4'``) to dictionaries with non-negative
     :ref:`Time-varying arrays` ``'n'`` [:math:`m^{-3}`] and ``'T'`` [keV].
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity
@@ -422,6 +422,33 @@ The following models are available:
     ``fraction_P_heating`` (**time-varying-scalar** [default = None]). Fraction
     of total external input heating power to use for impurity radiation.
     Required when ``mode == 'model_based'``.
+
+nbi
+===
+
+Neutral beam injection (NBI) heating, current drive, and particle source. No
+first-principle-based model is yet implemented in TORAX; NBI profiles are
+provided via ``mode = 'prescribed'`` (the default).
+
+``mode`` (str [default = 'prescribed'])
+
+``model_name`` (str [default = 'prescribed'])
+
+``prescribed_values`` (**dict** [default = {}])
+  Prescribed profile values for the NBI source:
+
+  * ``power_density_i`` (**time-varying-array**): Ion heating power density
+    [:math:`W/m^3`].
+  * ``power_density_e`` (**time-varying-array**): Electron heating power density
+    [:math:`W/m^3`].
+  * ``j_parallel`` (**time-varying-array**): Parallel current density
+    :math:`\langle \mathbf{j} \cdot \mathbf{B} \rangle / B_0` [:math:`A/m^2`].
+  * ``particle_source_e`` (**time-varying-array**): Electron particle source
+    density [:math:`m^{-3} s^{-1}`].
+  * ``fast_ions`` (optional, dict[str, dict]): Mapping from fast-ion species
+    symbol (``'H'``, ``'D'``, ``'T'``, ``'He3'``, or ``'He4'``) to a dictionary
+    containing non-negative :ref:`Time-varying arrays` ``'n'`` [:math:`m^{-3}`]
+    and ``'T'`` [:math:`keV`].
 
 ohmic
 =====

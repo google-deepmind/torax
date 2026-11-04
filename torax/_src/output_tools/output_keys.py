@@ -534,6 +534,11 @@ J_TOROIDAL_ECRH: Final[OutputKey] = OutputKey(
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
+J_TOROIDAL_NBI: Final[OutputKey] = OutputKey(
+    "j_toroidal_nbi",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
 J_TOROIDAL_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
     "j_toroidal_non_inductive",
     units=Units.AMPERE_PER_SQUARE_METER,
@@ -641,6 +646,15 @@ P_ICRH_I: Final[OutputKey] = OutputKey(
 )
 P_ICRH_TOTAL: Final[OutputKey] = OutputKey(
     "P_icrh_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_NBI_E: Final[OutputKey] = OutputKey(
+    "P_nbi_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_NBI_I: Final[OutputKey] = OutputKey(
+    "P_nbi_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_NBI_TOTAL: Final[OutputKey] = OutputKey(
+    "P_nbi_total", units=Units.WATT, grid_type=GridType.SCALAR
 )
 
 # ---------------------------------------------------------------------------
@@ -827,6 +841,9 @@ I_ECRH: Final[OutputKey] = OutputKey(
 I_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
     "I_generic_current", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
+I_NBI: Final[OutputKey] = OutputKey(
+    "I_nbi", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
 I_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
     "I_non_inductive", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
@@ -848,6 +865,9 @@ S_PELLET: Final[OutputKey] = OutputKey(
 )
 S_GENERIC_PARTICLE: Final[OutputKey] = OutputKey(
     "S_generic_particle", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
+)
+S_NBI: Final[OutputKey] = OutputKey(
+    "S_nbi", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
 )
 S_TOTAL: Final[OutputKey] = OutputKey(
     "S_total", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR

@@ -281,6 +281,10 @@ toroidal (``j_toroidal_*``) current densities:
   Parallel generic external non-inductive current density [:math:`A/m^2`]. Only
   output if ``generic_current`` source is active.
 
+``j_parallel_nbi`` (time, rho_cell_norm)
+  Parallel neutral beam injection current density [:math:`A/m^2`]. Only output
+  if ``nbi`` source is active.
+
 ``j_parallel_non_inductive`` (time, rho_cell_norm)
   Total parallel non-inductive current density (including bootstrap and external)
   [:math:`A/m^2`].
@@ -307,6 +311,9 @@ toroidal (``j_toroidal_*``) current densities:
 ``j_toroidal_generic_current`` (time, rho_cell_norm)
   Toroidal generic external non-inductive current density [:math:`A/m^2`]. Only output if
   ``generic_current`` source is active.
+
+``j_toroidal_nbi`` (time, rho_cell_norm)
+  Toroidal neutral beam injection current density [:math:`A/m^2`].
 
 ``j_toroidal_non_inductive`` (time, rho_cell_norm)
   Total toroidal non-inductive current density (including bootstrap and external)
@@ -388,6 +395,14 @@ toroidal (``j_toroidal_*``) current densities:
   Impurity radiation heat sink density (only relevant for electrons)
   [:math:`W/m^3`]. Only output if ``impurity_radiation`` source is active.
 
+``p_nbi_e`` (time, rho_cell_norm)
+  Neutral beam injection heating power density to electrons [:math:`W/m^3`].
+  Only output if ``nbi`` source is active.
+
+``p_nbi_i`` (time, rho_cell_norm)
+  Neutral beam injection heating power density to ions [:math:`W/m^3`]. Only
+  output if ``nbi`` source is active.
+
 ``p_ohmic_e`` (time, rho_cell_norm)
   Ohmic heating power density [:math:`W/m^3`] (only relevant for electrons).
   Only output if ``ohmic`` source is active.
@@ -458,6 +473,10 @@ toroidal (``j_toroidal_*``) current densities:
 ``s_generic_particle`` (time, rho_cell_norm)
   Generic particle source density [:math:`s^{-1} m^{-3}`]. Only output if
   ``generic_particle`` source is active.
+
+``s_nbi`` (time, rho_cell_norm)
+  Neutral beam injection particle source density [:math:`s^{-1} m^{-3}`]. Only
+  output if ``nbi`` source is active.
 
 ``s_pellet`` (time, rho_cell_norm)
   Pellet particle source density [:math:`s^{-1} m^{-3}`]. Only output if
@@ -656,6 +675,9 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``I_generic_current`` (time)
   Total generic current source current [:math:`A`].
 
+``I_nbi`` (time)
+  Total neutral beam injection source current [:math:`A`].
+
 ``I_non_inductive`` (time)
   Total non-inductive current (including bootstrap and external) [:math:`A`].
 
@@ -780,6 +802,15 @@ properties and characteristics, as well as scalar edge geometry quantities.
   H-mode transition power at the density corresponding to the minimum transition
   power, from Ryter 2014. [:math:`W`].
 
+``P_nbi_e`` (time)
+  Total neutral beam injection heating power to electrons [:math:`W`].
+
+``P_nbi_i`` (time)
+  Total neutral beam injection heating power to ions [:math:`W`].
+
+``P_nbi_total`` (time)
+  Total neutral beam injection heating power [:math:`W`].
+
 ``P_ohmic_e`` (time)
   Total Ohmic heating power (only relevant for electrons) [:math:`W`].
 
@@ -858,6 +889,9 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``S_generic_particle`` (time)
   Integrated generic particle source rate [:math:`s^{-1}`].
+
+``S_nbi`` (time)
+  Integrated neutral beam injection particle source rate [:math:`s^{-1}`].
 
 ``S_pellet`` (time)
   Integrated pellet particle source rate [:math:`s^{-1}`].

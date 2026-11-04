@@ -26,6 +26,7 @@ from torax._src.sources import base
 from torax._src.sources import config as sources_config
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
+from torax._src.sources import neutral_beam_injection_source
 from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
@@ -57,6 +58,12 @@ class SourcesConfigTest(parameterized.TestCase):
               'fusion': {},
           },
           expected_sources_model=fusion_heat_source.FusionHeatSourceConfig,
+      ),
+      dict(
+          config_dict={
+              'nbi': {},
+          },
+          expected_sources_model=neutral_beam_injection_source.NeutralBeamInjectionSourceConfig,
       ),
       dict(
           config_dict={

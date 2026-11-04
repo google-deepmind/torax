@@ -152,8 +152,9 @@ and that quasineutrality is maintained:
 
   n_i Z_i + n_{imp,thermal} Z_{imp} + n_{tail} Z_{tail} = n_e
 
-The framework currently supports fast ions from ICRH minority heating.
-Extension to NBI and fusion-born fast ion populations is planned.
+The framework currently supports fast ions from ICRH minority heating and
+prescribed NBI sources. Extension to model-based NBI and fusion-born fast ion
+populations is planned.
 
 ITG Critical Gradient Stabilization
 ===================================
