@@ -16,6 +16,7 @@
 
 import dataclasses
 import jax
+from torax._src import array_typing
 from torax._src.fvm import cell_variable
 
 # pylint: disable=invalid-name
@@ -36,6 +37,9 @@ class SolverState:
     psi: Poloidal flux [Wb].
     n_e: Electron density [m^-3].
     toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+    psidot_right_face_grad_constraint: Optional right-face radial gradient
+      constraint on psidot [V], set across [t, t + dt] from the rate of change
+      of the prescribed I_p Neumann boundary condition on psi.
   """
 
   T_i: cell_variable.CellVariable
@@ -43,3 +47,4 @@ class SolverState:
   psi: cell_variable.CellVariable
   n_e: cell_variable.CellVariable
   toroidal_angular_velocity: cell_variable.CellVariable
+  psidot_right_face_grad_constraint: array_typing.FloatScalar | None = None

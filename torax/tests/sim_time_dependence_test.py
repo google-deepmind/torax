@@ -246,7 +246,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,

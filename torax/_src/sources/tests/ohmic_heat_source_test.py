@@ -17,6 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
+from torax._src import jax_utils
 from torax._src.core_profiles import initialization
 from torax._src.geometry import circular_geometry
 from torax._src.physics import psi_calculations
@@ -137,6 +138,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         psi_sources=zero_psi_sources,
         geo=geo,
         evolve_current=True,
+        right_face_grad_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
     )
 
     core_profiles = mock.Mock()

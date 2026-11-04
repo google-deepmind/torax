@@ -714,7 +714,8 @@ class InitializationTest(parameterized.TestCase):
         geo=geo,
         evolve_current=runtime_params.numerics.evolve_current,
         prescribed_psidot=runtime_params.profile_conditions.psidot,
-        v_loop_lcfs=None,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
     )
     np.testing.assert_allclose(result.psidot.value, expected_psidot.value)
 
@@ -808,6 +809,38 @@ class InitializationTest(parameterized.TestCase):
     self.assertIsInstance(result, solver_state.SolverState)
     self.assertEqual(result.psi.value.shape, geo.rho.shape)
     self.assertFalse(np.allclose(result.psi.value, 0.0))
+    assert result.psidot_right_face_grad_constraint is not None
+    np.testing.assert_allclose(result.psidot_right_face_grad_constraint, 0.0)
+
+  def test_initial_solver_state_v_loop_bc(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'] = {'evolve_current': True}
+    config_dict['profile_conditions']['psi_bc_source'] = 'v_loop'
+    config_dict['profile_conditions']['v_loop_lcfs'] = 0.5
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.time_step_calculator.t_initial,
+            runtime_params_provider=provider,
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_states = source_models.initial_state(runtime_params)
+    result = initialization.initial_solver_state(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+        source_states=source_states,
+    )
+    self.assertIsInstance(result, solver_state.SolverState)
+    self.assertIsNone(result.psidot_right_face_grad_constraint)
 
 
 def _get_initial_state(

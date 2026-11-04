@@ -22,6 +22,9 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
+from torax._src.core_profiles import (
+    runtime_params as core_profile_runtime_params,
+)
 from torax._src.edge import edge_state as edge_state_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
@@ -93,50 +96,67 @@ class StateEvaluationTest(parameterized.TestCase):
     self.assertIs(updated_model_state.edge, edge_state)
 
   def test_v_loop_lcfs_propagation(self):
-    # Default without explicit v_loop_lcfs: flux v_loop_lcfs is 0.0 and
-    # psidot right face is outer cell.
-    outputs_no_v_loop, _ = state_evaluation.evaluate_state(
+    # Under I_p BC, psidot uses the solver_state gradient constraint and
+    # core_profiles.v_loop_lcfs equals psidot.face_value()[-1].
+    grad_constraint = jnp.asarray(2.4, dtype=jax_utils.get_dtype())
+    solver_state_with_grad = dataclasses.replace(
+        self.solver_state,
+        psidot_right_face_grad_constraint=grad_constraint,
+    )
+    outputs_ip_bc, _ = state_evaluation.evaluate_state(
         runtime_params=self.runtime_params,
         geo=self.geo,
-        solver_state=self.solver_state,
+        solver_state=solver_state_with_grad,
         models=self.models,
         explicit_model_outputs=self.explicit_model_outputs,
         model_state=self.sim_state.model_state,
-        v_loop_lcfs=None,
     )
-    np.testing.assert_allclose(
-        outputs_no_v_loop.core_profiles.poloidal_flux.v_loop_lcfs,
-        jnp.asarray(0.0, dtype=jax_utils.get_dtype()),
-    )
+    self.assertIsNone(outputs_ip_bc.core_profiles.psidot.right_face_constraint)
     assert (
-        outputs_no_v_loop.core_profiles.psidot.right_face_constraint is not None
-    )
-    np.testing.assert_allclose(
-        outputs_no_v_loop.core_profiles.psidot.right_face_constraint,
-        outputs_no_v_loop.core_profiles.psidot.value[-1],
-    )
-
-    # With explicit v_loop_lcfs: both flux and psidot reflect the value.
-    custom_v_loop = jnp.asarray(3.25, dtype=jax_utils.get_dtype())
-    outputs_with_v_loop, _ = state_evaluation.evaluate_state(
-        runtime_params=self.runtime_params,
-        geo=self.geo,
-        solver_state=self.solver_state,
-        models=self.models,
-        explicit_model_outputs=self.explicit_model_outputs,
-        model_state=self.sim_state.model_state,
-        v_loop_lcfs=custom_v_loop,
-    )
-    np.testing.assert_allclose(
-        outputs_with_v_loop.core_profiles.poloidal_flux.v_loop_lcfs,
-        custom_v_loop,
-    )
-    assert (
-        outputs_with_v_loop.core_profiles.psidot.right_face_constraint
+        outputs_ip_bc.core_profiles.psidot.right_face_grad_constraint
         is not None
     )
     np.testing.assert_allclose(
-        outputs_with_v_loop.core_profiles.psidot.right_face_constraint,
+        outputs_ip_bc.core_profiles.psidot.right_face_grad_constraint,
+        grad_constraint,
+    )
+    np.testing.assert_allclose(
+        outputs_ip_bc.core_profiles.v_loop_lcfs,
+        outputs_ip_bc.core_profiles.psidot.face_value()[-1],
+    )
+
+    # Under v_loop_lcfs BC, both v_loop_lcfs and psidot reflect runtime_params.
+    custom_v_loop = jnp.asarray(3.25, dtype=jax_utils.get_dtype())
+    runtime_params_v_loop = dataclasses.replace(
+        self.runtime_params,
+        profile_conditions=dataclasses.replace(
+            self.runtime_params.profile_conditions,
+            psi_bc_source=(
+                core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+            ),
+            v_loop_lcfs=custom_v_loop,
+        ),
+    )
+    outputs_v_loop_bc, _ = state_evaluation.evaluate_state(
+        runtime_params=runtime_params_v_loop,
+        geo=self.geo,
+        solver_state=solver_state_with_grad,
+        models=self.models,
+        explicit_model_outputs=self.explicit_model_outputs,
+        model_state=self.sim_state.model_state,
+    )
+    self.assertIsNone(
+        outputs_v_loop_bc.core_profiles.psidot.right_face_grad_constraint
+    )
+    np.testing.assert_allclose(
+        outputs_v_loop_bc.core_profiles.v_loop_lcfs,
+        custom_v_loop,
+    )
+    assert (
+        outputs_v_loop_bc.core_profiles.psidot.right_face_constraint is not None
+    )
+    np.testing.assert_allclose(
+        outputs_v_loop_bc.core_profiles.psidot.right_face_constraint,
         custom_v_loop,
     )
 

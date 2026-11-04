@@ -72,26 +72,12 @@ class SolverProfilesTest(parameterized.TestCase):
         result.kinetic.toroidal_angular_velocity.value,
         self.solver_state.toroidal_angular_velocity.value,
     )
-    np.testing.assert_allclose(
-        result.poloidal_flux.v_loop_lcfs,
-        jnp.asarray(0.0, dtype=jax_utils.get_dtype()),
-    )
 
     expected_q_face = psi_calculations.calc_q_face(
         self.geo, self.solver_state.psi
     )
     np.testing.assert_allclose(result.poloidal_flux.q_face, expected_q_face)
     self.assertTrue(result.quasineutrality_satisfied())
-
-  def test_from_solver_state_custom_v_loop_lcfs(self):
-    custom_v_loop = jnp.asarray(1.75, dtype=jax_utils.get_dtype())
-    result = solver_profiles.SolverProfiles.from_solver_state(
-        runtime_params=self.runtime_params,
-        geo=self.geo,
-        solver_state=self.solver_state,
-        v_loop_lcfs=custom_v_loop,
-    )
-    np.testing.assert_allclose(result.poloidal_flux.v_loop_lcfs, custom_v_loop)
 
   def test_from_solver_state_jittable(self):
     @jax.jit
@@ -124,6 +110,23 @@ class SolverProfilesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         result.toroidal_angular_velocity.value,
         self.solver_state.toroidal_angular_velocity.value,
+    )
+    self.assertIsNone(result.psidot_right_face_grad_constraint)
+
+    expected_grad_constraint = jnp.asarray(1.25, dtype=jax_utils.get_dtype())
+    core_profiles = dataclasses.replace(
+        self.core_profiles_t0,
+        psidot=dataclasses.replace(
+            self.core_profiles_t0.psidot,
+            right_face_grad_constraint=expected_grad_constraint,
+        ),
+    )
+    core_solver_state = core_profiles.to_solver_state()
+    self.assertIsInstance(core_solver_state, solver_state.SolverState)
+    assert core_solver_state.psidot_right_face_grad_constraint is not None
+    np.testing.assert_allclose(
+        core_solver_state.psidot_right_face_grad_constraint,
+        expected_grad_constraint,
     )
 
   def test_thermal_calculations_empty_fast_ions(self):

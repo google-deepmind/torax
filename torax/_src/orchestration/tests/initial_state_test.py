@@ -17,6 +17,7 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import (
@@ -24,6 +25,7 @@ from torax._src.core_profiles import (
 )
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
+from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
@@ -74,6 +76,54 @@ class InitialStateTest(sim_test_case.SimTestCase):
     self.assertNotEqual(result.t, non_restart.t)
     assert torax_config.restart is not None
     self.assertEqual(result.t, torax_config.restart.time)
+    self.assertIsInstance(
+        result.core_profiles.v_loop_lcfs, jax.Array
+    )
+    np.testing.assert_allclose(
+        result.core_profiles.v_loop_lcfs,
+        result.core_profiles.psidot.face_value()[-1],
+        rtol=1e-6,
+    )
+    assert result.core_profiles.psidot.right_face_grad_constraint is not None
+    self.assertNotEqual(
+        float(result.core_profiles.psidot.right_face_grad_constraint), 0.0
+    )
+
+  def test_from_file_restart_without_v_loop_dataset(self):
+    """Verifies file restart under I_p BC when V_LOOP is omitted."""
+    torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')
+    assert torax_config.restart is not None
+    data_tree = output.load_state_file(str(torax_config.restart.filename))
+    data_tree[output_keys.PROFILES] = (
+        data_tree[output_keys.PROFILES].to_dataset().drop_vars(
+            output_keys.V_LOOP
+        )
+    )
+
+    temp_dir = self.create_tempdir().full_path
+    no_v_loop_nc = os.path.join(temp_dir, 'no_v_loop_restart.nc')
+    data_tree.to_netcdf(no_v_loop_nc)
+
+    restart_config = torax_config.restart.model_copy(
+        update={'filename': no_v_loop_nc}
+    )
+    step_fn = run_simulation.make_step_fn(torax_config)
+    result, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            file_restart=restart_config,
+            step_fn=step_fn,
+        )
+    )
+    assert result.core_profiles.psidot.right_face_grad_constraint is not None
+    np.testing.assert_allclose(
+        result.core_profiles.psidot.right_face_grad_constraint, 0.0
+    )
+    self.assertIsInstance(result.core_profiles.v_loop_lcfs, jax.Array)
+    np.testing.assert_allclose(
+        result.core_profiles.v_loop_lcfs,
+        result.core_profiles.psidot.face_value()[-1],
+        rtol=1e-6,
+    )
 
   @parameterized.parameters(
       'test_psi_heat_dens',
@@ -549,7 +599,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
         atol=1e-6,
     )
     np.testing.assert_allclose(
-        init_flux.v_loop_lcfs,
+        initial_sim_state.core_profiles.v_loop_lcfs,
         float(saved_scalars[output_keys.V_LOOP_LCFS].values),
         atol=1e-6,
     )

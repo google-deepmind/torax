@@ -21,7 +21,6 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_state
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -65,7 +64,7 @@ class NonlinearThetaMethod(solver.Solver):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
@@ -89,7 +88,7 @@ class NonlinearThetaMethod(solver.Solver):
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=core_profiles_t,
+        solver_state_t=solver_state_t,
         solver_state_t_plus_dt=solver_state_t_plus_dt,
         explicit_model_outputs=explicit_model_outputs,
         coeffs_callback=coeffs_callback,
@@ -110,7 +109,7 @@ class NonlinearThetaMethod(solver.Solver):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
@@ -135,7 +134,8 @@ class NonlinearThetaMethod(solver.Solver):
         implicit calculations in the solver.
       geo_t: Magnetic geometry at time t.
       geo_t_plus_dt: Magnetic geometry at time t + dt.
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      solver_state_t: Primary plasma profiles at the beginning of the time
+        step.
       solver_state_t_plus_dt: Primary plasma profiles which contain all
         available prescribed quantities at the end of the time step. This
         includes evolving boundary conditions and prescribed time-dependent
@@ -166,7 +166,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
@@ -179,7 +179,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
     assert isinstance(solver_params, OptimizerRuntimeParams)
-    solver_state_t = core_profiles_t.to_solver_state()
     (
         x_new,
         solver_numeric_outputs,
@@ -222,7 +221,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
@@ -235,7 +234,6 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = runtime_params_t.solver
     assert isinstance(solver_params, NewtonRaphsonRuntimeParams)
-    solver_state_t = core_profiles_t.to_solver_state()
 
     (
         x_new,

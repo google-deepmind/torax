@@ -76,7 +76,7 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t1 = provider(t=1.0)
 
     # Simulate a step update where prescribed values are applied
-    updated_solver_state = updaters.provide_solver_state_t_plus_dt(
+    _, updated_solver_state = updaters.provide_solver_states(
         dt=jnp.array(dt),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -109,7 +109,7 @@ class UpdatersTest(parameterized.TestCase):
 
     runtime_params_t1 = provider(t=1.0)
 
-    updated_solver_state = updaters.provide_solver_state_t_plus_dt(
+    _, updated_solver_state = updaters.provide_solver_states(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -150,7 +150,7 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t1 = provider(t=1.0)
     # At t=1, prescribed is 20.0. But evolve_current=True.
 
-    updated_solver_state = updaters.provide_solver_state_t_plus_dt(
+    _, updated_solver_state = updaters.provide_solver_states(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -159,12 +159,12 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     # Expect psi value to NOT be updated to 20.0 (it should stay as t0 value
-    # because provide_solver_state_t_plus_dt only updates prescribed/BCs, and
+    # because provide_solver_states only updates prescribed/BCs, and
     # evolving vars are handled by the solver).
     # Since it wasn't updated in provide_..., it should remain 10.0 here.
     np.testing.assert_allclose(updated_solver_state.psi.value, 10.0)
 
-  def test_provide_solver_state_prescribed_psi(self):
+  def test_provide_solver_states_prescribed_psi(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
         'psi': {0.0: {0.0: 10.0, 1.0: 10.0}, 2.0: {0.0: 20.0, 1.0: 20.0}},
@@ -184,7 +184,7 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     runtime_params_t1 = provider(t=1.0)
-    result = updaters.provide_solver_state_t_plus_dt(
+    _, result = updaters.provide_solver_states(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -196,14 +196,16 @@ class UpdatersTest(parameterized.TestCase):
     expected_psi_array = np.full_like(geo.rho_norm, 15.0)
     np.testing.assert_allclose(result.psi.value, expected_psi_array, rtol=1e-5)
 
-  def test_provide_solver_state_preserves_evolving_and_updates_bcs(self):
+  def test_provide_solver_states_preserves_evolving_and_updates_bcs(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics'] = {
         'evolve_current': True,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_density': True,
+        'current_diffusion_time_reduction_factor': 0.5,
     }
+    config_dict['profile_conditions']['I_p'] = {0.0: 10e6, 1.0: 15e6}
     config_dict['profile_conditions']['T_i_right_bc'] = {0.0: 1.0, 1.0: 2.5}
     config_dict['profile_conditions']['T_e_right_bc'] = {0.0: 1.0, 1.0: 3.5}
     config_dict['profile_conditions']['n_e_right_bc'] = {
@@ -220,7 +222,7 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     runtime_params_t1 = provider(t=1.0)
-    result = updaters.provide_solver_state_t_plus_dt(
+    solver_state_t, solver_state_t_plus_dt = updaters.provide_solver_states(
         dt=jnp.array(1.0),
         runtime_params_t=runtime_params_t0,
         runtime_params_t_plus_dt=runtime_params_t1,
@@ -228,32 +230,74 @@ class UpdatersTest(parameterized.TestCase):
         core_profiles_t=core_profiles_t0,
     )
 
-    self.assertIsInstance(result, solver_state.SolverState)
+    self.assertIsInstance(solver_state_t, solver_state.SolverState)
+    self.assertIsInstance(solver_state_t_plus_dt, solver_state.SolverState)
     with self.subTest('evolving_values_preserved'):
       # Evolving channels retain values from t0.
       np.testing.assert_allclose(
-          result.psi.value, core_profiles_t0.poloidal_flux.psi.value
+          solver_state_t_plus_dt.psi.value,
+          core_profiles_t0.poloidal_flux.psi.value,
       )
       np.testing.assert_allclose(
-          result.T_i.value, core_profiles_t0.kinetic.T_i.value
+          solver_state_t_plus_dt.T_i.value, core_profiles_t0.kinetic.T_i.value
       )
       np.testing.assert_allclose(
-          result.T_e.value, core_profiles_t0.kinetic.T_e.value
+          solver_state_t_plus_dt.T_e.value, core_profiles_t0.kinetic.T_e.value
       )
       np.testing.assert_allclose(
-          result.n_e.value, core_profiles_t0.kinetic.n_e.value
+          solver_state_t_plus_dt.n_e.value, core_profiles_t0.kinetic.n_e.value
+      )
+      np.testing.assert_allclose(
+          solver_state_t.psi.value, core_profiles_t0.poloidal_flux.psi.value
+      )
+      np.testing.assert_allclose(
+          solver_state_t.T_i.value, core_profiles_t0.kinetic.T_i.value
+      )
+      np.testing.assert_allclose(
+          solver_state_t.T_e.value, core_profiles_t0.kinetic.T_e.value
+      )
+      np.testing.assert_allclose(
+          solver_state_t.n_e.value, core_profiles_t0.kinetic.n_e.value
       )
     with self.subTest('boundary_conditions_updated'):
       # Boundary conditions are updated to values at t1.
-      assert result.T_i.right_face_constraint is not None
-      np.testing.assert_allclose(result.T_i.right_face_constraint, 2.5)
+      assert solver_state_t_plus_dt.T_i.right_face_constraint is not None
+      np.testing.assert_allclose(
+          solver_state_t_plus_dt.T_i.right_face_constraint, 2.5
+      )
 
-      assert result.T_e.right_face_constraint is not None
-      np.testing.assert_allclose(result.T_e.right_face_constraint, 3.5)
+      assert solver_state_t_plus_dt.T_e.right_face_constraint is not None
+      np.testing.assert_allclose(
+          solver_state_t_plus_dt.T_e.right_face_constraint, 3.5
+      )
 
-      assert result.n_e.right_face_constraint is not None
-      np.testing.assert_allclose(result.n_e.right_face_constraint, 5.5e19)
-      self.assertIsNotNone(result.toroidal_angular_velocity)
+      assert solver_state_t_plus_dt.n_e.right_face_constraint is not None
+      np.testing.assert_allclose(
+          solver_state_t_plus_dt.n_e.right_face_constraint, 5.5e19
+      )
+      self.assertIsNotNone(solver_state_t_plus_dt.toroidal_angular_velocity)
+
+      assert (
+          solver_state_t_plus_dt.psidot_right_face_grad_constraint is not None
+      )
+      assert solver_state_t_plus_dt.psi.right_face_grad_constraint is not None
+      assert (
+          core_profiles_t0.poloidal_flux.psi.right_face_grad_constraint
+          is not None
+      )
+      expected_psidot_grad = (
+          solver_state_t_plus_dt.psi.right_face_grad_constraint
+          - core_profiles_t0.poloidal_flux.psi.right_face_grad_constraint
+      ) / 0.5
+      np.testing.assert_allclose(
+          solver_state_t_plus_dt.psidot_right_face_grad_constraint,
+          expected_psidot_grad,
+      )
+      assert solver_state_t.psidot_right_face_grad_constraint is not None
+      np.testing.assert_allclose(
+          solver_state_t.psidot_right_face_grad_constraint,
+          expected_psidot_grad,
+      )
 
 
 if __name__ == '__main__':

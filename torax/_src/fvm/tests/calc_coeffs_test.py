@@ -436,8 +436,6 @@ class CalcCoeffsTest(parameterized.TestCase):
         psidot=dataclasses.replace(
             inputs.core_profiles.psidot,
             value=jnp.zeros_like(inputs.core_profiles.psidot.value),
-            right_face_constraint=jnp.array(0.0),
-            right_face_grad_constraint=None,
         ),
     )
     core_profiles_dummy_psidot = dataclasses.replace(
@@ -445,8 +443,6 @@ class CalcCoeffsTest(parameterized.TestCase):
         psidot=dataclasses.replace(
             inputs.core_profiles.psidot,
             value=jnp.ones_like(inputs.core_profiles.psidot.value) * 100.0,
-            right_face_constraint=jnp.array(100.0),
-            right_face_grad_constraint=None,
         ),
     )
     coeffs_zero = calc_coeffs.calc_coeffs(

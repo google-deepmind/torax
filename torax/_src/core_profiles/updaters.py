@@ -14,27 +14,32 @@
 
 """Update routines for core_profiles.
 
-Routines for providing SolverState at candidate timesteps.
+Routines for providing SolverStates at candidate timesteps.
 """
+
+import dataclasses
 
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import (
+    runtime_params as core_profile_runtime_params,
+)
 from torax._src.core_profiles import solver_state
 from torax._src.geometry import geometry
 
 # pylint: disable=invalid-name
 
 
-def provide_solver_state_t_plus_dt(
+def provide_solver_states(
     dt: array_typing.FloatScalar,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: core_profiles_lib.CoreProfiles,
-) -> solver_state.SolverState:
-  """Provides primary solver state at t + dt with updated BCs and prescribed.
+) -> tuple[solver_state.SolverState, solver_state.SolverState]:
+  """Provides primary solver states at t and t + dt with updated BCs.
 
   Args:
     dt: Time step size [s].
@@ -44,7 +49,7 @@ def provide_solver_state_t_plus_dt(
     core_profiles_t: Core plasma profiles at time t.
 
   Returns:
-    SolverState at time t + dt.
+    A tuple of (solver_state_t, solver_state_t_plus_dt).
   """
   numerics = runtime_params_t.numerics
   profile_conditions_t_plus_dt = runtime_params_t_plus_dt.profile_conditions
@@ -85,13 +90,37 @@ def provide_solver_state_t_plus_dt(
       profile_conditions_t_plus_dt, geo_t_plus_dt
   )
 
-  return solver_state.SolverState(
+  match profile_conditions_t_plus_dt.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      psi_t_right_grad = (
+          core_profiles_t.poloidal_flux.psi.right_face_grad_constraint
+      )
+      assert psi.right_face_grad_constraint is not None
+      assert psi_t_right_grad is not None
+      psidot_right_face_grad_constraint = (
+          psi.right_face_grad_constraint - psi_t_right_grad
+      ) / (dt * time_reduction_factor)
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      psidot_right_face_grad_constraint = None
+    case _:
+      raise ValueError(
+          'Unknown psi_bc_source:'
+          f' {profile_conditions_t_plus_dt.psi_bc_source}'
+      )
+
+  solver_state_t_plus_dt = solver_state.SolverState(
       T_i=T_i,
       T_e=T_e,
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
+  solver_state_t = dataclasses.replace(
+      core_profiles_t.to_solver_state(),
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
+  )
+  return solver_state_t, solver_state_t_plus_dt
 
 
 # pylint: enable=invalid-name

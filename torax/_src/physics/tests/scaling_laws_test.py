@@ -79,7 +79,6 @@ class ScalingLawsTest(parameterized.TestCase):
             j_toroidal_total=mock.ANY,
             j_toroidal_total_face=mock.ANY,
             I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
-            v_loop_lcfs=mock.ANY,
         ),
     )
     return geo, core_profiles
@@ -218,7 +217,6 @@ class ScalingLawsTest(parameterized.TestCase):
             j_toroidal_total=mock.ANY,
             j_toroidal_total_face=mock.ANY,
             I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
-            v_loop_lcfs=mock.ANY,
         ),
     )
     Ploss = jnp.array(50e6)

@@ -88,12 +88,22 @@ def initial_solver_state(
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
+  if (
+      runtime_params.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.I_P
+  ):
+    psidot_right_face_grad_constraint = jnp.zeros(
+        (), dtype=jax_utils.get_dtype()
+    )
+  else:
+    psidot_right_face_grad_constraint = None
   return solver_state_lib.SolverState(
       T_i=T_i,
       T_e=T_e,
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
 
 
@@ -257,26 +267,12 @@ def _iterate_psi_and_sources(
     iterations: int,
 ) -> cell_variable.CellVariable:
   """Iterates psi and sources to converge to a consistent state."""
-  match runtime_params.profile_conditions.psi_bc_source:
-    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
-      v_loop_lcfs = jnp.asarray(0.0, dtype=jax_utils.get_dtype())
-    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
-      v_loop_lcfs = jnp.asarray(
-          runtime_params.profile_conditions.v_loop_lcfs,
-          dtype=jax_utils.get_dtype(),
-      )
-    case _:
-      raise ValueError(
-          'Unknown psi_bc_source:'
-          f' {runtime_params.profile_conditions.psi_bc_source}'
-      )
   source_states_i = source_states
   for _ in range(iterations):
     base_profiles = solver_profiles_lib.SolverProfiles.from_solver_state(
         runtime_params=runtime_params,
         geo=geo,
         solver_state=solver_state,
-        v_loop_lcfs=v_loop_lcfs,
     )
     basic_source_outputs, source_states_i = (
         source_profile_builders.evaluate_basic_sources(

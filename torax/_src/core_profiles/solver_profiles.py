@@ -58,7 +58,6 @@ class SolverProfiles:
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       solver_state: solver_state_lib.SolverState,
-      v_loop_lcfs: array_typing.FloatScalar | None = None,
   ) -> Self:
     """Constructs purely algebraic SolverProfiles from SolverState.
 
@@ -68,7 +67,6 @@ class SolverProfiles:
       runtime_params: Runtime parameters.
       geo: Geometry of the tokamak.
       solver_state: The current set of primary profiles.
-      v_loop_lcfs: Loop voltage at the LCFS [V]. If None, defaults to 0.0.
 
     Returns:
       SolverProfiles with kinetic, ions, and poloidal_flux.
@@ -85,7 +83,6 @@ class SolverProfiles:
         geo=geo,
         psi=solver_state.psi,
         min_rho_norm=runtime_params.numerics.min_rho_norm,
-        v_loop_lcfs=v_loop_lcfs,
     )
     kinetic = kinetic_profiles.KineticProfiles(
         T_i=solver_state.T_i,

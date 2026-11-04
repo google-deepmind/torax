@@ -535,7 +535,7 @@ class SimTest(sim_test_case.SimTestCase):
     config_dict_v_loop_bc['profile_conditions']['psi_bc_source'] = 'v_loop'
     config_dict_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
-        sim_outputs_ip_bc._core_profiles.poloidal_flux.v_loop_lcfs,
+        sim_outputs_ip_bc._core_profiles.v_loop_lcfs,
     )
     torax_config = config.ToraxConfig.from_dict(config_dict_v_loop_bc)
     sim_outputs_v_loop_bc = run_simulation.run_simulation(
@@ -634,13 +634,15 @@ class SimTest(sim_test_case.SimTestCase):
         test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
 
-    # Compare Runs 1 and 3 - v_loop (cell grid) should be identical
-    # We ignore the v_loop_lcfs since it does not impact cell-grid Ohmic power,
-    # and it is correct that v_loop_lcfs is different between psi-evolving and
-    # psi-fixed simulations.
+    # Compare Runs 1 and 3 - full v_loop profile and v_loop_lcfs should match.
     np.testing.assert_allclose(
-        ref_output_xr.profiles.v_loop.values[:, :-1],
-        test_output_xr_same.profiles.v_loop.values[:, :-1],
+        ref_output_xr.profiles.v_loop.values,
+        test_output_xr_same.profiles.v_loop.values,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        ref_output_xr.scalars.v_loop_lcfs.values,
+        test_output_xr_same.scalars.v_loop_lcfs.values,
         rtol=1e-6,
     )
 
@@ -693,6 +695,55 @@ class SimTest(sim_test_case.SimTestCase):
     xr.map_over_datasets(
         xr.testing.assert_allclose, sim_data_tree, ref_data_tree
     )
+
+  @parameterized.parameters(0.5, 1.0)
+  def test_theta_method_faraday_conservation_under_ip_ramp(
+      self, theta_implicit: float
+  ):
+    """Verifies discrete Faraday conservation at LCFS under an I_p ramp."""
+    config_dict = self._get_config_dict('test_crank_nicolson.py')
+    config_dict['numerics']['evolve_current'] = True
+    config_dict['numerics']['evolve_ion_heat'] = False
+    config_dict['numerics']['evolve_electron_heat'] = False
+    config_dict['numerics']['evolve_density'] = False
+    config_dict['profile_conditions']['I_p'] = {0.0: 10e6, 1.0: 15e6}
+    config_dict['solver']['theta_implicit'] = theta_implicit
+    config_dict['solver']['use_fixed_point'] = True
+    config_dict['solver']['n_fixed_point_iterations'] = 5
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_final': 0.25,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    state_history = run_simulation.run_simulation(torax_config)
+    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+
+    output_xr = state_history.simulation_output_to_xr()
+    times = output_xr.time.values
+    psi_lcfs = output_xr.profiles.psi.values[:, -1]
+    v_loop_lcfs = output_xr.scalars.v_loop_lcfs.values
+
+    start_step = 0 if theta_implicit == 1.0 else 1
+    for i in range(start_step, len(times) - 1):
+      dt = times[i + 1] - times[i]
+      reduction_factor = (
+          torax_config.numerics.current_diffusion_time_reduction_factor
+      )
+      factor = float(reduction_factor.get_value(times[i]))
+      dt_eff = dt * factor
+      expected_dpsi = dt_eff * (
+          (1.0 - theta_implicit) * v_loop_lcfs[i]
+          + theta_implicit * v_loop_lcfs[i + 1]
+      )
+      actual_dpsi = psi_lcfs[i + 1] - psi_lcfs[i]
+      np.testing.assert_allclose(
+          actual_dpsi,
+          expected_dpsi,
+          rtol=1e-5,
+          atol=1e-5,
+          err_msg=f'Failed at step {i} (t={times[i]} to {times[i+1]})',
+      )
 
 
 if __name__ == '__main__':

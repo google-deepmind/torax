@@ -24,6 +24,7 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.core_profiles import solver_profiles
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -77,6 +78,11 @@ class CoreProfiles(solver_profiles.SolverProfiles):
   conductivity: Conductivity
   poloidal_velocity: cell_variable.CellVariable
   psidot: cell_variable.CellVariable
+
+  @functools.cached_property
+  def v_loop_lcfs(self) -> array_typing.FloatScalar:
+    """Loop voltage at the LCFS [V], derived from the right face of psidot."""
+    return self.psidot.right_face_value[..., 0]
 
   @functools.cached_property
   def n_impurity_total_thermal(self) -> cell_variable.CellVariable:
@@ -157,6 +163,28 @@ class CoreProfiles(solver_profiles.SolverProfiles):
     """Total plasma pressure [Pa]."""
     return cell_variable.add_cell_variables(
         self.pressure_thermal_total, self.pressure_fast_i
+    )
+
+  def to_solver_state(self) -> solver_state.SolverState:
+    """Extracts the primary solvable/prescribed profiles as a SolverState.
+
+    Overrides `SolverProfiles.to_solver_state()` to copy
+    `self.psidot.right_face_grad_constraint` onto `SolverState`. While
+    `SolverProfiles` does not carry `psidot`, `CoreProfiles` already contains
+    an evaluated `psidot`. Preserving its right-face gradient constraint makes
+    `core_profiles.to_solver_state()` a faithful round-trip input for standalone
+    `evaluate_state` and `calc_coeffs` calls, while
+    `updaters.provide_solver_states` overrides it during PDE time-stepping
+    over `[t, t + dt]`.
+
+    Returns:
+      A SolverState with primary profiles and psidot gradient constraint.
+    """
+    return dataclasses.replace(
+        super().to_solver_state(),
+        psidot_right_face_grad_constraint=(
+            self.psidot.right_face_grad_constraint
+        ),
     )
 
   def to_output_dict(
@@ -264,7 +292,7 @@ class CoreProfiles(solver_profiles.SolverProfiles):
       out_dict[key] = context.pack(key, face_data)
 
     scalar_vars = {
-        output_keys.V_LOOP_LCFS: self.poloidal_flux.v_loop_lcfs,
+        output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
         output_keys.A_I: self.ions.A_i,
         output_keys.I_P: self.poloidal_flux.I_p_profile_face[..., -1],
     }

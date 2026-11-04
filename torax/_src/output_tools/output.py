@@ -15,7 +15,6 @@
 """Module containing functions for saving and loading simulation output."""
 
 from collections.abc import Sequence
-import dataclasses
 import functools
 from typing import Any
 
@@ -30,7 +29,6 @@ from torax._src import array_typing
 from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
-from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -157,25 +155,9 @@ class StateHistory:
     self._torax_config = torax_config
     self._times = jnp.asarray(state_history.t)
     chex.assert_rank(self.times, 1)
-    core_profiles = state_history.core_profiles
-    if (
-        not torax_config.restart
-        and torax_config.profile_conditions.psi_bc_source
-        != core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
-        and len(self._times) >= 2
-    ):
-      # For the I_p BC case, set v_loop_lcfs[0] to the same value as
-      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
-      # underconstrained.
-      v_loop_lcfs = jnp.asarray(core_profiles.poloidal_flux.v_loop_lcfs)
-      core_profiles = dataclasses.replace(
-          core_profiles,
-          poloidal_flux=dataclasses.replace(
-              core_profiles.poloidal_flux,
-              v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
-          ),
-      )
-    self._core_profiles: core_profiles_lib.CoreProfiles = core_profiles
+    self._core_profiles: core_profiles_lib.CoreProfiles = (
+        state_history.core_profiles
+    )
     self._core_sources: core_sources_lib.CoreSources = (
         state_history.core_sources
     )

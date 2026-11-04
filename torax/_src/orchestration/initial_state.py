@@ -225,6 +225,7 @@ def _solver_state_from_profiles_dataset(
         dtype=jax_utils.get_dtype(),
     )
     right_face_grad_constraint = None
+    psidot_right_face_grad_constraint = None
   else:
     right_face_constraint = None
     if output_keys.I_P_PROFILE in profiles_ds.data_vars:
@@ -237,6 +238,29 @@ def _solver_state_from_profiles_dataset(
     right_face_grad_constraint = (
         psi_calculations.calculate_psi_grad_constraint_from_I_p(I_p, geo)
     )
+    if output_keys.V_LOOP in profiles_ds.data_vars:
+      v_loop_cell_last = jnp.asarray(
+          profiles_ds.data_vars[output_keys.V_LOOP]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM][-1])
+          .to_numpy(),
+          dtype=jax_utils.get_dtype(),
+      )
+      v_loop_face_right = jnp.asarray(
+          profiles_ds.data_vars[output_keys.V_LOOP]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy(),
+          dtype=jax_utils.get_dtype(),
+      )
+      psidot_right_face_grad_constraint = (
+          v_loop_face_right - v_loop_cell_last
+      ) / (0.5 * geo.drho_norm[-1])
+    else:
+      # TORAX state files always contain V_LOOP in profiles, but synthetic
+      # minimal warm-start checkpoints (e.g. MOSAIC's build_restart_checkpoint)
+      # omit profiles/v_loop; fall back to stationary 0.0 gradient constraint.
+      psidot_right_face_grad_constraint = jnp.zeros(
+          (), dtype=jax_utils.get_dtype()
+      )
 
   psi = cell_variable.CellVariable(
       value=psi_values,
@@ -250,6 +274,7 @@ def _solver_state_from_profiles_dataset(
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
 
 
@@ -348,11 +373,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
       data_tree.children.get(output_keys.MODEL_STATE),
       runtime_params_for_init,
   )
-  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
-  scalars_dataset = scalars_dataset.squeeze()
-  v_loop_lcfs = jnp.asarray(
-      scalars_dataset.v_loop_lcfs.values, dtype=jax_utils.get_dtype()
-  )
   evaluated_state, _ = state_evaluation.evaluate_state(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
@@ -360,7 +380,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
       models=models,
       explicit_model_outputs=None,
       model_state=model_state,
-      v_loop_lcfs=v_loop_lcfs,
   )
 
   if models.edge_model is not None:
@@ -427,6 +446,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
           post_processing.PostProcessedOutputs.zeros(geo_for_init)
       ),
   )
+  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
+  scalars_dataset = scalars_dataset.squeeze()
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
       E_fusion=scalars_dataset.data_vars['E_fusion'].to_numpy(),

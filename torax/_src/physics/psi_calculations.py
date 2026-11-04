@@ -367,46 +367,6 @@ def calculate_psi_value_constraint_from_v_loop(
   return jnp.asarray(psi_lcfs_t + theta_weighted_v_loop_lcfs * effective_dt)
 
 
-# TODO(b/406173731): Find robust solution for underdetermination and solve this
-# for general theta_implicit values.
-def calculate_v_loop_lcfs_from_psi(
-    psi_t: cell_variable.CellVariable,
-    psi_t_plus_dt: cell_variable.CellVariable,
-    dt: array_typing.FloatScalar,
-    current_diffusion_time_reduction_factor: array_typing.FloatScalar = 1.0,
-) -> jax.Array:
-  """Calculates the v_loop_lcfs for the next timestep.
-
-  For the I_p boundary condition case, the v_loop_lcfs formula is in principle
-  calculated from:
-
-  (psi_lcfs_t_plus_dt - psi_lcfs_t) / (dt *
-  current_diffusion_time_reduction_factor) =
-    v_loop_lcfs_t_plus_dt*theta_implicit - v_loop_lcfs_t*(1-theta_implicit)
-
-  However this set of equations is underdetermined. We thus restrict this
-  calculation assuming a fully implicit system, i.e. theta_implicit=1, which is
-  the TORAX default. Be cautious when interpreting the results of this function
-  when theta_implicit != 1 (non-standard usage).
-
-  Args:
-    psi_t: The psi CellVariable at the beginning of the timestep interval.
-    psi_t_plus_dt: The updated psi CellVariable for the next timestep.
-    dt: The size of the last timestep.
-    current_diffusion_time_reduction_factor: Factor dividing the transient term
-      in the psi PDE.
-
-  Returns:
-    The updated v_loop_lcfs for the next timestep.
-  """
-  psi_lcfs_t = psi_t.face_value()[-1]
-  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
-  v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / (
-      dt * current_diffusion_time_reduction_factor
-  )
-  return v_loop_lcfs_t_plus_dt
-
-
 def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,
@@ -465,16 +425,23 @@ def calculate_psidot(
     geo: geometry.Geometry,
     evolve_current: bool,
     prescribed_psidot: array_typing.FloatVectorCell | None = None,
-    v_loop_lcfs: array_typing.FloatScalar | None = None,
+    right_face_constraint: array_typing.FloatScalar | None = None,
+    right_face_grad_constraint: array_typing.FloatScalar | None = None,
 ) -> cell_variable.CellVariable:
   """Calculates the loop voltage (psidot) CellVariable.
 
   When `evolve_current` is False and `prescribed_psidot` is provided, uses the
   prescribed profile; otherwise computes `psidot` on the cell grid from spatial
-  Ohm's law via `calculate_psidot_from_psi_sources`. Sets the right face
-  constraint to `v_loop_lcfs` when provided, or falls back to the outermost cell
-  value `psidot_value[-1]` when `v_loop_lcfs` is None (such as at initialization
-  or during intra-step solver evaluations under I_p boundary conditions).
+  Ohm's law via `calculate_psidot_from_psi_sources`.
+
+  Sets the right-face boundary condition consistently with `psi`:
+  - Under v_loop_lcfs boundary conditions, `right_face_constraint` is applied
+    as a Dirichlet constraint (`v_loop_lcfs`).
+  - Under I_p boundary conditions, `right_face_grad_constraint` (the rate of
+    change of the prescribed psi right-face gradient) is applied as a Neumann
+    constraint, so that the LCFS value
+    `psidot_value[-1] + right_face_grad_constraint * drho_norm[-1] / 2` matches
+    the time derivative of the psi right-face value.
 
   Args:
     psi: Poloidal flux CellVariable.
@@ -485,11 +452,19 @@ def calculate_psidot(
     evolve_current: Whether the poloidal flux equation is being evolved.
     prescribed_psidot: Optional prescribed psidot profile on the cell grid, used
       only when `evolve_current` is False.
-    v_loop_lcfs: Optional loop voltage at the LCFS used as the right face
-      Dirichlet constraint. If None, `psidot_value[-1]` is used.
+    right_face_constraint: Optional right-face Dirichlet value constraint on
+      psidot [V] (`v_loop_lcfs` under v_loop_lcfs boundary conditions). Mutually
+      exclusive with `right_face_grad_constraint`.
+    right_face_grad_constraint: Optional right-face radial gradient constraint
+      on psidot [Wb/s] under I_p boundary conditions. Mutually exclusive with
+      `right_face_constraint`; exactly one must be provided.
 
   Returns:
     A `CellVariable` representing `psidot` on `geo.rho_face_norm`.
+
+  Raises:
+    ValueError: If neither or both of `right_face_constraint` and
+      `right_face_grad_constraint` are provided.
   """
   if not evolve_current and prescribed_psidot is not None:
     psidot_value = prescribed_psidot
@@ -500,14 +475,11 @@ def calculate_psidot(
         psi=psi,
         geo=geo,
     )
-  right_face_constraint = (
-      v_loop_lcfs if v_loop_lcfs is not None else psidot_value[-1]
-  )
   return cell_variable.CellVariable(
       value=psidot_value,
       face_centers=geo.rho_face_norm,
       right_face_constraint=right_face_constraint,
-      right_face_grad_constraint=None,
+      right_face_grad_constraint=right_face_grad_constraint,
   )
 
 

@@ -21,7 +21,9 @@ from jax import numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
+from torax._src import models as models_lib
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import core_profiles as core_profiles_lib
@@ -29,7 +31,6 @@ from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
-from torax._src.solver import solver
 
 
 # TODO(b/414537757). Sawtooth extensions.
@@ -37,11 +38,20 @@ from torax._src.solver import solver
 # b. Porcelli model with free parameters and fast ion sensitivities.
 # c. "Smooth" version that can work with forward-sensitivity-analysis and
 #    stationary-state applications without the need for averaging.
-class SawtoothSolver(solver.Solver):
+@dataclasses.dataclass(frozen=True, eq=False)
+class SawtoothSolver(static_dataclass.StaticDataclass):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
-  def _x_new(
+  models: models_lib.Models
+
+  @jax.jit(
+      static_argnames=[
+          'self',
+      ],
+  )
+  def __call__(
       self,
+      t: jax.Array,
       dt: jax.Array,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
@@ -50,7 +60,6 @@ class SawtoothSolver(solver.Solver):
       core_profiles_t: core_profiles_lib.CoreProfiles,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
-      evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -66,22 +75,35 @@ class SawtoothSolver(solver.Solver):
     outputs consistent with the new core_profiles at time t_plus_crash_dt.
 
     Args:
+      t: Time.
       dt: Sawtooth step duration.
       runtime_params_t: Runtime parameters at time t.
       runtime_params_t_plus_dt: Runtime parameters at time t + crash_dt.
       geo_t: Geometry at time t.
       geo_t_plus_dt: Geometry at time t + crash_dt.
       core_profiles_t: Core profiles at time t.
-      solver_state_t_plus_dt: Primary profiles containing boundary
-        conditions and prescribed profiles at time t + crash_dt.
+      solver_state_t_plus_dt: Primary profiles containing boundary conditions
+        and prescribed profiles at time t + crash_dt.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
-      evolving_names: Names of evolving variables.
       model_state: State of models across timesteps.
 
     Returns:
       Updated tuple of evolving CellVariables from CoreProfiles
       SolverNumericOutputs indicating a sawtooth crash.
     """
+    del t, geo_t_plus_dt, solver_state_t_plus_dt
+    del explicit_model_outputs, model_state
+    evolving_names = runtime_params_t.numerics.evolving_names
+    if not evolving_names:
+      return (
+          tuple(),
+          state.SolverNumericOutputs(
+              sawtooth_crash=False,
+              solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+              inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+              outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          ),
+      )
     sawtooth_models = self.models.mhd_models.sawtooth_models
     if sawtooth_models is None:
       raise ValueError('Sawtooth model is None.')

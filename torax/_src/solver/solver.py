@@ -28,7 +28,6 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -58,7 +57,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
@@ -78,7 +77,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         implicit calculations in the solver.
       geo_t: Geometry of the torus at time t.
       geo_t_plus_dt: Geometry of the torus at time t + dt.
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      solver_state_t: Primary plasma profiles at the beginning of the time
+        step.
       solver_state_t_plus_dt: Primary plasma profiles which contain all
         available prescribed quantities at the end of the time step. This
         includes evolving boundary conditions and prescribed time-dependent
@@ -105,7 +105,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
           runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t=geo_t,
           geo_t_plus_dt=geo_t_plus_dt,
-          core_profiles_t=core_profiles_t,
+          solver_state_t=solver_state_t,
           solver_state_t_plus_dt=solver_state_t_plus_dt,
           explicit_model_outputs=explicit_model_outputs,
           evolving_names=runtime_params_t.numerics.evolving_names,
@@ -132,7 +132,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: core_profiles_lib.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
       solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
@@ -155,7 +155,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         implicit calculations in the solver.
       geo_t: Geometry of the torus for time t.
       geo_t_plus_dt: Geometry of the torus for time t + dt.
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      solver_state_t: Primary plasma profiles at the beginning of the time
+        step.
       solver_state_t_plus_dt: Primary plasma profiles which contain all
         available prescribed quantities at the end of the time step. This
         includes evolving boundary conditions and prescribed time-dependent

@@ -22,8 +22,6 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import core_profiles as core_profiles_lib
-from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles import solver_state
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
@@ -35,7 +33,6 @@ from torax._src.orchestration import (
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import state_evaluation
 from torax._src.output_tools import post_processing
-from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
@@ -152,7 +149,6 @@ def finalize_outputs(
     solver_numeric_outputs: state.SolverNumericOutputs,
     geometry_t_plus_dt: geometry.Geometry,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-    core_profiles_t: core_profiles_lib.CoreProfiles,
     solver_state_t_plus_dt: solver_state.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
@@ -168,24 +164,6 @@ def finalize_outputs(
       evolving_names,
       solver_state_t_plus_dt,
   )
-  time_reduction_factor = (
-      runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
-  )
-  profile_conditions = runtime_params_t_plus_dt.profile_conditions
-  match profile_conditions.psi_bc_source:
-    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
-      v_loop_lcfs = psi_calculations.calculate_v_loop_lcfs_from_psi(
-          core_profiles_t.poloidal_flux.psi,
-          updated_solver_state.psi,
-          dt,
-          current_diffusion_time_reduction_factor=time_reduction_factor,
-      )
-    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
-      v_loop_lcfs = profile_conditions.v_loop_lcfs
-    case _:
-      raise ValueError(
-          f'Unknown psi_bc_source: {profile_conditions.psi_bc_source}'
-      )
   evaluated_state, final_model_state = state_evaluation.evaluate_state(
       runtime_params=runtime_params_t_plus_dt,
       geo=geometry_t_plus_dt,
@@ -193,7 +171,6 @@ def finalize_outputs(
       models=models,
       explicit_model_outputs=explicit_model_outputs,
       model_state=model_state_t,
-      v_loop_lcfs=v_loop_lcfs,
       use_pereverzev=False,
   )
   output_state = sim_state.SimState(

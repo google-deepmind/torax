@@ -586,7 +586,6 @@ class SimulationStepFn:
             solver_numeric_outputs=final_solver_numeric_outputs,
             runtime_params_t_plus_dt=result.state.runtime_params,
             geometry_t_plus_dt=result.state.geo,
-            core_profiles_t=input_state.core_profiles,
             solver_state_t_plus_dt=result.state.solver_state,
             explicit_model_outputs=explicit_model_outputs,
             edge_outputs=edge_outputs,
@@ -631,8 +630,8 @@ class SimulationStepFn:
             core_profiles=input_state.core_profiles,
         )
     )
-    solver_state_t_plus_dt = (
-        updaters.provide_solver_state_t_plus_dt(
+    solver_state_t, solver_state_t_plus_dt = (
+        updaters.provide_solver_states(
             dt=dt,
             runtime_params_t=runtime_params_t,
             runtime_params_t_plus_dt=runtime_params_t_plus_dt,
@@ -647,7 +646,7 @@ class SimulationStepFn:
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=input_state.core_profiles,
+        solver_state_t=solver_state_t,
         solver_state_t_plus_dt=solver_state_t_plus_dt,
         explicit_model_outputs=explicit_model_outputs,
         model_state=model_state_t,
@@ -660,7 +659,6 @@ class SimulationStepFn:
             solver_numeric_outputs=solver_numeric_outputs,
             runtime_params_t_plus_dt=runtime_params_t_plus_dt,
             geometry_t_plus_dt=geo_t_plus_dt,
-            core_profiles_t=input_state.core_profiles,
             solver_state_t_plus_dt=solver_state_t_plus_dt,
             explicit_model_outputs=explicit_model_outputs,
             edge_outputs=edge_outputs,

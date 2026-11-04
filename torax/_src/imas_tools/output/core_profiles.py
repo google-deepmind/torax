@@ -141,7 +141,7 @@ def _fill_global_quantities(
   n_e_volume_average = []
   for cp_slice in core_profiles:
     I_p.append(-1 * cp_slice.poloidal_flux.I_p_profile_face[-1])
-    v_loop.append(cp_slice.poloidal_flux.v_loop_lcfs)
+    v_loop.append(cp_slice.v_loop_lcfs)
   for ppo_slice in post_processed_outputs:
     I_bootstrap.append(-1 * ppo_slice.I_bootstrap)
     li_3.append(ppo_slice.li3)
