@@ -687,6 +687,7 @@ Create a ``NeoclassicalModel`` subclass implementing
 
     import dataclasses
     from typing import Annotated, Literal
+    import chex
     import jax
     import jax.numpy as jnp
     import torax
@@ -748,7 +749,10 @@ Create a ``NeoclassicalModel`` subclass implementing
       ] = 'my_neoclassical'
       sigma_scale: float = 1.0e6
 
-      def build_runtime_params(self) -> MyNeoclassicalRuntimeParams:
+      def build_runtime_params(
+          self, t: chex.Numeric
+      ) -> MyNeoclassicalRuntimeParams:
+        del t
         return MyNeoclassicalRuntimeParams(sigma_scale=self.sigma_scale)
 
       def build_model(self) -> MyNeoclassicalModel:

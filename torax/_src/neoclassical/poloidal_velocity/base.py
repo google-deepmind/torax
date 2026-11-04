@@ -19,6 +19,7 @@ import abc
 import dataclasses
 from typing import Self
 
+import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -75,8 +76,10 @@ class PoloidalVelocityModelConfig(torax_pydantic.ConfigBase):
 
   def build_runtime_params(
       self,
+      t: chex.Numeric,
   ) -> poloidal_velocity_runtime_params.RuntimeParams:
     """Builds runtime params."""
+    del t
     return poloidal_velocity_runtime_params.RuntimeParams(
         poloidal_velocity_multiplier=self.poloidal_velocity_multiplier,
     )
