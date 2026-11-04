@@ -181,12 +181,13 @@ def _calculate_dilution_from_Z_eff(
     Z_eff: array_typing.FloatVector,
 ) -> array_typing.FloatVector:
   """Calculates the main ion dilution factor n_i / n_e from Z_eff."""
+  pure_plasma = Z_eff == Z_i
   denom = Z_i * (Z_impurity - Z_i)
   # Guard jnp.where dead branch against zero division to prevent NaN gradients.
-  safe_denom = jnp.where((Z_eff == 1.0) | (denom == 0.0), 1.0, denom)
+  safe_denom = jnp.where(pure_plasma, 1.0, denom)
   return jnp.where(
-      Z_eff == 1.0,
-      1.0,
+      pure_plasma,
+      1.0 / Z_i,
       (Z_impurity - Z_eff) / safe_denom,
   )
 
@@ -199,10 +200,11 @@ def _impurity_density_from_quasineutrality(
     dilution_factor: array_typing.FloatVector | array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates bundled impurity density (n_e - n_i * Z_i) / Z_impurity."""
+  no_impurities = dilution_factor == 1.0 / Z_i
   # Guard jnp.where dead branch against zero division when Z_impurity == 0.
-  safe_Z_impurity = jnp.where(dilution_factor == 1.0, 1.0, Z_impurity)
+  safe_Z_impurity = jnp.where(no_impurities, 1.0, Z_impurity)
   return jnp.where(
-      dilution_factor == 1.0,
+      no_impurities,
       0.0,
       (n_e - n_i * Z_i) / safe_Z_impurity,
   )

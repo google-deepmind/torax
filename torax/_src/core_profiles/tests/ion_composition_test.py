@@ -18,6 +18,7 @@ import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
@@ -901,6 +902,91 @@ class IonCompositionTest(parameterized.TestCase):
           n_e_no_bc,
           initial_core_profiles.kinetic.T_e,
       )
+
+  @parameterized.named_parameters(
+      ('equal_charge_impurity', {'He3': 1.0}, None),
+      ('zero_charge_override', {'Ne': 1.0}, 0.0),
+      ('temperature_dependent_impurity', {'W': 1.0}, None),
+  )
+  def test_pure_non_hydrogenic_plasma_in_fractions_mode(
+      self, species, z_override
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
+        'main_ion': 'He4',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
+            'species': species,
+            'Z_override': z_override,
+        },
+        'Z_eff': 2.0,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    n_e = initial_core_profiles.kinetic.n_e
+    T_e = initial_core_profiles.kinetic.T_e
+
+    ions, n_i, n_impurity = ion_composition_lib.get_ion_composition_and_density(
+        runtime_params.plasma_composition,
+        geo,
+        n_e,
+        T_e,
+    )
+
+    with self.subTest('main_ion_density'):
+      np.testing.assert_allclose(n_i.face_value(), 0.5 * n_e.face_value())
+    with self.subTest('impurity_density'):
+      np.testing.assert_allclose(n_impurity.face_value(), 0.0)
+    with self.subTest('Z_eff'):
+      np.testing.assert_allclose(ions.Z_eff, 2.0)
+      np.testing.assert_allclose(ions.Z_eff_face, 2.0)
+    with self.subTest('gradients_are_finite'):
+      def loss_fn(n_e_val, T_e_val):
+        _, n_i_out, n_imp_out = (
+            ion_composition_lib.get_ion_composition_and_density(
+                runtime_params.plasma_composition,
+                geo,
+                dataclasses.replace(n_e, value=n_e_val),
+                dataclasses.replace(T_e, value=T_e_val),
+            )
+        )
+        return jnp.sum(n_i_out.value + n_imp_out.value)
+
+      grad_n_e, grad_T_e = jax.grad(loss_fn, argnums=(0, 1))(
+          n_e.value, T_e.value
+      )
+      np.testing.assert_allclose(grad_n_e, 0.5)
+      np.testing.assert_allclose(grad_T_e, 0.0)
+
+  @parameterized.named_parameters(
+      ('hydrogenic', 'D', {'H': 1.0}, 1.5),
+      ('helium', 'He4', {'He3': 1.0}, 1.5),
+  )
+  def test_degenerate_equal_charge_with_mismatched_Z_eff_produces_inf(
+      self, main_ion, species, z_eff
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
+        'main_ion': main_ion,
+        'impurity': {
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
+            'species': species,
+        },
+        'Z_eff': z_eff,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    _, n_i, _ = ion_composition_lib.get_ion_composition_and_density(
+        runtime_params.plasma_composition,
+        geo,
+        initial_core_profiles.kinetic.n_e,
+        initial_core_profiles.kinetic.T_e,
+    )
+    self.assertTrue(bool(jnp.all(jnp.isinf(n_i.value))))
 
 
 if __name__ == '__main__':
