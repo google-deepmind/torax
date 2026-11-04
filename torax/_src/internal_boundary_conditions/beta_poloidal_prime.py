@@ -62,7 +62,7 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
       normalized poloidal flux, -d(beta_pol) / d(psi_norm), in the edge region.
       In POWER_DEPENDENT mode, this serves as the asymptotic upper value at high
       P_SOL.
-    Ti_Te_ratio: Ratio of ion to electron temperature (T_i / T_e) in the edge.
+    T_i_T_e_ratio: Ratio of ion to electron temperature (T_i / T_e) in the edge.
     n_e_edge: Target electron density at rho_norm_edge. In units of m^-3 if
       n_e_is_f_GW is False, or in Greenwald fraction if n_e_is_f_GW is True.
       Mutually exclusive with n_e_edge_multiplier.
@@ -83,7 +83,7 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
 
   rho_norm_edge: array_typing.FloatScalar
   beta_poloidal_prime: array_typing.FloatScalar
-  Ti_Te_ratio: array_typing.FloatScalar
+  T_i_T_e_ratio: array_typing.FloatScalar
   n_e_edge: array_typing.FloatScalar | None = None
   n_e_edge_multiplier: array_typing.FloatScalar | None = None
   n_e_is_f_GW: bool = jax.tree.static(default=False)
@@ -153,7 +153,7 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
 
   After subtracting the fast ion pressure to isolate the thermal pressure, the
   electron and ion temperature profiles are derived using the prescribed
-  density profile and Ti/Te ratio.
+  density profile and T_i / T_e ratio.
   """
 
   def __call__(
@@ -272,10 +272,10 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     T_e_edge_profile = p_thermal_cell / (
         constants.CONSTANTS.keV_to_J
         * n_e_edge_profile
-        * (1.0 + params.Ti_Te_ratio * n_i_n_e_ratio)
+        * (1.0 + params.T_i_T_e_ratio * n_i_n_e_ratio)
         + constants.CONSTANTS.eps
     )
-    T_i_edge_profile = params.Ti_Te_ratio * T_e_edge_profile
+    T_i_edge_profile = params.T_i_T_e_ratio * T_e_edge_profile
 
     T_e_target = jnp.where(edge_mask, T_e_edge_profile, 0.0)
     T_i_target = jnp.where(edge_mask, T_i_edge_profile, 0.0)

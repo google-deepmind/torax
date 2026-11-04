@@ -46,7 +46,7 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
     beta_poloidal_prime: Prescribed normalized poloidal beta gradient
       $beta_pol' > 0$ [dimensionless] (serves as the high-power asymptotic value
       when `mode = 'power_dependent'`).
-    Ti_Te_ratio: Prescribed ratio $T_i / T_e$ in the edge region
+    T_i_T_e_ratio: Prescribed ratio $T_i / T_e$ in the edge region
       [dimensionless].
     n_e_edge: Prescribed electron density at the edge boundary $rho_norm_edge$
       [m^-3 if `n_e_is_f_GW = False`, Greenwald fraction if `n_e_is_f_GW =
@@ -88,7 +88,7 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
   ] = 'beta_poloidal_prime'
   rho_norm_edge: torax_pydantic.TimeVaryingScalar
   beta_poloidal_prime: torax_pydantic.PositiveTimeVaryingScalar
-  Ti_Te_ratio: torax_pydantic.PositiveTimeVaryingScalar
+  T_i_T_e_ratio: torax_pydantic.PositiveTimeVaryingScalar
   n_e_edge: torax_pydantic.PositiveTimeVaryingScalar | None = None
   n_e_edge_multiplier: torax_pydantic.PositiveTimeVaryingScalar | None = None
   n_e_is_f_GW: Annotated[bool, torax_pydantic.JAX_STATIC] = False
@@ -127,7 +127,7 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
     return beta_poloidal_prime_lib.RuntimeParams(
         rho_norm_edge=self.rho_norm_edge.get_value(t),
         beta_poloidal_prime=self.beta_poloidal_prime.get_value(t),
-        Ti_Te_ratio=self.Ti_Te_ratio.get_value(t),
+        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
         n_e_edge=(
             self.n_e_edge.get_value(t) if self.n_e_edge is not None else None
         ),

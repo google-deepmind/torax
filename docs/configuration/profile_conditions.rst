@@ -58,7 +58,7 @@ beta_poloidal_prime
 
 .. torax_config:: torax._src.internal_boundary_conditions.config.BetaPoloidalPrimeIBCConfig
    :include-class-doc:
-   :include-fields: model_name, mode, rho_norm_edge, n_e_edge, n_e_edge_multiplier, n_e_is_f_GW, beta_poloidal_prime, beta_poloidal_prime_min, P_SOL_scaling, Ti_Te_ratio
+   :include-fields: model_name, mode, rho_norm_edge, n_e_edge, n_e_edge_multiplier, n_e_is_f_GW, beta_poloidal_prime, beta_poloidal_prime_min, P_SOL_scaling, T_i_T_e_ratio
 
 Example:
 

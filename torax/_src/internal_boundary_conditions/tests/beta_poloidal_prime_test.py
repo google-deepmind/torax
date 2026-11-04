@@ -45,7 +45,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         rho_norm_edge=0.85,
         n_e_edge=2.0e19,
         beta_poloidal_prime=1.5,
-        Ti_Te_ratio=1.0,
+        T_i_T_e_ratio=1.0,
     )
     self.assertFalse(ibc_config.n_e_is_f_GW)
     self.assertIsNone(ibc_config.n_e_edge_multiplier)
@@ -65,7 +65,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       ibc_config_lib.BetaPoloidalPrimeIBCConfig(
           rho_norm_edge=0.85,
           beta_poloidal_prime=1.5,
-          Ti_Te_ratio=1.0,
+          T_i_T_e_ratio=1.0,
       )
 
   def test_both_n_e_edge_and_multiplier_raises(self):
@@ -78,7 +78,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
           n_e_edge=2.0e19,
           n_e_edge_multiplier=1.5,
           beta_poloidal_prime=1.5,
-          Ti_Te_ratio=1.0,
+          T_i_T_e_ratio=1.0,
       )
 
   def test_power_dependent_without_p_sol_scaling_raises(self):
@@ -90,7 +90,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
           rho_norm_edge=0.85,
           n_e_edge=2.0e19,
           beta_poloidal_prime=1.5,
-          Ti_Te_ratio=1.0,
+          T_i_T_e_ratio=1.0,
       )
 
   def _setup_model_and_profiles(
@@ -99,7 +99,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       n_e_edge: float | None = 2.5e19,
       n_e_edge_multiplier: float | None = None,
       beta_poloidal_prime_val: float = 1.5,
-      ti_te_ratio: float = 1.2,
+      T_i_T_e_ratio: float = 1.2,
       n_e_is_f_GW: bool = False,
       I_p: float = 5e6,
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
@@ -132,7 +132,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         beta_poloidal_prime=beta_poloidal_prime_val,
         beta_poloidal_prime_min=beta_poloidal_prime_min,
         P_SOL_scaling=P_SOL_scaling,
-        Ti_Te_ratio=ti_te_ratio,
+        T_i_T_e_ratio=T_i_T_e_ratio,
         n_e_is_f_GW=n_e_is_f_GW,
     )
     torax_pydantic.set_grid(ibc_config, geo.torax_mesh)
@@ -211,7 +211,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'beta_poloidal_prime': beta_poloidal_prime_max,
         'beta_poloidal_prime_min': beta_poloidal_prime_min,
         'P_SOL_scaling': P_SOL_scaling,
-        'Ti_Te_ratio': 1.2,
+        'T_i_T_e_ratio': 1.2,
     })
 
     expected_beta_poloidal_prime = float(
@@ -228,7 +228,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'rho_norm_edge': 0.7,
         'n_e_edge': 2.5e19,
         'beta_poloidal_prime': expected_beta_poloidal_prime,
-        'Ti_Te_ratio': 1.2,
+        'T_i_T_e_ratio': 1.2,
     })
 
     np.testing.assert_allclose(ibc_power_dep.T_e, ibc_constant_equiv.T_e)
@@ -284,7 +284,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       ibc_rp = beta_poloidal_prime.RuntimeParams(
           rho_norm_edge=jnp.asarray(0.7),
           beta_poloidal_prime=jnp.asarray(1.8),
-          Ti_Te_ratio=jnp.asarray(1.2),
+          T_i_T_e_ratio=jnp.asarray(1.2),
           n_e_edge=jnp.asarray(2.5e19),
           n_e_edge_multiplier=None,
           n_e_is_f_GW=False,
@@ -336,7 +336,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   def test_enforces_temperature_ratio(self):
     geo, _, ibc_out = self._setup_model_and_profiles(
-        rho_norm_edge=0.7, ti_te_ratio=1.2
+        rho_norm_edge=0.7, T_i_T_e_ratio=1.2
     )
     edge_cells = geo.rho_norm >= 0.7
     np.testing.assert_allclose(
@@ -403,7 +403,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'model_name': 'beta_poloidal_prime',
         'rho_norm_edge': rho_norm_edge,
         'beta_poloidal_prime': target_beta_pol_prime,
-        'Ti_Te_ratio': 1.0,
+        'T_i_T_e_ratio': 1.0,
         **n_e_edge_kwargs,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
