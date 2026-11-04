@@ -588,6 +588,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(str(output_keys.T_I_RIGHT_BC), out_dict)
     self.assertIn(str(output_keys.N_E_RIGHT_BC), out_dict)
     self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.VALID_FOR_CORE_UPDATE), out_dict)
 
     # Test to_xr_datatree directly on base.EdgeModelOutputs
     dt = outputs.to_xr_datatree(self.history._output_grid_context)
@@ -633,6 +634,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(output_keys.T_I_RIGHT_BC, edge_dataset.data_vars)
     self.assertIn(output_keys.N_E_RIGHT_BC, edge_dataset.data_vars)
     self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.VALID_FOR_CORE_UPDATE, edge_dataset.data_vars)
 
   def test_pack_impurity_mapping(self):
     context = self.history._output_grid_context

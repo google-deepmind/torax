@@ -958,6 +958,11 @@ IMPURITY_RIGHT_BC: Final[OutputKey] = OutputKey(
     units=Units.DIMENSIONLESS,
     grid_type=GridType.NOT_APPLICABLE,
 )
+VALID_FOR_CORE_UPDATE: Final[OutputKey] = OutputKey(
+    "valid_for_core_update",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
 
 # ---------------------------------------------------------------------------
 # Extended Lengyel edge model state.

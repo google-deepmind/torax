@@ -11,18 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+import functools
+import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.core_profiles import runtime_params as core_profile_runtime_params
+from torax._src.core_profiles import (
+    runtime_params as core_profile_runtime_params,
+)
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output_keys
+from torax._src.pedestal_model import pedestal_state
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import config
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -46,9 +55,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
         step_fn=step_fn,
     )
 
+    assert torax_config.restart is not None
     result, post_processed = (
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
-            file_restart=torax_config.restart,  # pyrefly: ignore[bad-argument-type]
+            file_restart=torax_config.restart,
             step_fn=step_fn,
         )
     )
@@ -142,6 +152,509 @@ class InitialStateTest(sim_test_case.SimTestCase):
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )
+
+  def test_restart_coupled_extended_lengyel_forward(self):
+    config_dict = self._get_config_dict(
+        'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel.py'
+    )
+    config_dict['geometry']['n_rho'] = 10
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.2,
+        't_initial': 0.0,
+        't_final': 0.8,
+        'exact_t_final': True,
+    }
+    config_dict['edge']['update_T_e'] = True
+    config_dict['edge']['update_T_i'] = True
+    config_dict['edge']['use_enrichment_model'] = True
+    config_dict['edge']['impurity_sot'] = 'core'
+    config_dict['edge']['initial_guess'] = {
+        'use_previous_step_as_guess': True,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'continuous_forward.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    edge_state_t0 = (
+        continuous_xr.children[output_keys.MODEL_STATE]
+        .children[output_keys.EDGE]
+        .sel(time=0.0, method='nearest')
+        .dataset
+    )
+    edge_state_t_restart = (
+        continuous_xr.children[output_keys.MODEL_STATE]
+        .children[output_keys.EDGE]
+        .sel(time=0.4, method='nearest')
+        .dataset
+    )
+    self.assertFalse(
+        np.allclose(
+            edge_state_t_restart[output_keys.PRESSURE_NEUTRAL_DIVERTOR].values,
+            edge_state_t0[output_keys.PRESSURE_NEUTRAL_DIVERTOR].values,
+        )
+    )
+    self.assertFalse(
+        np.allclose(
+            edge_state_t_restart[output_keys.WARM_START_ALPHA_T].values,
+            edge_state_t0[output_keys.WARM_START_ALPHA_T].values,
+        )
+    )
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.4
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.4,
+        'do_restart': True,
+        'stitch': True,
+    }
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    restarted_xr = restarted_res.simulation_output_to_xr()
+
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, restarted_xr, continuous_xr)
+
+  def test_restart_coupled_extended_lengyel_inverse(self):
+    config_dict = self._get_config_dict(
+        'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel.py'
+    )
+    config_dict['geometry']['n_rho'] = 10
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.2,
+        't_initial': 0.0,
+        't_final': 0.8,
+        'exact_t_final': True,
+    }
+    config_dict['edge']['computation_mode'] = 'inverse'
+    config_dict['edge']['fixed_impurity_concentrations'] = {'W': 1e-5}
+    config_dict['edge']['seed_impurity_weights'] = {'Ne': 1.0}
+    config_dict['edge']['T_e_target'] = 10.0
+    config_dict['edge']['update_T_e'] = True
+    config_dict['edge']['update_T_i'] = True
+    config_dict['edge']['update_n_impurities'] = True
+    config_dict['edge']['use_enrichment_model'] = True
+    config_dict['edge']['impurity_sot'] = 'core'
+    config_dict['edge']['initial_guess'] = {
+        'use_previous_step_as_guess': True,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'continuous_inverse.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.4
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.4,
+        'do_restart': True,
+        'stitch': True,
+    }
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    restarted_xr = restarted_res.simulation_output_to_xr()
+
+    cont_prof = continuous_xr.children[output_keys.PROFILES].dataset
+    rest_prof = restarted_xr.children[output_keys.PROFILES].dataset
+    np.testing.assert_allclose(
+        rest_prof[output_keys.Z_EFF].values,
+        cont_prof[output_keys.Z_EFF].values,
+        atol=1e-6,
+    )
+    if output_keys.N_IMPURITY_SPECIES in cont_prof.data_vars:
+      np.testing.assert_allclose(
+          rest_prof[output_keys.N_IMPURITY_SPECIES].values,
+          cont_prof[output_keys.N_IMPURITY_SPECIES].values,
+          atol=1e-6,
+      )
+
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, restarted_xr, continuous_xr)
+
+  def test_restart_ibc_pedestal_mid_transition(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.0,
+        't_final': 0.25,
+        'exact_t_final': True,
+    }
+    config_dict['pedestal'] = {
+        'mode': 'internal_boundary_condition',
+        'structure_model': {'model_name': 'set_T_top_n_top'},
+        'transition_time_width': 0.3,
+        'formation_model': {
+            'model_name': 'prescribed',
+            'pedestal_active': ({0.0: False, 0.05: True}, 'step'),
+        },
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'continuous_ibc.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    pedestal_state_t = (
+        continuous_xr.children[output_keys.MODEL_STATE]
+        .children[output_keys.PEDESTAL]
+        .sel(time=0.15, method='nearest')
+        .dataset
+    )
+    self.assertEqual(
+        int(pedestal_state_t[output_keys.CONFINEMENT_MODE].values),
+        int(pedestal_runtime_params.ConfinementMode.TRANSITIONING_TO_H_MODE),
+    )
+    np.testing.assert_allclose(
+        float(pedestal_state_t[output_keys.TRANSITION_START_TIME].values),
+        0.05,
+        atol=1e-6,
+    )
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.15
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.15,
+        'do_restart': True,
+        'stitch': True,
+    }
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    assert restarted_config.restart is not None
+    initial_sim_state, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            file_restart=restarted_config.restart,
+            step_fn=run_simulation.make_step_fn(restarted_config),
+        )
+    )
+    self.assertIsInstance(
+        initial_sim_state.model_state.pedestal,
+        pedestal_state.IBCPedestalState,
+    )
+    assert isinstance(
+        initial_sim_state.model_state.pedestal,
+        pedestal_state.IBCPedestalState,
+    )
+    self.assertEqual(
+        int(initial_sim_state.model_state.pedestal.confinement_mode),
+        int(pedestal_runtime_params.ConfinementMode.TRANSITIONING_TO_H_MODE),
+    )
+    np.testing.assert_allclose(
+        float(initial_sim_state.model_state.pedestal.transition_start_time),
+        0.05,
+        atol=1e-6,
+    )
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    restarted_xr = restarted_res.simulation_output_to_xr()
+
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, restarted_xr, continuous_xr)
+
+  @parameterized.parameters(
+      'internal_boundary_condition',
+      'adaptive_transport',
+  )
+  def test_restart_power_scaling_formation_with_dw_dt(self, mode: str):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.0,
+        't_final': 0.25,
+        'exact_t_final': True,
+    }
+    config_dict['pedestal'] = {
+        'mode': mode,
+        'structure_model': {'model_name': 'set_T_top_n_top'},
+        'transition_time_width': 0.1,
+        'formation_model': {
+            'model_name': 'martin_scaling',
+            'include_dW_dt_in_P_SOL': True,
+            'P_LH_hysteresis_factor': 0.7,
+        },
+    }
+    config_dict['sources'] = {
+        'generic_heat': {
+            'gaussian_location': 0.15,
+            'gaussian_width': 0.1,
+            'P_total': {0.0: 2.0e6, 0.1: 35.0e6, 0.2: 2.0e6},
+            'electron_heat_fraction': 0.8,
+        }
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, f'continuous_{mode}.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    scalars_t = (
+        continuous_xr.children[output_keys.SCALARS]
+        .sel(time=0.15, method='nearest')
+        .dataset
+    )
+    self.assertNotEqual(
+        float(scalars_t['dW_thermal_dt_smoothed'].values),
+        0.0,
+    )
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.15
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.15,
+        'do_restart': True,
+        'stitch': True,
+    }
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    restarted_xr = restarted_res.simulation_output_to_xr()
+
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, restarted_xr, continuous_xr)
+
+  def test_restart_ip_boundary_condition_uses_file_ip(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.0,
+        't_final': 0.2,
+        'exact_t_final': True,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'continuous_ip.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.1
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.1,
+        'do_restart': True,
+        'stitch': True,
+    }
+    # Modify profile_conditions.I_p in the new config.
+    restart_config_dict['profile_conditions']['I_p'] = 5.0e6
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    assert restarted_config.restart is not None
+
+    step_fn = run_simulation.make_step_fn(restarted_config)
+    initial_sim_state, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            file_restart=restarted_config.restart,
+            step_fn=step_fn,
+        )
+    )
+
+    t_slice = continuous_xr.sel(time=0.1, method='nearest')
+    saved_profiles = t_slice.children[output_keys.PROFILES].dataset
+    saved_scalars = t_slice.children[output_keys.SCALARS].dataset
+    saved_ip = float(saved_profiles[output_keys.I_P_PROFILE].values[-1])
+
+    # Reference initial state from restart keeping the original I_p:
+    ref_config_dict = copy.deepcopy(config_dict)
+    ref_config_dict['time_step_calculator']['t_initial'] = 0.1
+    ref_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.1,
+        'do_restart': True,
+        'stitch': True,
+    }
+    ref_config = config.ToraxConfig.from_dict(ref_config_dict)
+    assert ref_config.restart is not None
+    ref_step_fn = run_simulation.make_step_fn(ref_config)
+    ref_initial_state, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            file_restart=ref_config.restart,
+            step_fn=ref_step_fn,
+        )
+    )
+
+    # Initial state psi gradient constraint should match the saved file I_p
+    # rather than being perturbed by the new config's I_p (5.0e6).
+    init_flux = initial_sim_state.core_profiles.poloidal_flux
+    ref_flux = ref_initial_state.core_profiles.poloidal_flux
+    assert init_flux.psi.right_face_grad_constraint is not None
+    assert ref_flux.psi.right_face_grad_constraint is not None
+    np.testing.assert_allclose(
+        init_flux.psi.right_face_grad_constraint,
+        ref_flux.psi.right_face_grad_constraint,
+        atol=1e-6,
+    )
+    # Confirm the new config I_p differs significantly from saved I_p:
+    expected_ratio = (
+        restart_config_dict['profile_conditions']['I_p'] / saved_ip
+    )
+    self.assertFalse(
+        np.isclose(
+            float(init_flux.psi.right_face_grad_constraint),
+            float(ref_flux.psi.right_face_grad_constraint) * expected_ratio,
+        )
+    )
+    np.testing.assert_allclose(
+        init_flux.j_toroidal_total,
+        saved_profiles[output_keys.J_TOROIDAL_TOTAL].values[1:-1],
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        init_flux.j_toroidal_total_face[-1],
+        saved_profiles[output_keys.J_TOROIDAL_TOTAL].values[-1],
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        init_flux.v_loop_lcfs,
+        float(saved_scalars[output_keys.V_LOOP_LCFS].values),
+        atol=1e-6,
+    )
+
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    self.assertIsNotNone(restarted_res)
+
+  def test_restart_unstitched_file_preserves_initial_edge_bcs(self):
+    config_dict = self._get_config_dict(
+        'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel.py'
+    )
+    config_dict['geometry']['n_rho'] = 10
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.2,
+        't_initial': 0.0,
+        't_final': 0.4,
+        'exact_t_final': True,
+    }
+    config_dict['edge']['update_T_e'] = True
+    config_dict['edge']['update_T_i'] = True
+    config_dict['edge']['use_enrichment_model'] = True
+    config_dict['edge']['impurity_sot'] = 'core'
+    config_dict['edge']['initial_guess'] = {
+        'use_previous_step_as_guess': True,
+    }
+    torax_config_1 = config.ToraxConfig.from_dict(config_dict)
+    res_1 = run_simulation.run_simulation(torax_config_1, progress_bar=False)
+    xr_1 = res_1.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc1_path = os.path.join(temp_dir, 'run1.nc')
+    xr_1.to_netcdf(nc1_path)
+
+    # Run 2: Unstitched restart producing File 2.
+    cfg2_dict = copy.deepcopy(config_dict)
+    cfg2_dict['time_step_calculator']['t_initial'] = 0.2
+    cfg2_dict['time_step_calculator']['t_final'] = 0.4
+    cfg2_dict['restart'] = {
+        'filename': nc1_path,
+        'time': 0.2,
+        'do_restart': True,
+        'stitch': False,
+    }
+    torax_config_2 = config.ToraxConfig.from_dict(cfg2_dict)
+    res_2 = run_simulation.run_simulation(torax_config_2, progress_bar=False)
+    xr_2 = res_2.simulation_output_to_xr()
+    nc2_path = os.path.join(temp_dir, 'run2_unstitched.nc')
+    xr_2.to_netcdf(nc2_path)
+
+    # Run 3: Restart from time[0] of unstitched File 2.
+    cfg3_dict = copy.deepcopy(config_dict)
+    cfg3_dict['time_step_calculator']['t_initial'] = 0.2
+    cfg3_dict['time_step_calculator']['t_final'] = 0.4
+    cfg3_dict['restart'] = {
+        'filename': nc2_path,
+        'time': 0.2,
+        'do_restart': True,
+        'stitch': False,
+    }
+    torax_config_3 = config.ToraxConfig.from_dict(cfg3_dict)
+    assert torax_config_3.restart is not None
+    step_fn_3 = run_simulation.make_step_fn(torax_config_3)
+    initial_sim_state_3, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            file_restart=torax_config_3.restart,
+            step_fn=step_fn_3,
+        )
+    )
+
+    file2_t0_profiles = xr_2.children[output_keys.PROFILES].sel(
+        time=0.2, method='nearest'
+    ).dataset
+    init_kinetic = initial_sim_state_3.core_profiles.kinetic
+    assert init_kinetic.T_e.right_face_constraint is not None
+    assert init_kinetic.T_i.right_face_constraint is not None
+    np.testing.assert_allclose(
+        init_kinetic.T_e.right_face_constraint,
+        file2_t0_profiles[output_keys.T_E].values[-1],
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        init_kinetic.T_i.right_face_constraint,
+        file2_t0_profiles[output_keys.T_I].values[-1],
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        initial_sim_state_3.core_profiles.ions.Z_eff,
+        file2_t0_profiles[output_keys.Z_EFF].values[1:-1],
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        initial_sim_state_3.core_profiles.ions.Z_eff_face[-1],
+        file2_t0_profiles[output_keys.Z_EFF].values[-1],
+        atol=1e-5,
+    )
+
+    res_3 = run_simulation.run_simulation(torax_config_3, progress_bar=False)
+    xr_3 = res_3.simulation_output_to_xr()
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, xr_3, xr_2)
 
 
 if __name__ == '__main__':

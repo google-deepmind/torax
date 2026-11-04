@@ -17,12 +17,13 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any, ClassVar, Self
+from typing import Annotated, Any, ClassVar, Self, override
 import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
+from torax._src import jax_utils
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
@@ -145,6 +146,12 @@ class EdgeModelOutputs:
             dim_name=output_keys.IMPURITY,
         )
     )
+    valid = np.asarray(self.valid_for_core_update)
+    if valid.ndim == 0:
+      valid = np.broadcast_to(valid, (len(context.times),))
+    out_dict[output_keys.VALID_FOR_CORE_UPDATE] = context.pack(
+        output_keys.VALID_FOR_CORE_UPDATE, valid
+    )
     return out_dict
 
   def to_xr_datatree(
@@ -153,6 +160,142 @@ class EdgeModelOutputs:
     """Builds an xr.DataTree of the edge model outputs."""
     return xr.DataTree(
         dataset=context.build_dataset(self.to_output_dict(context))
+    )
+
+  @classmethod
+  def from_datatree(cls, datatree: xr.DataTree) -> Self:
+    """Extracts boundary conditions from a time-sliced /edge DataTree.
+
+    Args:
+      datatree: Time-sliced DataTree containing edge outputs.
+
+    Returns:
+      Reconstructed EdgeModelOutputs with extracted boundary conditions.
+
+    Raises:
+      ValueError: If datatree is None or if IMPURITY_RIGHT_BC is present but
+        IMPURITY coordinate is missing.
+    """
+    if datatree is None:
+      raise ValueError('EdgeModelOutputs requires a non-None DataTree.')
+    ds = datatree.dataset
+    dtype = jax_utils.get_dtype()
+
+    T_e_right_bc = None
+    if output_keys.T_E_RIGHT_BC in ds.data_vars:
+      T_e_right_bc = jnp.asarray(
+          np.squeeze(ds[output_keys.T_E_RIGHT_BC].values), dtype=dtype
+      )
+
+    T_i_right_bc = None
+    if output_keys.T_I_RIGHT_BC in ds.data_vars:
+      T_i_right_bc = jnp.asarray(
+          np.squeeze(ds[output_keys.T_I_RIGHT_BC].values), dtype=dtype
+      )
+
+    n_e_right_bc = None
+    if output_keys.N_E_RIGHT_BC in ds.data_vars:
+      n_e_right_bc = jnp.asarray(
+          np.squeeze(ds[output_keys.N_E_RIGHT_BC].values), dtype=dtype
+      )
+
+    impurity_right_bc: dict[str, jax.Array] = {}
+    if output_keys.IMPURITY_RIGHT_BC in ds.data_vars:
+      if output_keys.IMPURITY not in ds.coords:
+        raise ValueError(
+            'Missing IMPURITY coordinate in DataTree with IMPURITY_RIGHT_BC.'
+        )
+      impurities = np.atleast_1d(
+          ds.coords[output_keys.IMPURITY].values
+      ).tolist()
+      for sp in impurities:
+        impurity_right_bc[sp] = jnp.asarray(
+            np.squeeze(
+                ds[output_keys.IMPURITY_RIGHT_BC]
+                .sel({output_keys.IMPURITY: sp})
+                .values
+            ),
+            dtype=dtype,
+        )
+
+    if output_keys.VALID_FOR_CORE_UPDATE in ds:
+      valid_for_core_update = jnp.asarray(
+          np.squeeze(ds[output_keys.VALID_FOR_CORE_UPDATE].values),
+          dtype=jnp.bool_,
+      )
+    else:
+      extracted_scalars = [
+          val
+          for val in (T_e_right_bc, T_i_right_bc, n_e_right_bc)
+          if val is not None
+      ] + list(impurity_right_bc.values())
+      has_nan = any(bool(jnp.isnan(v).any()) for v in extracted_scalars)
+      valid_for_core_update = jnp.array(not has_nan, dtype=jnp.bool_)
+
+    return cls(
+        T_e_right_bc=T_e_right_bc,
+        T_i_right_bc=T_i_right_bc,
+        n_e_right_bc=n_e_right_bc,
+        impurity_right_bc=impurity_right_bc,
+        valid_for_core_update=valid_for_core_update,
+    )
+
+  def replace_bcs_from_datatree(
+      self,
+      datatree: xr.DataTree,
+  ) -> Self:
+    """Replaces boundary condition fields from a time-sliced /edge DataTree.
+
+    Args:
+      datatree: Time-sliced `/edge` DataTree.
+
+    Returns:
+      Updated EdgeModelOutputs with restored boundary condition values.
+
+    Raises:
+      ValueError: If expected boundary conditions are missing from the
+        DataTree.
+    """
+    parsed = EdgeModelOutputs.from_datatree(datatree)
+    for attr, key in (
+        ('T_e_right_bc', output_keys.T_E_RIGHT_BC),
+        ('T_i_right_bc', output_keys.T_I_RIGHT_BC),
+        ('n_e_right_bc', output_keys.N_E_RIGHT_BC),
+    ):
+      if getattr(self, attr) is not None and getattr(parsed, attr) is None:
+        raise ValueError(
+            f'Missing expected boundary condition {key!r} in /edge DataTree.'
+        )
+    if self.impurity_right_bc:
+      missing_impurity_bcs = [
+          sp
+          for sp in self.impurity_right_bc
+          if sp not in parsed.impurity_right_bc
+      ]
+      if missing_impurity_bcs:
+        raise ValueError(
+            'Missing expected impurity boundary conditions '
+            f'{missing_impurity_bcs} in /edge DataTree.'
+        )
+      impurity_right_bc = {
+          sp: parsed.impurity_right_bc[sp] for sp in self.impurity_right_bc
+      }
+    else:
+      impurity_right_bc = {}
+
+    return dataclasses.replace(
+        self,
+        T_e_right_bc=(
+            parsed.T_e_right_bc if self.T_e_right_bc is not None else None
+        ),
+        T_i_right_bc=(
+            parsed.T_i_right_bc if self.T_i_right_bc is not None else None
+        ),
+        n_e_right_bc=(
+            parsed.n_e_right_bc if self.n_e_right_bc is not None else None
+        ),
+        impurity_right_bc=impurity_right_bc,
+        valid_for_core_update=parsed.valid_for_core_update,
     )
 
 
@@ -172,7 +315,7 @@ class CombinedEdgeOutputs(EdgeModelOutputs):
   def to_xr_datatree(
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
-    """Builds an xr.DataTree of the combined edge model and sub-models."""
+    """Builds an xr.DataTree of combined edge model and sub-model outputs."""
     base_tree = super().to_xr_datatree(context)
     children = {
         name: sub_out.to_xr_datatree(context)
@@ -182,6 +325,24 @@ class CombinedEdgeOutputs(EdgeModelOutputs):
         dataset=base_tree.dataset,
         children=children,
     )
+
+  @override
+  def replace_bcs_from_datatree(
+      self,
+      datatree: xr.DataTree,
+  ) -> Self:
+    """Replaces boundary condition fields from a time-sliced /edge DataTree."""
+    updated = super().replace_bcs_from_datatree(datatree)
+    for name in self.sub_models:
+      if name not in datatree.children:
+        raise ValueError(
+            f'Missing expected sub-model {name!r} in /edge DataTree.'
+        )
+    updated_subs = {
+        name: sub.replace_bcs_from_datatree(datatree.children[name])
+        for name, sub in self.sub_models.items()
+    }
+    return dataclasses.replace(updated, sub_models=updated_subs)
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

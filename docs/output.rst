@@ -995,6 +995,10 @@ if one is active (e.g., :ref:`extended_lengyel <extended_lengyel>`).
 
   * 2: Solver not fully converged but is within coarse tolerance.
 
+``valid_for_core_update`` (time)
+  Boolean flag indicating whether the edge model outputs are valid to update
+  core boundary conditions [dimensionless].
+
 .. _output_examples:
 
 Working with output data

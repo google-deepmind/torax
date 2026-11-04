@@ -95,7 +95,9 @@ def evaluate_state(
     geo: geometry.Geometry,
     solver_state: solver_state_lib.SolverState,
     models: models_lib.Models,
-    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
+    explicit_model_outputs: (
+        explicit_model_outputs_lib.ExplicitModelOutputs | None
+    ),
     model_state: model_state_lib.ModelState,
     *,
     v_loop_lcfs: array_typing.FloatScalar | None = None,
@@ -108,7 +110,7 @@ def evaluate_state(
     geo: Geometry of the tokamak.
     solver_state: Primary solvable and prescribed profiles.
     models: Physical models configured for the simulation.
-    explicit_model_outputs: Pre-evaluated explicit outputs from time t.
+    explicit_model_outputs: Pre-evaluated explicit outputs from time t, or None.
     model_state: Model state carried across time steps.
     v_loop_lcfs: Optional loop voltage at the LCFS [V].
     use_pereverzev: Whether to calculate Pereverzev-Corrigan stabilization
@@ -117,6 +119,17 @@ def evaluate_state(
   Returns:
     A tuple of (EvaluatedState, updated_model_state).
   """
+  explicit = explicit_model_outputs is None
+  explicit_source_outputs = (
+      explicit_model_outputs.sources
+      if explicit_model_outputs is not None
+      else None
+  )
+  explicit_pedestal_structure = (
+      explicit_model_outputs.pedestal
+      if explicit_model_outputs is not None
+      else None
+  )
   # Base core profiles, fast ions and psi sources, neoclassical current and
   # psidot.
   (
@@ -132,9 +145,9 @@ def evaluate_state(
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
       source_states=model_state.sources,
-      explicit=False,
-      explicit_source_outputs=explicit_model_outputs.sources,
-      calculate_anyway=False,
+      explicit=explicit,
+      explicit_source_outputs=explicit_source_outputs,
+      calculate_anyway=explicit,
       v_loop_lcfs=v_loop_lcfs,
   )
 
@@ -158,7 +171,7 @@ def evaluate_state(
       core_profiles=core_profiles,
       source_profiles=total_source_profiles,
       pedestal_state=model_state.pedestal,
-      explicit_pedestal_structure=explicit_model_outputs.pedestal,
+      explicit_pedestal_structure=explicit_pedestal_structure,
   )
   (
       internal_boundary_conditions,
