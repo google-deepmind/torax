@@ -20,7 +20,6 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -33,6 +32,9 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
 from torax._src.solver import solver as solver_lib
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.time_step_calculator import time_step_calculator as time_step_calculator_lib
 
 
@@ -41,7 +43,7 @@ from torax._src.time_step_calculator import time_step_calculator as time_step_ca
 class AdaptiveStepState:
   x_new: tuple[cell_variable.CellVariable, ...]
   dt: chex.Numeric
-  solver_numeric_outputs: state.SolverNumericOutputs
+  solver_numeric_outputs: solver_numeric_outputs_lib.SolverNumericOutputs
   runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
   solver_state: solver_state_lib.SolverState
@@ -59,7 +61,7 @@ def create_initial_state(
   initial_x_new = convertors.solver_state_to_solver_x_tuple(
       solver_state_t, evolving_names
   )
-  initial_solver_numeric_outputs = state.SolverNumericOutputs(
+  initial_solver_numeric_outputs = solver_numeric_outputs_lib.SolverNumericOutputs(
       # The solver has not converged yet as we have not performed
       # any steps yet.
       solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),

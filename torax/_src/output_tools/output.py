@@ -27,17 +27,21 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import file_restart as file_restart_config
+from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
 # Internal import.
@@ -139,7 +143,7 @@ class StateHistory:
       self,
       state_history: sim_state.SimState,
       post_processed_outputs_history: post_processing.PostProcessedOutputs,
-      sim_error: state.SimError,
+      sim_error: sim_error_lib.SimError,
       torax_config: config.ToraxConfig,
   ):
     """Initializes StateHistory from simulation state and output histories.
@@ -161,15 +165,15 @@ class StateHistory:
     self._core_sources: core_sources_lib.CoreSources = (
         state_history.core_sources
     )
-    self._stacked_core_transport: state.CoreTransport = (
+    self._stacked_core_transport: transport_coeffs.CoreTransport = (
         state_history.core_transport
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
     ) = post_processed_outputs_history
-    self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
-        state_history.solver_numeric_outputs
-    )
+    self._stacked_solver_numeric_outputs: (
+        solver_numeric_outputs_lib.SolverNumericOutputs
+    ) = state_history.solver_numeric_outputs
     self._stacked_edge_outputs: edge_base.EdgeModelOutputs | None = (
         state_history.edge_outputs
     )
@@ -202,7 +206,7 @@ class StateHistory:
     return self._torax_config
 
   @property
-  def sim_error(self) -> state.SimError:
+  def sim_error(self) -> sim_error_lib.SimError:
     """Returns the simulation error state."""
     return self._sim_error
 
@@ -242,12 +246,14 @@ class StateHistory:
     return _unstack_pytree(self._core_sources)
 
   @functools.cached_property
-  def core_transport(self) -> Sequence[state.CoreTransport]:
+  def core_transport(self) -> Sequence[transport_coeffs.CoreTransport]:
     """Returns the core transport for the simulation."""
     return _unstack_pytree(self._stacked_core_transport)
 
   @functools.cached_property
-  def solver_numeric_outputs(self) -> Sequence[state.SolverNumericOutputs]:
+  def solver_numeric_outputs(
+      self,
+  ) -> Sequence[solver_numeric_outputs_lib.SolverNumericOutputs]:
     """Returns the solver numeric outputs."""
     return _unstack_pytree(self._stacked_solver_numeric_outputs)
 

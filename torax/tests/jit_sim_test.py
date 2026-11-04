@@ -19,9 +19,9 @@ from typing import Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
@@ -291,7 +291,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     )
 
     self.assertEqual(
-        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+        state_history.sim_error, sim_error.SimError.DID_NOT_REACH_T_FINAL
     )
 
   @parameterized.parameters('chi', 'from_previous_dt')

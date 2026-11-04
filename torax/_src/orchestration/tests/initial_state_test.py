@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import dataclasses
 import functools
 import os
 from absl.testing import absltest
@@ -177,26 +178,31 @@ class InitialStateTest(sim_test_case.SimTestCase):
     n_e_right_bc = ref_profiles[output_keys.N_E][index, -1]
     psi = ref_profiles[output_keys.PSI][index, 1:-1]
 
-    # Override the runtime params with the loaded values.
-    runtime_params.profile_conditions.I_p = I_p_total
-    runtime_params.profile_conditions.T_e = T_e
-    runtime_params.profile_conditions.T_e_right_bc = T_e_bc
-    runtime_params.profile_conditions.T_i = T_i
-    runtime_params.profile_conditions.T_i_right_bc = T_i_bc
-    runtime_params.profile_conditions.n_e = n_e
-    runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
-    runtime_params.profile_conditions.psi = psi
-    runtime_params.profile_conditions.psi_source = (
-        core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
-    )
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not
     # f_GW).
     # Additionally we want to avoid normalizing to n_e_bar.
-    runtime_params.profile_conditions.n_e_right_bc_is_f_GW = False
-    runtime_params.profile_conditions.n_e_bar_is_f_GW = False
-    runtime_params.profile_conditions.normalize_n_e = False
-    runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
+    runtime_params = dataclasses.replace(
+        runtime_params,
+        profile_conditions=dataclasses.replace(
+            runtime_params.profile_conditions,
+            I_p=I_p_total,
+            T_e=T_e,
+            T_e_right_bc=T_e_bc,
+            T_i=T_i,
+            T_i_right_bc=T_i_bc,
+            n_e=n_e,
+            n_e_right_bc=n_e_right_bc,
+            psi=psi,
+            psi_source=(
+                core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
+            ),
+            n_e_right_bc_is_f_GW=False,
+            n_e_bar_is_f_GW=False,
+            normalize_n_e=False,
+            n_e_right_bc_is_absolute=True,
+        ),
+    )
 
     result = initial_state._get_initial_state(runtime_params, geo, step_fn)
     core_profile_helpers.verify_core_profiles(
@@ -705,6 +711,20 @@ class InitialStateTest(sim_test_case.SimTestCase):
         xr.testing.assert_allclose, atol=1e-6
     )
     xr.map_over_datasets(assert_allclose_fn, xr_3, xr_2)
+
+  def test_runtime_params_dataclasses_are_frozen(self):
+    torax_config = config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    with self.assertRaises(dataclasses.FrozenInstanceError):
+      runtime_params.profile_conditions.I_p = 0.0  # pyrefly: ignore[read-only]
+    plasma_comp = runtime_params.plasma_composition
+    with self.assertRaises(dataclasses.FrozenInstanceError):
+      plasma_comp.main_ion_names = ()  # pyrefly: ignore[read-only]
 
 
 if __name__ == '__main__':

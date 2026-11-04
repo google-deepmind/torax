@@ -23,7 +23,6 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import jax_utils
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import ion_composition as ion_composition_lib
@@ -32,6 +31,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import config as geometry_config
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.physics import charge_states
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -900,7 +900,7 @@ class IonCompositionTest(parameterized.TestCase):
     state_history = run_simulation.run_simulation(torax_config, max_steps=100)
     np.testing.assert_equal(
         state_history.sim_error,
-        state.SimError.NO_ERROR,
+        sim_error.SimError.NO_ERROR,
         err_msg='Simulation resulted in an unexpected error.',
     )
 

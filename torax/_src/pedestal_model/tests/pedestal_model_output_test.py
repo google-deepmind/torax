@@ -19,7 +19,6 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import math_utils
-from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -29,7 +28,7 @@ from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 
 # pylint: disable=invalid-name
 # pylint: disable=protected-access
@@ -100,33 +99,33 @@ class PedestalStructureTest(parameterized.TestCase):
 
   def test_modify_core_transport_applies_multipliers(self):
     n_face = self.geo.rho_face_norm.shape[0]
-    turbulent_core = transport_coeffs_lib.TransportCoeffs(
+    turbulent_core = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face),
     )
-    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs.zeros(self.geo)
-    bgb_output = transport_coeffs_lib.TransportCoeffs(
+    turbulent_pedestal = transport_coeffs.TransportCoeffs.zeros(self.geo)
+    bgb_output = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face),
     )
-    turbulent = transport_coeffs_lib.TurbulentTransport(
+    turbulent = transport_coeffs.TurbulentTransport(
         core=turbulent_core,
         pedestal=turbulent_pedestal,
         core_components={'bohm_gyrobohm': bgb_output},
         pedestal_components={},
     )
-    neoclassical = transport_coeffs_lib.NeoclassicalTransport(
+    neoclassical = transport_coeffs.NeoclassicalTransport(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face) * 2.0,
         v_face_el_ware=jnp.ones(n_face),
     )
-    pereverzev = transport_coeffs_lib.PereverzevTransport(
+    pereverzev = transport_coeffs.PereverzevTransport(
         chi_face_ion=jnp.ones(n_face) * 30.0,
         chi_face_el=jnp.ones(n_face) * 30.0,
         full_v_heat_face_ion=jnp.ones(n_face) * 15.0,
@@ -134,12 +133,12 @@ class PedestalStructureTest(parameterized.TestCase):
         d_face_el=jnp.ones(n_face) * 5.0,
         v_face_el=jnp.ones(n_face) * -3.0,
     )
-    total = transport_coeffs_lib.sum_transport_coeffs(
+    total = transport_coeffs.sum_transport_coeffs(
         turbulent.total,
         neoclassical,
         pereverzev,
     )
-    core_transport = state.CoreTransport(
+    core_transport = transport_coeffs.CoreTransport(
         total=total,
         turbulent=turbulent,
         neoclassical=neoclassical,
@@ -177,7 +176,7 @@ class PedestalStructureTest(parameterized.TestCase):
         jnp.where(pedestal_mask, 2.0, 1.0),
     )
     bgb_mod = modified_core_transport.turbulent.core_components['bohm_gyrobohm']
-    self.assertIsInstance(bgb_mod, transport_coeffs_lib.TransportCoeffs)
+    self.assertIsInstance(bgb_mod, transport_coeffs.TransportCoeffs)
     # Constituent core transport coefficients should NOT be scaled by the
     # pedestal model.
     np.testing.assert_allclose(
@@ -277,24 +276,24 @@ class PedestalStructureTest(parameterized.TestCase):
     pedestal_mask = (
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_top
     )
-    turbulent_core = transport_coeffs_lib.TransportCoeffs(
+    turbulent_core = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face),
     )
-    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs(
+    turbulent_pedestal = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.where(pedestal_mask, 0.25, 0.0),
         chi_face_el=jnp.where(pedestal_mask, 0.35, 0.0),
         d_face_el=jnp.where(pedestal_mask, 0.15, 0.0),
         v_face_el=jnp.where(pedestal_mask, -0.05, 0.0),
     )
-    turbulent = transport_coeffs_lib.TurbulentTransport(
+    turbulent = transport_coeffs.TurbulentTransport(
         core=turbulent_core,
         pedestal=turbulent_pedestal,
     )
-    neoclassical = transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo)
-    core_transport = state.CoreTransport(
+    neoclassical = transport_coeffs.NeoclassicalTransport.zeros(self.geo)
+    core_transport = transport_coeffs.CoreTransport(
         total=turbulent.total + neoclassical,
         turbulent=turbulent,
         neoclassical=neoclassical,
@@ -369,30 +368,30 @@ class PedestalStructureTest(parameterized.TestCase):
     )
     pedestal_mask = self.geo.rho_face_norm > ped_output.rho_norm_top
 
-    turbulent_core = transport_coeffs_lib.TransportCoeffs(
+    turbulent_core = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.linspace(1.0, 2.0, n_face),
         chi_face_el=jnp.linspace(1.5, 2.5, n_face),
         d_face_el=jnp.linspace(0.5, 1.5, n_face),
         v_face_el=jnp.linspace(-0.5, 0.5, n_face),
     )
-    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs(
+    turbulent_pedestal = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.where(pedestal_mask, 0.25, 0.0),
         chi_face_el=jnp.where(pedestal_mask, 0.35, 0.0),
         d_face_el=jnp.where(pedestal_mask, 0.15, 0.0),
         v_face_el=jnp.where(pedestal_mask, -0.05, 0.0),
     )
-    turbulent = transport_coeffs_lib.TurbulentTransport(
+    turbulent = transport_coeffs.TurbulentTransport(
         core=turbulent_core,
         pedestal=turbulent_pedestal,
     )
-    neoclassical = transport_coeffs_lib.NeoclassicalTransport(
+    neoclassical = transport_coeffs.NeoclassicalTransport(
         chi_face_ion=jnp.ones(n_face) * 0.1,
         chi_face_el=jnp.ones(n_face) * 0.1,
         d_face_el=jnp.ones(n_face) * 0.1,
         v_face_el=jnp.ones(n_face) * 0.2,
         v_face_el_ware=jnp.ones(n_face) * 0.1,
     )
-    pereverzev = transport_coeffs_lib.PereverzevTransport(
+    pereverzev = transport_coeffs.PereverzevTransport(
         chi_face_ion=jnp.ones(n_face) * 5.0,
         chi_face_el=jnp.ones(n_face) * 5.0,
         full_v_heat_face_ion=jnp.ones(n_face) * 2.5,
@@ -400,8 +399,8 @@ class PedestalStructureTest(parameterized.TestCase):
         d_face_el=jnp.ones(n_face) * 1.0,
         v_face_el=jnp.ones(n_face) * -0.5,
     )
-    core_transport = state.CoreTransport(
-        total=transport_coeffs_lib.sum_transport_coeffs(
+    core_transport = transport_coeffs.CoreTransport(
+        total=transport_coeffs.sum_transport_coeffs(
             turbulent.total, neoclassical, pereverzev
         ),
         turbulent=turbulent,
@@ -515,7 +514,7 @@ class PedestalStructureTest(parameterized.TestCase):
 
     # 3. modified.total equals
     # modified.turbulent.total + neoclassical + pereverzev.
-    expected_sum = transport_coeffs_lib.sum_transport_coeffs(
+    expected_sum = transport_coeffs.sum_transport_coeffs(
         modified.turbulent.total, neoclassical, pereverzev
     )
     np.testing.assert_allclose(
@@ -828,25 +827,25 @@ class PedestalModelOutputTest(parameterized.TestCase):
         transport_multipliers=multipliers,
     )
     n_face = self.geo.rho_face_norm.shape[0]
-    turbulent_core = transport_coeffs_lib.TransportCoeffs(
+    turbulent_core = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face),
     )
-    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs.zeros(self.geo)
-    turbulent = transport_coeffs_lib.TurbulentTransport(
+    turbulent_pedestal = transport_coeffs.TransportCoeffs.zeros(self.geo)
+    turbulent = transport_coeffs.TurbulentTransport(
         core=turbulent_core,
         pedestal=turbulent_pedestal,
     )
-    neoclassical = transport_coeffs_lib.NeoclassicalTransport(
+    neoclassical = transport_coeffs.NeoclassicalTransport(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face) * 2.0,
         v_face_el_ware=jnp.ones(n_face),
     )
-    pereverzev = transport_coeffs_lib.PereverzevTransport(
+    pereverzev = transport_coeffs.PereverzevTransport(
         chi_face_ion=jnp.ones(n_face) * 30.0,
         chi_face_el=jnp.ones(n_face) * 30.0,
         full_v_heat_face_ion=jnp.ones(n_face) * 15.0,
@@ -854,8 +853,8 @@ class PedestalModelOutputTest(parameterized.TestCase):
         d_face_el=jnp.ones(n_face) * 5.0,
         v_face_el=jnp.ones(n_face) * -3.0,
     )
-    core_transport = state.CoreTransport(
-        total=transport_coeffs_lib.sum_transport_coeffs(
+    core_transport = transport_coeffs.CoreTransport(
+        total=transport_coeffs.sum_transport_coeffs(
             turbulent.total, neoclassical, pereverzev
         ),
         turbulent=turbulent,

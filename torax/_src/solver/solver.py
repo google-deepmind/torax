@@ -25,13 +25,13 @@ import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
+from torax._src.solver import solver_numeric_outputs
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -63,7 +63,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs.SolverNumericOutputs,
   ]:
     """Applies a time step update.
 
@@ -113,7 +113,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       )
     else:
       x_new = tuple()
-      solver_numeric_output = state.SolverNumericOutputs(
+      solver_numeric_output = solver_numeric_outputs.SolverNumericOutputs(
           sawtooth_crash=False,
           solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
           inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
@@ -139,7 +139,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs.SolverNumericOutputs,
   ]:
     """Calculates new values of the changing variables.
 

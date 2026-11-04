@@ -206,7 +206,8 @@ Density profiles ``n_e``, ``n_i``, and ``n_impurity`` are stored in SI units of
 pressure properties (``pressure_thermal_e``, ``pressure_thermal_i``,
 ``pressure_thermal_total``, ``pressure_fast_i``, ``pressure_total_i``,
 ``pressure_total``) are direct attributes/properties on ``CoreProfiles``.
-Similarly, ``state_history.core_transport`` (``torax.CoreTransport``) now
+Similarly, ``state_history.core_transport``
+(``torax.transport.CoreTransport``) now
 groups transport coefficients into ``.total``, ``.turbulent``,
 ``.neoclassical``, and ``.pereverzev`` ``TransportCoeffs`` containers.
 

@@ -99,18 +99,21 @@ subject to API changes but users who want to write their own simulation loops
 can experiment with this. If you want to use this in more permanent code, please
 reach out to our team to help us understand your use case.
 
+|orchestration.sim_state.py| defines |SimState|, which tracks the internal
+simulation state at each time step.
+
 output_tools
 ^^^^^^^^^^^^
 
 The |output_tools| module contains the structures of the outputs of a TORAX
 simulation. These are the ``xarray.DataTree`` and |torax.StateHistory| objects.
 
-state
-^^^^^
+core_profiles
+^^^^^^^^^^^^^
 
-The |state| module describes the internal state of TORAX. |ToraxSimState| is
-used to keep track of the internal state throughout a simulation. Each time step
-generates a new state.
+The |core_profiles| package defines ``torax.CoreProfiles``, ``SolverState``,
+and ``SolverProfiles``, which represent the evolved PDE variables and derived
+plasma profiles throughout the simulation.
 
 geometry
 ^^^^^^^^

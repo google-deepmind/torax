@@ -22,10 +22,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import step_function
+from torax._src.solver import solver_numeric_outputs
 from torax._src.torax_pydantic import config
 from torax.tests.scripts import regenerate_sawtooth_refs
 
@@ -99,7 +100,7 @@ class SawtoothModelTest(parameterized.TestCase):
         self.initial_post_processed_outputs,
     )
 
-    np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+    np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
     np.testing.assert_equal(
         output_state.solver_numeric_outputs.sawtooth_crash, np.array(True)
     )
@@ -145,7 +146,7 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state,
         self.initial_post_processed_outputs,
     )
-    np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+    np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
     np.testing.assert_equal(
         output_state.solver_numeric_outputs.sawtooth_crash, np.array(False)
     )
@@ -173,7 +174,7 @@ class SawtoothModelTest(parameterized.TestCase):
     new_input_state_should_crash = dataclasses.replace(
         output_state0,
         core_profiles=self.initial_state.core_profiles,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             inner_solver_iterations=np.array(0, np.int64),
             outer_solver_iterations=np.array(0, np.int64),
             solver_error_state=np.array(0, np.int64),
@@ -190,7 +191,7 @@ class SawtoothModelTest(parameterized.TestCase):
           output_state_should_not_crash,
           post_processed_outputs0,
       )
-      np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+      np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
       np.testing.assert_equal(
           output_state_should_not_crash.solver_numeric_outputs.sawtooth_crash,
           np.array(False),
@@ -208,7 +209,7 @@ class SawtoothModelTest(parameterized.TestCase):
           input_state=new_input_state_should_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )
-      np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+      np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
       np.testing.assert_equal(
           output_state_should_crash.solver_numeric_outputs.sawtooth_crash,
           np.array(True),

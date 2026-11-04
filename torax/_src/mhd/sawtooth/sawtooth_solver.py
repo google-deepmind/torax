@@ -22,7 +22,6 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -31,6 +30,7 @@ from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
+from torax._src.solver import solver_numeric_outputs
 
 
 # TODO(b/414537757). Sawtooth extensions.
@@ -63,7 +63,7 @@ class SawtoothSolver(static_dataclass.StaticDataclass):
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs.SolverNumericOutputs,
   ]:
     """Applies the sawtooth model and outputs new state attributes if triggered.
 
@@ -97,7 +97,7 @@ class SawtoothSolver(static_dataclass.StaticDataclass):
     if not evolving_names:
       return (
           tuple(),
-          state.SolverNumericOutputs(
+          solver_numeric_outputs.SolverNumericOutputs(
               sawtooth_crash=False,
               solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
               inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
@@ -120,7 +120,7 @@ class SawtoothSolver(static_dataclass.StaticDataclass):
 
     def _redistribute_state() -> tuple[
         tuple[cell_variable.CellVariable, ...],
-        state.SolverNumericOutputs,
+        solver_numeric_outputs.SolverNumericOutputs,
     ]:
 
       redistributed_core_profiles = sawtooth_models.redistribution_model(
@@ -157,11 +157,13 @@ class SawtoothSolver(static_dataclass.StaticDataclass):
           evolving_names,
       )
 
-      solver_numeric_outputs_post_step = state.SolverNumericOutputs(
-          sawtooth_crash=True,
-          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
-          inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
-          outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      solver_numeric_outputs_post_step = (
+          solver_numeric_outputs.SolverNumericOutputs(
+              sawtooth_crash=True,
+              solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+              inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+              outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          )
       )
 
       return (
@@ -178,7 +180,7 @@ class SawtoothSolver(static_dataclass.StaticDataclass):
         _redistribute_state,
         lambda: (
             tuple([getattr(solver_state_t, name) for name in evolving_names]),
-            state.SolverNumericOutputs(
+            solver_numeric_outputs.SolverNumericOutputs(
                 sawtooth_crash=False,
                 solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
                 inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),

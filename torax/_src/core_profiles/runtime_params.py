@@ -25,7 +25,7 @@ from torax._src.internal_boundary_conditions import internal_boundary_conditions
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, eq=False)
 class PrescribedFastIonData:
   """Evaluated prescribed fast ion data for a single species at time t.
 
@@ -88,7 +88,7 @@ class NeBoundaryConditionMode(enum.StrEnum):
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class RuntimeParams:
   """Prescribed values and boundary conditions for the core profiles."""
 

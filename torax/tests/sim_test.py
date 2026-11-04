@@ -25,8 +25,8 @@ from typing import Any, Final, Sequence
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src import state
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
@@ -658,7 +658,7 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
     state_history = run_simulation.run_simulation(torax_config)
 
-    self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NAN_DETECTED)
     self.assertLess(
         state_history.times[-1], torax_config.time_step_calculator.t_final
     )
@@ -677,7 +677,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Check that the simulation stopped due to low temperature collapse
     self.assertEqual(
-        state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
+        state_history.sim_error, sim_error.SimError.LOW_TEMPERATURE_COLLAPSE
     )
     self.assertLess(
         state_history.times[-1], torax_config.time_step_calculator.t_final
@@ -717,7 +717,7 @@ class SimTest(sim_test_case.SimTestCase):
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
-    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
 
     output_xr = state_history.simulation_output_to_xr()
     times = output_xr.time.values

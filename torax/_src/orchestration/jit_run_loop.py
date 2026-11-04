@@ -22,9 +22,9 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
@@ -297,7 +297,7 @@ def run_loop(
 ) -> tuple[
     sim_state.SimState,
     post_processing.PostProcessedOutputs,
-    state.SimError,
+    sim_error_lib.SimError,
 ]:
   """Runs the simulation loop with jax.jit.
 
@@ -404,7 +404,7 @@ def run_loop(
       final_state,
       final_post_processed_outputs,
   )
-  if sim_error != state.SimError.NO_ERROR:
+  if sim_error != sim_error_lib.SimError.NO_ERROR:
     # `while_loop_bounded` records the step output before `_cond_fun` checks
     # `has_any_step_error` on the next iteration, so drop the invalid final
     # step. Guard `num_states > 1` so `initial_state` is kept if it had an
@@ -413,7 +413,7 @@ def run_loop(
     if num_states > 1:
       num_states -= 1
   elif not step_fn.is_done(final_state.t):
-    sim_error = state.SimError.DID_NOT_REACH_T_FINAL
+    sim_error = sim_error_lib.SimError.DID_NOT_REACH_T_FINAL
 
   # Slice out the unexecuted (NaN-padded) steps from the bounded while_loop.
   states_history, post_processed_outputs_history = jax.tree.map(

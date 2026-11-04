@@ -20,7 +20,6 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
@@ -39,6 +38,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.physics import psi_calculations
+from torax._src.solver import solver_numeric_outputs
 from torax._src.torax_pydantic import file_restart as file_restart_config
 import xarray as xr
 
@@ -152,7 +152,7 @@ def _get_initial_state(
       core_profiles=evaluated_state.core_profiles,
       core_sources=evaluated_state.core_sources,
       core_transport=evaluated_state.core_transport,
-      solver_numeric_outputs=state.SolverNumericOutputs(
+      solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
           solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
           inner_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
@@ -420,7 +420,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       core_profiles=evaluated_state.core_profiles,
       core_sources=evaluated_state.core_sources,
       core_transport=evaluated_state.core_transport,
-      solver_numeric_outputs=state.SolverNumericOutputs(
+      solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
           sawtooth_crash=sawtooth_crash,
           solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.asarray(

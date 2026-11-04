@@ -300,11 +300,13 @@ rst_epilog = f"""
 .. |PedestalModel| replace:: `PedestalModel <PedestalModel_target_>`__
 .. _PedestalModel_target: {github_base_url}/torax/_src/pedestal_model/pedestal_model.py
 
-.. |state| replace:: `state <torax_src_state_target_>`__
-.. _torax_src_state_target: {github_base_url}/torax/_src/state.py
+.. |core_profiles| replace:: `core_profiles <core_profiles_package_target_>`__
+.. _core_profiles_package_target: {github_base_url}/torax/_src/core_profiles/
 
-.. |ToraxSimState| replace:: `ToraxSimState <torax_src_state_ToraxSimState_target_>`__
-.. _torax_src_state_ToraxSimState_target: {github_base_url}/torax/_src/state.py
+.. |orchestration.sim_state.py| replace:: `sim_state.py <orchestration_sim_state_target_>`__
+.. _orchestration_sim_state_target: {github_base_url}/torax/_src/orchestration/sim_state.py
+
+.. |SimState| replace:: `SimState <orchestration_sim_state_target_>`__
 
 .. |geometry| replace:: `geometry <geometry_package_target_>`__
 .. _geometry_package_target: {github_base_url}/torax/_src/geometry/
