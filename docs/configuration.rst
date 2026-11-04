@@ -8,6 +8,10 @@ Simulation input configuration
 Jump to :ref:`config_details` for an immediate overview of all configuration
 parameters.
 
+.. note::
+   Upgrading from TORAX v1? See :ref:`migration_guide` for a complete mapping
+   of renamed, moved, and restructured ``ToraxConfig`` fields.
+
 General notes
 =============
 
