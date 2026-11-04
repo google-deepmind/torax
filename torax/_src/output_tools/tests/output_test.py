@@ -224,9 +224,11 @@ class StateHistoryTest(parameterized.TestCase):
       self.assertIn(output_keys.D_TURB_E, prescribed_ds.data_vars)
       self.assertIn(output_keys.V_TURB_E, prescribed_ds.data_vars)
 
-  def test_stateless_simulation_omits_model_state(self):
+  def test_pedestal_model_state_is_saved(self):
     output_xr = self.history.simulation_output_to_xr()
-    self.assertNotIn(output_keys.MODEL_STATE, output_xr.children)
+    self.assertIn(output_keys.MODEL_STATE, output_xr.children)
+    model_state_tree = output_xr.children[output_keys.MODEL_STATE]
+    self.assertIn(output_keys.PEDESTAL, model_state_tree.children)
     self.assertLen(self.history.model_states, 1)
 
   def test_geometry_is_saved(self):
@@ -922,6 +924,8 @@ class StateHistoryTest(parameterized.TestCase):
         extended_lengyel_standalone.N_ROOTS,
         # Edge model status.
         extended_lengyel_standalone.MULTIPLE_ROOTS_FOUND,
+        # Pedestal model status.
+        output_keys.CONFINEMENT_MODE,
     })
 
     output_xr = self.history.simulation_output_to_xr()
@@ -1058,7 +1062,11 @@ class StateHistoryTest(parameterized.TestCase):
     np.testing.assert_allclose(core_profiles[0].poloidal_flux.v_loop_lcfs, 5.0)
     np.testing.assert_allclose(core_profiles[1].poloidal_flux.v_loop_lcfs, 5.0)
 
-    self.assertNotIn(output_keys.MODEL_STATE, output_xr.children)
+    self.assertIn(output_keys.MODEL_STATE, output_xr.children)
+    self.assertIn(
+        output_keys.PEDESTAL,
+        output_xr.children[output_keys.MODEL_STATE].children,
+    )
     self.assertLen(history.model_states, 2)
     self.assertIsInstance(history.model_states[0], model_state_lib.ModelState)
 

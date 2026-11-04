@@ -195,6 +195,17 @@ TRANSPORT: Final[OutputKey] = OutputKey(
     units=Units.NOT_APPLICABLE,
     grid_type=GridType.NOT_APPLICABLE,
 )
+# Child group names under /model_state/pedestal.
+PEDESTAL_STRUCTURE: Final[OutputKey] = OutputKey(
+    "structure",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+PEDESTAL_FORMATION: Final[OutputKey] = OutputKey(
+    "formation",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.
@@ -984,6 +995,45 @@ WARM_START_C_Z_PREFACTOR: Final[OutputKey] = OutputKey(
 HAS_VIABLE_WARM_START: Final[OutputKey] = OutputKey(
     "has_viable_warm_start",
     units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+
+# ---------------------------------------------------------------------------
+# Pedestal model state.
+# ---------------------------------------------------------------------------
+CONFINEMENT_MODE: Final[OutputKey] = OutputKey(
+    "confinement_mode",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+TRANSITION_START_TIME: Final[OutputKey] = OutputKey(
+    "transition_start_time",
+    units=Units.SECOND,
+    grid_type=GridType.SCALAR,
+)
+T_I_TOP_L_MODE: Final[OutputKey] = OutputKey(
+    "T_i_top_L_mode",
+    units=Units.KEV,
+    grid_type=GridType.SCALAR,
+)
+T_E_TOP_L_MODE: Final[OutputKey] = OutputKey(
+    "T_e_top_L_mode",
+    units=Units.KEV,
+    grid_type=GridType.SCALAR,
+)
+N_E_TOP_L_MODE: Final[OutputKey] = OutputKey(
+    "n_e_top_L_mode",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+RHO_NORM_TOP: Final[OutputKey] = OutputKey(
+    "rho_norm_top",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+FORMATION_TIME: Final[OutputKey] = OutputKey(
+    "formation_time",
+    units=Units.SECOND,
     grid_type=GridType.SCALAR,
 )
 

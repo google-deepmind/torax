@@ -50,6 +50,9 @@ class ModelState:
       stateless.
     """
     children: dict[str, xr.DataTree] = {}
+    pedestal_tree = self.pedestal.to_xr_datatree(context)
+    if pedestal_tree is not None:
+      children[output_keys.PEDESTAL] = pedestal_tree
     transport_tree = self.transport.to_xr_datatree(context)
     if transport_tree is not None:
       children[output_keys.TRANSPORT] = transport_tree

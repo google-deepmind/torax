@@ -17,12 +17,15 @@
 import dataclasses
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
@@ -31,6 +34,7 @@ from torax._src.physics import formulas
 from torax._src.physics import scaling_laws
 from torax._src.sources import core_sources as core_sources_lib
 from typing_extensions import override
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -68,6 +72,30 @@ class PowerScalingFormationState(pedestal_state_lib.FormationState):
   W_thermal_total: array_typing.FloatScalar | None = None
   dW_thermal_dt_smoothed: array_typing.FloatScalar | None = None
   t: array_typing.FloatScalar | None = None
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of power scaling formation state, or None."""
+    if self.W_thermal_total is None:
+      return None
+    assert self.dW_thermal_dt_smoothed is not None and self.t is not None
+    data_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.W_THERMAL_TOTAL: context.pack(
+            output_keys.W_THERMAL_TOTAL,
+            np.atleast_1d(np.asarray(self.W_thermal_total)),
+        ),
+        output_keys.DW_THERMAL_DT_SMOOTHED: context.pack(
+            output_keys.DW_THERMAL_DT_SMOOTHED,
+            np.atleast_1d(np.asarray(self.dW_thermal_dt_smoothed)),
+        ),
+        output_keys.FORMATION_TIME: context.pack(
+            output_keys.FORMATION_TIME,
+            np.atleast_1d(np.asarray(self.t)),
+        ),
+    }
+    return xr.DataTree(dataset=context.build_dataset(data_vars))
 
 
 @jax.jit
@@ -138,6 +166,60 @@ class PowerScalingFormationModel(base.FormationModel):
         W_thermal_total=W_thermal_total,
         dW_thermal_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         t=jnp.asarray(runtime_params.t, dtype=jax_utils.get_dtype()),
+    )
+
+  @override
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> PowerScalingFormationState:
+    """Reconstructs PowerScalingFormationState from a DataTree.
+
+    Args:
+      datatree: DataTree containing power scaling formation state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed PowerScalingFormationState.
+
+    Raises:
+      ValueError: If include_dW_dt_in_P_SOL is True but datatree is None or
+        missing required variables.
+    """
+    assert isinstance(
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
+    )
+    if not runtime_params.pedestal.formation.include_dW_dt_in_P_SOL:
+      return PowerScalingFormationState()
+    if datatree is None:
+      raise ValueError(
+          'PowerScalingFormationModel with include_dW_dt_in_P_SOL=True '
+          'requires a non-None formation DataTree.'
+      )
+    required_keys = (
+        output_keys.W_THERMAL_TOTAL,
+        output_keys.DW_THERMAL_DT_SMOOTHED,
+        output_keys.FORMATION_TIME,
+    )
+    missing = [k for k in required_keys if k not in datatree.dataset.data_vars]
+    if missing:
+      raise ValueError(
+          f'Missing required variables in formation DataTree: {missing}'
+      )
+    ds = datatree.dataset
+    dtype = jax_utils.get_dtype()
+    return PowerScalingFormationState(
+        W_thermal_total=jnp.asarray(
+            np.squeeze(ds[output_keys.W_THERMAL_TOTAL].values), dtype=dtype
+        ),
+        dW_thermal_dt_smoothed=jnp.asarray(
+            np.squeeze(ds[output_keys.DW_THERMAL_DT_SMOOTHED].values),
+            dtype=dtype,
+        ),
+        t=jnp.asarray(
+            np.squeeze(ds[output_keys.FORMATION_TIME].values), dtype=dtype
+        ),
     )
 
   @override

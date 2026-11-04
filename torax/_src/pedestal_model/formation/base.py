@@ -27,6 +27,7 @@ from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import core_sources as core_sources_lib
+import xarray as xr
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -41,6 +42,23 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
   ) -> pedestal_state_lib.FormationState:
     """Returns the initial FormationState for this model."""
     del runtime_params, geo, core_profiles
+    return pedestal_state_lib.FormationState()
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.FormationState:
+    """Reconstructs FormationState from a DataTree.
+
+    Args:
+      datatree: DataTree containing formation model state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed FormationState.
+    """
+    del datatree, runtime_params
     return pedestal_state_lib.FormationState()
 
   def update_state(

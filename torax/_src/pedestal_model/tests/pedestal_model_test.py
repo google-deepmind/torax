@@ -21,6 +21,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax._src.output_tools import output_grid_context
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
@@ -685,6 +686,71 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     assert updated_state.formation.t is not None
     np.testing.assert_allclose(updated_state.formation.t, t)
 
+  def test_ibc_pedestal_state_round_trip(self):
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=self.geo.rho_face_norm,
+        rho_cell_norm=self.geo.rho_norm,
+        rho_cell_plus_boundaries_norm=self.geo.rho_norm,
+    )
+    _, initial_ibc_state = self.pedestal_model.initialize(
+        self.runtime_params, self.geo, self.core_profiles, self.source_profiles
+    )
+    tree = initial_ibc_state.to_xr_datatree(context)
+    assert tree is not None
+    slice_tree = tree.sel(time=0.0, method='nearest')
+    restored = self.pedestal_model.initial_state_from_datatree(
+        slice_tree,
+        self.runtime_params,
+    )
+    self.assertEqual(
+        restored.confinement_mode, initial_ibc_state.confinement_mode
+    )
+    self.assertTrue(jnp.isneginf(restored.transition_start_time))
+    np.testing.assert_allclose(
+        restored.rho_norm_top, initial_ibc_state.rho_norm_top
+    )
+    np.testing.assert_allclose(
+        restored.T_i_top_L_mode, initial_ibc_state.T_i_top_L_mode
+    )
+    np.testing.assert_allclose(
+        restored.T_e_top_L_mode, initial_ibc_state.T_e_top_L_mode
+    )
+    np.testing.assert_allclose(
+        restored.n_e_top_L_mode, initial_ibc_state.n_e_top_L_mode
+    )
+
+    mid_state = self._make_ibc_state(
+        confinement_mode=ConfinementMode.TRANSITIONING_TO_H_MODE,
+        transition_start_time=1.5,
+        T_i_top_L_mode=1.2,
+        T_e_top_L_mode=1.1,
+        n_e_top_L_mode=2.5e19,
+        rho_norm_top=0.92,
+    )
+    tree_mid = mid_state.to_xr_datatree(context)
+    assert tree_mid is not None
+    slice_mid = tree_mid.sel(time=0.0, method='nearest')
+    restored_mid = self.pedestal_model.initial_state_from_datatree(
+        slice_mid,
+        self.runtime_params,
+    )
+    self.assertEqual(
+        restored_mid.confinement_mode,
+        ConfinementMode.TRANSITIONING_TO_H_MODE,
+    )
+    np.testing.assert_allclose(restored_mid.transition_start_time, 1.5)
+    np.testing.assert_allclose(restored_mid.T_i_top_L_mode, 1.2)
+    np.testing.assert_allclose(restored_mid.T_e_top_L_mode, 1.1)
+    np.testing.assert_allclose(restored_mid.n_e_top_L_mode, 2.5e19)
+    np.testing.assert_allclose(restored_mid.rho_norm_top, 0.92)
+
+  def test_ibc_pedestal_state_none_datatree_raises(self):
+    with self.assertRaises(ValueError):
+      self.pedestal_model.initial_state_from_datatree(
+          None, self.runtime_params
+      )
+
 
 class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
   """Unit tests for AdaptiveTransportPedestalModel."""
@@ -941,6 +1007,31 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     np.testing.assert_allclose(
         state_implicit.formation.t, self.runtime_params.t
     )
+
+  def test_adaptive_transport_pedestal_state_round_trip(self):
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=self.geo.rho_face_norm,
+        rho_cell_norm=self.geo.rho_norm,
+        rho_cell_plus_boundaries_norm=self.geo.rho_norm,
+    )
+    adaptive_state = self._make_adaptive_state(
+        confinement_mode=ConfinementMode.H_MODE
+    )
+    tree = adaptive_state.to_xr_datatree(context)
+    assert tree is not None
+    slice_tree = tree.sel(time=0.0, method='nearest')
+    restored = self.pedestal_model.initial_state_from_datatree(
+        slice_tree,
+        self.runtime_params,
+    )
+    self.assertEqual(restored.confinement_mode, ConfinementMode.H_MODE)
+
+  def test_adaptive_transport_pedestal_state_none_datatree_raises(self):
+    with self.assertRaises(ValueError):
+      self.pedestal_model.initial_state_from_datatree(
+          None, self.runtime_params
+      )
 
 
 if __name__ == '__main__':

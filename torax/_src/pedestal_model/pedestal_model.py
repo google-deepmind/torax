@@ -22,11 +22,14 @@ import dataclasses
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import (
@@ -37,6 +40,7 @@ from torax._src.pedestal_model.saturation import base as saturation_base
 from torax._src.pedestal_model.structure import base as structure_base
 from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.sources import core_sources as core_sources_lib
+import xarray as xr
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -61,6 +65,14 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       pedestal_state_lib.PedestalState,
   ]:
     """Initializes the pedestal state and output."""
+
+  @abc.abstractmethod
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.PedestalState:
+    """Reconstructs PedestalState from a DataTree."""
 
   @abc.abstractmethod
   def pre_step(
@@ -180,6 +192,66 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
             confinement_mode=confinement_mode,
         ),
         pedestal_state,
+    )
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.IBCPedestalState:
+    """Reconstructs IBCPedestalState from a DataTree."""
+    if datatree is None:
+      raise ValueError(
+          'InternalBoundaryConditionPedestalModel requires a non-None '
+          'pedestal DataTree.'
+      )
+    required_keys = (
+        output_keys.CONFINEMENT_MODE,
+        output_keys.TRANSITION_START_TIME,
+        output_keys.T_I_TOP_L_MODE,
+        output_keys.T_E_TOP_L_MODE,
+        output_keys.N_E_TOP_L_MODE,
+        output_keys.RHO_NORM_TOP,
+    )
+    missing = [k for k in required_keys if k not in datatree.dataset.data_vars]
+    if missing:
+      raise ValueError(
+          f'Missing required variables in pedestal DataTree: {missing}'
+      )
+    children = datatree.children
+    structure_state = self.structure_model.initial_state_from_datatree(
+        children.get(output_keys.PEDESTAL_STRUCTURE),
+        runtime_params,
+    )
+    formation_state = self.formation_model.initial_state_from_datatree(
+        children.get(output_keys.PEDESTAL_FORMATION),
+        runtime_params,
+    )
+    ds = datatree.dataset
+    dtype = jax_utils.get_dtype()
+    return pedestal_state_lib.IBCPedestalState(
+        structure=structure_state,
+        formation=formation_state,
+        confinement_mode=jnp.asarray(
+            np.squeeze(ds[output_keys.CONFINEMENT_MODE].values),
+            dtype=jax_utils.get_int_dtype(),
+        ),
+        transition_start_time=jnp.asarray(
+            np.squeeze(ds[output_keys.TRANSITION_START_TIME].values),
+            dtype=dtype,
+        ),
+        T_i_top_L_mode=jnp.asarray(
+            np.squeeze(ds[output_keys.T_I_TOP_L_MODE].values), dtype=dtype
+        ),
+        T_e_top_L_mode=jnp.asarray(
+            np.squeeze(ds[output_keys.T_E_TOP_L_MODE].values), dtype=dtype
+        ),
+        n_e_top_L_mode=jnp.asarray(
+            np.squeeze(ds[output_keys.N_E_TOP_L_MODE].values), dtype=dtype
+        ),
+        rho_norm_top=jnp.asarray(
+            np.squeeze(ds[output_keys.RHO_NORM_TOP].values), dtype=dtype
+        ),
     )
 
   def pre_step(
@@ -361,6 +433,48 @@ class AdaptiveTransportPedestalModel(PedestalModel):
         transport_multipliers=transport_multipliers,
     )
     return output, pedestal_state
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.AdaptiveTransportPedestalState:
+    """Reconstructs AdaptiveTransportPedestalState from a DataTree."""
+    if (
+        datatree is None
+        or output_keys.CONFINEMENT_MODE not in datatree.dataset.data_vars
+    ):
+      raise ValueError(
+          'AdaptiveTransportPedestalModel requires confinement_mode in '
+          'pedestal DataTree.'
+      )
+    mode_val = int(
+        np.squeeze(datatree.dataset[output_keys.CONFINEMENT_MODE].values)
+    )
+    if mode_val not in (
+        int(pedestal_runtime_params_lib.ConfinementMode.L_MODE),
+        int(pedestal_runtime_params_lib.ConfinementMode.H_MODE),
+    ):
+      raise ValueError(
+          f'Invalid confinement_mode {mode_val} for '
+          'AdaptiveTransportPedestalModel.'
+      )
+    children = datatree.children
+    structure_state = self.structure_model.initial_state_from_datatree(
+        children.get(output_keys.PEDESTAL_STRUCTURE),
+        runtime_params,
+    )
+    formation_state = self.formation_model.initial_state_from_datatree(
+        children.get(output_keys.PEDESTAL_FORMATION),
+        runtime_params,
+    )
+    return pedestal_state_lib.AdaptiveTransportPedestalState(
+        structure=structure_state,
+        formation=formation_state,
+        confinement_mode=jnp.asarray(
+            mode_val, dtype=jax_utils.get_int_dtype()
+        ),
+    )
 
   def pre_step(
       self,

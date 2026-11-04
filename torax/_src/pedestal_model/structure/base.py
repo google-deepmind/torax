@@ -22,6 +22,7 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model.structure import pedestal_structure
+import xarray as xr
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -45,6 +46,23 @@ class PedestalStructureModel(static_dataclass.StaticDataclass, abc.ABC):
       Initial `StructureState` for the pedestal structure model.
     """
     del runtime_params, geo, core_profiles
+    return pedestal_state_lib.StructureState()
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.StructureState:
+    """Reconstructs StructureState from a DataTree.
+
+    Args:
+      datatree: DataTree containing structure model state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed StructureState.
+    """
+    del datatree, runtime_params
     return pedestal_state_lib.StructureState()
 
   @abc.abstractmethod

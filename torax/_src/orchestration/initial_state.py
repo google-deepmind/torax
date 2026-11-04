@@ -32,7 +32,6 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.torax_pydantic import file_restart as file_restart_config
 import xarray as xr
 
@@ -266,32 +265,17 @@ def get_initial_state_and_post_processed_outputs_from_file(
           v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
       ),
   )
-  pedestal_state = initial_state.model_state.pedestal
-  # TODO(b/434175938): Have model states reconstruct themselves from restart
-  # outputs instead of special-casing specific state subclasses here.
-  if isinstance(
-      pedestal_state.formation,
-      power_scaling_formation_model.PowerScalingFormationState,
-  ):
-    if pedestal_state.formation.dW_thermal_dt_smoothed is not None:
-      dw_thermal_dt_smoothed = jnp.asarray(
-          scalars_dataset.data_vars['dW_thermal_dt_smoothed'].to_numpy(),
-          dtype=jax_utils.get_dtype(),
-      )
-    else:
-      dw_thermal_dt_smoothed = None
-    if pedestal_state.formation.t is not None:
-      t_formation = jnp.asarray(t_restart, dtype=jax_utils.get_dtype())
-    else:
-      t_formation = None
-    pedestal_state = dataclasses.replace(
-        pedestal_state,
-        formation=dataclasses.replace(
-            pedestal_state.formation,
-            dW_thermal_dt_smoothed=dw_thermal_dt_smoothed,
-            t=t_formation,
-        ),
+  if output_keys.MODEL_STATE in data_tree.children:
+    pedestal_tree = data_tree.children[output_keys.MODEL_STATE].children.get(
+        output_keys.PEDESTAL
     )
+  else:
+    pedestal_tree = None
+  pedestal_state = (
+      step_fn.solver.models.pedestal_model.initial_state_from_datatree(
+          pedestal_tree, runtime_params_for_init
+      )
+  )
   model_state = dataclasses.replace(
       initial_state.model_state,
       pedestal=pedestal_state,
