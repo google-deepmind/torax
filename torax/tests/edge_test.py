@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Testing the public API of the edge package."""
+"""Testing the API of the experimental edge package."""
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
@@ -23,12 +23,12 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import torax
-from torax import edge
 from torax import sources
 from torax import torax_pydantic
 from torax._src.config import build_runtime_params
 from torax._src.edge import base as edge_base
 from torax._src.test_utils import default_configs
+from torax.experimental import edge
 
 # pylint: disable=invalid-name
 

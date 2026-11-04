@@ -58,8 +58,8 @@ class AnalyticalNeoclassicalConfig(NeoclassicalConfigBase):
       `'analytical'` model combines four modular analytical sub-models
       configured under `bootstrap_current`, `conductivity`, `transport`, and
       `poloidal_velocity`. Custom top-level neoclassical models can also be
-      registered via `torax.neoclassical.register_neoclassical_model` (see
-      :ref:`model-integration`).
+      registered via `torax.experimental.neoclassical.register_neoclassical_model`
+      (see :ref:`model-integration`).
     bootstrap_current: Config for the bootstrap current model. Defaults to
       `'zeros'` if omitted, or `'sauter'` if a dict is provided without
       `model_name`. Available `model_name` options:

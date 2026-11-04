@@ -153,11 +153,11 @@ internal modules have moved into dedicated public subpackages:
    * - ``torax.experimental.run_simulation_jitted``
      - ``torax.run_simulation`` (or ``torax.experimental.run_loop_jit``)
 
-TORAX v2 exposes the public subpackages ``torax.constants``, ``torax.edge``,
-``torax.experimental``, ``torax.math_utils``, ``torax.neoclassical``,
-``torax.output``, ``torax.pedestal``, ``torax.sources``,
-``torax.torax_pydantic``, and ``torax.transport``, as well as ``torax.CoreSources``
-and ``torax.SolverProfiles`` at the top level.
+TORAX v2 exposes the public subpackages ``torax.constants``,
+``torax.experimental``, ``torax.math_utils``, ``torax.output``,
+``torax.pedestal``, ``torax.sources``, ``torax.torax_pydantic``, and
+``torax.transport``, as well as ``torax.CoreSources`` and
+``torax.SolverProfiles`` at the top level.
 
 ``CoreProfiles`` nested container structure
 -------------------------------------------
@@ -264,9 +264,10 @@ pedestal structure/formation separation, and stateful models. See
     ``power_density_e``, ``j_parallel``, ``particle_source_e``, and optional
     ``fast_ions``).
 
-* **Edge and neoclassical** (``torax.edge``, ``torax.neoclassical``): New public
-  registration APIs (``EdgeModel``, ``EdgeModelConfig``, ``register_edge_model``
-  and ``NeoclassicalModel``, ``NeoclassicalConfigBase``,
+* **Edge and neoclassical** (``torax.experimental.edge``,
+  ``torax.experimental.neoclassical``): New experimental registration APIs
+  (``EdgeModel``, ``EdgeModelConfig``, ``register_edge_model`` and
+  ``NeoclassicalModel``, ``NeoclassicalConfigBase``,
   ``register_neoclassical_model``) are now available.
 
 .. _migration_config:

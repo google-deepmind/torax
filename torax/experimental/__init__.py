@@ -26,18 +26,22 @@ from torax._src.orchestration.step_function import SimulationStepFn
 from torax._src.plotting.plotruns_lib import create_plotly_figure
 from torax._src.torax_pydantic.interpolated_param_1d import TimeVaryingScalarUpdate
 from torax._src.torax_pydantic.interpolated_param_2d import TimeVaryingArrayUpdate
+from torax.experimental import edge
 from torax.experimental import fast_ion
 from torax.experimental import gas_puff_feedback_source
 from torax.experimental import geometry
 from torax.experimental import jax_utils
+from torax.experimental import neoclassical
 
 __all__ = [
     'create_plotly_figure',
+    'edge',
     'fast_ion',
     'gas_puff_feedback_source',
     'geometry',
     'jax_utils',
     'make_step_fn',
+    'neoclassical',
     'run_loop_jit',
     'RuntimeParamsProvider',
     'ValidUpdates',

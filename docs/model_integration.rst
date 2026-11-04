@@ -524,14 +524,14 @@ edge model, you need to:
 Step 1: Implement the edge model
 --------------------------------
 
-Create a frozen dataclass that inherits from ``torax.edge.EdgeModel`` and
+Create a frozen dataclass that inherits from ``torax.experimental.edge.EdgeModel`` and
 implements the ``__call__`` method (and optionally ``initial_state`` if the
 model carries persistent state across time steps). The ``__call__``
 method receives the current edge runtime parameters, full simulation runtime
 parameters, geometry, core profiles, and source profiles, and must
-return a tuple of ``torax.edge.EdgeModelOutputs`` with the boundary conditions
+return a tuple of ``torax.experimental.edge.EdgeModelOutputs`` with the boundary conditions
 computed by the model (any boundary conditions not computed by the model should
-be left as ``None``) and ``torax.edge.EdgeState``:
+be left as ``None``) and ``torax.experimental.edge.EdgeState``:
 
 * ``T_e_right_bc``: Electron temperature boundary condition at the LCFS [keV].
 * ``T_i_right_bc``: Ion temperature boundary condition at the LCFS [keV].
@@ -544,8 +544,8 @@ be left as ``None``) and ``torax.edge.EdgeState``:
     import dataclasses
     import jax.numpy as jnp
     import torax
-    from torax import edge
     from torax import sources
+    from torax.experimental import edge
 
     @dataclasses.dataclass(frozen=True, eq=False)
     class MyEdgeModel(edge.EdgeModel):
@@ -584,8 +584,8 @@ included under ``/model_state`` in simulation outputs and restarts:
     import dataclasses
     import jax
     import numpy as np
-    from torax import edge
     from torax import output
+    from torax.experimental import edge
     import xarray as xr
 
     MY_STATE_VAR = output.OutputKey(
@@ -616,9 +616,9 @@ Step 2: Define the pydantic config
 ----------------------------------
 
 Create a pydantic config class that inherits from
-``torax.edge.EdgeModelConfig`` and implements ``build_edge_model``. Declare
+``torax.experimental.edge.EdgeModelConfig`` and implements ``build_edge_model``. Declare
 ``supported_boundary_conditions`` as a ``ClassVar`` of type
-``torax.edge.SupportedBoundaryConditions`` to specify which boundary conditions
+``torax.experimental.edge.SupportedBoundaryConditions`` to specify which boundary conditions
 your model is capable of calculating (by default on
 ``SupportedBoundaryConditions``, all four are ``False``), and a ``model_name``
 field with a unique ``Literal`` type identifying the model. Each ``update_*``
@@ -629,8 +629,8 @@ for an unsupported boundary condition.
 .. code-block:: python
 
     from typing import Annotated, ClassVar, Literal
-    from torax import edge
     from torax import torax_pydantic
+    from torax.experimental import edge
 
     class MyEdgeConfig(edge.EdgeModelConfig):
       """Pydantic config for MyEdgeModel."""
@@ -652,7 +652,7 @@ for an unsupported boundary condition.
 Step 3: Register the model
 --------------------------
 
-Call ``torax.edge.register_edge_model`` with your pydantic config class.
+Call ``torax.experimental.edge.register_edge_model`` with your pydantic config class.
 This must be done at module level before any TORAX config is built.
 
 .. code-block:: python
@@ -714,7 +714,7 @@ any boundary conditions it should not provide:
 Registering a custom neoclassical model
 =======================================
 
-Use ``torax.neoclassical.register_neoclassical_model`` to couple a custom
+Use ``torax.experimental.neoclassical.register_neoclassical_model`` to couple a custom
 neoclassical model, for example an integrated solver that computes neoclassical
 currents, rotation, and transport.
 
@@ -731,8 +731,8 @@ Create a ``NeoclassicalModel`` subclass implementing
     import jax
     import jax.numpy as jnp
     import torax
-    from torax import neoclassical
     from torax import torax_pydantic
+    from torax.experimental import neoclassical
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)

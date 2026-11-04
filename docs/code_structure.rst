@@ -224,7 +224,7 @@ sub-models or with an integrated model:
   neoclassical transport across the two steps.
 
 Custom implementations—either a top-level integrated ``NeoclassicalModel`` or
-individual analytical sub-models—can be registered via ``torax.neoclassical``
+individual analytical sub-models—can be registered via ``torax.experimental.neoclassical``
 (see :ref:`model-integration`).
 
 time_step_calculator

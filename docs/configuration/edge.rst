@@ -271,5 +271,5 @@ Custom Edge Models
 
 TORAX provides a modular edge model interface allowing users to implement and
 register custom edge physics models. For instructions on implementing and
-registering custom edge models via ``torax.edge.register_edge_model``, see
+registering custom edge models via ``torax.experimental.edge.register_edge_model``, see
 :ref:`model-integration`.
