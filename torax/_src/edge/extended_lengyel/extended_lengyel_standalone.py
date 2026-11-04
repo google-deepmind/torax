@@ -263,6 +263,20 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   roots: ExtendedLengyelOutputs | None = None
   multiple_roots_found: jax.Array | None = None
 
+  def build_initial_guess(
+      self,
+      computation_mode: extended_lengyel_enums.ComputationMode,
+  ) -> divertor_sol_1d_lib.ExtendedLengyelInitialGuess:
+    """Builds the solver initial-guess dataclass for `computation_mode`."""
+    return divertor_sol_1d_lib.build_initial_guess(
+        computation_mode,
+        alpha_t=self.alpha_t,
+        kappa_e=self.kappa_e,
+        T_e_separatrix=self.T_e_separatrix * 1e3,
+        T_e_target=self.T_e_target,
+        c_z_prefactor=self.c_z_prefactor,
+    )
+
   # TODO(b/323504363): b/446608829 - Simplify this function where viable.
   def get_unique_roots(self) -> ExtendedLengyelOutputs | None:
     """Identifies and returns unique valid roots from solver results.

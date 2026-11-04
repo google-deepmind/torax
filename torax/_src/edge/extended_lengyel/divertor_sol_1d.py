@@ -36,7 +36,9 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 
 # pylint: disable=invalid-name
@@ -126,6 +128,62 @@ class InverseInitialGuess(ExtendedLengyelInitialGuess):
   """Initial guess variables for Inverse mode."""
 
   c_z_prefactor: array_typing.FloatScalar
+
+
+def build_initial_guess(
+    computation_mode: extended_lengyel_enums.ComputationMode,
+    *,
+    alpha_t: array_typing.FloatScalar,
+    kappa_e: array_typing.FloatScalar,
+    T_e_separatrix: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar | None = None,
+    c_z_prefactor: array_typing.FloatScalar | None = None,
+) -> ForwardInitialGuess | InverseInitialGuess:
+  """Builds a ForwardInitialGuess or InverseInitialGuess dataclass.
+
+  Args:
+    computation_mode: Whether solving in forward or inverse mode.
+    alpha_t: Initial guess for heat flux fraction to target.
+    kappa_e: Initial guess for electron parallel heat conductivity.
+    T_e_separatrix: Initial guess for separatrix electron temperature [eV].
+    T_e_target: Initial guess for target electron temperature [eV]. Required for
+      forward mode.
+    c_z_prefactor: Initial guess for impurity concentration scaling factor.
+      Required for inverse mode.
+
+  Returns:
+    An instance of ForwardInitialGuess or InverseInitialGuess.
+
+  Raises:
+    ValueError: If a required field for the computation mode is None.
+  """
+  dtype = jax_utils.get_dtype()
+  alpha_t = jnp.asarray(alpha_t, dtype=dtype)
+  kappa_e = jnp.asarray(kappa_e, dtype=dtype)
+  T_e_separatrix = jnp.asarray(T_e_separatrix, dtype=dtype)
+
+  if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
+    if T_e_target is None:
+      raise ValueError('T_e_target is required for FORWARD computation mode.')
+    return ForwardInitialGuess(
+        alpha_t=alpha_t,
+        kappa_e=kappa_e,
+        T_e_separatrix=T_e_separatrix,
+        T_e_target=jnp.asarray(T_e_target, dtype=dtype),
+    )
+  elif computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
+    if c_z_prefactor is None:
+      raise ValueError(
+          'c_z_prefactor is required for INVERSE computation mode.'
+      )
+    return InverseInitialGuess(
+        alpha_t=alpha_t,
+        kappa_e=kappa_e,
+        T_e_separatrix=T_e_separatrix,
+        c_z_prefactor=jnp.asarray(c_z_prefactor, dtype=dtype),
+    )
+  else:
+    raise ValueError(f'Unsupported computation_mode: {computation_mode}')
 
 
 @jax.tree_util.register_dataclass

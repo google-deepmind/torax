@@ -525,12 +525,13 @@ Step 1: Implement the edge model
 --------------------------------
 
 Create a frozen dataclass that inherits from ``torax.edge.EdgeModel`` and
-implements the ``__call__`` method. The ``__call__``
+implements the ``__call__`` method (and optionally ``initial_state`` if the
+model carries persistent state across time steps). The ``__call__``
 method receives the current edge runtime parameters, full simulation runtime
 parameters, geometry, core profiles, and source profiles, and must
-return an ``torax.edge.EdgeModelOutputs`` with the boundary conditions computed
-by the model (any boundary conditions not computed by the model should be left
-as ``None``):
+return a tuple of ``torax.edge.EdgeModelOutputs`` with the boundary conditions
+computed by the model (any boundary conditions not computed by the model should
+be left as ``None``) and ``torax.edge.EdgeState``:
 
 * ``T_e_right_bc``: Electron temperature boundary condition at the LCFS [keV].
 * ``T_i_right_bc``: Ion temperature boundary condition at the LCFS [keV].
@@ -557,13 +558,16 @@ as ``None``):
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
           core_sources: sources.CoreSources,
-          previous_edge_outputs: edge.EdgeModelOutputs | None = None,
-      ) -> edge.EdgeModelOutputs:
+          edge_state: edge.EdgeState,
+      ) -> tuple[edge.EdgeModelOutputs, edge.EdgeState]:
         del edge_runtime_params, runtime_params, geo, core_profiles, core_sources
-        del previous_edge_outputs
-        return edge.EdgeModelOutputs(
-            T_i_right_bc=jnp.array(0.08),  # [keV]
-            T_e_right_bc=jnp.array(0.12),  # [keV]
+        del edge_state
+        return (
+            edge.EdgeModelOutputs(
+                T_i_right_bc=jnp.array(0.08),  # [keV]
+                T_e_right_bc=jnp.array(0.12),  # [keV]
+            ),
+            edge.EdgeState(),
         )
 
 

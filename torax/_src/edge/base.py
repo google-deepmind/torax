@@ -26,6 +26,7 @@ import pydantic
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
+from torax._src.edge import edge_state as edge_state_lib
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -187,6 +188,24 @@ class CombinedEdgeOutputs(EdgeModelOutputs):
 class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for edge models."""
 
+  def initial_state(
+      self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.EdgeState:
+    """Returns the initial cross-timestep EdgeState for this model.
+
+    Stateless edge models inherit this default returning an empty EdgeState(),
+    while stateful subclasses override it with their initial state.
+
+    Args:
+      edge_runtime_params: Runtime parameters for the edge model.
+
+    Returns:
+      Initial EdgeState.
+    """
+    del edge_runtime_params
+    return edge_state_lib.EdgeState()
+
   @abc.abstractmethod
   def __call__(
       self,
@@ -195,8 +214,8 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       core_sources: core_sources_lib.CoreSources,
-      previous_edge_outputs: EdgeModelOutputs | None = None,
-  ) -> EdgeModelOutputs:
+      edge_state: edge_state_lib.EdgeState,
+  ) -> tuple[EdgeModelOutputs, edge_state_lib.EdgeState]:
     """Evaluates the edge model at the given time.
 
     Args:
@@ -205,11 +224,10 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: The magnetic geometry of the tokamak.
       core_profiles: Core plasma profiles.
       core_sources: Core plasma sources.
-      previous_edge_outputs: Outputs from the edge model at the previous time
-        step, if available.
+      edge_state: Cross-timestep state for the edge model.
 
     Returns:
-      Computed `EdgeModelOutputs` for the current state.
+      A tuple of (EdgeModelOutputs, updated_edge_state).
     """
 
 
@@ -227,6 +245,23 @@ class CombinedEdgeModel(EdgeModel):
   n_e_sub_model: str | None = None
   n_impurities_sub_model: str | None = None
 
+  def initial_state(
+      self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.CombinedEdgeState:
+    """Returns the initial cross-timestep CombinedEdgeState."""
+    assert isinstance(
+        edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
+    )
+    return edge_state_lib.CombinedEdgeState(
+        sub_models={
+            name: sub_model.initial_state(
+                edge_runtime_params.sub_models[name],
+            )
+            for name, sub_model in self.sub_models.items()
+        }
+    )
+
   def __call__(
       self,
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
@@ -234,8 +269,8 @@ class CombinedEdgeModel(EdgeModel):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       core_sources: core_sources_lib.CoreSources,
-      previous_edge_outputs: EdgeModelOutputs | None = None,
-  ) -> CombinedEdgeOutputs:
+      edge_state: edge_state_lib.EdgeState,
+  ) -> tuple[CombinedEdgeOutputs, edge_state_lib.CombinedEdgeState]:
     """Evaluates the edge sub-models and merges their BCs."""
     assert isinstance(
         edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
@@ -243,24 +278,22 @@ class CombinedEdgeModel(EdgeModel):
     edge_params: edge_runtime_params_lib.CombinedRuntimeParams = (
         edge_runtime_params
     )
-    prev_sub_outputs: Mapping[str, EdgeModelOutputs] = (
-        previous_edge_outputs.sub_models
-        if isinstance(previous_edge_outputs, CombinedEdgeOutputs)
-        else {}
-    )
-    sub_outputs = {
-        name: sub_model(
-            edge_params.sub_models[name],
-            runtime_params,
-            geo,
-            core_profiles,
-            core_sources,
-            previous_edge_outputs=prev_sub_outputs.get(name),
-        )
-        for name, sub_model in self.sub_models.items()
-    }
+    assert isinstance(edge_state, edge_state_lib.CombinedEdgeState)
+    sub_outputs = {}
+    new_sub_states = {}
+    for name, sub_model in self.sub_models.items():
+      out, sub_state = sub_model(
+          edge_params.sub_models[name],
+          runtime_params,
+          geo,
+          core_profiles,
+          core_sources,
+          edge_state=edge_state.sub_models[name],
+      )
+      sub_outputs[name] = out
+      new_sub_states[name] = sub_state
 
-    return CombinedEdgeOutputs(
+    outputs = CombinedEdgeOutputs(
         T_e_right_bc=(
             sub_outputs[self.T_e_sub_model].T_e_right_bc
             if self.T_e_sub_model is not None
@@ -283,6 +316,7 @@ class CombinedEdgeModel(EdgeModel):
         ),
         sub_models=sub_outputs,
     )
+    return outputs, edge_state_lib.CombinedEdgeState(sub_models=new_sub_states)
 
 
 class EdgeModelConfig(torax_pydantic.ConfigBase):

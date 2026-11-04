@@ -51,8 +51,18 @@ def _should_exclude_path(path) -> bool:
     return False
   first_step = path[0]
   if hasattr(first_step, "name"):
+    # Exclude edge outputs and edge model state from NaN checks. This is
+    # acceptable as the edge model can be run in a decoupled mode for
+    # diagnostic purposes, in which case NaNs are not propagated to the
+    # TORAX core profiles and can be ignored. If NaNs are produced in
+    # coupled mode, these will be propagated to the TORAX core profiles
+    # and thus will be caught by the NaN check there.
     if first_step.name in _EXCLUDE_FROM_NAN_CHECK:
       return True
+    if first_step.name == "model_state" and len(path) > 1:
+      second_step = path[1]
+      if hasattr(second_step, "name") and second_step.name == "edge":
+        return True
     if first_step.name == "geometry" and len(path) > 1:
       second_step = path[1]
       if (
@@ -125,11 +135,6 @@ class SimState:
   @jax.jit
   def has_nan(self) -> jax.Array:
     """Checks whether any checked leaf in SimState contains NaNs."""
-    # Exclude edge outputs from NaN checks. This is acceptable as the edge model
-    # can be run in a decoupled mode for diagnostic purposes, in which case NaNs
-    # are not propagated to the TORAX core profiles and can be ignored. If NaNs
-    # are produced in coupled mode, these will be propagated to the
-    # TORAX core profiles and thus will be caught by the NaN check there.
     return jnp.any(
         jnp.stack([
             jnp.any(jnp.isnan(value))

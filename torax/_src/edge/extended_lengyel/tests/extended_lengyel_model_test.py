@@ -14,11 +14,14 @@
 
 """Tests for the ExtendedLengyelModel integration."""
 
+import dataclasses
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -27,6 +30,7 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge.extended_lengyel import config as extended_lengyel_config
+from torax._src.edge.extended_lengyel import divertor_sol_1d
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_formulas
@@ -40,7 +44,7 @@ from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.solver import jax_root_finding
-from torax._src.sources import core_sources
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.sources import formulas
 from torax._src.test_utils import sim_test_case
 
@@ -55,6 +59,33 @@ def _set_psi_norm_face(core_profiles: mock.MagicMock) -> None:
 
 
 class ExtendedLengyelModelTest(parameterized.TestCase):
+
+  def _make_dummy_outputs(
+      self,
+  ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
+    dtype = jax_utils.get_dtype()
+    return extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_i_right_bc=jnp.array(0.08, dtype=dtype),
+        T_e_right_bc=jnp.array(0.12, dtype=dtype),
+        n_e_right_bc=jnp.array(2e19, dtype=dtype),
+        impurity_right_bc={},
+        q_parallel=jnp.array(1e7, dtype=dtype),
+        q_perpendicular_target=jnp.array(1e6, dtype=dtype),
+        T_e_separatrix=jnp.array(0.1, dtype=dtype),
+        T_e_target=jnp.array(10.0, dtype=dtype),
+        pressure_neutral_divertor=jnp.array(2.0, dtype=dtype),
+        alpha_t=jnp.array(1.0, dtype=dtype),
+        kappa_e=jnp.array(2000.0, dtype=dtype),
+        c_z_prefactor=jnp.array(0.01, dtype=dtype),
+        Z_eff_separatrix=jnp.array(1.5, dtype=dtype),
+        seed_impurity_concentrations={},
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
+        ),
+        calculated_enrichment={},
+        valid_for_core_update=jnp.array(True, dtype=jnp.bool_),
+    )
 
   def test_call_inverse_mode(self):
     """Tests that ExtendedLengyelModel.__call__ works correctly in inverse mode.
@@ -150,13 +181,13 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     ion_heat = profile * 0.3
     el_heat = profile * 0.7
 
-    mock_core_sources = core_sources.CoreSources(
+    mock_core_sources = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             mock_geo
         ),
-        qei=core_sources.QeiInfo.zeros(mock_geo),
+        qei=core_sources_lib.QeiInfo.zeros(mock_geo),
         sources={
-            'generic_heat': core_sources.SourceOutput(
+            'generic_heat': core_sources_lib.SourceOutput(
                 power_density_e=el_heat,
                 power_density_i=ion_heat,
             ),
@@ -216,12 +247,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # --- 3. Run Model and Assert ---
     model = edge_config.build_edge_model()
-    outputs = model(
+    seed_state = model.initial_state(edge_runtime_params)
+    outputs, _ = model(
         edge_runtime_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
         mock_core_sources,
+        edge_state=seed_state,
     )
     assert isinstance(
         outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
@@ -270,6 +303,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
   )
   def test_fixed_impurity_update_from_core(self, mock_run_standalone):
     """Tests that fixed impurities are updated from core when source_of_truth is CORE."""
+    mock_run_standalone.return_value = self._make_dummy_outputs()
     # Setup parameters
     n_rho = 10
     c_core_edge = 0.01
@@ -327,7 +361,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     # 3. Mock CoreSources
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     # 4. Configure Edge params
@@ -369,12 +403,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # 6. Run
     model = extended_lengyel_model.ExtendedLengyelModel()
+    seed_state = model.initial_state(edge_params)
     model(
         edge_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
         mock_core_sources,
+        edge_state=seed_state,
     )
 
     # 7. Assert
@@ -393,6 +429,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
   )
   def test_initial_guess_from_previous_step(self, mock_run_standalone):
     """Tests that initial guess is derived from previous_edge_outputs when enabled."""
+    mock_run_standalone.return_value = self._make_dummy_outputs()
     n_rho = 10
 
     # 1. Mock Geometry
@@ -435,7 +472,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     # 4. Create previous_edge_outputs with known values
@@ -500,15 +537,32 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_plasma_composition.impurity = impurity_params
     mock_runtime_params.plasma_composition = mock_plasma_composition
 
-    # 7. Run with previous_edge_outputs
+    # 7. Run with previous edge_state
     model = extended_lengyel_model.ExtendedLengyelModel()
+    edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(
+            previous_edge_outputs.pressure_neutral_divertor,
+            dtype=jax_utils.get_dtype(),
+        ),
+        warm_start_guess=divertor_sol_1d.ForwardInitialGuess(
+            alpha_t=jnp.asarray(previous_alpha_t, dtype=jax_utils.get_dtype()),
+            kappa_e=jnp.asarray(previous_kappa_e, dtype=jax_utils.get_dtype()),
+            T_e_separatrix=jnp.asarray(
+                previous_T_e_sep_keV * 1e3, dtype=jax_utils.get_dtype()
+            ),
+            T_e_target=jnp.asarray(
+                previous_T_e_target, dtype=jax_utils.get_dtype()
+            ),
+        ),
+        has_viable_warm_start=jnp.asarray(True, dtype=jnp.bool_),
+    )
     model(
         edge_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
         mock_core_sources,
-        previous_edge_outputs=previous_edge_outputs,
+        edge_state=edge_state,
     )
 
     # 8. Assert initial_guess was passed with values from previous_edge_outputs
@@ -567,6 +621,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       mock_run_standalone,
   ):
     """Tests that initial guess falls back to defaults when previous outputs are not viable, while CORE enrichment uses previous enrichment."""
+    mock_run_standalone.return_value = self._make_dummy_outputs()
     # Create RootMetadata inside the test to avoid JAX calls at module load.
     numerics_outcome = jax_root_finding.RootMetadata(
         iterations=jnp.array(30),
@@ -613,7 +668,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1)
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1)
 
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     bad_previous_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
@@ -672,13 +727,29 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_runtime_params.plasma_composition = mock_plasma_composition
 
     model = extended_lengyel_model.ExtendedLengyelModel()
+    bad_edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(
+            bad_previous_outputs.pressure_neutral_divertor,
+            dtype=jax_utils.get_dtype(),
+        ),
+        warm_start_guess=divertor_sol_1d.ForwardInitialGuess(
+            alpha_t=jnp.asarray(0.99, dtype=jax_utils.get_dtype()),
+            kappa_e=jnp.asarray(9999.0, dtype=jax_utils.get_dtype()),
+            T_e_separatrix=jnp.asarray(100.0, dtype=jax_utils.get_dtype()),
+            T_e_target=jnp.asarray(0.001, dtype=jax_utils.get_dtype()),
+        ),
+        has_viable_warm_start=jnp.asarray(
+            extended_lengyel_model._outputs_are_viable(bad_previous_outputs),
+            dtype=jnp.bool_,
+        ),
+    )
     model(
         edge_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
         mock_core_sources,
-        previous_edge_outputs=bad_previous_outputs,
+        edge_state=bad_edge_state,
     )
 
     _, kwargs = mock_run_standalone.call_args
@@ -753,6 +824,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       provide_previous_outputs,
       mock_run_standalone,
   ):
+    mock_run_standalone.return_value = self._make_dummy_outputs()
     n_rho = 10
     geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
 
@@ -774,7 +846,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
 
     core_lcfs_ratio = 0.02
@@ -784,34 +856,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         'Ne': np.ones(n_rho + 1) * core_lcfs_ratio
     }
 
-    previous_enrichment = 3.5
     previous_pressure = 2.5
-    if provide_previous_outputs:
-      previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
-          T_e_right_bc=jnp.array(0.1),
-          T_i_right_bc=jnp.array(0.1),
-          impurity_right_bc={},
-          n_e_right_bc=jnp.array(jnp.nan),
-          q_parallel=jnp.array(1e8),
-          q_perpendicular_target=jnp.array(1e6),
-          T_e_separatrix=jnp.array(0.1),
-          T_e_target=jnp.array(3.5),
-          pressure_neutral_divertor=jnp.array(previous_pressure),
-          alpha_t=jnp.array(0.42),
-          kappa_e=jnp.array(2500.0),
-          c_z_prefactor=jnp.array(0.0),
-          Z_eff_separatrix=jnp.array(1.5),
-          seed_impurity_concentrations={},
-          calculated_enrichment={'Ne': jnp.array(previous_enrichment)},
-          solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-              physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-              numerics_outcome=(
-                  extended_lengyel_solvers.FixedPointOutcome.SUCCESS
-              ),
-          ),
-      )
-    else:
-      previous_edge_outputs = None
 
     edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
@@ -835,13 +880,23 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     runtime_params.plasma_composition = mock_pc
 
     model = extended_lengyel_model.ExtendedLengyelModel()
+    init_state = model.initial_state(runtime_params.edge)
+    if provide_previous_outputs:
+      edge_state = dataclasses.replace(
+          init_state,
+          pressure_neutral_divertor=jnp.asarray(
+              previous_pressure, dtype=jax_utils.get_dtype()
+          ),
+      )
+    else:
+      edge_state = init_state
     model(
         edge_runtime_params=runtime_params.edge,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock_core_profiles,
         core_sources=mock_core_sources,
-        previous_edge_outputs=previous_edge_outputs,
+        edge_state=edge_state,
     )
 
     _, kwargs = mock_run_standalone.call_args
@@ -893,6 +948,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       self, mock_run_standalone
   ):
     """Transitioning from limited to diverted evaluates Kallenbach immediately."""
+    mock_run_standalone.return_value = self._make_dummy_outputs()
     n_rho = 10
     geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
 
@@ -914,7 +970,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
 
     core_lcfs_ratio = 0.02
@@ -923,32 +979,6 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     impurity_params.n_e_ratios_face = {
         'Ne': np.ones(n_rho + 1) * core_lcfs_ratio
     }
-
-    # Outputs from a previous limited step have pressure_neutral_divertor = 1.0
-    # and calculated_enrichment = 1.0.
-    previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
-        T_e_right_bc=jnp.array(0.1),
-        T_i_right_bc=jnp.array(0.1),
-        impurity_right_bc={},
-        n_e_right_bc=jnp.array(jnp.nan),
-        q_parallel=jnp.array(1e8),
-        q_perpendicular_target=jnp.array(1e6),
-        T_e_separatrix=jnp.array(0.1),
-        T_e_target=jnp.array(3.5),
-        pressure_neutral_divertor=jnp.array(
-            extended_lengyel_defaults.INITIAL_PRESSURE_NEUTRAL_DIVERTOR
-        ),
-        alpha_t=jnp.array(0.42),
-        kappa_e=jnp.array(2500.0),
-        c_z_prefactor=jnp.array(0.0),
-        Z_eff_separatrix=jnp.array(1.5),
-        seed_impurity_concentrations={},
-        calculated_enrichment={'Ne': jnp.array(1.0)},
-        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
-        ),
-    )
 
     edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
@@ -971,13 +1001,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     runtime_params.plasma_composition = mock_pc
 
     model = extended_lengyel_model.ExtendedLengyelModel()
+    edge_state = model.initial_state(runtime_params.edge)
     model(
         edge_runtime_params=runtime_params.edge,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock_core_profiles,
         core_sources=mock_core_sources,
-        previous_edge_outputs=previous_edge_outputs,
+        edge_state=edge_state,
     )
 
     _, kwargs = mock_run_standalone.call_args
@@ -1017,6 +1048,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       mock_run_standalone,
   ):
     """Tests correct parameter passing for limited vs diverted plasmas."""
+    mock_run_standalone.return_value = self._make_dummy_outputs()
     n_rho = 10
     _CONFIG_BROADENING = 3.0
 
@@ -1068,7 +1100,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
@@ -1106,12 +1138,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # 6. Run
     model = extended_lengyel_model.ExtendedLengyelModel()
+    seed_state = model.initial_state(edge_params)
     model(
         edge_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
         mock_core_sources,
+        edge_state=seed_state,
     )
 
     # 7. Assert inputs passed to the standalone runner
@@ -1782,7 +1816,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
-    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
+    mock_core_sources = mock.MagicMock(spec=core_sources_lib.CoreSources)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
     return mock_core_profiles, mock_core_sources
 
@@ -1813,12 +1847,14 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     assert self.torax_config.edge is not None
     assert runtime_params.edge is not None
     edge_model = self.torax_config.edge.build_edge_model()
-    edge_outputs = edge_model(
+    seed_edge_state = edge_model.initial_state(runtime_params.edge)
+    edge_outputs, _ = edge_model(
         runtime_params.edge,
         runtime_params,
         geo,
         mock_core_profiles,
         mock_core_sources,
+        edge_state=seed_edge_state,
     )
     assert isinstance(
         edge_outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
@@ -1872,12 +1908,14 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     assert self.torax_config.edge is not None
     assert runtime_params.edge is not None
     edge_model = self.torax_config.edge.build_edge_model()
-    edge_outputs = edge_model(
+    seed_edge_state = edge_model.initial_state(runtime_params.edge)
+    edge_outputs, _ = edge_model(
         runtime_params.edge,
         runtime_params,
         geo,
         mock_core_profiles,
         mock_core_sources,
+        edge_state=seed_edge_state,
     )
     assert isinstance(
         edge_outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
@@ -1909,6 +1947,241 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
       )
     else:
       self.assertNotIn('Ne', edge_outputs.impurity_right_bc)
+
+
+class ExtendedLengyelModelStateThreadingTest(parameterized.TestCase):
+
+  def _build_test_inputs(
+      self,
+      use_previous_step_as_guess: bool = True,
+  ):
+    n_rho = 10
+    mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
+    mock_geo.geometry_type = geometry.GeometryType.MEQ
+    mock_geo.R_major = np.array(1.65)
+    mock_geo.a_minor = np.array(0.5)
+    mock_geo.B_0 = np.array(2.5)
+    mock_geo.elongation_face = np.array([1.6] * (n_rho + 1))
+    mock_geo.delta_face = np.array([0.3] * (n_rho + 1))
+    mock_geo.rho_face_norm = np.linspace(0, 1.0, (n_rho + 1))
+    mock_geo.rho_norm = np.linspace(
+        1.0 / (2 * n_rho), 1.0 - 1.0 / (2 * n_rho), n_rho
+    )
+    mock_geo.rho = mock_geo.rho_norm * mock_geo.a_minor
+    mock_geo.drho_norm = np.ones(n_rho) / n_rho
+    mock_geo.vpr = np.linspace(0, 100, n_rho)
+    mock_geo.connection_length_target = None
+    mock_geo.connection_length_divertor = None
+    mock_geo.angle_of_incidence_target = None
+    mock_geo.R_target = None
+    mock_geo.R_OMP = None
+    mock_geo.B_pol_OMP = None
+    mock_geo.diverted = np.bool_(True)
+
+    mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
+    mock_core_profiles.poloidal_flux = mock.MagicMock()
+    mock_core_profiles.ions = mock.MagicMock()
+    mock_core_profiles.kinetic = mock.MagicMock()
+    mock_core_profiles.poloidal_flux.I_p_profile_face = np.linspace(
+        0.0, 1.0e6, (n_rho + 1)
+    )
+    mock_core_profiles.ions.A_i = np.array(2.0)
+    mock_core_profiles.ions.A_impurity_face = np.array([10.0] * (n_rho + 1))
+    mock_core_profiles.ions.Z_i_face = np.array([1.0] * (n_rho + 1))
+
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.linspace(0, 1.0, (n_rho + 1))
+    mock_core_profiles.poloidal_flux.psi = mock_psi
+    _set_psi_norm_face(mock_core_profiles)
+
+    mock_n_e = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_n_e.face_value.return_value = np.array([3.3e19] * (n_rho + 1))
+    mock_n_e.right_face_value = mock_n_e.face_value.return_value[-1:]
+    mock_core_profiles.kinetic.n_e = mock_n_e
+
+    mock_n_i = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_n_i.face_value.return_value = np.array([3.3e19] * (n_rho + 1))
+    mock_n_i.right_face_value = mock_n_i.face_value.return_value[-1:]
+    mock_core_profiles.kinetic.n_i = mock_n_i
+
+    mock_n_impurity = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_n_impurity.face_value.return_value = np.zeros((n_rho + 1))
+    mock_n_impurity.right_face_value = mock_n_impurity.face_value.return_value[
+        -1:
+    ]
+    mock_core_profiles.kinetic.n_impurity = mock_n_impurity
+
+    target_P_SOL = 5.5e6
+    profile = formulas.gaussian_profile(
+        mock_geo, center=0.5, width=0.2, total=target_P_SOL
+    )
+    ion_heat = profile * 0.3
+    el_heat = profile * 0.7
+
+    mock_core_sources = core_sources_lib.CoreSources(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
+            mock_geo
+        ),
+        qei=core_sources_lib.QeiInfo.zeros(mock_geo),
+        sources={
+            'generic_heat': core_sources_lib.SourceOutput(
+                power_density_e=el_heat,
+                power_density_i=ion_heat,
+            ),
+        },
+    )
+
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'T_e_target': 2.34,
+        'connection_length_target': 20.0,
+        'connection_length_divertor': 5.0,
+        'angle_of_incidence_target': 3.0,
+        'ratio_bpol_omp_to_bpol_avg': 4.0 / 3.0,
+        'toroidal_flux_expansion': 1.0,
+        'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'fixed_impurity_concentrations': {'He': 0.01},
+        'enrichment_factor': {'N': 1.0, 'Ar': 1.0, 'He': 1.0},
+        'use_enrichment_model': False,
+        'initial_guess': {
+            'use_previous_step_as_guess': use_previous_step_as_guess,
+        },
+    })
+    edge_params = edge_config.build_runtime_params(t=0.0)
+
+    mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    mock_runtime_params.edge = edge_params
+    impurity_params = electron_density_ratios.RuntimeParams(
+        n_e_ratios={},
+        n_e_ratios_face={'He': np.ones(n_rho + 1) * 0.01},
+        Z_override=None,
+    )
+    mock_plasma_composition = mock.MagicMock(
+        spec=plasma_composition_lib.RuntimeParams
+    )
+    mock_plasma_composition.impurity = impurity_params
+    mock_runtime_params.plasma_composition = mock_plasma_composition
+
+    model = edge_config.build_edge_model()
+    return (
+        model,
+        edge_params,
+        mock_runtime_params,
+        mock_geo,
+        mock_core_profiles,
+        mock_core_sources,
+    )
+
+  def test_initial_state_enrichment_and_guess_leaves(self):
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'use_enrichment_model': True,
+        'initial_guess': {
+            'use_previous_step_as_guess': True,
+        },
+    })
+    edge_params = edge_config.build_runtime_params(t=0.0)
+    model = edge_config.build_edge_model()
+    init_state = model.initial_state(edge_params)
+    self.assertIsNotNone(init_state.pressure_neutral_divertor)
+    self.assertIsNotNone(init_state.warm_start_guess)
+    self.assertIsNotNone(init_state.has_viable_warm_start)
+    self.assertFalse(bool(init_state.has_viable_warm_start))
+
+    leaves, _ = jax.tree_util.tree_flatten(init_state)
+    for leaf in leaves:
+      if hasattr(leaf, 'dtype'):
+        self.assertFalse(getattr(leaf, 'weak_type', False))
+
+  def test_multi_step_inverse_state_threading(self):
+    (
+        model,
+        edge_params,
+        runtime_params,
+        geo,
+        core_profiles,
+        core_sources,
+    ) = self._build_test_inputs()
+    init_state = model.initial_state(edge_params)
+    out0, state0 = model(
+        edge_params,
+        runtime_params,
+        geo,
+        core_profiles,
+        core_sources,
+        edge_state=init_state,
+    )
+    self.assertTrue(bool(state0.has_viable_warm_start))
+    self.assertIsInstance(
+        state0.warm_start_guess, divertor_sol_1d.InverseInitialGuess
+    )
+    np.testing.assert_allclose(
+        state0.warm_start_guess.T_e_separatrix,
+        out0.T_e_separatrix * 1e3,
+        rtol=1e-5,
+    )
+
+    out1, state1 = model(
+        edge_params,
+        runtime_params,
+        geo,
+        core_profiles,
+        core_sources,
+        edge_state=state0,
+    )
+    self.assertTrue(bool(state1.has_viable_warm_start))
+    np.testing.assert_allclose(
+        out0.T_e_separatrix, out1.T_e_separatrix, rtol=1e-3
+    )
+
+  def test_forward_warm_start_threading_and_fallback(self):
+    _, edge_params, _, _, _, _ = self._build_test_inputs()
+    edge_params_fwd = dataclasses.replace(
+        edge_params,
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+    )
+
+    forward_guess = divertor_sol_1d.ForwardInitialGuess(
+        alpha_t=jnp.asarray(0.42, dtype=jax_utils.get_dtype()),
+        kappa_e=jnp.asarray(2500.0, dtype=jax_utils.get_dtype()),
+        T_e_separatrix=jnp.asarray(100.0, dtype=jax_utils.get_dtype()),
+        T_e_target=jnp.asarray(3.5, dtype=jax_utils.get_dtype()),
+    )
+    viable_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
+        warm_start_guess=forward_guess,
+        has_viable_warm_start=jnp.asarray(True, dtype=jnp.bool_),
+    )
+    resolved_viable = extended_lengyel_model._get_initial_guess(
+        edge_params_fwd, viable_state
+    )
+    self.assertIsInstance(resolved_viable, divertor_sol_1d.ForwardInitialGuess)
+    np.testing.assert_allclose(resolved_viable.alpha_t, 0.42)
+
+    non_viable_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
+        warm_start_guess=divertor_sol_1d.InverseInitialGuess(
+            alpha_t=jnp.asarray(0.99, dtype=jax_utils.get_dtype()),
+            kappa_e=jnp.asarray(9999.0, dtype=jax_utils.get_dtype()),
+            T_e_separatrix=jnp.asarray(500.0, dtype=jax_utils.get_dtype()),
+            c_z_prefactor=jnp.asarray(0.99, dtype=jax_utils.get_dtype()),
+        ),
+        has_viable_warm_start=jnp.asarray(False, dtype=jnp.bool_),
+    )
+    resolved_fallback = extended_lengyel_model._get_initial_guess(
+        edge_params, non_viable_state
+    )
+    self.assertIsInstance(
+        resolved_fallback, divertor_sol_1d.InverseInitialGuess
+    )
+    np.testing.assert_allclose(
+        resolved_fallback.alpha_t,
+        edge_params.initial_guess.alpha_t,
+    )
 
 
 if __name__ == '__main__':

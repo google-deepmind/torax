@@ -24,6 +24,7 @@ import pydantic
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.edge import base
+from torax._src.edge import edge_state as edge_state_lib
 from torax._src.edge import register_model
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
@@ -245,15 +246,17 @@ class DummyEdgeModel(base.EdgeModel):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       core_sources: core_sources_lib.CoreSources,
-      previous_edge_outputs: base.EdgeModelOutputs | None = None,
-  ) -> base.EdgeModelOutputs:
+      edge_state: edge_state_lib.EdgeState,
+  ) -> tuple[base.EdgeModelOutputs, edge_state_lib.EdgeState]:
     del edge_runtime_params, runtime_params, geo, core_profiles, core_sources
-    del previous_edge_outputs
-    return base.EdgeModelOutputs(
-        T_i_right_bc=jnp.array(80.0),
-        T_e_right_bc=jnp.array(120.0),
-        n_e_right_bc=jnp.array(2.0e19),
-        impurity_right_bc={},
+    return (
+        base.EdgeModelOutputs(
+            T_i_right_bc=jnp.array(80.0),
+            T_e_right_bc=jnp.array(120.0),
+            n_e_right_bc=jnp.array(2.0e19),
+            impurity_right_bc={},
+        ),
+        edge_state,
     )
 
 

@@ -70,9 +70,9 @@ class _CustomEdgeModel(edge.EdgeModel):
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
       core_sources: sources.CoreSources,
-      previous_edge_outputs: edge.EdgeModelOutputs | None = None,
-  ) -> edge.EdgeModelOutputs:
-    del runtime_params, geo, core_profiles, core_sources, previous_edge_outputs
+      edge_state: edge.EdgeState,
+  ) -> tuple[edge.EdgeModelOutputs, edge.EdgeState]:
+    del runtime_params, geo, core_profiles, core_sources
     assert isinstance(edge_runtime_params, _CustomEdgeRuntimeParams)
     impurity_right_bc = {}
     if (
@@ -82,23 +82,26 @@ class _CustomEdgeModel(edge.EdgeModel):
       impurity_right_bc = {
           'Ne': jnp.asarray(edge_runtime_params.ne_impurity_bc)
       }
-    return edge.EdgeModelOutputs(
-        T_e_right_bc=(
-            jnp.asarray(edge_runtime_params.T_e_bc)
-            if self.computes_T_e
-            else None
+    return (
+        edge.EdgeModelOutputs(
+            T_e_right_bc=(
+                jnp.asarray(edge_runtime_params.T_e_bc)
+                if self.computes_T_e
+                else None
+            ),
+            T_i_right_bc=(
+                jnp.asarray(edge_runtime_params.T_i_bc)
+                if self.computes_T_i
+                else None
+            ),
+            n_e_right_bc=(
+                jnp.asarray(edge_runtime_params.n_e_bc)
+                if self.computes_n_e
+                else None
+            ),
+            impurity_right_bc=impurity_right_bc,
         ),
-        T_i_right_bc=(
-            jnp.asarray(edge_runtime_params.T_i_bc)
-            if self.computes_T_i
-            else None
-        ),
-        n_e_right_bc=(
-            jnp.asarray(edge_runtime_params.n_e_bc)
-            if self.computes_n_e
-            else None
-        ),
-        impurity_right_bc=impurity_right_bc,
+        edge_state,
     )
 
 
@@ -167,12 +170,14 @@ def _evaluate_combined_edge(
       torax_config
   )(t=t)
   assert runtime_params.edge is not None
-  outputs = edge_model(
+  seed_state = edge_model.initial_state(runtime_params.edge)
+  outputs, _ = edge_model(
       runtime_params.edge,
       runtime_params,
       mock.create_autospec(torax.Geometry, instance=True),
       mock.create_autospec(torax.CoreProfiles, instance=True),
       mock.create_autospec(sources.CoreSources, instance=True),
+      edge_state=seed_state,
   )
   assert isinstance(outputs, edge_base.CombinedEdgeOutputs)
   return outputs

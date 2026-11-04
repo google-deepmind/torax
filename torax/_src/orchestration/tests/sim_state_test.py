@@ -19,6 +19,8 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import model_state as model_state_lib
 from torax._src import state
+from torax._src.edge.extended_lengyel import divertor_sol_1d
+from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -144,6 +146,25 @@ class SimStateTest(parameterized.TestCase):
   def test_has_nan_ignores_z_magnetic_axis(self):
     geo = self._make_geometry(z_magnetic_axis=np.nan)
     s = self._make_sim_state(geo)
+    self.assertFalse(s.has_nan())
+
+  def test_has_nan_ignores_edge_model_state(self):
+    geo = self._make_geometry()
+    s = self._make_sim_state(geo)
+    edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(jnp.nan),
+        warm_start_guess=divertor_sol_1d.ForwardInitialGuess(
+            alpha_t=jnp.asarray(jnp.nan),
+            kappa_e=jnp.asarray(jnp.nan),
+            T_e_separatrix=jnp.asarray(jnp.nan),
+            T_e_target=jnp.asarray(jnp.nan),
+        ),
+        has_viable_warm_start=jnp.asarray(False, dtype=jnp.bool_),
+    )
+    s = dataclasses.replace(
+        s,
+        model_state=dataclasses.replace(s.model_state, edge=edge_state),
+    )
     self.assertFalse(s.has_nan())
 
 

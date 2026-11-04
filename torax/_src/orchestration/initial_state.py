@@ -122,17 +122,21 @@ def _get_initial_state(
 
   if models.edge_model is not None:
     assert runtime_params.edge is not None
-    edge_outputs = models.edge_model(
+    seed_edge_state = models.edge_model.initial_state(runtime_params.edge)
+    edge_outputs, initial_edge_state = models.edge_model(
         runtime_params.edge,
         runtime_params,
         geo,
         evaluated_state.core_profiles,
         evaluated_state.core_sources,
-        previous_edge_outputs=None,
+        edge_state=seed_edge_state,
+    )
+    initial_model_state = dataclasses.replace(
+        initial_model_state,
+        edge=initial_edge_state,
     )
   else:
     edge_outputs = None
-
   return sim_state.SimState(
       t=jnp.array(
           runtime_params.time_step_calculator.t_initial,

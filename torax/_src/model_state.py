@@ -17,6 +17,7 @@
 from collections.abc import Mapping
 import dataclasses
 import jax
+from torax._src.edge import edge_state
 from torax._src.pedestal_model import pedestal_state
 from torax._src.sources import source_state
 from torax._src.transport_model import transport_state
@@ -30,3 +31,4 @@ class ModelState:
   pedestal: pedestal_state.PedestalState
   transport: transport_state.TransportState
   sources: Mapping[str, source_state.SourceState]
+  edge: edge_state.EdgeState | None = None

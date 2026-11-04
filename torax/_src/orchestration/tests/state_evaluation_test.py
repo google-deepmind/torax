@@ -22,6 +22,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
+from torax._src.edge import edge_state as edge_state_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import state_evaluation
@@ -74,6 +75,22 @@ class StateEvaluationTest(parameterized.TestCase):
         model_state=self.sim_state.model_state,
     )
     self.assertIsInstance(model_state, model_state_lib.ModelState)
+
+  def test_evaluate_state_preserves_edge_state(self):
+    edge_state = edge_state_lib.EdgeState()
+    model_state_with_edge = dataclasses.replace(
+        self.sim_state.model_state,
+        edge=edge_state,
+    )
+    _, updated_model_state = state_evaluation.evaluate_state(
+        runtime_params=self.runtime_params,
+        geo=self.geo,
+        solver_state=self.solver_state,
+        models=self.models,
+        explicit_model_outputs=self.explicit_model_outputs,
+        model_state=model_state_with_edge,
+    )
+    self.assertIs(updated_model_state.edge, edge_state)
 
   def test_v_loop_lcfs_propagation(self):
     # Default without explicit v_loop_lcfs: flux v_loop_lcfs is 0.0 and

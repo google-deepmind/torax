@@ -180,6 +180,7 @@ def evaluate_state(
       pedestal=updated_pedestal_state,
       transport=updated_transport_state,
       sources=updated_source_states,
+      edge=model_state.edge,
   )
 
   evaluated_state = EvaluatedState(

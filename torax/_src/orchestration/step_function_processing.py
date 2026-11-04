@@ -95,16 +95,18 @@ def pre_step(
   edge_model = models.edge_model
   if edge_model is not None:
     assert runtime_params_t.edge is not None
-    edge_outputs = edge_model(
+    assert input_state.model_state.edge is not None
+    edge_outputs, updated_edge_state = edge_model(
         runtime_params_t.edge,
         runtime_params_t,
         geo_t,
         input_state.core_profiles,
         merged_sources,
-        previous_edge_outputs=input_state.edge_outputs,
+        edge_state=input_state.model_state.edge,
     )
   else:
     edge_outputs = None
+    updated_edge_state = None
 
   # Update the discrete pedestal state and compute explicit structure if needed.
   updated_pedestal_state, explicit_pedestal_structure = (
@@ -121,6 +123,7 @@ def pre_step(
       input_state.model_state,
       pedestal=updated_pedestal_state,
       sources=source_states,
+      edge=updated_edge_state,
   )
   explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
       sources=explicit_source_outputs,
