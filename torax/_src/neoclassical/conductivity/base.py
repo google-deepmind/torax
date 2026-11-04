@@ -46,10 +46,14 @@ class ConductivityModelConfig(torax_pydantic.ConfigBase):
   """Base class for conductivity model configs.
 
   Attributes:
-    conductivity_multiplier: Multiplication factor for the conductivity.
-    neoclassical_correction: If True, applies the neoclassical trapped-particle
-      correction to the Spitzer conductivity. If False, the Spitzer conductivity
-      is used.
+    conductivity_multiplier: Multiplier for the neoclassical parallel
+      conductivity. This scales the physical conductivity used throughout the
+      simulation, so it affects the current diffusion timescale as well as the
+      loop voltage and Ohmic heating. Useful for sensitivity studies.
+    neoclassical_correction: If `True`, the Spitzer conductivity is multiplied
+      by the neoclassical trapped-particle correction of the selected model. If
+      `False`, the pure Spitzer conductivity is used. `conductivity_multiplier`
+      is applied in both cases.
   """
 
   conductivity_multiplier: pydantic.PositiveFloat = 1.0

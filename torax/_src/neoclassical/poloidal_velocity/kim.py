@@ -130,7 +130,11 @@ class KimModel(base.PoloidalVelocityModel):
 
 
 class KimModelConfig(base.PoloidalVelocityModelConfig):
-  """Config for the Kim (1991) model implementation of poloidal velocity."""
+  """Config for the Kim |kim1991| model implementation of poloidal velocity.
+
+  Attributes:
+    model_name: Selected neoclassical ion poloidal velocity model.
+  """
 
   model_name: Annotated[Literal['kim'], torax_pydantic.JAX_STATIC] = 'kim'
 

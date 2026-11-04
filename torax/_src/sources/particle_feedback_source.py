@@ -97,8 +97,7 @@ class ExponentialProfileConfig(torax_pydantic.ConfigBase):
 
   Attributes:
     profile_type: Discriminator literal `'exponential'`.
-    width: Exponential decay length from the edge inwards in normalized radial
-      coordinate `rho_norm`.
+    width: Exponential decay length from the edge inwards [$rho_norm$].
   """
 
   profile_type: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
@@ -125,10 +124,8 @@ class GaussianProfileConfig(torax_pydantic.ConfigBase):
 
   Attributes:
     profile_type: Discriminator literal `'gaussian'`.
-    center: Gaussian center in normalized radial coordinate `rho_norm` in `[0,
-      1]`.
-    width: Gaussian standard deviation in normalized radial coordinate
-      `rho_norm`.
+    center: Gaussian center in $[0, 1]$ [$rho_norm$].
+    width: Gaussian standard deviation [$rho_norm$].
   """
 
   profile_type: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
@@ -421,7 +418,9 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
   The total particle injection rate is computed using a PID feedback control
   loop added to a baseline feedforward rate:
 
-    S_total = max(0, S_feedforward + S_p + S_i + S_d)
+  ```
+  S_total = max(0, S_feedforward + S_p + S_i + S_d)
+  ```
 
   with density error `e(t) = target_average_n_e(t) - current_avg_n_e(t)` and:
     - `S_p = proportional_gain * e(t)`
@@ -441,12 +440,13 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
   `'gaussian'`, or `'prescribed'`).
 
   Attributes:
+    model_name: Name of the generic particle model (`'feedback'`).
     profile: Radial deposition shape configuration, discriminated by
       `profile_type` (`'exponential'`, `'gaussian'`, or `'prescribed'`).
       Defaults to an inward edge exponential (`width=0.05`).
     S_feedforward: Baseline feedforward particle injection rate [particles/s].
-    average_type: Method for spatial electron density averaging ('line' or
-      'volume') used to calculate the feedback error.
+    average_type: Method for spatial electron density averaging (`'line'` or
+      `'volume'`) used to calculate the feedback error.
     proportional_gain: Proportional feedback gain [m^3 / s] mapping density
       error to an incremental particle fueling rate.
     integral_gain: Integral feedback gain [m^3 / s^2] mapping time-integrated
@@ -459,8 +459,6 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
       for anti-windup clamping. If `None`, unbounded below (`-inf`).
     max_integral: Optional upper bound [particles/s] on the integral term `S_i`
       for anti-windup clamping. If `None`, unbounded above (`+inf`).
-    mode: Defines whether source values are computed from a model, prescribed,
-      or loaded from a file (defaults to MODEL_BASED).
     target_average_n_e: Desired target average electron density [m^-3] for
       feedback regulation.
   """

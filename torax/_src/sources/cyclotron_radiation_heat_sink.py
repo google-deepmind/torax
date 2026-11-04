@@ -15,6 +15,7 @@
 # pylint: disable=invalid-name
 
 """Cyclotron radiation heat sink for electron heat equation.."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal, Self
 
@@ -361,19 +362,22 @@ class CyclotronRadiationHeatSink(source.Source):
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):
-  """Cyclotron radiation heat sink for electron heat equation.
+  """Cyclotron radiation heat sink for the electron heat equation.
 
   Attributes:
-    wall_reflection_coeff: The wall reflection coefficient is a
-      machine-dependent dimensionless parameter corresponding to the fraction of
-      cyclotron radiation reflected off the wall and back into the plasma where
-      it is re-absorbed. The default value is a typical value.
-    beta_min: The minimum value of the beta parameter used in the parameterized
-      function for the temperature fit.
-    beta_max: The maximum value of the beta parameter used in the parameterized
-      function for the temperature fit.
-    beta_grid_size: The number of points to use in the grid search for the best
-      fit of the temperature function.
+    model_name: Name of the cyclotron radiation model (`'albajar_artaud'`).
+    wall_reflection_coeff: Machine-dependent dimensionless parameter
+      corresponding to the fraction of cyclotron radiation reflected off the
+      wall and re-absorbed by the plasma.
+    beta_min: Lower bound of the grid search range `[beta_min, beta_max]` for
+      the temperature profile shape parameter $beta_T$ in the Albajar
+      parameterization.
+    beta_max: Upper bound of the grid search range `[beta_min, beta_max]` for
+      the temperature profile shape parameter $beta_T$ in the Albajar
+      parameterization.
+    beta_grid_size: Number of uniformly spaced grid points in `[beta_min,
+      beta_max]` used to fit $beta_T$ in the Albajar temperature profile
+      parameterization. Must be positive.
   """
 
   model_name: Annotated[

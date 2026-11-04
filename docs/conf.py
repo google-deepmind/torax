@@ -66,6 +66,7 @@ extensions = [
     'sphinx_remove_toctrees',
     'sphinx_copybutton',
     'sphinx_design',
+    'torax_config_autodoc',
 ]
 
 intersphinx_mapping = {
@@ -104,6 +105,7 @@ exclude_patterns = [
     # Sometimes sphinx reads its own outputs as inputs!
     'build/html',
     'README.md',
+    'links.rst',
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -132,6 +134,8 @@ html_theme_options = {
     'repository_url': 'https://github.com/google-deepmind/torax',
     'use_repository_button': True,
     'navigation_with_keys': False,
+    'pygments_light_style': 'xcode',
+    'pygments_dark_style': 'monokai',
 }
 
 enable_logo = True
@@ -372,3 +376,9 @@ rst_epilog = f"""
 .. |imas_loader| replace:: `imas_tools/input/loader <torax_src_imas_loader_target_>`__
 .. _torax_src_imas_loader_target: {github_base_url}/torax/_src/imas_tools/input/loader.py
 """
+
+_docs_dir = globals().get('_ORIG_DOCS_DIR') or os.path.dirname(
+    os.path.abspath(__file__)
+)
+with open(os.path.join(_docs_dir, 'links.rst'), encoding='utf-8') as _links_f:
+  rst_epilog += '\n' + _links_f.read()

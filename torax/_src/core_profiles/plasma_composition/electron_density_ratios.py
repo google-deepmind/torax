@@ -25,7 +25,6 @@ import pydantic
 from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
 
-
 # pylint: disable=invalid-name
 
 
@@ -81,11 +80,13 @@ class ElectronDensityRatios(torax_pydantic.ConfigBase):
   """Impurity content defined by ratios of impurity to electron density.
 
   Attributes:
-    species: A dictionary of TimeVaryingArray objects, where the keys are ion
-      symbols and the values are TimeVaryingArray objects representing the
-      ratios of impurity to electron density at the defined rho_norm points.
-    Z_override: A TimeVaryingScalar object representing the charge override.
-    A_override: A TimeVaryingScalar object representing the A override.
+    impurity_mode: Impurity specification mode, set to `'n_e_ratios'`.
+    species: Dictionary mapping each impurity symbol to its density ratio
+      relative to electron density ($n_impurity / n_e$).
+    Z_override: Optional override for the impurity mixture's average charge
+      ($Z$).
+    A_override: Optional override for the impurity mixture's average mass ($A$)
+      [amu].
   """
 
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray]

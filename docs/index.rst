@@ -3,7 +3,7 @@ TORAX: Tokamak transport simulation in JAX
 
 TORAX is a differentiable tokamak core transport simulator aimed for fast and
 accurate forward modelling, pulse-design, trajectory optimization, and controller
-design workflows. TORAX is written in Python using the JAX_ library.
+design workflows. TORAX is written in Python using the |jax| library.
 
 .. grid:: 1 1 3 3
    :gutter: 4
@@ -140,5 +140,3 @@ design workflows. TORAX is written in Python using the JAX_ library.
    contribution_tips
    citing
    contact
-
-.. _JAX: https://jax.readthedocs.io/

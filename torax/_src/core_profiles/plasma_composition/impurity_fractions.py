@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Ion mixture model and impurity fractions model for plasma composition."""
+
 from collections.abc import Mapping
 import dataclasses
 from typing import Annotated, Any, Literal, TypeAlias
@@ -99,7 +100,11 @@ def _impurity_after_validator(
 
 ImpurityMapping: TypeAlias = Annotated[
     Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray],
-    pydantic.BeforeValidator(_impurity_before_validator),
+    pydantic.BeforeValidator(
+        _impurity_before_validator,
+        json_schema_input_type=str
+        | Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray],
+    ),
     pydantic.AfterValidator(_impurity_after_validator),
 ]
 
@@ -132,7 +137,19 @@ class RuntimeParams:
 
 
 class ImpurityFractions(torax_pydantic.ConfigBase):
-  """Impurity content defined by fractional abundances."""
+  """Impurity content defined by fractional abundances.
+
+  Attributes:
+    impurity_mode: Impurity specification mode, set to `'fractions'`.
+    species: A single impurity symbol string (e.g., `'Ne'`) or a dict mapping
+      impurity symbols to their fractional abundances within the impurity mix
+      (e.g., `{'Ne': 0.8, 'Ar': 0.2}`). Time-varying array values must be
+      defined on the same grid and sum to `1` across all species.
+    Z_override: Optional override for the impurity mixture's average charge
+      ($Z$).
+    A_override: Optional override for the impurity mixture's average mass ($A$)
+      [amu].
+  """
 
   impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (
       'fractions'

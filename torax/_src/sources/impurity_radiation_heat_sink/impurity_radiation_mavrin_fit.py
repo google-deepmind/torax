@@ -151,10 +151,13 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceConfigBase):
-  """Configuration for the ImpurityRadiationHeatSink.
+  """Configuration for the Mavrin polynomial-fit ImpurityRadiationHeatSink.
 
   Attributes:
-    radiation_multiplier: Multiplier for the impurity radiation profile.
+    model_name: Selects the impurity radiation model (`'mavrin_fit'` or
+      `'P_in_scaled_flat_profile'`).
+    radiation_multiplier: Multiplication factor applied to the impurity
+      radiation term for sensitivity testing.
   """
 
   model_name: Annotated[Literal['mavrin_fit'], torax_pydantic.JAX_STATIC] = (

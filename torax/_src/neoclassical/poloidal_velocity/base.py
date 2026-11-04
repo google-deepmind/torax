@@ -64,7 +64,12 @@ class PoloidalVelocityModel(abc.ABC):
 
 
 class PoloidalVelocityModelConfig(torax_pydantic.ConfigBase):
-  """Base class for poloidal velocity model configs."""
+  """Base class for poloidal velocity model configs.
+
+  Attributes:
+    poloidal_velocity_multiplier: Multiplier applied to the neoclassical
+      poloidal velocity.
+  """
 
   poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0
 

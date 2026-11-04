@@ -90,12 +90,13 @@ class GasPuffSource(source.Source):
 
 
 class GasPuffSourceConfig(base.SourceConfigBase):
-  """Gas puff source for the n_e equation.
+  """Gas puff particle source for the electron density equation.
 
   Attributes:
-    puff_decay_length: exponential decay length of gas puff ionization
-      [normalized radial coord]. Required when mode is 'model_based'.
-    S_total: total gas puff particles/s. Required when mode is 'model_based'.
+    model_name: Name of the gas puff model (`'exponential'`).
+    puff_decay_length: Exponential decay length of gas puff ionization inwards
+      from the edge boundary [$rho_norm$].
+    S_total: Total gas puff particle injection rate [particles/s].
   """
 
   model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (

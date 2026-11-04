@@ -42,14 +42,14 @@ class PrescribedFastIon(torax_pydantic.ConfigBase):
   """User-facing config for prescribed fast ion density and temperature.
 
   This is the Pydantic configuration class that users interact with. Fields
-  support time-varying interpolation (e.g. ``{0.0: 1e19, 1.0: 2e19}``).
+  support time-varying interpolation (e.g. `{0.0: 1e19, 1.0: 2e19}`).
   At simulation time, these are evaluated into concrete arrays via
-  ``PrescribedFastIonData`` for use in JAX-compiled functions.
+  `PrescribedFastIonData` for use in JAX-compiled functions.
 
   Attributes:
-    source: Source name (e.g. 'icrh').
-    species: Species name (e.g. 'He3'). Must be one of
-      ``fast_ion_lib.FAST_ION_SPECIES``.
+    source: Source name (e.g., `'icrh'`).
+    species: Fast ion species name (must be one of `'H'`, `'D'`, `'T'`, `'He3'`,
+      or `'He4'`).
     n: Prescribed density profile [m^-3].
     n_right_bc: Right boundary condition for density [m^-3].
     T: Prescribed temperature profile [keV].
@@ -76,81 +76,108 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   https://torax.readthedocs.io/en/latest/configuration/profile_conditions.html.
 
   Attributes:
-    I_p: Total plasma current in A. Required when `I_p_source` is
-      `'profile_conditions'`; ignored otherwise. When `I_p_source` is
+    I_p: Total plasma current [A]. Required when `I_p_source =
+      'profile_conditions'`; ignored otherwise. When `I_p_source` is
       `'profile_conditions'`, sets the initial `psi` boundary condition, and
       also sets the time-dependent `psi` LCFS boundary condition if
       `psi_bc_source` is `'I_p'`.
-    I_p_source: Source of the total plasma current `I_p` (`'profile_conditions'`
-      or `'geometry'`). If `'profile_conditions'`, `I_p` must be provided. If
-      `'geometry'`, `I_p` is taken from the numerical geometry (not supported
-      for `CircularGeometry`).
+    I_p_source: Source for the total plasma current $I_p$. Options are
+      `'profile_conditions'` (uses the `I_p` scalar attribute, which must be
+      provided) or `'geometry'` (reads $I_p$ from numerical geometry; not
+      supported for `'circular'` geometry).
     psi_bc_source: Source for the `psi` boundary condition at the LCFS (`'I_p'`
       or `'v_loop'`). When `'I_p'`, `dpsi/drho_norm` at the LCFS is constrained
       by `I_p`. When `'v_loop'`, `psi` at the LCFS is evolved from
       `v_loop_lcfs`. Can only be `'v_loop'` when `numerics.evolve_current` is
-      True.
-    v_loop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ) [V].
+      `True`.
+    v_loop_lcfs: Boundary condition at LCFS for $V_loop = dpsi_lcfs / dt$ [V].
       Required when `psi_bc_source` is `'v_loop'`; ignored otherwise.
-    T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is
-      `None` the boundary condition will instead be taken from `T_i` and `T_e`
-      at rhon=1.
-    T_e_right_bc: Temperature boundary conditions at r=a_minor. If this is
-      `None` the boundary condition will instead be taken from `T_i` and `T_e`
-      at rhon=1.
-    T_i: Prescribed or evolving values for temperature at different times.
-    T_e: Prescribed or evolving values for temperature at different times.
-    psi: Poloidal flux profile [Wb]. Used as the initial condition for psi when
-      `psi_source` is `PROFILE_CONDITIONS` (unless restarting from a
-      file), and prescribes `psi` for t > t_initial if
-      `numerics.evolve_current` is False. Must not be provided when
-      `psi_source` is not `PROFILE_CONDITIONS`.
-    psidot: Prescribed values for the time derivative of poloidal flux (loop
-      voltage). If provided, and if `evolve_current` is False, this prescribed
-      `psidot` will be used instead of the internally calculated one. This is
-      useful for cases where an unphysical transient `psidot` from the initial
-      `psi` condition needs to be overridden. Must not be provided when
-      `numerics.evolve_current` is True.
-    toroidal_angular_velocity: Prescribed or evolving values for toroidal
-      angular velocity. If None, toroidal_angular_velocity will be initialized
-      to zero.
-    toroidal_angular_velocity_right_bc: Toroidal velocity boundary condition for
-      r=a_minor. If this is `None` the boundary condition will instead be taken
-      from `toroidal_angular_velocity` at rhon=1. If `toroidal_angular_velocity
-      is also `None`, then the boundary condition will be set to zero.
-    n_e: Prescribed or evolving values for electron density at different times.
+    T_i_right_bc: Ion temperature boundary condition at $r = a_min$ [keV]. If
+      `None`, the boundary condition is taken from `T_i` at $rho_norm = 1$.
+    T_e_right_bc: Electron temperature boundary condition at $r = a_min$ [keV].
+      If `None`, the boundary condition is taken from `T_e` at $rho_norm = 1$.
+    T_i: Ion temperature profile [keV]. Used as the initial condition if
+      `numerics.evolve_ion_heat` is `True`, or as the prescribed temperature for
+      all times if `False`.
+    T_e: Electron temperature profile [keV]. Used as the initial condition if
+      `numerics.evolve_electron_heat` is `True`, or as the prescribed
+      temperature for all times if `False`.
+    psi: Poloidal flux profile $psi$ [Wb]. Used as the initial $psi$ when
+      `psi_source = 'profile_conditions'` (required in that mode unless
+      restarting from a file), and prescribes $psi$ for $t > t_initial$ when
+      `numerics.evolve_current` is `False`. Must not be provided when
+      `psi_source` is not `'profile_conditions'`.
+    psidot: Prescribed time derivative of poloidal flux (loop voltage) [V]. If
+      provided and `numerics.evolve_current` is `False`, this prescribed
+      `psidot` is used instead of the internally calculated one, which is useful
+      for overriding unphysical transient `psidot` values from an initial `psi`
+      condition. Must not be provided when `numerics.evolve_current` is `True`.
+    toroidal_angular_velocity: Toroidal angular velocity profile [rad/s]. If
+      `None`, the velocity is initialized to zero.
+    toroidal_angular_velocity_right_bc: Toroidal angular velocity boundary
+      condition at $r = a_min$ [rad/s]. If `None`, taken from
+      `toroidal_angular_velocity` at $rho_norm = 1$ (or zero if
+      `toroidal_angular_velocity` is also `None`).
+    n_e: Electron density profile [m^-3 if `n_e_bar_is_f_GW = False`, or
+      Greenwald fraction if `True`]. Used as the initial condition if
+      `numerics.evolve_density` is `True`, or as the prescribed density for all
+      times if `False`.
     normalize_n_e: Whether to renormalize the density profile to have the
-      desired line averaged density `n_e_bar`.
-    n_e_bar: Line averaged electron density. In units of m^-3 if n_e_bar_is_f_GW
-      = False. In Greenwald fraction if n_e_bar_is_f_GW = True. nGW =
-      I_p/(pi*a^2) with a in m, nGW in 10^20 m-3, I_p in MA
-    n_e_bar_is_f_GW: Toggle units of n_e_bar
-    n_e_right_bc: Density boundary condition for r=a_minor. In units of m^-3 if
-      n_e_right_bc_is_f_GW = False. In Greenwald fraction if
-      `n_e_right_bc_is_f_GW = True`. If `n_e_right_bc` is `None` then the
-      boundary condition will instead be taken from `n_e` at rho_norm=1. In this
-      case, `n_e_right_bc_is_absolute` in the StaticRuntimeParams will be set to
-      `False` and n_e_right_bc_is_f_GW` will be set to `n_e_bar_is_f_GW`. If
-      `n_e_right_bc` is not `None` then `n_e_right_bc_is_absolute` will be set
-      to `True`.
-    n_e_right_bc_is_f_GW: Toggle units of n_e_right_bc.
-    internal_boundary_conditions: Config for internal boundary conditions. See
-      `InternalBoundaryConditionsConfig` for more details.
-    current_profile_nu: Peaking factor of "Ohmic" current: j_toroidal_ohmic =
-      j0*(1 - r^2/a^2)^current_profile_nu
-    initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
-      current upon initialization, or if non-inductive current should be
-      included in initial j_toroidal_total calculation.
-    psi_source: Source of the `psi` profile at initialization, and for
-      t > t_initial when `numerics.evolve_current` is False:
-      - `PROFILE_CONDITIONS`: Uses the `psi` attribute (required unless
+      desired line-averaged density `n_e_bar`.
+    n_e_bar: Line-averaged electron density [m^-3 if `n_e_bar_is_f_GW = False`,
+      or Greenwald fraction if `True`], where $n_GW = I_p / (pi * a^2)$ with $a$
+      [m], $n_GW$ [10^20 m^-3], and $I_p$ [MA].
+    n_e_bar_is_f_GW: Toggle units of `n_e_bar` and `n_e` (`True` for Greenwald
+      fraction, `False` for [m^-3]).
+    n_e_right_bc: Electron density boundary condition at $r = a_min$ [m^-3 if
+      `n_e_right_bc_is_f_GW = False`, or Greenwald fraction if `True`]. If
+      `None`, taken from `n_e` at $rho_norm = 1$.
+    n_e_right_bc_is_f_GW: Toggle units of `n_e_right_bc` (`True` for Greenwald
+      fraction, `False` for [m^-3]).
+    n_e_right_bc_mode: Mode for setting the electron density boundary condition
+      at $r = a_min$:
+
+      - `'prescribed'`: Use `n_e_right_bc` directly
+        (or `n_e` at $rho_norm = 1$ if `n_e_right_bc` is `None`).
+      - `'density_fraction'`: Compute `n_e_right_bc` from the evolved electron
+        density profile as $n_e(rho_norm_ref, t) times multiplier$, where
+        $rho_norm_ref$ is set by `n_e_right_bc_reference_rho` and the multiplier
+        by `n_e_right_bc_multiplier`. At initialization, the prescribed `n_e`
+        profile is used as fallback. `n_e_right_bc` and `n_e_right_bc_is_f_GW`
+        are ignored in this mode.
+    n_e_right_bc_reference_rho: Reference normalized toroidal flux coordinate
+      $rho_norm_ref$ at which to evaluate electron density in
+      `'density_fraction'` mode. Required when `n_e_right_bc_mode =
+      'density_fraction'`.
+    n_e_right_bc_multiplier: Multiplicative factor applied to electron density
+      at $rho_norm_ref$ in `'density_fraction'` mode. Required when
+      `n_e_right_bc_mode = 'density_fraction'`.
+    internal_boundary_conditions: Configuration dictionary for internal boundary
+      conditions (`'no_ibc'`, `'prescribed'`, or `'beta_poloidal_prime'`).
+      Defaults to `{'model_name': 'no_ibc'}`.
+    current_profile_nu: Peaking factor $nu$ of initial toroidal current
+      $j_toroidal = j_0 * (1 - r^2 / a^2)^nu$. Used when
+      `psi_source = 'j'`.
+    initial_j_is_total_current: Toggle whether the initial current formula set
+      by `current_profile_nu` represents total toroidal current
+      (`j_toroidal_total`, `True`) or Ohmic toroidal current
+      (`j_toroidal_ohmic`, `False`, where Ohmic current is scaled so total
+      non-inductive + Ohmic current equals `I_p`).
+    psi_source: Source of poloidal flux $psi$ at initialization, and for
+      $t > t_initial$ when `numerics.evolve_current` is `False`:
+
+      - `'profile_conditions'`: Uses the `psi` array attribute (required unless
         restarting from a file).
-      - `GEOMETRY`: Uses `psi` from the numerical geometry (not supported for
-        `CircularGeometry`).
-      - `J`: Computes `psi` from the `current_profile_nu` formula at
-        initialization only (`psi` remains fixed for t > t_initial if
-        `numerics.evolve_current` is False).
-  """
+      - `'geometry'`: Uses $psi$ from numerical geometry (not supported for
+        `'circular'` geometry).
+      - `'j'`: Computes $psi$ from the `current_profile_nu` current formula at
+        initialization only ($psi$ remains fixed for $t > t_initial$ if
+        `numerics.evolve_current` is `False`).
+    fast_ions: Optional list of prescribed fast ion density and temperature
+      configurations (`PrescribedFastIon`), overriding model-computed fast ion
+      values for each `(source, species)` pair. Requires
+      `numerics.enable_fast_ions` to be `True`.
+  """  # fmt: skip
 
   I_p: torax_pydantic.TimeVaryingScalar | None = None
   I_p_source: Annotated[
@@ -192,9 +219,11 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   ] = runtime_params_lib.NeBoundaryConditionMode.PRESCRIBED
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
-  internal_boundary_conditions: (
-      ibc_config.InternalBoundaryConditionsConfig
-  ) = torax_pydantic.ValidatedDefault(ibc_config.NoIBCConfig())
+  internal_boundary_conditions: ibc_config.InternalBoundaryConditionsConfig = (
+      torax_pydantic.ValidatedDefault(ibc_config.NoIBCConfig())
+  )
+  # TODO(b/379839070): V3 API: change current_profile_nu formula to
+  # j_0 * (1 - (r/a)^nu) to match RAPTOR.
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/581363815): Support updating psi from j for t > t_initial when
@@ -485,8 +514,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     runtime_params = {
         x.name: getattr(self, x.name)
         for x in dataclasses.fields(runtime_params_lib.RuntimeParams)
-        if x.name
-        not in (
+        if x.name not in (
             'n_e_right_bc_is_absolute',
             'prescribed_fast_ions',
             'internal_boundary_conditions',
@@ -545,9 +573,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     # Evaluate internal boundary conditions at time t. Required as IBCs are a
     # nested class within the config.
     runtime_params['internal_boundary_conditions'] = (
-        self.internal_boundary_conditions.build_runtime_params(
-            t  # pyrefly: ignore[bad-argument-type]
-        )
+        self.internal_boundary_conditions.build_runtime_params(t)
     )
 
     def _get_value(x):

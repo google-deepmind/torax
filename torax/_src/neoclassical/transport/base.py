@@ -109,12 +109,18 @@ class NeoclassicalTransportModelConfig(torax_pydantic.ConfigBase):
   """Base class for neoclassical transport model configs.
 
   Attributes:
-   chi_min: Lower bound on heat conductivity.
-   chi_max: Upper bound on heat conductivity.
-   D_e_min: minimum electron density diffusivity.
-   D_e_max: maximum electron density diffusivity.
-   V_e_min: minimum electron density convection.
-   V_e_max: maximum electron density convection.
+    chi_min: Lower allowed bound for neoclassical heat conductivities
+      $chi_neo$ [m^2/s].
+    chi_max: Upper allowed bound for neoclassical heat conductivities
+      $chi_neo$ [m^2/s].
+    D_e_min: Lower allowed bound for neoclassical particle diffusivity
+      $D_neo$ [m^2/s].
+    D_e_max: Upper allowed bound for neoclassical particle diffusivity
+      $D_neo$ [m^2/s].
+    V_e_min: Lower allowed bound for neoclassical particle convection
+      $V_neo$ [m/s].
+    V_e_max: Upper allowed bound for neoclassical particle convection
+      $V_neo$ [m/s].
   """
 
   chi_min: torax_pydantic.MeterSquaredPerSecond = 0.0

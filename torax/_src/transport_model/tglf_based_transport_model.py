@@ -52,10 +52,31 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   max_normalized_collisionality: float
 
 
-class TGLFBasedTransportModelConfig(
-    config_base.ComponentTransportConfigBase
-):
-  """Base config for TGLF-family transport models."""
+class TGLFBasedTransportModelConfig(config_base.ComponentTransportConfigBase):
+  """Base config for TGLF-family transport models.
+
+  Attributes:
+    DV_effective: If `True`, uses either $D_eff$ or $V_eff$ for particle
+      transport. See :ref:`physics_models` for details.
+    An_min: Minimum $abs(R_over_L_ne)$ value below which $V_eff$ is used instead
+      of $D_eff$ when `DV_effective=True`.
+    DV_effective_smooth_width: Width [$Gamma_e / Gamma_GB$] (dimensionless
+      GyroBohm-normalized particle flux) over which down-gradient transport
+      transitions smoothly from $V_eff$ to $D_eff$. If `0.0`, uses a sharp step
+      transition. Because TGLF normalizes using minor radius $a$ rather than
+      $R_major$, the default (`0.001`) corresponds roughly to the QuaLiKiz
+      default (`0.01`) in SI units.
+    use_rotation: If `True`, enables the rotation shear term $v_ExB_shear$ in
+      the model.
+    rotation_multiplier: Multiplier for $v_ExB_shear$.
+    collisionality_multiplier: Collisionality multiplier for sensitivity
+      analysis.
+    max_normalized_collisionality: Maximum dimensionless electron-electron
+      collision frequency (`XNUE` in TGLF notation; see the |tglf_docs|) passed
+      to the model. Acts as a ceiling (applied after
+      `collisionality_multiplier`) to mitigate unreliable transport predictions
+      at high collisionality.
+  """
 
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
@@ -88,7 +109,8 @@ class TGLFInputs:
 
   In this interface we use the following species numbering for TGLF: species 1 =
   electrons, species 2 = main ion, species 3 = impurity.
-  For example, TGLF variables RLTS_1, RLTS_2, and RLTS_3 are:
+  For example, TGLF variables `RLTS_1`, `RLTS_2`, and `RLTS_3` are::
+
     RLTS_1 = lref / lte,
     RLTS_2 = lref / lti,
     RLTS_3 = lref / ltimp.

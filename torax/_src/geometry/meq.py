@@ -56,24 +56,33 @@ class DivertorDomain(enum.StrEnum):
 
 
 class MEQConfig(base.GeometryConfigBase):
-  """Pydantic model for the MEQ geometry.
+  """Loads MEQ (e.g., FBT, FGE, or LIUQE) geometry files or in-memory dicts.
+
+  Note that `<B^2>` and `<1/B^2>` are not currently supported by MEQ geometry
+  and are approximated using analytical circular-geometry expressions, which may
+  introduce inaccuracies in neoclassical transport.
 
   Attributes:
-    geometry_type: Always set to 'meq'.
-    geometry_directory: Optionally overrides the default geometry directory.
-    LY_object: Sets a single-slice MEQ LY geometry file to be loaded, or
-      alternatively a dict directly containing a single time slice of LY data.
-    LY_bundle_object: Sets the MEQ LY bundle file to be loaded, corresponding to
-      multiple time-slices, or alternatively a dict directly containing all
-      time-slices of LY data.
-    LY_to_torax_times: Sets the TORAX simulation times corresponding to the
-      individual slices in the MEQ LY bundle file. If not provided, then the
-      times are taken from the LY_bundle_file itself. The length of the array
-      must match the number of slices in the bundle.
-    L_object: Sets the MEQ L geometry file loaded, or alternatively a dict
-      directly containing the L data.
-    divertor_domain: The divertor domain (upper or lower null) for extracting
-      edge quantities when diverted.
+    geometry_type: Always set to `'meq'`.
+    geometry_directory: Optionally overrides the default geometry directory
+      (`torax/data/third_party/geo`). Should be set to an absolute path.
+    LY_object: Single-slice MEQ LY geometry file name to be loaded, or a
+      dictionary directly containing a single time slice of LY data. MEQ files
+      can optionally contain edge geometry parameters (e.g., `Lpar_target`) used
+      by the :ref:`extended_lengyel` edge model.
+    LY_bundle_object: MEQ LY bundle `.mat` file name (packaged via LIUQE
+      `meqlpack`) corresponding to multiple time slices, or a dictionary
+      directly containing all time slices of LY data. Cannot be combined with
+      `LY_object` or `geometry_configs`.
+    LY_to_torax_times: TORAX simulation times [s] corresponding to the
+      individual slices in `LY_bundle_object`. If not provided, the times are
+      taken from the bundle itself. Its length must match the number of slices
+      in the bundle.
+    L_object: MEQ L geometry file name to be loaded, or a dictionary directly
+      containing the L data.
+    divertor_domain: Selects the divertor domain used to extract edge geometry
+      parameters for the :ref:`extended_lengyel` edge model when diverted.
+      Either `'lower_null'` or `'upper_null'`.
   """
 
   @property

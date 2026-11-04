@@ -123,7 +123,9 @@ class SimpleTriggerConfig(trigger_base.TriggerConfig):
   """Pydantic model for simple trigger configuration.
 
   Attributes:
-    s_critical: Critical shear value.
+    s_critical: The critical magnetic shear value at the `q=1` surface. A crash
+      is triggered only if the shear exceeds this value.
+    model_name: Trigger model name, set to `'simple'`.
   """
 
   s_critical: torax_pydantic.TimeVaryingScalar = (

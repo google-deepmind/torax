@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for representing a circular geometry."""
+
 from typing import Annotated, Literal, Self
 import numpy as np
 import pydantic
@@ -23,15 +24,19 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 class CircularConfig(base.GeometryConfigBase):
-  """Pydantic model for the circular geometry config.
+  """Ad-hoc analytical circular geometry model with elongation corrections.
+
+  Intended for testing purposes only.
 
   Attributes:
-    geometry_type: Always set to 'circular'.
-    R_major: Major radius (R) in meters.
-    a_minor: Minor radius (a) in meters.
+    geometry_type: Always set to `'circular'`.
+    R_major: Major radius, defined as the midplane average of the LCFS radius,
+      $R_major = (R_max + R_min) / 2$ [m].
+    a_minor: Minor radius, defined as half the horizontal width of the LCFS,
+      $a_minor = (R_max - R_min) / 2$ [m]. Must satisfy `a_minor <= R_major`.
     B_0: Vacuum toroidal magnetic field at `R_major` [T].
-    elongation_LCFS: Sets the plasma elongation used for volume, area and
-      q-profile corrections.
+    elongation_LCFS: Sets the plasma elongation at the last closed flux surface
+      used for volume, area, and q-profile corrections, and in transport models.
   """
 
   @property

@@ -84,6 +84,10 @@ def _ion_mixture_after_validator(
 
 IonMapping: TypeAlias = Annotated[
     Mapping[str, torax_pydantic.TimeVaryingScalar],
-    pydantic.BeforeValidator(_ion_mixture_before_validator),
+    pydantic.BeforeValidator(
+        _ion_mixture_before_validator,
+        json_schema_input_type=str
+        | Mapping[str, torax_pydantic.TimeVaryingScalar],
+    ),
     pydantic.AfterValidator(_ion_mixture_after_validator),
 ]

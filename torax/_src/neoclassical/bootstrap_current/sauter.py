@@ -67,10 +67,11 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
 
 
 class SauterModelConfig(bootstrap_current_base.BootstrapCurrentModelConfig):
-  """Config for the Sauter model implementation of bootstrap current.
+  """Config for the Sauter |sauter99| model implementation of bootstrap current.
 
   Attributes:
-    bootstrap_multiplier: Multiplication factor for bootstrap current.
+    model_name: Selected bootstrap current model.
+    bootstrap_multiplier: Multiplier for the bootstrap current.
   """
 
   model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'

@@ -1,5 +1,3 @@
-.. include:: ../links.rst
-
 .. _physics_fast_ions:
 
 Fast Ion Physics

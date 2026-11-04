@@ -38,13 +38,14 @@ class InitialGuessConfig(torax_pydantic.ConfigBase):
     alpha_t: Turbulence broadening parameter [dimensionless].
     kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
     T_e_separatrix: Electron temperature at the separatrix [eV]. Used to
-      calculate the initial q_parallel.
-    T_e_target: Electron temperature at the target [eV]. Only used in Forward
-      computation mode.
+      calculate the initial parallel heat flux.
+    T_e_target: Electron temperature at the target [eV]. Only used in
+      `'forward'` computation mode.
     c_z_prefactor: Impurity concentration prefactor [dimensionless]. Only used
-      in Inverse computation mode.
-    use_previous_step_as_guess: If True, use the converged state from the
-      previous time step as the initial guess for the current step.
+      in `'inverse'` computation mode.
+    use_previous_step_as_guess: If `True`, use the converged state from the
+      previous time step as the initial guess for the current step. This enables
+      warm-starting and is recommended for time-dependent simulations.
   """
 
   alpha_t: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -88,7 +89,84 @@ class InitialGuessConfig(torax_pydantic.ConfigBase):
 
 
 class ExtendedLengyelConfig(base.EdgeModelConfig):
-  """Configuration for the extended Lengyel edge model."""
+  """Configuration for the extended Lengyel edge model.
+
+  Attributes:
+    model_name: The edge model discriminator tag. Set to `'extended_lengyel'`
+      for the built-in extended Lengyel model, `'combined'` when combining
+      multiple edge sub-models under `sub_models`, or the registered model name
+      for a custom edge model.
+    computation_mode: The computation mode: `'forward'` or `'inverse'`.
+    solver_mode: Numerical solver strategy: `'fixed_point'`, `'newton_raphson'`,
+      or `'hybrid'`.
+    impurity_sot: Source of Truth (SOT) for fixed impurities:
+
+      - `'core'`: Core profiles define the concentration.
+      - `'edge'`: Edge config defines the concentration.
+    fixed_point_iterations: Number of iterations for the fixed-point solver. If
+      `None`, defaults to `25` (fixed-point mode) or `5` (hybrid mode).
+    fixed_point_relaxation_factor: Under-relaxation factor in `(0, 1]` for
+      forward-mode fixed-point iterations.
+    newton_raphson_iterations: Maximum number of iterations for the
+      Newton-Raphson solver.
+    newton_raphson_tol: Convergence tolerance for the Newton-Raphson solver.
+    multistart_num_guesses: Number of initial guesses to evaluate in parallel
+      for the multistart solver in `'forward'` computation mode (must be $>=
+      2$).
+    diverted: Boolean flag indicating if the geometry is diverted. Required for
+      non-MEQ geometries; not allowed for MEQ geometries (extracted from the
+      equilibrium file).
+    n_e_tau: The non-coronal residence-time parameter ($n_e * tau_res$)
+      [s m^-3] used in impurity radiation calculations.
+    divertor_broadening_factor: Ratio of the wetted area broadening
+      ($lambda_int / lambda_q$) in the divertor. Set to `1.0` in
+      limited configurations.
+    sheath_heat_transmission_factor: Sheath heat transmission coefficient
+      ($gamma$).
+    fraction_of_P_SOL_to_divertor: Fraction of SOL power entering the divertor
+      leg.
+    SOL_conduction_fraction: Fraction of SOL power carried by conduction.
+    ratio_of_molecular_to_ion_mass: Ratio of molecular to ion mass, used in
+      neutral pressure calculations.
+    T_wall: Divertor wall temperature [K].
+    mach_separatrix: Mach number at the separatrix.
+    T_i_T_e_ratio_separatrix: Ratio of ion to electron temperature at the
+      separatrix.
+    n_e_n_i_ratio_separatrix: Ratio of electron to ion density at the
+      separatrix.
+    T_i_T_e_ratio_target: Ratio of ion to electron temperature at the target.
+    n_e_n_i_ratio_target: Ratio of electron to ion density at the target.
+    mach_target: Mach number at the target (Bohm condition).
+    connection_length_target: Parallel connection length from outboard midplane
+      to target [m].
+    connection_length_divertor: Parallel connection length from outboard
+      midplane to X-point [m].
+    angle_of_incidence_target: Angle between magnetic field line and divertor
+      target [degrees].
+    toroidal_flux_expansion: Toroidal flux expansion factor, related to the
+      ratio of target to upstream radii.
+    ratio_bpol_omp_to_bpol_avg: Ratio of poloidal field at outboard midplane to
+      the separatrix average.
+    T_e_target: Desired target electron temperature [eV]. Required if
+      `computation_mode='inverse'`. Must be `None` in `'forward'` mode.
+    seed_impurity_weights: Relative weights of seeded impurity species (e.g.,
+      `{'N': 0.95, 'Ar': 0.05}`). Required if `computation_mode='inverse'`. Must
+      be `None` in `'forward'` mode. In inverse mode, the sum of the weights
+      must be non-negligible (at least `1e-7`) at all times, and all seeded
+      species must have a non-coronal Mavrin cooling rate fit (`He`, `Li`, `Be`,
+      `C`, `N`, `O`, `Ne`, `Ar`).
+    fixed_impurity_concentrations: Fixed background impurity concentrations at
+      the edge ($n_z / n_e$).
+    enrichment_factor: Enrichment factor ($c_div / c_core$) for
+      each species. Required if `use_enrichment_model=False`.
+    use_enrichment_model: If `True`, calculate enrichment factors dynamically
+      using the scaling model from |kallenbach2024|. In limited configurations,
+      model output will be `1.0` for each species.
+    enrichment_model_multiplier: Multiplier applied to the calculated Kallenbach
+      2024 enrichment factor.
+    initial_guess: Configuration dictionary for overriding initial guesses of
+      the iterative edge solver.
+  """  # fmt: skip
 
   supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
       base.SupportedBoundaryConditions(
@@ -212,9 +290,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
 
   # --- Impurity Configuration ---
   # Will be validated for consistency with plasma_composition impurity symbols.
-  seed_impurity_weights: Mapping[
-      str, torax_pydantic.UnitIntervalTimeVaryingScalar
-  ] | None = None
+  seed_impurity_weights: (
+      Mapping[str, torax_pydantic.UnitIntervalTimeVaryingScalar] | None
+  ) = None
   fixed_impurity_concentrations: Mapping[
       str, torax_pydantic.NonNegativeTimeVaryingScalar
   ] = {}

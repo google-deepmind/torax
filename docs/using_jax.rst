@@ -23,9 +23,8 @@ need to compile a new program. Also, as of this writing (May 2025), Jax caches
 only the compilation step, not the tracing step.
 
 See :ref:`how_to_install` for information on how to set your environment variables
-to always use the cache by default. The
-`Jax persistent cache documentation <https://docs.jax.dev/en/latest/persistent_compilation_cache.html#persistent-compilation-cache>`_
-gives some more information.
+to always use the cache by default. The |jax_persistent_cache_docs| gives some
+more information.
 Some particularly useful information includes:
 
 * How to use command line flags or python config setter functions instead
@@ -49,8 +48,7 @@ functions for custom classes that are arguments to the outermost function
 don't need to be designed to hash the same across runs of the Python
 interpreter. An example of this is hashing by ``id`` which works with the
 persistent cache even though the ``id`` of an object will change if the object
-is recreated. See https://github.com/google-deepmind/torax/pull/276 for more
-detail.
+is recreated. See |torax_pr_276| for more detail.
 
 The ``tests/persistent_cache.py`` test gives some good examples of usage and
 includes comments with advice about debugging cases of the cache unexpectedly
@@ -65,8 +63,7 @@ is not easily expressed in JAX, you can use JAX callbacks. This allows JAX to
 execute regular Python code on the host and can be used to embed Python code
 within a ``jax.jit`` scope.
 
-See https://docs.jax.dev/en/latest/external-callbacks.html#external-callbacks
-for more details.
+See the |jax_callbacks_docs| for more details.
 
 For an example of how this is currently used in TORAX see the
 ``qualikiz_transport_model.py``.

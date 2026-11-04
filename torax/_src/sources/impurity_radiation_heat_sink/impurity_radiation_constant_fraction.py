@@ -120,11 +120,13 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
-  """Configuration for the ImpurityRadiationHeatSink.
+  """Configuration for constant-fraction ImpurityRadiationHeatSink.
 
   Attributes:
-    fraction_P_heating: Fraction of total power density to be absorbed by the
-      impurity. Required when mode is 'model_based'.
+    model_name: Name of the impurity radiation model
+      (`'P_in_scaled_flat_profile'`).
+    fraction_P_heating: Fraction of total external input heating power radiated
+      uniformly by impurities across the plasma volume.
   """
 
   model_name: Annotated[

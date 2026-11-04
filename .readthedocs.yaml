@@ -17,7 +17,7 @@ build:
     python: "3.12"
   commands:
     - pip install -r docs/requirements.txt
-    - cd docs && make html
+    - cd docs && make html SPHINXOPTS="-W"
     - mkdir $READTHEDOCS_OUTPUT
     - cp -r docs/_build/html $READTHEDOCS_OUTPUT/
 

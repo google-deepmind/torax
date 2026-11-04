@@ -107,10 +107,10 @@ class QualikizTransportModelOutput(transport_coeffs.TransportCoeffs):
 class RotationMode(enum.StrEnum):
   """Defines how the rotation correction is applied.
 
-  OFF: No rotation correction is applied.
-  HALF_RADIUS: The rotation correction is only applied to the outer
+  - `OFF`: No rotation correction is applied.
+  - `HALF_RADIUS`: The rotation correction is only applied to the outer
     half of the radius (rhon > 0.5).
-  FULL_RADIUS: The rotation correction is applied everywhere.
+  - `FULL_RADIUS`: The rotation correction is applied everywhere.
   """
 
   OFF = 'off'
@@ -126,14 +126,14 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
 
   Attributes:
     DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
+    An_min: Minimum `|R/Lne|` below which effective V is used instead of
+      effective D.
     DV_effective_smooth_width: Particle flux width over which down-gradient
       transport transitions from convection to diffusion.
     collisionality_multiplier: Multiplier applied to collisionality.
     max_normalized_collisionality: Upper bound clamping normalized
       collisionality nu_star.
-    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
+    avoid_big_negative_s: Ensure that smag - alpha >= -0.2 always, to compensate
       for no slab modes.
     smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
       impact of alpha.
@@ -158,7 +158,41 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
 class QualikizBasedTransportModelConfig(
     config_base.ComponentTransportConfigBase
 ):
-  """Base config for Qualikiz-family transport models."""
+  """Base config for Qualikiz-family transport models.
+
+  Attributes:
+    collisionality_multiplier: Collisionality multiplier for sensitivity
+      analysis.
+    max_normalized_collisionality: Maximum normalized collisionality ($nu_star$,
+      ion-electron collision frequency normalized to the bounce frequency)
+      passed to the model. Acts as a ceiling (applied after
+      `collisionality_multiplier`) to mitigate unreliable transport predictions
+      at high collisionality. Set to a finite value (e.g., `1.0`) to cap
+      collisionality in the collisional regime.
+    avoid_big_negative_s: If `True`, modifies input magnetic shear so that
+      $s_hat - alpha_MHD >= -0.2$ always, compensating for the lack of slab ITG
+      modes in QuaLiKiz.
+    smag_alpha_correction: If `True`, reduces input magnetic shear by
+      $0.5 * alpha_MHD$ to capture the main impact of $alpha_MHD$.
+    q_sawtooth_proxy: If `True`, clips QuaLiKiz inputs to $q = 1$ and
+      $s_hat = 0.1$ in zones where $q < 1$, acting as a proxy for sawteeth to
+      avoid unphysical transport barriers.
+    DV_effective: If `True`, uses either $D_eff$ or $V_eff$ for particle
+      transport. See :ref:`physics_models` for details.
+    An_min: Minimum $abs(R_over_L_ne)$ value below which $V_eff$ is used instead
+      of $D_eff$ when `DV_effective=True`.
+    DV_effective_smooth_width: Width [$Gamma_e / Gamma_GB$] (dimensionless
+      GyroBohm-normalized particle flux) over which down-gradient transport
+      transitions smoothly from $V_eff$ to $D_eff$. If `0.0`, uses a sharp step
+      transition. Because QuaLiKiz normalizes using major radius $R_major$
+      rather than minor radius $a$, the default (`0.01`) corresponds roughly to
+      the TGLF default (`0.001`) in SI units.
+    rotation_multiplier: Multiplier for $v_ExB$ in the rotation correction
+      factor.
+    rotation_mode: Defines how the rotation correction is applied: `'off'` (no
+      correction), `'half_radius'` (applied only for $rho_norm > 0.5$), or
+      `'full_radius'` (applied everywhere).
+  """
 
   collisionality_multiplier: float = 1.0
   max_normalized_collisionality: pydantic.PositiveFloat = float('inf')

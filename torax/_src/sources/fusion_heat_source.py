@@ -153,7 +153,11 @@ class FusionHeatSource(source.Source):
 
 
 class FusionHeatSourceConfig(base.SourceConfigBase):
-  """Configuration for the FusionHeatSource."""
+  """Configuration for the DT fusion heat source.
+
+  Attributes:
+    model_name: Name of the fusion reactivity parameterization (`'bosch_hale'`).
+  """
 
   model_name: Annotated[Literal['bosch_hale'], torax_pydantic.JAX_STATIC] = (
       'bosch_hale'

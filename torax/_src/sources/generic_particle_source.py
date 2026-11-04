@@ -96,17 +96,14 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 class GenericParticleSourceConfig(base.SourceConfigBase):
-  """Generic particle source for the n_e equation.
+  """Generic Gaussian particle source for the electron density equation.
 
   Attributes:
-    particle_width: particle source Gaussian width in normalized radial coord.
-      Required when mode is 'model_based'.
-    deposition_location: particle source Gaussian center in normalized radial
-      coord. Required when mode is 'model_based'.
-    S_total: total particle source particles/s. Required when mode is
-      'model_based'.
-    mode: Defines how the source values are computed (from a model, from a file,
-      etc.)
+    model_name: Name of the generic particle model (`'gaussian'`).
+    particle_width: Gaussian width of the particle source profile [$rho_norm$].
+    deposition_location: Gaussian center of the particle source profile
+      [$rho_norm$].
+    S_total: Total particle source rate [particles/s].
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (

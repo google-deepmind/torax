@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 .. _overview:
 
 TORAX Overview

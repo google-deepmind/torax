@@ -136,8 +136,7 @@ The TORAX ``PedestalModel`` is composed of three sub-models: a
 location, temperatures, and density), a ``FormationModel``, and a
 ``SaturationModel``.
 To integrate a custom pedestal structure model (for example, an external neural
-network surrogate such as
-`epednn-mit <https://github.com/aaronkho/epednn_mit>`_), you need to:
+network surrogate such as |epednn_mit|), you need to:
 
 1. Define a pedestal structure model class that implements the physics.
 2. Define a pydantic config class for your model.

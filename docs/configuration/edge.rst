@@ -1,5 +1,3 @@
-.. include:: ../links.rst
-
 .. _edge_models:
 .. _extended_lengyel:
 
@@ -8,10 +6,11 @@ edge
 
 Configures the edge physics model used to determine boundary conditions for the
 core transport solver. If not provided, no edge model is run, and boundary
-conditions are determined solely by the ``profile_conditions`` settings.
+conditions are determined solely by the :ref:`profile_conditions <profile_conditions>`
+settings.
 
 For a brief overview of the underlying physics, refer to the
-:ref:`physics_models` section. An overview of all configurable model inputs is
+:ref:`physics_edge` section. An overview of all configurable model inputs is
 provided below at :ref:`extended_lengyel_config`. We first provide some general
 guidance and context on the model usage.
 
@@ -137,7 +136,7 @@ The model accounts for divertor retention via the enrichment factor
     values in the ``enrichment_factor`` dictionary.
 
 Core Profile Rescaling and LCFS Boundary Requirement
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 When the edge model updates the core impurity inventory (either for seeded
 impurities, or for fixed impurities when ``impurity_sot='edge'``), it rescales
 the user-provided core impurity density profile (``n_e_ratios``) to match the
@@ -208,26 +207,11 @@ compute. Each ``update_*`` flag defaults to the corresponding
 ``supported_boundary_conditions`` value, and cannot be set to ``True`` for a
 boundary condition the model does not support.
 
-``model_name`` (str [default = 'extended_lengyel'])
-  The edge model discriminator tag. Set to ``'extended_lengyel'`` for the
-  built-in extended Lengyel model, ``'combined'`` when combining multiple edge
-  sub-models under ``sub_models``, or the registered model name for a custom
-  edge model.
+.. torax_config:: torax._src.edge.extended_lengyel.config.ExtendedLengyelConfig
+   :include-fields: model_name
 
-``update_T_e`` (bool [default = supported_boundary_conditions.T_e])
-  If True, update core electron temperature boundary condition based on edge
-  model results.
-
-``update_T_i`` (bool [default = supported_boundary_conditions.T_i])
-  If True, update core ion temperature boundary condition based on edge model
-  results.
-
-``update_n_e`` (bool [default = supported_boundary_conditions.n_e])
-  If True, update core electron density boundary condition based on edge model
-  results.
-
-``update_n_impurities`` (bool [default = supported_boundary_conditions.n_impurities])
-  If True, update core impurity profiles based on edge model results.
+.. torax_config:: torax._src.edge.base.EdgeModelConfig
+   :exclude-fields: model_name
 
 
 .. _extended_lengyel_config:
@@ -235,143 +219,41 @@ boundary condition the model does not support.
 Extended Lengyel Configuration Parameters
 =========================================
 
-A detailed description of all configurable parameters in the extended lengyel
+A detailed description of all configurable parameters in the extended Lengyel
 model is found below:
 
 Control Parameters
 ------------------
 
-``computation_mode`` (str [default = 'forward'])
-  The computation mode: ``'forward'`` or ``'inverse'``.
-
-``solver_mode`` (str [default = 'hybrid'])
-  Numerical solver strategy: ``'fixed_point'``, ``'newton_raphson'``, or
-  ``'hybrid'``.
-
-``impurity_sot`` (str [default = 'core'])
-  Source of Truth (SOT) for fixed impurities.
-  * ``'core'``: Core profiles define the concentration.
-  * ``'edge'``: Edge config defines the concentration.
-
-``fixed_point_iterations`` (int | None [default = None])
-  Number of iterations for the fixed-point solver. If None, defaults to 25
-  (fixed-point mode) or 5 (hybrid mode).
-
-``fixed_point_relaxation_factor`` (float [default = 0.5])
-  Under-relaxation factor in ``(0, 1]`` for forward-mode fixed-point
-  iterations.
-
-``newton_raphson_iterations`` (int [default = 30])
-  Maximum number of iterations for the Newton-Raphson solver.
-
-``newton_raphson_tol`` (float [default = 1e-5])
-  Convergence tolerance for the Newton-Raphson solver.
+.. torax_config:: torax._src.edge.extended_lengyel.config.ExtendedLengyelConfig
+   :include-fields: computation_mode, solver_mode, impurity_sot, fixed_point_iterations, fixed_point_relaxation_factor, newton_raphson_iterations, newton_raphson_tol, multistart_num_guesses, initial_guess
 
 Physical Parameters
 -------------------
 
-``T_e_target`` (**time-varying-scalar** | None [default = None])
-  Desired target electron temperature [eV]. Required if
-  ``computation_mode='inverse'``. Must be ``None`` in forward mode.
-
-``seed_impurity_weights`` (dict[str, **time-varying-scalar**] | None [default = None])
-  Relative weights of seeded impurity species (e.g., ``{'N': 0.95, 'Ar': 0.05}``).
-  Required if ``computation_mode='inverse'``. Must be ``None`` in forward mode.
-  In inverse mode, the sum of the weights must be non-negligible (at least
-  ``1e-7``) at all times, and all seeded species must have a non-coronal Mavrin
-  cooling rate fit (He, Li, Be, C, N, O, Ne, Ar).
-
-``fixed_impurity_concentrations`` (dict[str, **time-varying-scalar**] [default = {}])
-  Fixed background impurity concentrations at the edge (:math:`n_z/n_e`).
-
-``enrichment_factor`` (dict[str, **time-varying-scalar**] | None [default = None])
-  Enrichment factor (:math:`c_{div}/c_{core}`) for each species. Required if
-  ``use_enrichment_model=False``.
-
-``use_enrichment_model`` (bool [default = True])
-  If True, calculate enrichment factors using the Kallenbach 2024 model. In
-  limited configurations, model output will be 1.0 for each species.
-
-``enrichment_model_multiplier`` (**time-varying-scalar** [default = 1.0])
-  Multiplier applied to the calculated Kallenbach 2024 enrichment factor.
-
-``n_e_tau`` (**time-varying-scalar** [default = 0.5e17])
-  The non-coronal parameter (:math:`n_e \tau_{res}`) [:math:`\mathrm{s~m^{-3}}`]
-  used in impurity radiation calculations.
-
-``sheath_heat_transmission_factor`` (**time-varying-scalar** [default = 8.0])
-  Sheath heat transmission coefficient (:math:`\gamma`).
-
-``fraction_of_P_SOL_to_divertor`` (**time-varying-scalar** [default = 0.6666])
-  Fraction of SOL power entering the divertor leg.
-
-``SOL_conduction_fraction`` (**time-varying-scalar** [default = 1.0])
-  Fraction of SOL power carried by conduction.
-
-``ratio_of_molecular_to_ion_mass`` (**time-varying-scalar** [default = 2.0])
-  Ratio of molecular to ion mass, used in neutral pressure calculations.
-
-``T_wall`` (**time-varying-scalar** [default = 300.0])
-  Divertor wall temperature [K].
-
-``mach_separatrix`` (**time-varying-scalar** [default = 0.0])
-  Mach number at the separatrix.
-
-``mach_target`` (**time-varying-scalar** [default = 1.0])
-  Mach number at the target (Bohm condition).
-
-``T_i_T_e_ratio_separatrix`` (**time-varying-scalar** [default = 1.0])
-  Ratio of ion to electron temperature at the separatrix.
-
-``T_i_T_e_ratio_target`` (**time-varying-scalar** [default = 1.0])
-  Ratio of ion to electron temperature at the target.
-
-``n_e_n_i_ratio_separatrix`` (**time-varying-scalar** [default = 1.0])
-  Ratio of electron to ion density at the separatrix.
-
-``n_e_n_i_ratio_target`` (**time-varying-scalar** [default = 1.0])
-  Ratio of electron to ion density at the target.
+.. torax_config:: torax._src.edge.extended_lengyel.config.ExtendedLengyelConfig
+   :include-fields: T_e_target, seed_impurity_weights, fixed_impurity_concentrations, enrichment_factor, use_enrichment_model, enrichment_model_multiplier, n_e_tau, sheath_heat_transmission_factor, fraction_of_P_SOL_to_divertor, SOL_conduction_fraction, ratio_of_molecular_to_ion_mass, T_wall, mach_separatrix, mach_target, T_i_T_e_ratio_separatrix, T_i_T_e_ratio_target, n_e_n_i_ratio_separatrix, n_e_n_i_ratio_target
 
 Geometry Parameters
 -------------------
 
 These must be provided if not using MEQ geometry, or if using an MEQ geometry
 provider that does not include edge data. Even when using MEQ geometry, it is
-recommended to include fallback value in case the MEQ provider does not succeed
+recommended to include fallback values in case the MEQ provider does not succeed
 in extracting the required data for specific geometries.
 
-
-``diverted`` (**time-varying-scalar** | None [default = None])
-  Boolean flag indicating if the geometry is diverted.
-
-``connection_length_target`` (**time-varying-scalar** | None [default = None])
-  Parallel connection length from outboard midplane to target [m].
-
-``connection_length_divertor`` (**time-varying-scalar** | None [default = None])
-  Parallel connection length from outboard midplane to X-point [m].
-
-``angle_of_incidence_target`` (**time-varying-scalar** | None [default = None])
-  Angle between magnetic field line and divertor target [degrees].
-
-``toroidal_flux_expansion`` (**time-varying-scalar** | None [default = None])
-  Toroidal flux expansion factor, related to the ratio of target to upstream
-  radii.
-
-``ratio_bpol_omp_to_bpol_avg`` (**time-varying-scalar** | None [default = None])
-  Ratio of poloidal field at outboard midplane to the separatrix average.
-
-``divertor_broadening_factor`` (**time-varying-scalar** [default = 3.0])
-  Ratio of the wetted area broadening (:math:`\lambda_{int}/\lambda_q`) in the
-  divertor. Set to 1.0 in limited configurations.
+.. torax_config:: torax._src.edge.extended_lengyel.config.ExtendedLengyelConfig
+   :include-fields: diverted, connection_length_target, connection_length_divertor, angle_of_incidence_target, toroidal_flux_expansion, ratio_bpol_omp_to_bpol_avg, divertor_broadening_factor
 
 Initial Guess Parameters
 ------------------------
 
-These parameters control the initialization of the iterative solver. By default,
-the model attempts to use the converged solution from the previous time step to
-warm-start the solver (``use_previous_step_as_guess=True``), improving
-convergence speed and stability in time-dependent simulations. Provided initial
-guess values are always used for the first time step.
+These parameters (configured inside the ``initial_guess`` dictionary) control
+the initialization of the iterative solver. By default, the model attempts to
+use the converged solution from the previous time step to warm-start the solver
+(``use_previous_step_as_guess=True``), improving convergence speed and stability
+in time-dependent simulations. Provided initial guess values are always used for
+the first time step.
 
 **Note**: If the previous solver had a bad outcome (Newton-Raphson did not
 converge, or a physics error occurred such as negative heat flux), the previous
@@ -379,28 +261,7 @@ outputs are automatically skipped and the solver falls back to the configured
 initial guess or defaults. This prevents the solver from inheriting a bad state
 that can lead to cold root convergence in subsequent time steps.
 
-``initial_guess.use_previous_step_as_guess`` (bool [default = True])
-  If True, use the converged state from the previous time step as the initial
-  guess for the current step. This enables warm-starting and is recommended for
-  time-dependent simulations.
-
-``initial_guess.alpha_t`` (**time-varying-scalar**) [default = 0.1]
-  Turbulence broadening parameter [dimensionless].
-
-``initial_guess.kappa_e`` (**time-varying-scalar**) [default = 2390]
-  Electron heat conductivity prefactor [W/(m·eV\ :sup:`3.5`)].
-
-``initial_guess.T_e_separatrix`` (**time-varying-scalar**) [default = 200.0]
-  Electron temperature at the separatrix [eV]. Used to calculate the initial
-  parallel heat flux.
-
-``initial_guess.T_e_target`` (**time-varying-scalar**) [default = 100.0]
-  Electron temperature at the target [eV]. Only used in Forward computation
-  mode.
-
-``initial_guess.c_z_prefactor`` (**time-varying-scalar**) [default = 1e-4]
-  Impurity concentration prefactor [dimensionless]. Only used in Inverse
-  computation mode.
+.. torax_config:: torax._src.edge.extended_lengyel.config.InitialGuessConfig
 
 
 .. _custom_edge_models:

@@ -64,7 +64,21 @@ class RuntimeParams(transport_runtime_params.RuntimeParams):
 
 
 class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
-  """Pydantic model for the Angioni-Sauter neoclassical transport model."""
+  """Pydantic model for the Angioni-Sauter |angioni2000| neoclassical transport model.
+
+  Attributes:
+    model_name: Selected neoclassical transport model.
+    use_shaing_ion_correction: If `True`, smoothly blends the near-axis Shaing
+      |shaing1997| ion thermal conductivity into the Angioni-Sauter
+      |angioni2000| ion thermal conductivity.
+    shaing_ion_multiplier: Multiplier applied to the Shaing ion thermal
+      conductivity term.
+    shaing_blend_start: Normalized toroidal flux coordinate $rho_norm$ in $[0,
+      1]$ where the sigmoid transition between Shaing and Angioni-Sauter is
+      centered.
+    shaing_blend_rate: Steepness of the sigmoid transition between the Shaing
+      and Angioni-Sauter models.
+  """
 
   model_name: Annotated[
       Literal['angioni_sauter'], torax_pydantic.JAX_STATIC

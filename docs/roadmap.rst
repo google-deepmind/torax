@@ -21,5 +21,4 @@ physics, and core-edge integration, MHD, among others.
 See :ref:`contributing` and :ref:`contribution_tips` for more information.
 
 A list of ongoing issues, including physics features, performance,
-and UX improvements, is available here:
-https://github.com/google-deepmind/torax/issues
+and UX improvements, is available on |torax_issues|.

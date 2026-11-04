@@ -57,18 +57,17 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   """Base configuration for IonCyclotronSource.
 
   This base class contains fields common to all ICRH model implementations.
-  Subclasses implement the specific model logic,and must override `model_name`
-  with a `Literal` to serve as discriminator.
+  Subclasses implement the specific model logic and override `model_name` with
+  a `Literal` value to serve as discriminator.
 
   Attributes:
-    model_name: Discriminator field for Pydantic. Subclasses must override with
-      a `Literal` value.
-    P_total: Total heating power [W]. Required when mode is 'model_based'.
-    absorption_fraction: Fraction of absorbed power.
-    minority_species: Symbol of the minority species (e.g., 'He3'). The minority
-      concentration is extracted from plasma_composition. The species can be
-      either a main ion or an impurity.
-    mode: Defines how the source values are computed.
+    model_name: Selects the ICRH model implementation (e.g.
+      `'scaled_profile'`).
+    P_total: Total injected ICRH heating power [W].
+    absorption_fraction: Fraction of `P_total` absorbed by the plasma.
+    minority_species: Symbol of the minority species (e.g. `'He3'`). The
+      minority concentration is automatically extracted from
+      `plasma_composition`. The species can be either a main ion or an impurity.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''

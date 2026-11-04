@@ -45,7 +45,8 @@ class TriggerConfig(torax_pydantic.ConfigBase):
   """Base config for all trigger models.
 
   Attributes:
-    minimum_radius: The minimum radius of the q=1 surface for triggering.
+    minimum_radius: The minimum normalized radius [$rho_norm$] of the `q=1`
+      surface required to trigger a crash.
   """
 
   minimum_radius: torax_pydantic.PositiveTimeVaryingScalar = (

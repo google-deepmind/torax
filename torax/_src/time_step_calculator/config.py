@@ -39,17 +39,19 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
     t_final: Simulation end time [s].
     tolerance: The tolerance within the final time for which the simulation will
       be considered done.
-    exact_t_final: If True, ensures that the simulation end time is exactly
+    exact_t_final: If `True`, ensures that the simulation end time is exactly
       `t_final`, by adapting the final `dt` to match.
     min_dt: Minimum timestep allowed in simulation [s].
-    dt_backtracking_factor: Factor by which to reduce dt if
-      `allow_backtracking` is True or for `from_previous_dt` time step
-      calculation.
-    allow_backtracking: Iterative reduction of dt if solver fails to converge.
-      If a time step does not converge, then the step is redone
-      iteratively at successively lower dt until convergence is reached.
-    max_steps: Optional maximum number of simulation steps. If None, falls back
-      to `default_max_steps` if supported by the time step calculator.
+    dt_backtracking_factor: Used only if `allow_backtracking` is `True` (or
+      for `'from_previous_dt'`). Factor by which the timestep is reduced if a
+      nonlinear solver does not converge for a given timestep.
+    allow_backtracking: If `True`, then if a nonlinear solver does not converge
+      for a given timestep, `dt`-backtracking is applied and a new `Solver`
+      call is made where the timestep is reduced by a factor of
+      `dt_backtracking_factor`. This is applied iteratively until either the
+      solver converges, or `min_dt` is reached.
+    max_steps: Optional maximum number of simulation steps. If `None`, falls
+      back to `default_max_steps` if supported by the time step calculator.
   """
 
   t_initial: torax_pydantic.Second = 0.0
@@ -108,29 +110,36 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
 
 
 class ChiTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
-  """Config for the chi time step calculator.
+  """Adaptive time step calculator scaled to parabolic heat-diffusion stability.
 
-  Computes the candidate timestep `dt` at each step by scaling a base explicit
-  parabolic stability limit derived from the maximum total heat diffusivity
-  `chi_max = max(chi_i, chi_e)` across the radial grid:
+  Computes the candidate timestep `dt` at each step as a multiple of a base
+  explicit stability limit for parabolic PDEs ($dt_base = dx^2 / (2 * chi)$,
+  where $dx$ is the grid resolution and $chi = max(chi_i, chi_e)$ across the
+  radial grid):
 
-    `basic_dt = (3 / 4) * min(drho_norm)**2 / chi_max`
-    `dt = min(chi_timestep_prefactor * basic_dt, max_dt)`
+  ```
+  basic_dt = (3 / 4) * min(drho_norm)**2 / chi_max
+  dt = min(chi_timestep_prefactor * basic_dt, max_dt)
+  ```
 
-  When `exact_t_final=True`, the final step is clipped to `t_final - t`.
-  If `allow_backtracking=True` and the solver fails to converge, the
-  current step is retried at `dt / dt_backtracking_factor**i` until either
-  convergence is reached or `dt <= min_dt`. The next step will then return to
-  the `dt` given by the above equation.
+  Scaling the timestep to be $propto chi$ helps protect against traversing
+  through fast transients when resolving them is desired, while
+  `chi_timestep_prefactor` can be set significantly larger than unity for
+  implicit solvers. When `exact_t_final=True`, the final step is clipped to
+  `t_final - t`. If `allow_backtracking=True` and the solver fails to converge,
+  the current step is retried at `dt / dt_backtracking_factor**i` until either
+  convergence is reached or `dt <= min_dt`. The next step then returns to the
+  `dt` given by the above equation.
 
   Attributes:
-    calculator_type: The type of time step calculator to use, hardcoded to
-      'chi'.
-    max_dt: Maximum timestep allowed in the simulation.
-    chi_timestep_prefactor: Prefactor multiplying the base explicit stability
-      timestep `basic_dt`. For implicit solvers, this can typically be set to a
-      large value to allow a larger timestep.
-  """
+    calculator_type: Selected time step calculator algorithm, defaulting to
+      `'chi'`.
+    max_dt: Maximum size of timesteps allowed in the simulation [s].
+    chi_timestep_prefactor: Prefactor in front of `'chi'`
+      `time_step_calculator` base timestep $dt_base = dx^2 / (2 * chi)$. For
+      implicit solvers, this can typically be set to a large value to allow a
+      larger timestep.
+  """  # fmt: skip
 
   calculator_type: Annotated[Literal['chi'], torax_pydantic.JAX_STATIC] = 'chi'
   max_dt: torax_pydantic.Second = 2.0
@@ -162,11 +171,7 @@ class ChiTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
 
 
 class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
-  """Config for the fixed time step calculator.
-
-  Steps through time using the prescribed `dt` evaluated at the current
-  simulation time `t` (either a constant scalar or a step-interpolated
-  time-varying scalar).
+  """Steps through time using a prescribed constant or step-interpolated `dt`.
 
   When `exact_t_final=True`, the final step is clipped to `t_final - t`.
   If `allow_backtracking=True` and the solver fails to converge, the
@@ -176,12 +181,20 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
 
   Attributes:
     calculator_type: The type of time step calculator to use, hardcoded to
-      'fixed'.
-    dt: Prescribed timestep in seconds. May be a constant scalar or a
-      step-interpolated time-varying scalar evaluated at the current simulation
-      time `t`; actual steps may be smaller when `allow_backtracking=True` or
-      on the final step when `exact_t_final=True`.
-  """
+      `'fixed'`.
+    dt: Timestep [s] used for `'fixed'` `time_step_calculator`. All
+      values must be non-negative. Specifying a time-dependent `dt` can be
+      useful in cases where there are known transitions (e.g. ramp-up,
+      ramp-down, and/or LH transitions) and a different granularity of
+      simulation is required for each phase. Note that the default
+      interpolation mode for `dt` has been internally imposed as `'step'`.
+      For example:
+
+      ```
+      # Setting a higher time resolution between 5s and 10s.
+      'dt': {0.0: 1e-1, 5.0: 1e-2, 10.0: 1e-1}
+      ```
+  """  # fmt: skip
 
   calculator_type: Annotated[Literal['fixed'], torax_pydantic.JAX_STATIC] = (
       'fixed'
@@ -215,13 +228,14 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
 
 
 class FromPreviousTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
-  """Config for the from_previous_dt time step calculator.
+  """Stateful time step calculator that grows `dt` from the previous step.
 
-  Stateful time step calculator that attempts to increase the timestep `dt` at
-  each step, based on the most recent non-sawtooth timestep
-  `previous_non_sawtooth_dt`:
+  Increases the candidate timestep `dt` at each step from the most recent
+  non-sawtooth timestep `previous_non_sawtooth_dt`:
 
-    `dt = min(previous_non_sawtooth_dt * dt_backtracking_factor, max_dt)`
+  ```
+  dt = min(previous_non_sawtooth_dt * dt_backtracking_factor, max_dt)
+  ```
 
   On the first (non-sawtooth) step, it uses `initial_dt` (clipped to `max_dt`).
   When `exact_t_final=True`, the final step is clipped to `t_final - t`.
@@ -233,9 +247,10 @@ class FromPreviousTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
 
   Attributes:
     calculator_type: The type of time step calculator to use, hardcoded to
-      'from_previous_dt'.
-    initial_dt: Initial timestep duration used for the first step.
-    max_dt: Maximum timestep allowed in the simulation.
+      `'from_previous_dt'`.
+    initial_dt: Initial timestep duration (must be positive) used for the first
+      step of the `'from_previous_dt'` `time_step_calculator` [s].
+    max_dt: Maximum size of timesteps allowed in the simulation [s].
   """
 
   calculator_type: Annotated[

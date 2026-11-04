@@ -71,11 +71,10 @@ Because the ``RuntimeParams`` are used across the simulation they have to be
 made to work with JAX compilation. For most parameters this works out the box
 but for some parameters we have marked them as ``static`` according to JAX which
 allows us to use them in standard python control flow. The impacts of this is
-that ``static`` parameters are treated as compile time constants (see
-`jax docs <https://docs.jax.dev/en/latest/jit-compilation.html#marking-arguments-as-static>`_
-for details). These ``static`` parameters cause a recompilation of the JAX
-functions for each new value they are given. An example of a ``static``
-parameter is the ``mode`` of the ``Sources``.
+that ``static`` parameters are treated as compile time constants (see the
+|jax_static_args_docs| for details). These ``static`` parameters cause a
+recompilation of the JAX functions for each new value they are given. An example
+of a ``static`` parameter is the ``mode`` of the ``Sources``.
 
 
 orchestration
@@ -182,7 +181,7 @@ corresponding to the H-mode pedestal (see :ref:`pedestal_config`).
   implementations (``SetTemperatureDensityPedestalModel`` and
   ``SetPressureTemperatureRatioAndDensityPedestalModel``, plus ``NoPedestal``
   for when the pedestal is disabled), and supports registering external models
-  such as `epednn-mit <https://github.com/aaronkho/epednn_mit>`_.
+  such as |epednn_mit|.
 * ``FormationModel``: controls L-H and H-L transitions (either via a prescribed
   schedule or a power-scaling law).
 * ``SaturationModel``: controls how transport scales in the pedestal region

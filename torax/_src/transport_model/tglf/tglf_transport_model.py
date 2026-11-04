@@ -222,14 +222,15 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 class TGLFTransportModelConfig(
     tglf_based_transport_model.TGLFBasedTransportModelConfig
 ):
-  r"""Model for the TGLF transport model.
+  r"""Configuration model for the TGLF quasilinear transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'tglf'.
-    n_processes: Set number of parallel TGLF calculations to run.
-    n_cores_per_process: Number of cores to use for each parallel TGLF
-      calculation.
-    tglf_settings: Dictionary of TGLF namelist parameters.
+    model_name: Transport model identifier. Always set to `'tglf'`.
+    n_processes: Number of parallel TGLF calculations to run across radial
+      faces.
+    n_cores_per_process: Number of cores to use for each parallel TGLF process.
+    tglf_settings: Dictionary of TGLF namelist parameters used to override
+      default physics settings.
   """
 
   model_name: Annotated[Literal['tglf'], torax_pydantic.JAX_STATIC] = 'tglf'

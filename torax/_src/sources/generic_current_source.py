@@ -130,16 +130,16 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    I_generic: total "external" current [A]. Required when mode is 'model_based'
-      and use_absolute_current=True.
-    fraction_of_total_current: total "external" current fraction. Required when
-      mode is 'model_based' and use_absolute_current=False.
-    gaussian_width: width of "external" Gaussian current profile. Required when
-      mode is 'model_based'.
-    gaussian_location: normalized radius of "external" Gaussian current profile.
-      Required when mode is 'model_based'.
-    use_absolute_current: Toggles if external current is provided absolutely or
-      as a fraction of I_p.
+    model_name: Name of the generic current model (`'gaussian'`).
+    I_generic: Total external current [A]. Only used if `use_absolute_current ==
+      True`.
+    fraction_of_total_current: Fraction of the total plasma current `I_p` driven
+      by `generic_current`. Only used if `use_absolute_current == False`.
+    gaussian_width: Gaussian width of the external current profile [$rho_norm$].
+    gaussian_location: Gaussian center of the external current profile
+      [$rho_norm$].
+    use_absolute_current: Toggles absolute (`I_generic`) vs. relative
+      (`fraction_of_total_current`) external current setting.
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (

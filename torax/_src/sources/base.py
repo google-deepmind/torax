@@ -85,8 +85,10 @@ class PrescribedValues(torax_pydantic.ConfigBase):
     power_density_e: Electron heating power density [W/m^3].
     j_parallel: Parallel current density `<j.B>/B_0` [A/m^2].
     particle_source_e: Electron particle source density [m^-3 s^-1].
-    fast_ions: Mapping from fast-ion species symbol (one of
-      `fast_ion.FAST_ION_SPECIES`) to prescribed `n` and `T` profiles.
+    fast_ions: Mapping from fast-ion species symbol (`'H'`, `'D'`, `'T'`,
+      `'He3'`, or `'He4'`) to prescribed `n` and `T` profiles
+      (`FastIonPrescribedValues`). Only supported on sources that produce fast
+      ions (`fusion` and `icrh`).
   """
 
   power_density_i: torax_pydantic.TimeVaryingArray | None = None
@@ -156,22 +158,31 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
   runtime parameters.
 
   Attributes:
-    mode: Defines how the source values are computed (from a model, from a file,
-      etc.)
-    is_explicit: Defines whether this is an explicit or implicit source.
-      Explicit sources are calculated based on the simulation state at the
-      beginning of a time step, or do not have any dependence on state. Implicit
-      sources depend on updated states as our iterative solvers evolve the state
-      through the course of a time step. NOTE: Not all source types can be
-      implicit or explicit. For example, file-based sources are always explicit.
-      If an incorrect combination of source type and is_explicit is passed in,
-      an error will be thrown when running the simulation.
+    mode: Defines how the source values are computed. Available options are:
+
+      - `'zero'`: Source is set to zero.
+      - `'model_based'`: Source values come from a model in code. When more
+        than one model implementation is available for a source, select it
+        via `model_name`.
+      - `'prescribed'`: Source values are prescribed by the user via
+        `prescribed_values`.
+    is_explicit: Defines whether the source is evaluated explicitly or
+      implicitly. Explicit sources are calculated based on the simulation state
+      at the beginning of a time step (or have no state dependence). Implicit
+      sources depend on updated states as the iterative solvers evolve the state
+      through a time step. If a source model is complex but evolves over slow
+      timescales compared to the state, it may be beneficial to set it as
+      explicit. Not all source types support both modes; an error is raised at
+      runtime if an unsupported combination is configured.
     prescribed_values: Prescribed profile values for the source, keyed by output
-      field name (`power_density_i`, `power_density_e`, `j_parallel`,
-      `particle_source_e`, and optional `fast_ions` for fast-ion sources). Used
-      only when the source is fully prescribed (`source.mode ==
-      Mode.PRESCRIBED`).
-  """
+      channel name (`power_density_i`, `power_density_e`, `j_parallel`,
+      `particle_source_e`, and optional `fast_ions` for fast-ion sources). Only
+      channels matching the source's `POPULATED_SOURCE_OUTPUTS` (and `fast_ions`
+      when `PRODUCES_FAST_IONS` is `True`) should be set. Used only when
+      `mode == 'prescribed'`. Each channel accepts any
+      :ref:`time-varying array <Time-varying arrays>` data structure and is
+      evaluated independently on the cell grid.
+  """  # fmt: skip
 
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
       runtime_params.Mode.MODEL_BASED

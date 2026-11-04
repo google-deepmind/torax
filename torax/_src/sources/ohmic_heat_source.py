@@ -84,7 +84,11 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):
-  """Configuration for the OhmicHeatSource."""
+  """Configuration for the OhmicHeatSource.
+
+  Attributes:
+    model_name: Name of the Ohmic heating model (`'standard'`).
+  """
 
   model_name: Annotated[Literal['standard'], torax_pydantic.JAX_STATIC] = (
       'standard'

@@ -54,26 +54,38 @@ _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL: Final[int] = 20
 
 # pylint: disable=invalid-name
 class EQDSKConfig(base.GeometryConfigBase):
-  """Pydantic model for the EQDSK geometry.
+  """Loads an EQDSK equilibrium file or in-memory `EQDSKInterface` object.
+
+  Traces flux surfaces from the 2D poloidal flux grid and computes the
+  corresponding flux-surface averages.
 
   Attributes:
-    cocos: COCOS coordinate convention of the EQDSK file, specified as an
-      integer in the range 1-8 or 11-18 inclusive.
-    geometry_file: Name of the EQDSK file in the geometry directory.
-    eqdsk_object: In-memory EQDSKInterface object.
-    geometry_type: Always set to 'eqdsk'.
-    geometry_directory: Optionally overrides the default geometry directory.
-    n_surfaces: Number of surfaces for which flux surface averages are
+    cocos: COCOS coordinate convention of the EQDSK input, specified as an
+      integer in the range `1`--`8` or `11`--`18` inclusive.
+    geometry_file: Name of the EQDSK file in `geometry_directory`. Exactly one
+      of `geometry_file` or `eqdsk_object` must be provided.
+    eqdsk_object: In-memory `eqdsk.EQDSKInterface` object (or dictionary
+      convertible via `EQDSKInterface.from_dict`). Exactly one of
+      `geometry_file` or `eqdsk_object` must be provided.
+    geometry_type: Always set to `'eqdsk'`.
+    geometry_directory: Optionally overrides the default geometry directory
+      (`torax/data/third_party/geo`). Should be set to an absolute path.
+    n_surfaces: Number of flux surfaces for which flux-surface averages are
       calculated.
-    last_surface_factor: Multiplication factor of the boundary poloidal flux,
-      used for the contour defining geometry terms at the LCFS on the TORAX
-      grid. Needed to avoid divergent integrations in diverted geometries.
+    last_surface_factor: Multiplication factor in `(0, 1)` applied to the
+      boundary poloidal flux for the contour defining geometry terms at the LCFS
+      on the TORAX grid. Needed to avoid divergent integrations in diverted
+      geometries.
     target_psi_grid_resolution: Desired minimum number of grid points along the
-      R and Z dimensions of the 2D psi grid before generating flux surface
-      contours. If set, the integer refinement factor is calculated dynamically
-      as `ceil(target / min_dim)`, where `target = target_psi_grid_resolution`
-      and `min_dim = min(nx, nz)`, refining both dimensions uniformly. If None,
-      no refinement is performed.
+      $R$ and $Z$ dimensions of the 2D $psi$ grid before generating flux surface
+      contours. Contours are linear between grid points, so for coarse EQDSK
+      grids the flux surfaces near the separatrix can be inaccurate (e.g.,
+      underestimating the plasma current) or fail to close. Refining the grid
+      allows `last_surface_factor` to be closer to `1`. If set, the 2D $(R, Z)$
+      grid is refined (using bicubic spline interpolation of $psi$) by an
+      integer factor `ceil(target_psi_grid_resolution / min(nx, nz))`, refining
+      both dimensions uniformly. If `None`, no refinement is performed. Must be
+      `>= 1` if provided.
   """
 
   @property
@@ -223,9 +235,9 @@ def _select_contour_enclosing_magnetic_axis(
   magnetic axis.
 
   Args:
-    contours: Contour lines from `contourpy` at a single psi level, each an
-      (N, 2) array of (R, Z) vertices. Closed lines repeat their first vertex at
-      the end.
+    contours: Contour lines from `contourpy` at a single psi level, each an (N,
+      2) array of (R, Z) vertices. Closed lines repeat their first vertex at the
+      end.
     r_axis: R coordinate of the magnetic axis.
     z_axis: Z coordinate of the magnetic axis.
 
@@ -244,7 +256,7 @@ def _select_contour_enclosing_magnetic_axis(
   ]
   if len(enclosing_contours) > 1:
     raise ValueError(
-        f'Expected at most one closed contour enclosing the magnetic axis'
+        'Expected at most one closed contour enclosing the magnetic axis'
         f' (R={r_axis}, Z={z_axis}), but found {len(enclosing_contours)}.'
     )
   return enclosing_contours[0] if enclosing_contours else None

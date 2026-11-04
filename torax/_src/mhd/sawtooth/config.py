@@ -26,9 +26,15 @@ class SawtoothConfig(torax_pydantic.ConfigBase):
   """Pydantic config for sawtooth configuration.
 
   Attributes:
-    trigger_model: Configuration for the trigger model.
-    redistribution_model: Configuration for the redistribution model.
-    crash_step_duration: Sawteeth crash period for extra timestep generated.
+    trigger_model: Configuration for the sawtooth trigger model. Currently only
+      the `'simple'` model is supported.
+    redistribution_model: Configuration for the sawtooth profile redistribution
+      model. Currently only the `'simple'` model is supported.
+    crash_step_duration: Duration of a sawtooth crash step [s]. This is
+      how much the solver time will be bumped forward during a crash. It is
+      important that this is small enough to satisfy the assumption of timescale
+      separation between the sawtooth crash and the transport timescale,
+      otherwise issues may arise regarding conservation properties.
   """
 
   trigger_model: simple_trigger.SimpleTriggerConfig = pydantic.Field(

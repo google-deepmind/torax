@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing an IMAS geometry."""
+
 from typing import Annotated, Literal, Self
 
 from imas import ids_toplevel
@@ -27,43 +28,34 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 class IMASConfig(base.GeometryConfigBase):
-  """Pydantic model for the IMAS geometry.
+  """Loads an equilibrium Interface Data Structure (IDS) from IMAS.
 
-  Currently written for COCOSv17 and DDv4. Note the IMASConfig is experimental
-  for now and may undergo changes.
-
-  Note the input here supports one and only one of the following:
-  1. imas_filepath: Path to the IMAS netCDF file containing the equilibrium
-      data. This is the only option that is covered by integration tests and can
-      be used in the main TORAX run loop without additional dependencies.
-  2. imas_uri: The IMAS uri containing the equilibrium data. Using this option
-      requires access to imas-core, not part of the standard TORAX dependencies.
-      This means this option is also not covered by integration tests.
-  3. equilibrium_object: The equilibrium IDS containing the relevant data. This
-      method does not currently support serialisation and is not compatible with
-      the main TORAX run loop.
+  Currently written for COCOSv17 and DDv4. Note that `IMASConfig` is
+  experimental and may undergo changes.
 
   Attributes:
-    geometry_type: Always set to 'imas'.
-    geometry_directory: Optionally overrides the default geometry directory.
-    imas_filepath: Path to the IMAS netCDF file containing the equilibrium data.
+    geometry_type: Always set to `'imas'`.
+    geometry_directory: Optionally overrides the default geometry directory
+      (`torax/data/third_party/geo`). Should be set to an absolute path.
+    imas_filepath: Path to the IMAS netCDF file containing the equilibrium IDS
+      data. Only one of `imas_filepath`, `imas_uri`, or `equilibrium_object` can
+      be set.
+    imas_uri: IMAS URI containing the equilibrium IDS data. Using this option
+      requires access to `imas-core` (not part of standard TORAX dependencies).
       Only one of `imas_filepath`, `imas_uri`, or `equilibrium_object` can be
       set.
-    imas_uri: The IMAS uri containing the equilibrium data. Using this option
-      requires access to imas-core, not part of the standard TORAX dependencies.
-      This means this option is also not covered by integration tests. Only one
-      of imas_filepath, imas_uri or equilibrium_object can be set.
-    equilibrium_object: The equilibrium IDS containing the relevant data. This
-      method does not currently support serialisation and is not compatible with
-      the with running TORAX using the provided APIs. To use this option you
-      must implement a custom run loop. Only one of imas_filepath, imas_uri or
-      equilibrium_object can be set.
-    slice_time: Time [s] of a single slice to load from the IMAS IDS.
-      If None (default), all time slices in the IDS are loaded.
-    explicit_convert: Whether to explicitly convert the IDS to the current DD
-      version. If True, an explicit conversion will be attempted. Explicit
-      conversion is required when converting between major DD versions.
-      https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
+    equilibrium_object: In-memory `imas.ids_toplevel.IDSToplevel` equilibrium
+      IDS object inserted directly. Does not currently support serialization and
+      requires a custom run loop. Only one of `imas_filepath`, `imas_uri`, or
+      `equilibrium_object` can be set.
+    slice_time: Time [s] of a single slice to load from the IMAS IDS. If `None`
+      (default), all time slices in the IDS are loaded to build a time-dependent
+      `StandardGeometryProvider`. If a float is provided, only the single time
+      slice closest to the given time is loaded.
+    explicit_convert: Whether to explicitly convert the IDS to the current Data
+      Dictionary (DD) version before loading. Explicit conversion is required
+      when converting between major DD versions. See the |imas_multi_dd_docs|
+      for details.
   """
 
   @property

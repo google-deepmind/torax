@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 .. _migration_guide:
 
 Migrating from TORAX v1 to v2

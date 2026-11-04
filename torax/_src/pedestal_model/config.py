@@ -42,13 +42,14 @@ class FormationConfigBase(torax_pydantic.ConfigBase):
 
   Attributes:
     base_multiplier: The base value of the transport decrease multiplier used in
-      ADAPTIVE_TRANSPORT mode when the pedestal is active. Decrease (closer to
-      0) for stronger reductions in transport once formation starts.
+      `'adaptive_transport'` mode when the pedestal is active. Decrease (closer
+      to 0) for stronger reductions in transport once formation starts.
     initial_confinement_mode: Optional explicit initial confinement mode
-      ('l_mode' or 'h_mode') at t_initial. When None (default), the initial mode
-      is inferred automatically from the formation model's transition conditions
-      at t_initial. Used to enable triggering L-H or H-L transitions from a cold
-      start.
+      (`'l_mode'` or `'h_mode'`) at `t_initial`. When `None` (default), the
+      initial mode is inferred automatically from the formation model's
+      transition conditions at `t_initial` (cannot be `'h_mode'` when
+      `structure_model` is `'no_pedestal'`). Used to enable triggering L-H or
+      H-L transitions from a cold start.
   """
 
   base_multiplier: Annotated[
@@ -87,12 +88,12 @@ class PowerScalingFormationConfig(FormationConfigBase):
   P_LH, where P_LH is calculated from an appropriate scaling law.
   The reduction is a multiplicative factor between 1.0 and base_multiplier.
 
-  The formula is
-    transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier,
-  where alpha is a smooth sigmoid function of
-    (P_SOL - P_LH * P_LH_prefactor) / (P_LH * P_LH_prefactor)
+  The formula is:
+  `transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier`,
+  where `alpha` is a smooth sigmoid function of
+  `(P_SOL - P_LH * P_LH_prefactor) / (P_LH * P_LH_prefactor)`
   with given sharpness and offset, namely:
-     sigmoid(x) = 1 / (1 + exp(-sharpness * [x - offset])).
+  `sigmoid(x) = 1 / (1 + exp(-sharpness * [x - offset]))`.
 
 
   Attributes:
@@ -112,7 +113,7 @@ class PowerScalingFormationConfig(FormationConfigBase):
       lose more power to transition back to L-mode than was required to enter
       H-mode, which is the experimentally observed behavior. Must be in [0, 1].
     include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
-      calculation used for comparing against P_LH. When False (default), uses
+      calculation used for comparing against P_LH. When `False` (default), uses
       P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
       dW/dt. Excluding dW/dt avoids unphysical dithering during transients.
   """
@@ -147,11 +148,16 @@ class PowerScalingFormationConfig(FormationConfigBase):
 
 
 class MartinScalingFormationConfig(PowerScalingFormationConfig):
-  """Configuration for Martin scaling formation model.
+  """Triggers L-H and H-L transitions using the Martin $P_LH$ scaling law.
 
-  This formation model triggers a reduction in pedestal transport when P_SOL >
-  P_LH, where P_LH is calculated from the Martin scaling law. See
-  `PowerScalingFormationConfig` for more details.
+  Triggers L-H formation when $P_SOL > P_LH$ (scaled by `P_LH_prefactor`), with
+  H-L back transitions governed by `P_LH_hysteresis_factor`. In
+  `'adaptive_transport'` mode, scales pedestal transport smoothly between `1.0`
+  and `base_multiplier` via a sigmoid of `(P_SOL - P_LH * P_LH_prefactor) /
+  (P_LH * P_LH_prefactor)`.
+
+  Attributes:
+    model_name: Formation model name, set to `'martin_scaling'`.
   """
 
   model_name: Annotated[
@@ -167,11 +173,18 @@ class MartinScalingFormationConfig(PowerScalingFormationConfig):
 
 
 class DelabieScalingFormationConfig(PowerScalingFormationConfig):
-  """Configuration for Delabie scaling formation model.
+  """Triggers L-H and H-L transitions using the Delabie $P_LH$ scaling law.
 
-  This formation model triggers a reduction in pedestal transport when P_SOL >
-  P_LH, where P_LH is calculated from the Delabie scaling law. See
-  `PowerScalingFormationConfig` for more details.
+  Triggers L-H formation when $P_SOL > P_LH$ (scaled by `P_LH_prefactor`), with
+  H-L back transitions governed by `P_LH_hysteresis_factor`. In
+  `'adaptive_transport'` mode, scales pedestal transport smoothly between `1.0`
+  and `base_multiplier` via a sigmoid of `(P_SOL - P_LH * P_LH_prefactor) /
+  (P_LH * P_LH_prefactor)`.
+
+  Attributes:
+    model_name: Formation model name, set to `'delabie_scaling'`.
+    divertor_configuration: Divertor configuration (`'horizontal_target'` for
+      horizontal target or `'vertical_target'` for vertical target).
   """
 
   model_name: Annotated[
@@ -192,22 +205,20 @@ class DelabieScalingFormationConfig(PowerScalingFormationConfig):
 
 
 class ProfileValueSaturationConfig(torax_pydantic.ConfigBase):
-  """Configuration for ProfileValueSaturation model.
+  """Increases pedestal transport when pedestal profiles exceed target values.
 
-  This saturation model triggers an increase in pedestal transport when the
-  pedestal-top temperature and density are above the target values from the
-  pedestal structure model. The increase is a smooth function of the normalized
-  deviation from the target pedestal-top value.
+  Uses the current profile value at the pedestal top for saturation, smoothly
+  increasing pedestal transport as a function of the normalized deviation from
+  the target value requested by the structure model:
 
-  The formula is
-    transport_multiplier = 1 + alpha * base_multiplier,
-  where alpha is a softplus function of the normalized deviation from the target
-  value, with given steepness and offset:
-    x = (current - target) / target - offset
-    alpha = log(1 + exp(steepness * x))
-
+  ```
+  transport_multiplier = 1 + alpha * base_multiplier
+  x = (current - target) / target - offset
+  alpha = log(1 + exp(steepness * x))
+  ```
 
   Attributes:
+    model_name: Saturation model name, set to `'profile_value'`.
     steepness: Scaling factor applied to the argument of the softplus function,
       setting the steepness of the smooth saturation function. Decrease for a
       smoother saturation, which may be more numerically stable but may lead to
@@ -249,18 +260,19 @@ class ProfileValueSaturationConfig(torax_pydantic.ConfigBase):
 
 
 class PrescribedFormationConfig(FormationConfigBase):
-  """Configuration for prescribed pedestal formation model.
+  """Controls pedestal activation according to a prescribed boolean schedule.
 
-  Controls whether the pedestal is active according to a prescribed boolean
-  value or time-varying boolean schedule. In INTERNAL_BOUNDARY_CONDITION mode,
-  activates the pedestal internal boundary condition when `pedestal_active` is
-  True (with optional ramp over `transition_time_width`). In ADAPTIVE_TRANSPORT
-  mode, scales pedestal transport by `base_multiplier` when `pedestal_active` is
-  True and `1.0` when False.
+  In `'internal_boundary_condition'` mode, activates the pedestal internal
+  boundary condition when `pedestal_active` is `True` (with optional ramp over
+  `transition_time_width`). In `'adaptive_transport'` mode, scales pedestal
+  transport by `base_multiplier` when `pedestal_active` is `True` and `1.0` when
+  `False`.
 
   Attributes:
-    pedestal_active: Whether the pedestal is active. Can be a boolean or a
-      time-varying boolean (default interpolation is STEP).
+    model_name: Selects the pedestal formation model (`'prescribed'`,
+      `'martin_scaling'`, or `'delabie_scaling'`).
+    pedestal_active: Whether the pedestal is active (default interpolation is
+      `'step'`; evaluated at step start $t$).
   """
 
   model_name: Annotated[Literal["prescribed"], torax_pydantic.JAX_STATIC] = (
@@ -298,9 +310,28 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
   """Base configuration for pedestal structure models.
 
   Attributes:
-    pedestal_profile_form: Controls the shape of internal boundary conditions in
-      the pedestal region (SET_AT_TOP or MTANH).
-  """
+    pedestal_profile_form: Controls the shape of internal boundary conditions
+      in the pedestal region. Options:
+
+      - `'set_at_top'`: Pedestal values are pinned at a single grid
+        cell nearest to `rho_norm_top`.
+      - `'mtanh'`: A smooth modified-tanh (`mtanh`) profile is applied across
+        the pedestal region from the pedestal top to the separatrix, following
+        the `mtanh` parameterization of |snyder2004|. For simplicity, the
+        core polynomial part of the full `mtanh` is neglected; only the
+        `tanh` component is used in the pedestal region. The `mtanh` width
+        $Delta$ is derived on-the-fly from `rho_norm_top` via the
+        $psi_N(rho)$ mapping in core profiles:
+
+        $$
+        f(psi) = f_sep + a_0 * (tanh(1) -
+        tanh(2 * (psi - psi_mid) / Delta))
+        $$
+
+        where $psi_top = psi_N(rho_top)$, $Delta =
+        (1 - psi_top) / 1.5$, $psi_mid = 1 - Delta / 2$,
+        and $a_0 = (f_top - f_sep) / (tanh(1) + tanh(2))$.
+  """  # fmt: skip
 
   pedestal_profile_form: Annotated[
       runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
@@ -321,18 +352,21 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
 
 
 class SetPtopTtopRatioNtopConfig(StructureConfigBase):
-  """Model for direct specification of pedestal-top pressure, ratio, and density.
+  """Directly specifies pedestal-top pressure, temperature ratio, and density.
 
   Attributes:
+    model_name: Pedestal structure model name, set to `'set_p_top_n_top'`.
     p_top: The plasma pressure at the pedestal top [Pa].
     p_top_multiplier: Multiplier for the pedestal-top pressure (mostly used for
       sensitivity analysis) [dimensionless].
-    n_e_top: The electron density at the pedestal top [m^-3] or f_GW.
-    n_e_top_is_f_GW: Whether the electron density at the pedestal top is in
-      units of f_GW.
+    n_e_top: Electron density at the pedestal top [m^-3 if
+      `n_e_top_is_f_GW=False`, or Greenwald fraction if `n_e_top_is_f_GW=True`].
+    n_e_top_is_f_GW: Whether the electron density at the pedestal top is
+      specified as a Greenwald fraction (`f_GW`) [dimensionless] instead of
+      [m^-3].
     T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal top
       [dimensionless].
-    rho_norm_top: The location of the pedestal top.
+    rho_norm_top: Location of the pedestal top [$rho_norm$].
   """
 
   model_name: Annotated[
@@ -379,15 +413,18 @@ class SetPtopTtopRatioNtopConfig(StructureConfigBase):
 
 
 class SetTtopNtopConfig(StructureConfigBase):
-  """A basic version of the pedestal structure model using direct specification.
+  """Directly specifies pedestal-top location, density, and temperatures.
 
   Attributes:
-    n_e_top: The electron density at the pedestal top [m^-3] or f_GW.
-    n_e_top_is_f_GW: Whether the electron density at the pedestal top is in
-      units of f_GW.
+    model_name: Pedestal structure model name, set to `'set_T_top_n_top'`.
+    n_e_top: Electron density at the pedestal top [m^-3 if
+      `n_e_top_is_f_GW=False`, or Greenwald fraction if `n_e_top_is_f_GW=True`].
+    n_e_top_is_f_GW: Whether the electron density at the pedestal top is
+      specified as a Greenwald fraction (`f_GW`) [dimensionless] instead of
+      [m^-3].
     T_i_top: Ion temperature at the pedestal top [keV].
     T_e_top: Electron temperature at the pedestal top [keV].
-    rho_norm_top: The location of the pedestal top.
+    rho_norm_top: Location of the pedestal top [$rho_norm$].
   """
 
   model_name: Annotated[
@@ -427,7 +464,13 @@ class SetTtopNtopConfig(StructureConfigBase):
 
 
 class NoPedestalConfig(StructureConfigBase):
-  """A pedestal structure model for when there is no pedestal."""
+  """A pedestal structure model for when there is no pedestal.
+
+  Attributes:
+    model_name: Selects the pedestal structure model (`'no_pedestal'`,
+      `'set_T_top_n_top'`, or `'set_p_top_n_top'`). If not set, defaults to
+      `'no_pedestal'`.
+  """
 
   model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
       "no_pedestal"
@@ -449,47 +492,78 @@ class PedestalConfig(torax_pydantic.ConfigBase):
   """Configuration for the pedestal model.
 
   Attributes:
-    structure_model: Configuration for the pedestal structure model (computing
-      target pedestal-top values, location, and profile form).
-    mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
-      set the pedestal by modifying the transport coefficients in the pedestal
-      region, allowing the pedestal to self-consistently evolve. Set to
-      INTERNAL_BOUNDARY_CONDITION to set the pedestal by adding a source/sink
-      term at the pedestal top, forcing the pedestal top values to be as
-      prescribed.
-    transition_time_width: Duration of the L-H or H-L transition ramp [s].
-      During a transition, pedestal values are linearly interpolated between
-      L-mode baseline and H-mode target values over this time window. Must be
-      explicitly specified in INTERNAL_BOUNDARY_CONDITION mode when using a
-      power-scaling formation model; defaults to 0.0 otherwise.
-    explicit_pedestal: When True (default), the pedestal model is evaluated once
-      per timestep before the solver and its output is frozen during the solve.
-      When False, it is re-evaluated whenever the solver recomputes the PDE
-      coefficients (e.g. each Newton-Raphson iteration or predictor-corrector
-      step). In ADAPTIVE_TRANSPORT mode, the transport multipliers are always
-      re-evaluated.
-    formation_model: Configuration for the pedestal formation model.
-    saturation_model: Configuration for the pedestal saturation model.
+    structure_model: Configuration for the pedestal structure model, which
+      computes the H-mode target pedestal-top temperature, density, radial
+      location, and profile form. Custom models (such as |epednn_mit|) can also
+      be registered via `torax.pedestal.register_pedestal_structure_model` (see
+      :ref:`model-integration`).
+    mode: Defines how the pedestal is generated. Options:
+
+      - `'internal_boundary_condition'`: Sets the pedestal top value by
+        directly modifying the state equations to set Dirichlet internal
+        boundary conditions at a cell grid point corresponding to the pedestal
+        top, or for a profile (see `pedestal_profile_form`). This is the
+        default mode.
+      - `'adaptive_transport'`: Sets the pedestal by modifying the transport
+        coefficients in the pedestal region, allowing the pedestal to
+        self-consistently evolve. Transport coefficients are scaled to allow
+        the temperature and density to evolve towards the prescribed pedestal
+        values.
+    transition_time_width: Duration of the L-H or H-L transition ramp [s] for
+      `'internal_boundary_condition'` mode. During a transition, the
+      confinement mode enters `'TRANSITIONING_TO_H_MODE'` or
+      `'TRANSITIONING_TO_L_MODE'` and pedestal values are linearly interpolated
+      between the captured L-mode baseline values and the H-mode target values
+      (e.g. `T_i_top(t)`, `T_e_top(t)`, `n_e_top(t)`) over this time window.
+      Must be non-negative. Defaults to `0.0` (immediate step transition between
+      `'l_mode'` and `'h_mode'`) for `'prescribed'` formation, and must be
+      explicitly specified when using a power-scaling formation model
+      (`'martin_scaling'` or `'delabie_scaling'`) in
+      `'internal_boundary_condition'` mode. Note that if `transition_time_width
+      > 0.0` is used with time-varying pedestal targets, those targets should
+      represent the H-mode trajectory rather than manually encoding the L-H
+      ramp, as the ramp scaling is applied on top of the target values.
+    explicit_pedestal: Controls whether the pedestal model is evaluated
+      explicitly (once per timestep) or implicitly (every internal iteration).
+      When `True` (default), the pedestal model is evaluated once in the
+      pre-step phase and its output is frozen during the solver loop. When
+      `False`, the pedestal model is re-evaluated every Newton iteration,
+      coupling pedestal physics to the implicit solve, but increasing the
+      non-linearity of the system. Note: for `'adaptive_transport'` mode,
+      transport multipliers are always re-evaluated implicitly with current
+      profiles regardless of this setting, since the saturation model's
+      profile-based feedback loop requires implicit coupling.
+    formation_model: Configuration for the pedestal formation model, which
+      determines when L-H and H-L transitions occur. Defaults to `{'model_name':
+      'prescribed', 'pedestal_active': True}` in `'internal_boundary_condition'`
+      mode, and must be explicitly specified when `mode` is
+      `'adaptive_transport'`. Note that transition conditions are evaluated in
+      the pre-step phase at the start of each timestep $[t, t + dt]$; a
+      transition condition met at $t_trans$ takes effect on the first
+      timestep starting at $t >= t_trans$ (and not during an earlier step that
+      merely crosses $t_trans$).
+    saturation_model: Configuration for the pedestal saturation model, which
+      determines how the pedestal values scale relative to H-mode target values
+      in `'adaptive_transport'` mode.
     chi_max: Maximum effective thermal diffusion coefficient from the core
-      transport model in the pedestal region (i.e., before applying
-      ADAPTIVE_TRANSPORT) [m^2/s].
+      transport model allowed in the pedestal region (before applying
+      `'adaptive_transport'`) [m^2/s].
     D_e_max: Maximum effective particle diffusion coefficient from the core
-      transport model in the pedestal region (i.e., before applying
-      ADAPTIVE_TRANSPORT) [m^2/s].
+      transport model allowed in the pedestal region (before applying
+      `'adaptive_transport'`) [m^2/s].
     V_e_max: Maximum effective particle pinch velocity from the core transport
-      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
-      [m/s].
+      model allowed in the pedestal region (before applying
+      `'adaptive_transport'`) [m/s].
     V_e_min: Minimum effective particle pinch velocity from the core transport
-      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
-      [m/s].
-    pedestal_top_smoothing_width: Width of the smoothing region applied to the
-      transport coefficients at the pedestal top in ADAPTIVE_TRANSPORT mode, in
-      units of rho_norm.
-    initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
-      condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
-      L-mode pedestal-top baselines at `t_initial` when the simulation starts
-      directly in H-mode without L-mode profile data.
-  """
+      model allowed in the pedestal region (before applying
+      `'adaptive_transport'`) [m/s].
+    pedestal_top_smoothing_width: Width of the smoothing region at the pedestal
+      top boundary [$rho_norm$].
+    initial_L_mode_bc_multiplier: Multiplier applied to the LCFS right-boundary
+      values ($T_i$, $T_e$, $n_e$) at $t_initial$ to seed the L-mode
+      pedestal-top baselines when the simulation starts directly in H-mode
+      without prior L-mode profile data. Must be positive.
+  """  # fmt: skip
 
   structure_model: StructureConfig = torax_pydantic.ValidatedDefault(
       NoPedestalConfig()

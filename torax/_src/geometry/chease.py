@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing a CHEASE geometry."""
+
 from typing import Annotated, Literal, Self
 import numpy as np
 import pydantic
@@ -26,14 +27,21 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 class CheaseConfig(base.GeometryConfigBase):
-  """Pydantic model for the CHEASE geometry.
+  """Loads a normalized magnetic equilibrium from a CHEASE geometry file.
 
   Attributes:
-    geometry_type: Always set to 'chease'.
-    geometry_directory: Optionally overrides the default geometry directory.
-    R_major: Major radius (R) in meters.
-    a_minor: Minor radius (a) in meters.
-    B_0: Vacuum toroidal magnetic field at `R_major` [T].
+    geometry_type: Always set to `'chease'`.
+    geometry_directory: Optionally overrides the default geometry directory
+      (`torax/data/third_party/geo`). Should be set to an absolute path.
+    geometry_file: Name of the CHEASE geometry file loaded from
+      `geometry_directory`.
+    R_major: Major radius used for denormalization, defined as the midplane
+      average of the LCFS radius, $R_major = (R_max + R_min) / 2$ [m].
+    a_minor: Minor radius used for denormalization, defined as half the
+      horizontal width of the LCFS, $a_minor = (R_max - R_min) / 2$ [m].
+      Must satisfy `a_minor <= R_major`.
+    B_0: Vacuum toroidal magnetic field at `R_major` used for denormalization
+      [T].
   """
 
   @property

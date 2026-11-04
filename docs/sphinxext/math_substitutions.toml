@@ -1,0 +1,168 @@
+# Copyright 2026 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Explicit lookup table mapping normalized code-math expressions (`$...$` and
+# `$$...$$` in docstrings) to their exact LaTeX representations.
+#
+# Whitespace (including newlines and indentation) is collapsed to single spaces
+# on load. Use single-quoted TOML literal strings (`'...'` or multiline
+# `'''...'''`) so LaTeX backslashes do not require escaping; for expressions
+# containing `'`, use `"..."` on keys and `'''...'''` on values.
+
+# Standalone operators, tuples, intervals, and inequalities
+'*' = '\times'
+'>= 2' = '\ge 2'
+'(R, Z)' = '(R, Z)'
+'(rho_min, rho_max]' = '(\rho_{\text{min}}, \rho_{\text{max}}]'
+'[0, 1]' = '[0, 1]'
+'[t, t + dt]' = '[t, t + dt]'
+
+# Single variables and Greek symbols
+'A' = 'A'
+'Delta' = '\Delta'
+'N' = 'N'
+'Phi_b_dot' = '\dot{\Phi}_b'
+'R' = 'R'
+'Z' = 'Z'
+'a' = 'a'
+'chi' = '\chi'
+'dx' = 'dx'
+'gamma' = '\gamma'
+'math' = '\text{math}'
+'nu' = '\nu'
+'nu_star' = '\nu^*'
+'psi' = '\psi'
+'q' = 'q'
+'rho_norm' = '\hat{\rho}'
+'s_hat' = '\hat{s}'
+'t' = 't'
+'v_ExB' = 'v_{E\times B}'
+'v_ExB_shear' = 'v_{E\times B}^{\text{shear}}'
+'x' = 'x'
+
+# Subscripted and primed quantities
+'D_e' = 'D_e'
+'D_eff' = 'D_{\text{eff}}'
+'D_neo' = 'D_{\text{neo}}'
+'I_p' = 'I_p'
+'P_LH' = 'P_{\text{LH}}'
+'P_SOL' = 'P_{\text{SOL}}'
+'R_major' = 'R_{\text{major}}'
+'R_over_L_Tfi' = 'R/L_{T_{\text{fi}}}'
+'R_over_L_Ti' = 'R/L_{T_i}'
+'T_e' = 'T_e'
+'T_i' = 'T_i'
+'V_e' = 'V_e'
+'V_eff' = 'V_{\text{eff}}'
+'V_neo' = 'V_{\text{neo}}'
+'alpha_MHD' = '\alpha_{\text{MHD}}'
+'beta_T' = '\beta_T'
+"beta_pol'" = '''
+  \beta_{\text{pol}}'
+'''
+'chi_neo' = '\chi_{\text{neo}}'
+'n_GW' = 'n_{\text{GW}}'
+'n_e' = 'n_e'
+'rho_norm_edge' = '\hat{\rho}_{\text{edge}}'
+'rho_norm_mix' = '\hat{\rho}_{\text{mix}}'
+'rho_norm_q1' = '\hat{\rho}_{q=1}'
+'rho_norm_ref' = '\hat{\rho}_{\text{ref}}'
+'t_initial' = 't_{\text{initial}}'
+'t_trans' = 't_{\text{trans}}'
+
+# Ratios, products, derivatives, and function expressions
+'0.5 * alpha_MHD' = '0.5 \alpha_{\text{MHD}}'
+'Gamma_e / Gamma_GB' = '\Gamma_e / \Gamma_{\text{GB}}'
+'N + 1' = 'N + 1'
+'T_fi / T_e' = 'T_{\text{fi}} / T_e'
+'T_i / T_e' = 'T_i / T_e'
+'abs(R_over_L_ne)' = '|R/L_{n_e}|'
+'c_div / c_core' = 'c_{\text{div}} / c_{\text{core}}'
+'lambda_int / lambda_q' = '\lambda_{\text{int}} / \lambda_q'
+'n_e * tau_res' = 'n_e \tau_{\text{res}}'
+'n_e(rho_norm_ref, t) times multiplier' = '''
+  n_e(\hat{\rho}_{\text{ref}}, t) \times \text{multiplier}
+'''
+'n_fi / n_e' = 'n_{\text{fi}} / n_e'
+'n_impurity / n_e' = 'n_{\text{impurity}} / n_e'
+'n_z / n_e' = 'n_z / n_e'
+'propto chi' = '\propto \chi'
+'psi_N(rho)' = '\psi_N(\rho)'
+'sigma(rho_norm)' = '\sigma(\hat{\rho})'
+'-partial(beta_pol_local) / partial(psi_N)' = '''
+  -\partial \beta_{\text{pol,local}} / \partial \psi_N
+'''
+
+# Comparisons and boundary conditions
+'P_SOL <= 0' = 'P_{\text{SOL}} \le 0'
+'P_SOL > P_LH' = 'P_{\text{SOL}} > P_{\text{LH}}'
+'P_SOL_scaling > 0' = 'P_{\text{SOL,scaling}} > 0'
+'alpha = -15' = '\alpha = -15'
+"beta_pol' > 0" = '''\beta_{\text{pol}}' > 0'''
+"beta_pol_min' >= 0" = '''\beta_{\text{pol,min}}' \ge 0'''
+'q < 1' = 'q < 1'
+'q = 1' = 'q = 1'
+'r = a_min' = 'r = a_{\text{min}}'
+'rho_norm = 1' = '\hat{\rho} = 1'
+'rho_norm > 0.5' = '\hat{\rho} > 0.5'
+'rho_norm >= rho_norm_edge' = '\hat{\rho} \ge \hat{\rho}_{\text{edge}}'
+'s_hat - alpha_MHD >= -0.2' = '\hat{s} - \alpha_{\text{MHD}} \ge -0.2'
+'s_hat = 0.1' = '\hat{s} = 0.1'
+'t > t_initial' = 't > t_{\text{initial}}'
+'t >= t_trans' = 't \ge t_{\text{trans}}'
+
+# Equations and physics formulas
+'Delta = (1 - psi_top) / 1.5' = '\Delta = (1 - \psi_{\text{top}}) / 1.5'
+'R_major = (R_max + R_min) / 2' = '''
+  R_{\text{major}} = (R_{\text{max}} + R_{\text{min}}) / 2
+'''
+'V_loop = dpsi_lcfs / dt' = 'V_{\text{loop}} = d\psi_{\text{lcfs}} / dt'
+'Z_eff = sum(n_i * Z_i^2, i) / n_e' = 'Z_{\text{eff}} = \sum_i n_i Z_i^2 / n_e'
+'a_0 = (f_top - f_sep) / (tanh(1) + tanh(2))' = '''
+  a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))
+'''
+'a_minor = (R_max - R_min) / 2' = '''
+  a_{\text{minor}} = (R_{\text{max}} - R_{\text{min}}) / 2
+'''
+"beta_pol_eff' = beta_pol_min' + (beta_pol' - beta_pol_min') * y(x)" = '''
+  \beta_{\text{pol,eff}}' = \beta_{\text{pol,min}}' + (\beta_{\text{pol}}' -
+  \beta_{\text{pol,min}}') y(x)
+'''
+'chi = max(chi_i, chi_e)' = '\chi = \max(\chi_i, \chi_e)'
+'chi propto (R_over_L_Ti - R_over_L_Ti_crit)^alpha' = '''
+  \chi \propto (R/L_{T_i} - R/L_{T_i,\text{crit}})^{\alpha}
+'''
+'drho_norm = 1 / n_rho' = 'd\hat{\rho} = 1 / n_{\text{rho}}'
+'dt_base = dx^2 / (2 * chi)' = 'dt_{\text{base}} = \frac{dx^2}{2\chi}'
+'f(psi) = f_sep + a_0 * (tanh(1) - tanh(2 * (psi - psi_mid) / Delta))' = '''
+  f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\left(\frac{2 (\psi -
+  \psi_{\text{mid}})}{\Delta}\right)\right]
+'''
+'j_toroidal = j_0 * (1 - r^2 / a^2)^nu' = '''
+  j_{\text{toroidal}} = j_0 (1 - r^2 / a^2)^{\nu}
+'''
+'n_GW = I_p / (pi * a^2)' = 'n_{\text{GW}} = I_p / (\pi a^2)'
+'psi_mid = 1 - Delta / 2' = '\psi_{\text{mid}} = 1 - \Delta / 2'
+'psi_top = psi_N(rho_top)' = '\psi_{\text{top}} = \psi_N(\rho_{\text{top}})'
+'x = max(P_SOL, 0) / P_SOL_scaling' = '''
+  x = \max(P_{\text{SOL}}, 0) / P_{\text{SOL,scaling}}
+'''
+'y = (z_1^alpha + 1)^(1 / alpha)' = 'y = (z_1^{\alpha} + 1)^{1/\alpha}'
+'z_1 = (x^2 + 0.3 * x) / 1.3' = 'z_1 = (x^2 + 0.3 x) / 1.3'
+"zeta = (e^2 * ln(Lambda_ee) / (8 * epsilon_0^2)) * (1 / avg(1 / R)) * (n_e['m^-3'] / T_e['eV']) * (I_ec['A'] / P_ec['W'])" = '''
+  \zeta = \frac{e^2 \ln \Lambda_{ee}}{8\varepsilon_0^2}
+  \left\langle\frac{1}{R}\right\rangle^{-1}
+  \frac{n_e\;[\mathrm{m^{-3}}]}{T_e\;[\mathrm{eV}]}
+  \frac{I_{\text{ec}}\;[\mathrm{A}]}{P_{\text{ec}}\;[\mathrm{W}]}
+'''

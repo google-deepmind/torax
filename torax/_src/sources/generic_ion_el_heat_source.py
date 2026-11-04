@@ -115,12 +115,14 @@ class GenericIonElHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
-    gaussian_width: Gaussian width in normalized radial coordinate. Required
-      when mode is 'model_based'.
-    gaussian_location: Source Gaussian central location (in normalized r).
-      Required when mode is 'model_based'.
-    P_total: Total heating power [W]. Required when mode is 'model_based'.
-    electron_heat_fraction: Electron heating fraction
+    model_name: Name of the generic heat model (`'gaussian'`).
+    gaussian_width: Gaussian width of the heat source profile [$rho_norm$].
+    gaussian_location: Gaussian center of the heat source profile [$rho_norm$].
+    P_total: Total source heating power [W]. High default is based on total ITER
+      power including alpha heating.
+    electron_heat_fraction: Fraction of absorbed heating power deposited on
+      electrons (remainder goes to ions).
+    absorption_fraction: Fraction of `P_total` absorbed by the plasma.
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (

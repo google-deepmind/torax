@@ -66,7 +66,11 @@ class SauterModel(base.ConductivityModel):
 
 
 class SauterModelConfig(base.ConductivityModelConfig):
-  """Sauter conductivity model config."""
+  """Sauter |sauter99| conductivity model config.
+
+  Attributes:
+    model_name: Selected neoclassical parallel conductivity model.
+  """
 
   model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
 

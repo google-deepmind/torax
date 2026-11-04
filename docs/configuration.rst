@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 .. _configuration:
 
 Simulation input configuration
@@ -66,16 +64,17 @@ For various definitions, see :ref:`glossary`.
 
 Time-dependence and parameter interpolation
 ===========================================
-Some TORAX parameters are allowed to vary over time, and are labelled with
-:ref:`time-varying-scalar <time_varying_scalars>` and
-:ref:`time-varying-array <time_varying_arrays>` in :ref:`config_details`
-below.
+Some TORAX parameters are allowed to vary over time, and are typed as
+:ref:`TimeVaryingScalar <time_varying_scalars>` or
+:ref:`TimeVaryingArray <time_varying_arrays>` (including bounded variants such
+as ``PositiveTimeVaryingScalar`` and ``PositiveTimeVaryingArray``) in
+:ref:`config_details` below.
 
 .. _time_varying_scalars:
 
 Time-varying scalars
 --------------------
-The following inputs are valid for **time-varying-scalar** parameters:
+The following inputs are valid for ``TimeVaryingScalar`` parameters:
 
 * A scalar (integer, float, or boolean). The parameter is then not
   time-dependent.
@@ -138,11 +137,11 @@ transitioning to :math:`3~keV` at :math:`t=8s`, and back down to
 
 Time-varying arrays
 -------------------
-Parameters marked as **time-varying-array** are interpolated on a grid
+Parameters typed as ``TimeVaryingArray`` are interpolated on a grid
 (:math:`t`, :math:`\hat{\rho}`). For each time point, an array of values is
 defined on the spatial :math:`\hat{\rho}` grid.
 
-**time-varying-array** parameters can be defined using either a nested
+``TimeVaryingArray`` parameters can be defined using either a nested
 dictionary, or in the form of arrays (represented as a ``xarray.DataArray``
 object or a ``tuple`` of arrays).
 
@@ -241,7 +240,7 @@ time and in :math:`\hat{\rho}`. To specify a different interpolation method:
 where ``time_varying_array_value`` is any of the above inputs
 (nested dictionary, arrays, etc.).
 
-Currently two interpolation modes are supported as for **time-varying-scalar**:
+Currently two interpolation modes are supported as for ``TimeVaryingScalar``:
 
 * ``'piecewise_linear'``: linear interpolation of the input time-series
   (default).

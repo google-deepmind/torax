@@ -202,7 +202,13 @@ class RuntimeParams(sawtooth_runtime_params.RedistributionRuntimeParams):
 
 
 class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
-  """Pydantic model for simple redistribution configuration."""
+  """Pydantic model for simple redistribution configuration.
+
+  Attributes:
+    model_name: Redistribution model name, set to `'simple'`.
+    mixing_radius_multiplier: Multiplier applied to $rho_norm_q1$ to
+      determine the mixing radius $rho_norm_mix$.
+  """
 
   model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = 'simple'
   mixing_radius_multiplier: Annotated[

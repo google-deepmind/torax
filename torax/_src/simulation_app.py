@@ -29,26 +29,28 @@ also enables optional output logging.
 Note that `app.run` cannot be directly run on the `main()` function in this
 module, due to the tuple return type.
 
-.. code-block:: python
+```
+# In my_runnable_sim.py:
 
-  # In my_runnable_sim.py:
+from absl import app
+from absl import logging
+from torax._src import simulation_app
+from torax.examples import basic_config
+from torax._src.config import build_sim
 
-  from absl import app
-  from absl import logging
-  from torax._src import simulation_app
-  from torax.examples import basic_config
-  from torax._src.config import build_sim
 
-  def run(_):
-    sim_builder = lambda: build_sim.build_sim_from_config(basic_config.CONFIG)
-    simulation_app.main(
+def run(_):
+  sim_builder = lambda: build_sim.build_sim_from_config(basic_config.CONFIG)
+  simulation_app.main(
       sim_builder,
       log_sim_progress=True,
-      )
+  )
 
-  if __name__ == '__main__':
-    logging.set_verbosity(logging.INFO)
-    app.run(run)
+
+if __name__ == '__main__':
+  logging.set_verbosity(logging.INFO)
+  app.run(run)
+```
 """
 
 from collections.abc import Sequence

@@ -122,12 +122,12 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
 # TODO(b/323504363): Remove gas_puff_feedback_source after migrating callers to
 # generic_particle feedback.
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
-  """Config for the gas puff electron density source with feedback control.
+  """Configuration for the gas puff electron density source with feedback.
 
   The total particle injection rate is computed using a proportional feedback
   control loop added to a baseline feedforward rate:
 
-    S_total = max(0, S_feedforward + feedback_gain * (target_avg_n_e -
+    S_total = max(0, S_feedforward + feedback_gain * (target_average_n_e -
     current_avg_n_e))
 
   where `current_avg_n_e` is the instantaneous line- or volume-averaged electron
@@ -135,19 +135,20 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
   transients, the total source is clipped to be non-negative (>= 0).
 
   The resulting total particle flux [particles/s] is deposited radially using an
-  exponential profile decaying inwards from the outer edge boundary (r/a = 1.0)
-  with a characteristic width set by `puff_decay_length`.
+  exponential profile decaying inwards from the outer edge boundary
+  ($rho_norm = 1$) with a characteristic width set by `puff_decay_length`.
 
   Attributes:
-    puff_decay_length: Exponential decay length of gas puff ionization from the
-      edge boundary inwards [normalized radial coordinate r/a].
+    model_name: Name of the experimental feedback gas puff model (`'feedback'`).
+    puff_decay_length: Exponential decay length of gas puff ionization inwards
+      from the edge boundary [$rho_norm$].
     S_feedforward: Baseline feedforward particle injection rate [particles/s].
-    average_type: Method for spatial electron density averaging ('line' or
-      'volume') used to calculate the feedback error.
-    feedback_gain: Proportional feedback gain [m^3 / s] mapping density error to
+    average_type: Method for spatial electron density averaging (`'line'` or
+      `'volume'`) used to calculate the feedback error.
+    feedback_gain: Proportional feedback gain [m^3/s] mapping density error to
       an incremental particle fueling rate.
     mode: Defines whether source values are computed from a model, prescribed,
-      or loaded from a file (defaults to MODEL_BASED).
+      or zeroed.
     target_average_n_e: Desired target average electron density [m^-3] for
       feedback regulation.
   """

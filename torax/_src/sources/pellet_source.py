@@ -97,16 +97,14 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 class PelletSourceConfig(base.SourceConfigBase):
-  """Pellet source for the n_e equation.
+  """Gaussian pellet fueling source for the electron density equation.
 
   Attributes:
-    pellet_width: Gaussian width of pellet deposition [normalized radial coord].
-      Required when mode is 'model_based'.
-    pellet_deposition_location: Gaussian center of pellet deposition [normalized
-      radial coord]. Required when mode is 'model_based'.
-    S_total: total pellet particles/s. Required when mode is 'model_based'.
-    mode: Defines how the source values are computed (from a model, from a file,
-      etc.)
+    model_name: Name of the pellet source model (`'gaussian'`).
+    pellet_width: Gaussian width of the pellet deposition profile [$rho_norm$].
+    pellet_deposition_location: Gaussian center of the pellet deposition profile
+      [$rho_norm$].
+    S_total: Total pellet particle injection rate [particles/s].
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (

@@ -292,25 +292,26 @@ class EdgeModelConfig(torax_pydantic.ConfigBase):
   with a `Literal` to serve as a discriminator in polymorphic unions.
 
   Attributes:
-    model_name: Discriminator field for Pydantic. Subclasses must override with
-      a `Literal` value.
+    model_name: The edge model discriminator tag. Set to `'extended_lengyel'`
+      for the built-in extended Lengyel model, `'combined'` when combining
+      multiple edge sub-models under `sub_models`, or the registered model name
+      for a custom edge model.
     supported_boundary_conditions: Class-level `SupportedBoundaryConditions`
       instance whose fields (`T_e`, `T_i`, `n_e`, `n_impurities`) declare which
       boundary conditions the subclass can compute and set the defaults for the
       corresponding `update_*` flags below.
-    update_T_e: Whether to update electron temperature boundary condition.
-      Defaults to the `T_e` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.T_e`), and may only be True if supported.
-    update_T_i: Whether to update ion temperature boundary condition. Defaults
-      to the `T_i` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.T_i`), and may only be True if supported.
-    update_n_e: Whether to update electron density boundary condition. Defaults
-      to the `n_e` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.n_e`), and may only be True if supported.
-    update_n_impurities: Whether to update impurity concentrations in the core.
-      Defaults to the `n_impurities` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.n_impurities`), and may only be True if
-      supported.
+    update_T_e: If `True`, update core electron temperature boundary condition
+      based on edge model results. Defaults to
+      `supported_boundary_conditions.T_e`, and may only be `True` if supported.
+    update_T_i: If `True`, update core ion temperature boundary condition based
+      on edge model results. Defaults to `supported_boundary_conditions.T_i`,
+      and may only be `True` if supported.
+    update_n_e: If `True`, update core electron density boundary condition based
+      on edge model results. Defaults to `supported_boundary_conditions.n_e`,
+      and may only be `True` if supported.
+    update_n_impurities: If `True`, update core impurity profiles based on edge
+      model results. Defaults to `supported_boundary_conditions.n_impurities`,
+      and may only be `True` if supported.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC]

@@ -155,26 +155,22 @@ class ElectronCyclotronSource(source.Source):
 
 
 class ElectronCyclotronSourceConfig(base.SourceConfigBase):
-  r"""Config for the electron-cyclotron source.
+  r"""Config for the electron-cyclotron heating and current drive source.
 
   Attributes:
-    current_drive_efficiency: Dimensionless current drive efficiency profile
-      defined on the cell grid, :math:`\zeta = \frac{e^2\ln\Lambda_{ee}}{8
-      \varepsilon_0^2} \frac{1}{\left\langle\frac{1}{R}\right\rangle} \frac{n_e
-      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec} [\mathrm{A}]}{P_{ec}
-      [\mathrm{W}]}`. See
-      https://torax.readthedocs.io/en/latest/physics_models/electron-cyclotron-derivation.html
-        for more details.
-    extra_prescribed_power_density: Manual EC power density profile on the rho
-      grid. At least one of P_total or extra_prescribed_power_density must be
-      provided when mode is 'model_based'.
-    gaussian_width: Gaussian EC power density profile width. Required when mode
-      is 'model_based' and P_total is provided.
-    gaussian_location: Gaussian EC power density profile location. Required when
-      mode is 'model_based' and P_total is provided.
-    P_total: Gaussian EC total power. At least one of P_total or
-      extra_prescribed_power_density must be provided when mode is
-      'model_based'.
+    model_name: Name of the EC model implementation (`'gaussian_lin_liu'`).
+    current_drive_efficiency: Dimensionless local current drive efficiency
+      profile defined on the cell grid,
+      $zeta = (e^2 * ln(Lambda_ee) / (8 * epsilon_0^2)) * (1 / avg(1 / R))
+      * (n_e['m^-3'] / T_e['eV']) * (I_ec['A'] / P_ec['W'])$.
+    extra_prescribed_power_density: Manual EC power density deposition profile
+      on the $rho_norm$ grid [W/m^3], summed with the Gaussian profile.
+    gaussian_width: Width of the Gaussian EC power density deposition profile
+      [$rho_norm$].
+    gaussian_location: Center location of the Gaussian EC power density
+      deposition profile [$rho_norm$].
+    P_total: Volume-integrated total power of the Gaussian EC power density
+      deposition profile [W].
   """
 
   model_name: Annotated[

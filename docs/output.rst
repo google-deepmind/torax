@@ -20,7 +20,7 @@ disk at a specific path, use the ``to_netcdf()`` method:
 
 We currently support the below output structure for Torax V2.
 
-The output is an `[xarray DataTree] <https://docs.xarray.dev/en/latest/generated/xarray.DataTree.html>`_.
+The output is an |xarray_datatree|.
 
 The DataTree is a hierarchical structure containing ``xarray.DataSet``
 objects, including:

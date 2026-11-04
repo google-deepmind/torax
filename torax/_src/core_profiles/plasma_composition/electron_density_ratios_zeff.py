@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Impurity content defined by ratios, with one species constrained by Z_eff."""
+
 import dataclasses
 from typing import Annotated, Literal, Mapping, Self
 import chex
@@ -37,7 +38,18 @@ class RuntimeParams:
 
 
 class ElectronDensityRatiosZeff(torax_pydantic.ConfigBase):
-  """Impurity content defined by ratios, with one species constrained by Z_eff."""
+  """Impurity content defined by ratios, with one species constrained by Z_eff.
+
+  Attributes:
+    impurity_mode: Impurity specification mode, set to `'n_e_ratios_Z_eff'`.
+    species: Dictionary mapping each impurity symbol to its density ratio
+      relative to electron density ($n_impurity / n_e$), with exactly one value
+      set to `None` (constrained dynamically via `Z_eff`).
+    Z_override: Optional override for the impurity mixture's average charge
+      ($Z$).
+    A_override: Optional override for the impurity mixture's average mass ($A$)
+      [amu].
+  """
 
   # Exactly one species must have a None ratio to be constrained by Z_eff.
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray | None]

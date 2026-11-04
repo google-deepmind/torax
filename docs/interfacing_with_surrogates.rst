@@ -61,8 +61,8 @@ Option 1: manually reimplementing the model in JAX
 
 If the architecture of the surrogate is sufficiently simple, you might consider
 reimplementing the model in JAX. The surrogates in TORAX are mostly implemented
-using `Flax Linen`_, and can be found in the |fusion_surrogates|_ repository.
-If you're not familiar with Flax, you can check out the `Flax documentation`_
+using |flax_linen|, and can be found in the |fusion_surrogates| repository.
+If you're not familiar with Flax, you can check out the |flax_docs|
 on how to define your own models.
 
 Consider a PyTorch neural network,
@@ -158,11 +158,11 @@ Option 2: converting a PyTorch model to a JAX model
 ===================================================
 
 .. warning::
-    The `torch_xla2`_ package is still evolving, which means there may be
+    The |torch_xla2| package is still evolving, which means there may be
     unexpected breaking changes. Some of the methods described in this section
     may become deprecated with little warning.
 
-If your model is in PyTorch, you could also consider using the `torch_xla2`_
+If your model is in PyTorch, you could also consider using the |torch_xla2|
 package to do the conversion to JAX automatically.
 
 .. code-block:: python
@@ -213,7 +213,7 @@ The model can then be loaded and run as follows:
 Option 3: using an ONNX model
 =============================
 
-The `Open Neural Network Exchange`_ format (ONNX) is a highly interoperable
+The |onnx| format (ONNX) is a highly interoperable
 format for sharing neural network models. ONNX files include the model
 architecture and weights bundled together.
 
@@ -236,7 +236,7 @@ correct input and output node names for your specific model:
 
 However, JAX will not be able to differentiate through the InferenceSession.
 To convert the ONNX model to a JAX representation, you can use the
-`jaxonnxruntime`_ package:
+|jaxonnxruntime| package:
 
 .. code-block:: python
 
@@ -295,11 +295,3 @@ of the model is JITted:
     output_tensor = flax_model.apply(params, input_tensor)  # Bad
 
 This is vital to ensure fast performance.
-
-..  _Flax Linen: https://flax-linen.readthedocs.io/en/latest/index.html
-..  _Flax documentation: https://flax-linen.readthedocs.io/en/latest/guides/flax_fundamentals/flax_basics.html#defining-your-own-models
-.. _torch_xla2: https://pytorch.org/xla/master/features/stablehlo.html
-.. _Open Neural Network Exchange: https://onnx.ai/
-.. _jaxonnxruntime: https://github.com/google/jaxonnxruntime
-.. |fusion_surrogates| replace:: ``google-deepmind/fusion_surrogates``
-.. _fusion_surrogates: https://github.com/google-deepmind/fusion_surrogates

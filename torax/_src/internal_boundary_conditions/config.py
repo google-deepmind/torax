@@ -15,8 +15,8 @@
 """Pydantic config for internal boundary conditions."""
 
 from typing import Annotated, Literal
+import chex
 import pydantic
-from torax._src import array_typing
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import beta_poloidal_prime as beta_poloidal_prime_lib
 from torax._src.internal_boundary_conditions import no_ibc
@@ -30,7 +30,58 @@ from typing_extensions import Self
 
 
 class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
-  """Pydantic config for beta_poloidal_prime internal boundary conditions."""
+  """Dynamically computes L-mode edge kinetic profiles ($T_i$, $T_e$, $n_e$).
+
+  Constrains the edge region $rho_norm >= rho_norm_edge$ using a prescribed
+  gradient of the local poloidal beta with respect to normalized poloidal flux,
+  $beta_pol'$ ($-partial(beta_pol_local) / partial(psi_N)$), motivated by
+  empirical observations of critical edge pressure gradients in L-mode
+  plasmas |labombard2008|.
+
+  Attributes:
+    model_name: Internal boundary condition model name, set to
+      `'beta_poloidal_prime'`.
+    rho_norm_edge: Edge normalized toroidal flux coordinate $rho_norm_edge$
+      bounding the constrained edge region.
+    beta_poloidal_prime: Prescribed normalized poloidal beta gradient
+      $beta_pol' > 0$ [dimensionless] (serves as the high-power asymptotic value
+      when `mode = 'power_dependent'`).
+    Ti_Te_ratio: Prescribed ratio $T_i / T_e$ in the edge region
+      [dimensionless].
+    n_e_edge: Prescribed electron density at the edge boundary $rho_norm_edge$
+      [m^-3 if `n_e_is_f_GW = False`, Greenwald fraction if `n_e_is_f_GW =
+      True`]. Mutually exclusive with `n_e_edge_multiplier` (exactly one must be
+      provided).
+    n_e_edge_multiplier: Multiplier applied to the right boundary condition
+      density (`n_e_right_bc`) to set the electron density at $rho_norm_edge$
+      [dimensionless]. Mutually exclusive with `n_e_edge` (exactly one must be
+      provided).
+    n_e_is_f_GW: If `True`, `n_e_edge` is interpreted as a Greenwald fraction
+      [dimensionless] instead of absolute density [m^-3].
+    mode: Controls how the effective edge poloidal beta gradient is
+      determined:
+
+      - `'constant'`: Uses `beta_poloidal_prime` directly.
+      - `'power_dependent'`: Scales the effective poloidal beta gradient
+        smoothly with the net heating power crossing the separatrix $P_SOL$:
+
+        $$
+        beta_pol_eff' = beta_pol_min' +
+        (beta_pol' - beta_pol_min') * y(x)
+        $$
+
+        where $x = max(P_SOL, 0) / P_SOL_scaling$,
+        $z_1 = (x^2 + 0.3 * x) / 1.3$, and $y = (z_1^alpha + 1)^(1 / alpha)$
+        with $alpha = -15$.
+    beta_poloidal_prime_min: Minimum normalized poloidal beta gradient
+      $beta_pol_min' >= 0$ at $P_SOL <= 0$ when `mode = 'power_dependent'`
+      [dimensionless].
+    P_SOL_scaling: Characteristic power crossing the separatrix
+      $P_SOL_scaling > 0$ [W] for the power transition when `mode =
+      'power_dependent'` (required when `mode = 'power_dependent'`). Sets the
+      knee of the power scaling curve so that a scaled $P_SOL$ of `1` is
+      approximately where `beta_poloidal_prime` saturates.
+  """  # fmt: skip
 
   model_name: Annotated[
       Literal['beta_poloidal_prime'], torax_pydantic.JAX_STATIC
@@ -70,7 +121,7 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
     return beta_poloidal_prime_lib.BetaPoloidalPrimeIBCModel()
 
   def build_runtime_params(
-      self, t: array_typing.FloatScalar
+      self, t: chex.Numeric
   ) -> beta_poloidal_prime_lib.RuntimeParams:
     """Builds the runtime params for the beta_poloidal_prime IBC model."""
     return beta_poloidal_prime_lib.RuntimeParams(
@@ -97,7 +148,11 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
 
 
 class NoIBCConfig(torax_pydantic.ConfigBase):
-  """Pydantic config for when there are no internal boundary conditions."""
+  """Pydantic config for when there are no internal boundary conditions.
+
+  Attributes:
+    model_name: Internal boundary condition model name, set to `'no_ibc'`.
+  """
 
   model_name: Annotated[Literal['no_ibc'], torax_pydantic.JAX_STATIC] = 'no_ibc'
 
@@ -106,14 +161,33 @@ class NoIBCConfig(torax_pydantic.ConfigBase):
     return no_ibc.NoIBCModel()
 
   def build_runtime_params(
-      self, t: array_typing.FloatScalar
+      self, t: chex.Numeric
   ) -> ibc_runtime_params.RuntimeParams:
     del t
     return ibc_runtime_params.RuntimeParams()
 
 
 class PrescribedIBCConfig(torax_pydantic.ConfigBase):
-  """Pydantic config for prescribed internal boundary conditions."""
+  """Explicitly prescribes time-varying internal boundary conditions.
+
+  Configures internal boundary conditions for any subset of `T_i`, `T_e`, and
+  `n_e` using `SparseTimeVaryingArray` types. Any values of `0.0` are treated
+  as no internal boundary condition at that location. Not including a profile in
+  the dictionary means no internal boundary condition will be applied for that
+  profile.
+
+  Attributes:
+    model_name: Internal boundary condition model name, set to `'prescribed'`.
+    T_i: Prescribed ion temperature internal boundary condition values [keV] at
+      sparse radial locations or ranges. Values of `0.0` indicate no internal
+      boundary condition at that location.
+    T_e: Prescribed electron temperature internal boundary condition values
+      [keV] at sparse radial locations or ranges. Values of `0.0` indicate no
+      internal boundary condition at that location.
+    n_e: Prescribed electron density internal boundary condition values [m^-3]
+      at sparse radial locations or ranges. Values of `0.0` indicate no internal
+      boundary condition at that location.
+  """
 
   model_name: Annotated[Literal['prescribed'], torax_pydantic.JAX_STATIC] = (
       'prescribed'
@@ -133,7 +207,7 @@ class PrescribedIBCConfig(torax_pydantic.ConfigBase):
     return prescribed.PrescribedIBCModel()
 
   def build_runtime_params(
-      self, t: array_typing.FloatScalar
+      self, t: chex.Numeric
   ) -> prescribed.RuntimeParams:
     """Builds the runtime params for the internal boundary conditions."""
     return prescribed.RuntimeParams(

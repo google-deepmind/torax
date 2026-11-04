@@ -50,15 +50,15 @@ class GeometryProvider(Protocol):
   For instance, the following is an equivalent implementation of the
   ConstantGeometryProvider without actually creating a class, and equally valid.
 
-  .. code-block:: python
+  ```
+  geo = circular_geometry.build_circular_geometry(...)
+  constant_geo_provider = lambda t: geo
 
-    geo = circular_geometry.build_circular_geometry(...)
-    constant_geo_provider = lambda t: geo
+  def func_expecting_geo_provider(gp: GeometryProvider):
+    ...  # do something with the provider.
 
-    def func_expecting_geo_provider(gp: GeometryProvider):
-      ... # do something with the provider.
-
-    func_expecting_geo_provider(constant_geo_provider)  # this works.
+  func_expecting_geo_provider(constant_geo_provider)  # this works.
+  ```
 
   NOTE: In order to maintain consistency between the RuntimeParams
   and the geometry,

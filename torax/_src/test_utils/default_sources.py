@@ -25,17 +25,16 @@ def get_default_source_config() -> dict[str, Any]:
 
   To use, load the dict, update as needed, and then convert to a SourcesConfig
   object:
-  .. code-block:: python
 
-    sources_dict = get_default_source_config()
-    sources_dict = sources_dict['source_model_config']
-    sources_dict['ei_exchange']['Qei_multiplier'] = 0.0
-    sources_dict['generic_heat']['P_total'] = 0.0
-    sources_dict['fusion']['mode'] = source_runtime_params.Mode.ZERO
-    sources_dict['ohmic']['mode'] = source_runtime_params.Mode.ZERO
-    default_sources = sources_config.SourcesConfig.from_dict(
-        sources_dict
-    )
+  ```
+  sources_dict = get_default_source_config()
+  sources_dict = sources_dict['source_model_config']
+  sources_dict['ei_exchange']['Qei_multiplier'] = 0.0
+  sources_dict['generic_heat']['P_total'] = 0.0
+  sources_dict['fusion']['mode'] = source_runtime_params.Mode.ZERO
+  sources_dict['ohmic']['mode'] = source_runtime_params.Mode.ZERO
+  default_sources = sources_config.SourcesConfig.from_dict(sources_dict)
+  ```
   """
   return {
       # Current sources (for psi equation)

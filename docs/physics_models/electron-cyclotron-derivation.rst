@@ -6,7 +6,7 @@ Derivation of electron-cyclotron current drive efficiency
 *(based on notes from Emmi Tholerus, UKAEA)*
 
 The local dimensionless electron-cyclotron (EC) current drive efficiency is
-defined in [1]_, [2]_ as
+defined in |lin-liu|, |luce1999| as
 
 .. math::
 
@@ -46,7 +46,7 @@ Substituting in the above gives
 
 with all variables in SI units.
 
-As per [1]_, the EC-driven current is parallel to the magnetic field and
+As per |lin-liu|, the EC-driven current is parallel to the magnetic field and
 :math:`\langle J \cdot B \rangle` is a flux function that can be written as
 
 .. math::
@@ -123,8 +123,3 @@ source term in TORAX:
     \frac{F \langle R^{-1} \rangle}{B_0}
     \left(1+ \frac{g_2 g_3}{16\pi^4 q^2}\right)
     \frac{T_e}{n_e} \zeta Q_\mathrm{ec}.
-
-
-.. [1] Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). `Electron cyclotron current drive efficiency in general tokamak geometry <https://doi.org/10.1063/1.1610472>`_. Physics of Plasmas, 10(10), 4064-4071.
-
-.. [2] Luce, T. C., Lin-Liu, Y. R., Harvey, R. W., Giruzzi, G., Politzer, P. A., Rice, B. W., Lohr, J. M., Petty, C. C., and Prater, R. (1999). `Generation of Localized Noninductive Current by Electron Cyclotron Waves on the DIII-D Tokamak <https://doi.org/10.1103/PhysRevLett.83.4550>`_. Phys. Rev. Lett. (83), 4550.

@@ -150,7 +150,12 @@ class BootstrapCurrentModel(abc.ABC):
 
 
 class BootstrapCurrentModelConfig(torax_pydantic.ConfigBase):
-  """Base class for bootstrap current model configs."""
+  """Base class for bootstrap current model configs.
+
+  Attributes:
+    bootstrap_multiplier: Multiplier for the bootstrap current (used by the
+      `'sauter'` and `'redl'` models).
+  """
 
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 

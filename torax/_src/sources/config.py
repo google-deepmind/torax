@@ -71,6 +71,24 @@ class SourcesConfig(torax_pydantic.ConfigBase):
   Each standard source field defaults to `None` (disabled) when omitted. When a
   source is configured with a mapping that omits `model_name`, the default model
   specified via `_source_field` for that source is used.
+
+  Attributes:
+    ei_exchange: Collisional ion-electron heat exchange source (`QeiSource`).
+      Defaults to disabled (`{'mode': 'zero'}`) when omitted.
+    bremsstrahlung: Bremsstrahlung radiation heat sink.
+    cyclotron_radiation: Cyclotron radiation heat sink.
+    ecrh: Electron-cyclotron heating and current drive source.
+    fusion: DT fusion heat source.
+    gas_puff: Edge gas puff particle source.
+    generic_current: Generic Gaussian external current source.
+    generic_heat: Generic Gaussian ion and electron heat source.
+    generic_particle: Generic particle source (Gaussian or PID density
+      feedback).
+    icrh: Ion-cyclotron resonance heating source.
+    impurity_radiation: Impurity radiation heat sink.
+    nbi: Neutral beam injection heating, current drive, and particle source.
+    ohmic: Ohmic heating source.
+    pellet: Pellet fueling particle source.
   """
 
   ei_exchange: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(

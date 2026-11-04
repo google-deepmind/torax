@@ -460,13 +460,17 @@ def _extract_qualikiz_plan(
 class QualikizTransportModelConfig(
     qualikiz_based_transport_model.QualikizBasedTransportModelConfig
 ):
-  """Model for the Qualikiz transport model.
+  """Configuration model for the QuaLiKiz quasilinear transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'qualikiz'.
-    n_max_runs: Set frequency of full QuaLiKiz contour solutions.
-    n_processes: Set number of cores used QuaLiKiz calculations.
-    collisionality_multiplier: Collisionality multiplier.
+    model_name: Transport model identifier. Always set to `'qualikiz'`.
+    n_max_runs: Frequency of full QuaLiKiz contour solutions. For
+      `n_max_runs > 1`, every `n_max_runs`-th call uses the full contour
+      integral solution, while intermediate calls use the previous solution as
+      the initial guess for the Newton solver, which is significantly faster.
+    n_processes: Number of MPI processes to use for QuaLiKiz.
+    collisionality_multiplier: Collisionality multiplier for sensitivity
+      analysis.
   """
 
   model_name: Annotated[Literal['qualikiz'], torax_pydantic.JAX_STATIC] = (

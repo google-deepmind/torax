@@ -29,20 +29,48 @@ class GeometryConfigBase(torax_pydantic.ConfigBase):
   """Base class for all geometry configuration classes.
 
   Attributes:
-    n_rho: Number of radial grid cells in a uniform grid. Must be at least 4.
-    face_centers: Array of face center coordinates in normalized rho (0 to 1).
-      For a grid with N cells, there are N+1 faces. This can be non-uniform. The
-      internal TORAX fvm method assumes we have at least 4 cells so this will be
-      validated here.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    trapped_fraction_source: Selects how the effective trapped particle fraction
-      is computed. See `trapped_fraction.TrappedFractionSource`.
-    _supported_trapped_fraction_sources: Overridden per subclass to restrict
-      which `trapped_fraction.TrappedFractionSource` options that geometry
-      source actually supports.
-  """
+    n_rho: Number of radial grid cells. Creates a uniform grid with cell width
+      $drho_norm = 1 / n_rho$. Must be at least 4. Defaults to `25` when neither
+      `n_rho` nor `face_centers` is specified. Either `n_rho` or `face_centers`
+      must be specified.
+    face_centers: Explicit array of face center coordinates [$rho_norm$]
+      (ranging from 0 to 1) for defining non-uniform radial grids.
+      For a grid with $N$ cells, there must be $N + 1$ face centers. The array
+      must start at `0.0`, end at `1.0`, be strictly increasing, and have at
+      least 5 elements (4 cells). This enables finer resolution in regions of
+      interest, such as near the plasma edge:
+
+      ```
+      import numpy as np
+
+      # Coarse in core (8 cells in [0, 0.8]),
+      # fine near edge (8 cells in [0.8, 1]).
+      core_faces = np.linspace(0, 0.8, 9)
+      edge_faces = np.linspace(0.8, 1.0, 9)[1:]
+      face_centers = np.concatenate([core_faces, edge_faces])
+
+      'geometry': {
+          'geometry_type': 'chease',
+          'face_centers': face_centers,
+      }
+      ```
+    hires_factor: Only used when the initial condition `psi` is from plasma
+      current. Sets up a higher resolution mesh with `nrho_hires = n_rho *
+      hires_factor`, used for `j` to `psi` conversions.
+    trapped_fraction_source: Selects how the effective trapped particle
+      fraction, used by the neoclassical `bootstrap_current`, `conductivity`,
+      and `transport` models, is computed. Computed once at geometry
+      construction time. Options are:
+
+      - `'sauter'` (default): Uses the analytical approximation from
+        |sauter16|. Supported by every geometry source.
+      - `'file'`: Reads the value precomputed by the input equilibrium code
+        directly from the geometry file. Only supported for CHEASE and IMAS
+        geometries.
+      - `'exact'`: Computes the exact bounce-averaged integral directly from
+        the traced 2D equilibrium, using the formulation of
+        |lin-liu-miller1995|. Only supported for EQDSK and IMAS geometries.
+  """  # fmt: skip
 
   @property
   @abc.abstractmethod

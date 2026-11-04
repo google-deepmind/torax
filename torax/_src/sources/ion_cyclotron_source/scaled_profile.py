@@ -60,7 +60,7 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
        R_res ∝ B₀. When B₀ differs from the reference field, the resonance
        moves, and the heating profile shifts accordingly in normalised radius.
     2. **Power normalisation**: The shifted profiles are rescaled so the
-       volume-integrated total heating equals ``P_total * absorption_fraction``.
+       volume-integrated total heating equals `P_total * absorption_fraction`.
 
     Args:
       runtime_params: Full simulation runtime parameters.
@@ -132,27 +132,28 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
 
 
 class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
-  """Configuration for ICRH with prescribed, B-field-shiftable profiles.
+  """Prescribed-profile ICRH model with magnetic-field resonance shifting.
 
-  This model takes reference ion and electron heating profiles and:
+  Takes reference ion and electron heating profiles and:
+
   1. Shifts them radially based on the ratio of the actual vacuum toroidal
-     magnetic field to a reference field (``B₀ / reference_B0``).
+     magnetic field to a reference field (`B₀ / reference_B0`).
   2. Rescales the amplitude so that the volume-integrated total heating
-     equals ``P_total * absorption_fraction``.
+     equals `P_total * absorption_fraction`.
 
   This is useful when computed reference heating profiles are available at a
   specific magnetic field, and you need to approximate them to different
   operating points without re-running the full RF solver.
 
   Attributes:
-    model_name: Discriminator literal for Pydantic.
-    heat_profile_ion: Reference ion heating power density shape [W/m³],
-      provided on a normalised toroidal coordinate grid as a TimeVaryingArray.
+    model_name: Name of the scaled-profile ICRH model (`'scaled_profile'`).
+    heat_profile_ion: Reference ion heating power density shape [W/m^3],
+      provided on the normalized radius grid $rho_norm$. Rescaled during
+      normalization so only the relative profile shape matters.
     heat_profile_electron: Reference electron heating power density shape
-      [W/m³], provided on a normalised toroidal coordinate grid as a
-      TimeVaryingArray.
-    reference_B0: Vacuum toroidal magnetic field at which the reference
-      profiles were computed [T].
+      [W/m^3], provided on the normalized radius grid $rho_norm$.
+    reference_B0: Vacuum toroidal magnetic field at which the reference profiles
+      were computed [T].
   """
 
   model_name: Annotated[

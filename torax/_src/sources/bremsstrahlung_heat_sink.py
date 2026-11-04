@@ -164,13 +164,17 @@ class BremsstrahlungHeatSink(source.Source):
 
 
 class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
-  """Bremsstrahlung heat sink for electron heat equation.
+  """Bremsstrahlung heat sink for the electron heat equation.
 
   Attributes:
-    use_relativistic_correction: Whether to use relativistic correction.
-    exclude_impurity_bremsstrahlung: If True, only include main-ion
-      bremsstrahlung. Automatically set to True by the Sources pydantic
-      validator when the Mavrin impurity radiation model is also active.
+    model_name: Name of the bremsstrahlung model implementation (`'wesson'`).
+    use_relativistic_correction: Whether to apply the Stott (PPCF 2005)
+      relativistic correction to the Wesson bremsstrahlung model.
+    exclude_impurity_bremsstrahlung: If `True`, calculates bremsstrahlung using
+      main-ion contributions only. Because the Mavrin impurity radiation model
+      computes both line and bremsstrahlung radiation contributions from
+      impurities, this is automatically set to `True` when Mavrin impurity
+      radiation is active to prevent double-counting.
   """
 
   model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'

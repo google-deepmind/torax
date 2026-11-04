@@ -70,37 +70,41 @@ def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
 class QLKNNTransportModelConfig(
     qualikiz_based_transport_model.QualikizBasedTransportModelConfig
 ):
-  """Model for the QLKNN transport model.
+  """Configuration model for the QLKNN turbulent transport surrogate model.
 
   To determine which model to load, TORAX uses the following logic:
 
-  * If `model_path` is provided, then we load the model from this path.
-  * Otherwise, if `model_name` is provided, we load that model from registered
-    models in the `fusion_surrogates` library.
-  * If `model_name` is not set either, we load the default QLKNN model from
-    `fusion_surrogates` (currently `QLKNN_7_11`).
+  - If `model_path` is provided, the model is loaded from that path.
+  - Otherwise, if `qlknn_model_name` is provided, that model is loaded from
+    registered models in the `fusion_surrogates` library.
+  - If neither is set, the default QLKNN model from `fusion_surrogates`
+    (currently `QLKNN_7_11`) is loaded.
 
-  It is recommended to not set `model_name` or `model_path` to use the default
-  QLKNN model.
+  It is recommended not to set `qlknn_model_name` or `model_path` in order
+  to use the default QLKNN model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'qlknn'.
-    model_path: Path to the model. Takes precedence over `model_name`.
-    qlknn_model_name: Name of the model to use. Used to select a model from the
-      `fusion_surrogates` library.
-    include_ITG: Whether to include ITG modes.
-    include_TEM: Whether to include TEM modes.
-    include_ETG: Whether to include ETG modes.
-    ITG_flux_ratio_correction: Correction factor for ITG electron heat flux.
+    model_name: Transport model identifier. Always set to `'qlknn'`.
+    model_path: Path to the model file or directory. Takes precedence over
+      `qlknn_model_name`.
+    qlknn_model_name: Name of the model to load from the `fusion_surrogates`
+      library.
+    include_ITG: If `True`, includes ITG modes in the total fluxes.
+    include_TEM: If `True`, includes TEM modes in the total fluxes.
+    include_ETG: If `True`, includes ETG modes in the total electron heat flux.
+    ITG_flux_ratio_correction: Factor multiplying the electron heat flux in ITG
+      modes. Defaults to `2.0` when using `QLKNN10D` as a proxy for the impact
+      of the upgraded QuaLiKiz collision operator.
     ETG_correction_factor: Correction factor for ETG electron heat flux.
-      https://gitlab.com/qualikiz-group/QuaLiKiz/-/commit/5bcd3161c1b08e0272ab3c9412fec7f9345a2eef
-    clip_inputs: Whether to clip inputs within desired margin of the QLKNN
+    clip_inputs: Whether to clip inputs within `clip_margin` of the QLKNN
       training set boundaries.
-    clip_margin: Margin to clip inputs within desired margin of the QLKNN
-      training set boundaries.
-    shear_suppression_alpha: Alpha parameter for Waltz rule applied to
-      poloidal/pressure contributions. Larger values increase the suppression
-      effect.
+    clip_margin: Margin used when clipping inputs within the QLKNN training set
+      boundaries.
+    shear_suppression_alpha: Alpha parameter for the Waltz rule shear
+      suppression applied to poloidal/pressure contributions. Larger values
+      increase the suppression effect.
+    output_mode_contributions: If `True`, outputs individual ITG, TEM, and ETG
+      contributions to transport coefficients in addition to total values.
   """
 
   model_name: Annotated[Literal['qlknn'], torax_pydantic.JAX_STATIC] = 'qlknn'
@@ -166,11 +170,15 @@ class QLKNNTransportModelConfig(
 class TGLFNNukaeaTransportModelConfig(
     tglf_based_transport_model.TGLFBasedTransportModelConfig
 ):
-  """Model for the TGLFNN-ukaea transport model.
+  """Configuration model for the TGLFNN-UKAEA surrogate transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'tglfnn_ukaea'.
-    machine: The machine type to use. Either 'step' or 'multimachine'.
+    model_name: Transport model identifier. Always set to `'tglfnn_ukaea'`.
+    machine: Machine type for TGLFNN-UKAEA: `'multimachine'` (trained on a
+      hypercube covering a wide variety of conventional tokamaks) or `'step'`
+      (trained specifically on the design space of UKAEA's Spherical Tokamak for
+      Energy Production). See the |tglfnn_ukaea| repository for details.
+      Currently only `'multimachine'` is publicly available.
   """
 
   model_name: Annotated[Literal['tglfnn_ukaea'], torax_pydantic.JAX_STATIC] = (
@@ -196,17 +204,15 @@ class TGLFNNukaeaTransportModelConfig(
     )
 
 
-class PrescribedTransportModelConfig(
-    config_base.ComponentTransportConfigBase
-):
-  """Model for the Prescribed transport model.
+class PrescribedTransportModelConfig(config_base.ComponentTransportConfigBase):
+  """Configuration model for prescribed transport coefficients.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'prescribed'.
-    chi_i: coefficient in ion heat equation diffusion term in m^2/s.
-    chi_e: coefficient in electron heat equation diffusion term in m^2/s.
-    D_e: diffusion coefficient in electron density equation in m^2/s.
-    V_e: convection coefficient in electron density equation in m/s.
+    model_name: Transport model identifier. Always set to `'prescribed'`.
+    chi_i: Ion heat conductivity [m^2/s].
+    chi_e: Electron heat conductivity [m^2/s].
+    D_e: Electron particle diffusivity [m^2/s].
+    V_e: Electron particle convection velocity [m/s].
   """
 
   model_name: Annotated[Literal['prescribed'], torax_pydantic.JAX_STATIC] = (
@@ -240,19 +246,21 @@ class PrescribedTransportModelConfig(
 class CriticalGradientTransportModelConfig(
     config_base.ComponentTransportConfigBase
 ):
-  """Model for the Critical Gradient transport model.
+  """Configuration model for the Critical Gradient Model (CGM).
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'cgm'.
-    alpha: Exponent of chi power law: chi ∝ (R/LTi - R/LTi_crit)^alpha.
+    model_name: Transport model identifier. Always set to `'cgm'`.
+    alpha: Exponent of the $chi$ power law: $chi propto (R_over_L_Ti -
+      R_over_L_Ti_crit)^alpha$.
     chi_stiff: Stiffness parameter.
-    chi_e_i_ratio: Ratio of ion to electron heat conductivity (ion higher for
-      ITG).
+    chi_e_i_ratio: Ratio of ion to electron heat conductivity (ITG turbulence
+      typically has values above 1).
     chi_D_ratio: Ratio of ion heat conductivity to electron particle
       diffusivity.
-    VR_D_ratio: Ratio of major radius * electron particle convection, to
-      electron diffusion. Sets the value of electron particle convection in the
-      model.
+    VR_D_ratio: Ratio of major radius $*$ electron particle convection to
+      electron particle diffusivity. Sets the electron particle convection in
+      the model; negative values produce a peaked electron density profile in
+      the absence of sources.
   """
 
   model_name: Annotated[Literal['cgm'], torax_pydantic.JAX_STATIC] = 'cgm'
@@ -290,23 +298,23 @@ class CriticalGradientTransportModelConfig(
 class BohmGyroBohmTransportModelConfig(
     config_base.ComponentTransportConfigBase
 ):
-  """Model for the Bohm + Gyro-Bohm transport model.
+  """Configuration model for the Bohm-GyroBohm turbulent transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'bohm_gyrobohm'.
+    model_name: Transport model identifier. Always set to `'bohm_gyrobohm'`.
     chi_e_bohm_coeff: Prefactor for Bohm term for electron heat conductivity.
     chi_e_gyrobohm_coeff: Prefactor for GyroBohm term for electron heat
       conductivity.
     chi_i_bohm_coeff: Prefactor for Bohm term for ion heat conductivity.
     chi_i_gyrobohm_coeff: Prefactor for GyroBohm term for ion heat conductivity.
-    chi_e_bohm_multiplier: Multiplier for chi_e_bohm_coeff. Intended for
+    chi_e_bohm_multiplier: Multiplier for `chi_e_bohm_coeff`. Intended for
       user-friendly default modification.
-    chi_e_gyrobohm_multiplier: Multiplier for chi_e_gyrobohm_coeff. Intended for
+    chi_e_gyrobohm_multiplier: Multiplier for `chi_e_gyrobohm_coeff`. Intended
+      for user-friendly default modification.
+    chi_i_bohm_multiplier: Multiplier for `chi_i_bohm_coeff`. Intended for
       user-friendly default modification.
-    chi_i_bohm_multiplier: Multiplier for chi_i_bohm_coeff. Intended for
-      user-friendly default modification.
-    chi_i_gyrobohm_multiplier: Multiplier for chi_i_gyrobohm_coeff. Intended for
-      user-friendly default modification.
+    chi_i_gyrobohm_multiplier: Multiplier for `chi_i_gyrobohm_coeff`. Intended
+      for user-friendly default modification.
     D_face_c1: Constant for the electron diffusivity weighting factor.
     D_face_c2: Constant for the electron diffusivity weighting factor.
     V_face_coeff: Proportionality factor between convectivity and diffusivity.
@@ -404,7 +412,15 @@ except ImportError:
 
 
 class SmoothingZoneConfig(torax_pydantic.ConfigBase):
-  """Defines a radial zone with a specific smoothing width."""
+  """Defines a radial zone with a specific Gaussian smoothing width.
+
+  Attributes:
+    rho_min: Lower normalized radial boundary $rho_norm$ of the smoothing zone.
+    rho_max: Upper normalized radial boundary $rho_norm$ of the smoothing zone.
+    smoothing_width: HWHM Gaussian smoothing kernel width [$rho_norm$] within
+      this radial zone. Setting `0.0` disables smoothing in this zone and
+      excludes it from smoothing adjacent zones.
+  """
 
   rho_min: torax_pydantic.UnitInterval
   rho_max: torax_pydantic.UnitInterval
@@ -418,29 +434,50 @@ class SmoothingZoneConfig(torax_pydantic.ConfigBase):
 
 
 class TransportConfig(torax_pydantic.ConfigBase):
-  """Model for the TransportModel.
+  """Top-level configuration model for core and pedestal turbulent transport.
 
   Attributes:
-    chi_min: Lower bound on heat conductivity.
-    chi_max: Upper bound on heat conductivity (can be helpful for stability).
-    D_e_min: minimum electron density diffusivity.
-    D_e_max: maximum electron density diffusivity.
-    V_e_min: minimum electron density convection.
-    V_e_max: maximum electron density convection.
-    smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
-      transport model outputs.
-    pedestal_smoothing_width: Width of HWHM Gaussian smoothing kernel operating
-      on pedestal transport model outputs. If 0.0, no smoothing is applied to
-      pedestal models.
-    core_transport_models: A dict mapping user-given names to transport models,
-      whose outputs will be summed to give the combined core transport
-      coefficients.
-    pedestal_transport_models: A dict mapping user-given names to models that
-      will be combined for pedestal transport coefficients.
-    smoothing_zones: A sequence of radial zones with specific smoothing widths.
-      If empty, falls back to the legacy smoothing_width. Setting a value of 0.0
-      means that both no smoothing will be applied in that zone but also means
-      that zone will not be used for the smoothing of other zones.
+    chi_min: Lower allowed bound for heat conductivities $chi$ across all
+      models [m^2/s].
+    chi_max: Upper allowed bound for heat conductivities $chi$ across all
+      models [m^2/s].
+    D_e_min: Lower allowed bound for electron particle diffusivity $D_e$ across
+      all models [m^2/s].
+    D_e_max: Upper allowed bound for electron particle diffusivity $D_e$ across
+      all models [m^2/s].
+    V_e_min: Lower allowed bound for electron particle convection $V_e$ across
+      all models [m/s].
+    V_e_max: Upper allowed bound for electron particle convection $V_e$ across
+      all models [m/s].
+    smoothing_width: Width of HWHM Gaussian smoothing kernel [$rho_norm$]
+      operating on combined transport model outputs. If a QLKNN surrogate model
+      (such as `qlknn` / `QLKNN_7_11`) is used and `smoothing_width` is set to
+      `0.0`, a warning is logged recommending non-zero smoothing to avoid sharp
+      numerical artifacts. Used only when `smoothing_zones` is empty.
+    pedestal_smoothing_width: Width of HWHM Gaussian smoothing kernel
+      [$rho_norm$] operating on pedestal transport model outputs. If `0.0`, no
+      smoothing is applied to pedestal models.
+    core_transport_models: Dictionary mapping user-chosen names to configuration
+      dictionaries for turbulent transport component models in the core. Each
+      entry must specify `'model_name'` (e.g., `'prescribed'`, `'qlknn'`,
+      `'cgm'`, `'bohm_gyrobohm'`, `'tglf'`, `'tglfnn_ukaea'`, `'qualikiz'`)
+      along with model-specific parameters. For each component model, `rho_min`
+      and `rho_max` define its active radial domain. If a pedestal is active and
+      configured with an internal boundary condition, the core `rho_max` is
+      bounded by `rho_norm_top` set in the `pedestal` configuration.
+    pedestal_transport_models: Dictionary mapping user-chosen names to
+      configuration dictionaries for turbulent transport component models in the
+      pedestal. Pedestal transport models are active only for radii above
+      `rho_norm_top`. Setting `rho_min` or `rho_max` is not supported for
+      pedestal transport models, and an error is raised if they deviate from
+      their defaults (`0.0` and `1.0`).
+    smoothing_zones: Optional sequence of radial zones with distinct Gaussian
+      smoothing widths (see `SmoothingZoneConfig`). When `smoothing_zones` is
+      provided, the smoothing kernel width $sigma(rho_norm)$ varies spatially
+      across the radial grid: inside each defined zone $(rho_min, rho_max]$,
+      that zone's `smoothing_width` is used, while outside all defined zones (or
+      in zones with `smoothing_width=0.0`), no smoothing is applied and those
+      points do not contribute to smoothing neighboring zones.
   """
 
   chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
@@ -451,15 +488,11 @@ class TransportConfig(torax_pydantic.ConfigBase):
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
   smoothing_width: pydantic.NonNegativeFloat = 0.0
   pedestal_smoothing_width: pydantic.NonNegativeFloat = 0.0
-  core_transport_models: dict[
-      str, ComponentTransportModelConfig
-  ] = pydantic.Field(
-      default_factory=dict
+  core_transport_models: dict[str, ComponentTransportModelConfig] = (
+      pydantic.Field(default_factory=dict)
   )
-  pedestal_transport_models: dict[
-      str, ComponentTransportModelConfig
-  ] = pydantic.Field(
-      default_factory=dict
+  pedestal_transport_models: dict[str, ComponentTransportModelConfig] = (
+      pydantic.Field(default_factory=dict)
   )
   smoothing_zones: Sequence[SmoothingZoneConfig] = pydantic.Field(
       default_factory=list

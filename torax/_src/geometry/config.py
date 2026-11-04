@@ -45,21 +45,26 @@ _GEOMETRY_CONFIG_ADAPTER = pydantic.TypeAdapter(SupportedGeometryConfig)
 
 
 class GeometryConfig(torax_pydantic.ConfigBase):
-  """Pydantic config for a geometry.
+  """Pydantic config for configuring magnetic geometry in TORAX.
 
   This object can be constructed via `GeometryConfig.from_dict(config)`, where
   `config` is a dict described in
-  https://torax.readthedocs.io/en/latest/configuration.html#geometry.
+  https://torax.readthedocs.io/en/latest/configuration/geometry.html.
 
   Attributes:
-    geometry_type: A `geometry.GeometryType` enum.
-    geometry_configs: Either a single `SupportedGeometryConfig` or a dict of
-      `SupportedGeometryConfig` objects, where the keys are times in seconds.
-    calc_Phi_b_dot: Whether to calculate Phi_b_dot in the geometry dataclasses.
-      This is used in calc_coeffs to calculate terms related to time-dependent
-      geometry. We can set this to False to zero out Phi_b_dot in the geometry
-      dataclasses to look at its effect on the simulation.
-  """
+    geometry_type: Magnetic geometry model selector.
+    geometry_configs: Optional time-series dictionary mapping simulation time
+      [s] to per-slice geometry configuration dictionaries `{time: {configs}}`
+      for time-dependent geometry. When a single static geometry is
+      configured at the top level, this field is populated automatically. Cannot
+      be combined with `LY_bundle_object` (for MEQ) or `slice_time=None` (for
+      IMAS).
+    calc_Phi_b_dot: Toggles whether to calculate time-dependent toroidal flux
+      derivatives ($Phi_b_dot$) in the geometry dataclasses. Used in
+      `calc_coeffs` for moving-mesh / time-dependent geometry terms. Can be set
+      to `False` to zero out $Phi_b_dot$ and inspect its effect on the
+      simulation.
+  """  # fmt: skip
 
   geometry_type: geometry.GeometryType
   geometry_configs: (

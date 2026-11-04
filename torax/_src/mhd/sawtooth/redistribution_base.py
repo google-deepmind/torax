@@ -46,8 +46,9 @@ class RedistributionConfig(torax_pydantic.ConfigBase):
   """Base config for all redistribution models.
 
   Attributes:
-    flattening_factor: The factor by which the profile is flattened.
-    Default is near 1.0 but not exactly 1.0, to avoid zero-gradients.
+    flattening_factor: Factor determining the degree of profile flattening
+      inside the `q=1` surface. Default is near `1.0` (`1.01`) rather than
+      exactly `1.0` to avoid zero-gradients.
   """
 
   flattening_factor: torax_pydantic.TimeVaryingScalar = (
