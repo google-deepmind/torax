@@ -20,9 +20,9 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.sources import core_sources
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 
@@ -35,10 +35,10 @@ def build_source_profiles(
     explicit: bool = True,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent | None = None,
 ) -> tuple[
-    source_profiles.SourceProfiles,
+    core_sources.CoreSources,
     dict[str, source_state_lib.SourceState],
 ]:
-  """Helper to evaluate basic and remaining sources into complete SourceProfiles."""
+  """Evaluates basic and dependent sources into complete CoreSources."""
   if source_states is None:
     source_states = source_models.initial_state(runtime_params)
   if bootstrap_current is None:

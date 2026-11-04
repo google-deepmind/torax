@@ -40,7 +40,7 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
@@ -99,24 +99,30 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
     )(t=0.0)
-    self.source_profiles = source_profiles_lib.SourceProfiles(
+    self.source_profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        T_i={
-            'fusion': ones,
-            'generic_heat': 2 * ones,
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
+        sources={
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=ones,
+                power_density_e=ones,
+            ),
+            'generic_heat': core_sources_lib.SourceOutput(
+                power_density_i=2 * ones,
+                power_density_e=3 * ones,
+            ),
+            'bremsstrahlung': core_sources_lib.SourceOutput(
+                power_density_e=-ones,
+            ),
+            'ohmic': core_sources_lib.SourceOutput(
+                power_density_e=ones * 5,
+            ),
+            'ecrh': core_sources_lib.SourceOutput(
+                power_density_e=7 * ones,
+            ),
         },
-        T_e={
-            'bremsstrahlung': -ones,
-            'ohmic': ones * 5,
-            'fusion': ones,
-            'generic_heat': 3 * ones,
-            'ecrh': 7 * ones,
-        },
-        n_e={},
-        psi={},
     )
     source_states = models.source_models.initial_state(runtime_params)
     self.core_profiles, _, _ = core_profile_helpers.make_initial_inputs(
@@ -277,13 +283,16 @@ class StateHistoryTest(parameterized.TestCase):
     profiles_dataset = output_xr.children[output_keys.PROFILES].dataset
     self.assertIn('p_alpha_i', profiles_dataset.data_vars)
     self.assertIn('p_alpha_e', profiles_dataset.data_vars)
+    fusion_output = self.source_profiles.sources['fusion']
+    self.assertIsNotNone(fusion_output.power_density_i)
+    self.assertIsNotNone(fusion_output.power_density_e)
     np.testing.assert_allclose(
         profiles_dataset.data_vars['p_alpha_i'].values[0, ...],
-        self.source_profiles.T_i['fusion'],
+        fusion_output.power_density_i,
     )
     np.testing.assert_allclose(
         profiles_dataset.data_vars['p_alpha_e'].values[0, ...],
-        self.source_profiles.T_e['fusion'],
+        fusion_output.power_density_e,
     )
 
   def test_state_history_to_xr(self):
@@ -1008,7 +1017,7 @@ class StateHistoryTest(parameterized.TestCase):
     for prop in (
         'geometries',
         'core_profiles',
-        'source_profiles',
+        'core_sources',
         'core_transport',
         'solver_numeric_outputs',
         'post_processed_outputs',
@@ -1021,7 +1030,7 @@ class StateHistoryTest(parameterized.TestCase):
     for prop in (
         'geometries',
         'core_profiles',
-        'source_profiles',
+        'core_sources',
         'core_transport',
         'solver_numeric_outputs',
         'post_processed_outputs',

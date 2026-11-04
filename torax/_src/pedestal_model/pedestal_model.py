@@ -36,7 +36,7 @@ from torax._src.pedestal_model.formation import base as formation_base
 from torax._src.pedestal_model.saturation import base as saturation_base
 from torax._src.pedestal_model.structure import base as structure_base
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -55,7 +55,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
   ) -> tuple[
       pedestal_model_output.PedestalModelOutput,
       pedestal_state_lib.PedestalState,
@@ -68,7 +68,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       pedestal_state: pedestal_state_lib.PedestalState,
   ) -> tuple[
       pedestal_state_lib.PedestalState,
@@ -82,7 +82,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
           pedestal_structure.PedestalStructure | None
@@ -103,7 +103,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
   ) -> tuple[
       pedestal_model_output.IBCPedestalModelOutput,
       pedestal_state_lib.IBCPedestalState,
@@ -187,7 +187,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       pedestal_state: pedestal_state_lib.PedestalState,
   ) -> tuple[
       pedestal_state_lib.IBCPedestalState,
@@ -243,7 +243,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
           pedestal_structure.PedestalStructure | None
@@ -308,7 +308,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
   ) -> tuple[
       pedestal_model_output.AdaptiveTransportPedestalModelOutput,
       pedestal_state_lib.AdaptiveTransportPedestalState,
@@ -367,7 +367,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       pedestal_state: pedestal_state_lib.PedestalState,
   ) -> tuple[
       pedestal_state_lib.AdaptiveTransportPedestalState,
@@ -429,7 +429,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),
@@ -464,7 +464,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
           pedestal_structure.PedestalStructure | None

@@ -27,7 +27,7 @@ from torax._src.edge import base
 from torax._src.edge import register_model
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
@@ -244,7 +244,7 @@ class DummyEdgeModel(base.EdgeModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
+      core_sources: core_sources_lib.CoreSources,
       previous_edge_outputs: base.EdgeModelOutputs | None = None,
   ) -> base.EdgeModelOutputs:
     del edge_runtime_params, runtime_params, geo, core_profiles, core_sources

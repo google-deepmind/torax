@@ -207,9 +207,9 @@ class StateEvaluationTest(parameterized.TestCase):
 
     # Because icrh is explicit, its fast ion population must be preserved
     # from explicit_outputs.
-    self.assertIn('icrh', result.core_sources.fast_ions)
+    self.assertIn('icrh', result.core_sources.sources)
     np.testing.assert_allclose(
-        result.core_sources.fast_ions['icrh'][0].n.value,
+        result.core_sources.sources['icrh'].fast_ions[0].n.value,
         distinctive_value,
     )
 

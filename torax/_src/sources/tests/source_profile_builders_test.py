@@ -77,13 +77,23 @@ class SourceModelsTest(parameterized.TestCase):
         )
     )
 
-    self.assertIn('impurity_radiation', final_profiles.T_e)
-    self.assertTrue(jnp.any(final_profiles.T_e['impurity_radiation'] < 0.0))
-    self.assertIn('ohmic', final_profiles.T_e)
-    self.assertIn('icrh', final_profiles.T_e)
-    self.assertIn('icrh', final_profiles.T_i)
-    self.assertIn('ecrh', final_profiles.T_e)
-    self.assertIn('ecrh', final_profiles.psi)
+    self.assertIn('impurity_radiation', final_profiles.sources)
+    self.assertIsNotNone(
+        final_profiles.sources['impurity_radiation'].power_density_e
+    )
+    self.assertTrue(
+        jnp.any(
+            final_profiles.sources['impurity_radiation'].power_density_e < 0.0
+        )
+    )
+    self.assertIn('ohmic', final_profiles.sources)
+    self.assertIsNotNone(final_profiles.sources['ohmic'].power_density_e)
+    self.assertIn('icrh', final_profiles.sources)
+    self.assertIsNotNone(final_profiles.sources['icrh'].power_density_e)
+    self.assertIsNotNone(final_profiles.sources['icrh'].power_density_i)
+    self.assertIn('ecrh', final_profiles.sources)
+    self.assertIsNotNone(final_profiles.sources['ecrh'].power_density_e)
+    self.assertIsNotNone(final_profiles.sources['ecrh'].j_parallel)
     self.assertNotEmpty(final_states)
 
   def _build_test_env(

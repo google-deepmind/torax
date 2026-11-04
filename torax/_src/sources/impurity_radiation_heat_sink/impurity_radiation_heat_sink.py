@@ -20,8 +20,8 @@ Model functions are in separate files.
 import dataclasses
 from typing import ClassVar
 
+from torax._src.sources import core_sources
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -30,5 +30,5 @@ class ImpurityRadiationHeatSink(source_lib.SourceBase):
 
   SOURCE_ID: ClassVar[str] = 'impurity_radiation'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
-  ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
+      tuple[core_sources.AffectedCoreProfile, ...]
+  ] = (core_sources.AffectedCoreProfile.TEMP_EL,)

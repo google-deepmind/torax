@@ -36,7 +36,7 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import file_restart as file_restart_config
 import xarray as xr
@@ -175,7 +175,7 @@ class StateHistory:
           ),
       )
     self._core_profiles: core_profiles_lib.CoreProfiles = core_profiles
-    self._core_sources: source_profiles_lib.SourceProfiles = (
+    self._core_sources: core_sources_lib.CoreSources = (
         state_history.core_sources
     )
     self._stacked_core_transport: state.CoreTransport = (
@@ -251,8 +251,8 @@ class StateHistory:
     return _unstack_pytree(self._core_profiles)
 
   @functools.cached_property
-  def source_profiles(self) -> Sequence[source_profiles_lib.SourceProfiles]:
-    """Returns the source profiles for the simulation."""
+  def core_sources(self) -> Sequence[core_sources_lib.CoreSources]:
+    """Returns the core sources for the simulation."""
     return _unstack_pytree(self._core_sources)
 
   @functools.cached_property

@@ -23,10 +23,10 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -39,8 +39,8 @@ class GenericParticleSource(source.Source):
 
   SOURCE_ID: ClassVar[str] = 'generic_particle'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
-  ] = (source_profiles.AffectedCoreProfile.NE,)
+      tuple[core_sources.AffectedCoreProfile, ...]
+  ] = (core_sources.AffectedCoreProfile.NE,)
 
   def _get_model_value(
       self,
@@ -48,7 +48,7 @@ class GenericParticleSource(source.Source):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates external source term for n from SBI.
 
     Does not modify source_state; returns it unchanged.
@@ -84,7 +84,7 @@ class GenericParticleSource(source.Source):
         total=source_params.S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(particle_source=profile), source_state
+    return core_sources.SourceOutput(particle_source=profile), source_state
 
 
 @jax.tree_util.register_dataclass

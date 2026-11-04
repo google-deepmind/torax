@@ -19,7 +19,7 @@ import numpy as np
 import torax
 from torax._src.imas_tools.input import core_sources
 from torax._src.imas_tools.input import loader
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import config
 
@@ -39,16 +39,16 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     ec2_curr = np.array([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
 
     ecrh_affected_profiles = (
-        source_profiles.AffectedCoreProfile.TEMP_EL,
-        source_profiles.AffectedCoreProfile.PSI,
+        core_sources_lib.AffectedCoreProfile.TEMP_EL,
+        core_sources_lib.AffectedCoreProfile.PSI,
     )
     profiles1 = {
-        source_profiles.AffectedCoreProfile.TEMP_EL: ec1_heat,
-        source_profiles.AffectedCoreProfile.PSI: ec1_curr,
+        core_sources_lib.AffectedCoreProfile.TEMP_EL: ec1_heat,
+        core_sources_lib.AffectedCoreProfile.PSI: ec1_curr,
     }
     profiles2 = {
-        source_profiles.AffectedCoreProfile.TEMP_EL: ec2_heat,
-        source_profiles.AffectedCoreProfile.PSI: ec2_curr,
+        core_sources_lib.AffectedCoreProfile.TEMP_EL: ec2_heat,
+        core_sources_lib.AffectedCoreProfile.PSI: ec2_curr,
     }
     ec1 = core_sources._SourceProfiles(
         time=time,  # pyrefly: ignore[bad-argument-type]

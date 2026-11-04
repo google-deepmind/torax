@@ -24,11 +24,11 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base as source_base_pydantic_model
+from torax._src.sources import core_sources
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import register_model
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
@@ -52,7 +52,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[
-      source_profiles.SourceOutput,
+      core_sources.SourceOutput,
       source_state_lib.SourceState,
   ]:
     output, source_state = super()._get_model_value(
@@ -62,7 +62,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
         source_state=source_state,
     )
     return (
-        source_profiles.SourceOutput(
+        core_sources.SourceOutput(
             particle_source=2 * output.particle_source
             if output.particle_source is not None
             else None

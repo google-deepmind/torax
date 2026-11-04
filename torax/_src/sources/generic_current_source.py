@@ -29,9 +29,9 @@ from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.sources import base as source_base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -56,8 +56,8 @@ class GenericCurrentSource(source.Source):
 
   SOURCE_ID: ClassVar[str] = 'generic_current'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
-  ] = (source_profiles.AffectedCoreProfile.PSI,)
+      tuple[core_sources.AffectedCoreProfile, ...]
+  ] = (core_sources.AffectedCoreProfile.PSI,)
 
   def _get_model_value(
       self,
@@ -65,7 +65,7 @@ class GenericCurrentSource(source.Source):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates external parallel current density profile on the cell grid.
 
     Does not modify source_state; returns it unchanged.
@@ -123,7 +123,7 @@ class GenericCurrentSource(source.Source):
     j_parallel = psi_calculations.j_toroidal_to_j_parallel(
         j_tor, geo, runtime_params.numerics.min_rho_norm
     )
-    return source_profiles.SourceOutput(j_parallel=j_parallel), source_state
+    return core_sources.SourceOutput(j_parallel=j_parallel), source_state
 
 
 class GenericCurrentSourceConfig(source_base.SourceConfigBase):

@@ -28,10 +28,10 @@ from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -55,10 +55,10 @@ class ElectronCyclotronSource(source.Source):
 
   SOURCE_ID: ClassVar[str] = "ecrh"
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
+      tuple[core_sources.AffectedCoreProfile, ...]
   ] = (
-      source_profiles.AffectedCoreProfile.TEMP_EL,
-      source_profiles.AffectedCoreProfile.PSI,
+      core_sources.AffectedCoreProfile.TEMP_EL,
+      core_sources.AffectedCoreProfile.PSI,
   )
 
   def _get_model_value(
@@ -67,7 +67,7 @@ class ElectronCyclotronSource(source.Source):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates external electron heat source and current drive from EC.
 
     Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). See
@@ -147,7 +147,7 @@ class ElectronCyclotronSource(source.Source):
     j_parallel_ec = fsa_j_dot_B / geo.B_0
 
     return (
-        source_profiles.SourceOutput(
+        core_sources.SourceOutput(
             power_density_e=ec_power_density, j_parallel=j_parallel_ec
         ),
         source_state,

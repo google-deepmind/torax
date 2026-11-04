@@ -24,8 +24,8 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -47,10 +47,10 @@ class QeiSource(static_dataclass.StaticDataclass):
 
   SOURCE_ID: ClassVar[str] = 'ei_exchange'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
+      tuple[core_sources.AffectedCoreProfile, ...]
   ] = (
-      source_profiles.AffectedCoreProfile.TEMP_ION,
-      source_profiles.AffectedCoreProfile.TEMP_EL,
+      core_sources.AffectedCoreProfile.TEMP_ION,
+      core_sources.AffectedCoreProfile.TEMP_EL,
   )
 
   def get_qei(
@@ -58,7 +58,7 @@ class QeiSource(static_dataclass.StaticDataclass):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: solver_profiles.SolverProfiles,
-  ) -> source_profiles.QeiInfo:
+  ) -> core_sources.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
         runtime_params.sources[self.SOURCE_ID].mode
@@ -68,7 +68,7 @@ class QeiSource(static_dataclass.StaticDataclass):
             geo,
             core_profiles,
         ),
-        lambda: source_profiles.QeiInfo.zeros(geo),
+        lambda: core_sources.QeiInfo.zeros(geo),
     )
 
 
@@ -76,7 +76,7 @@ def _model_based_qei(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: solver_profiles.SolverProfiles,
-) -> source_profiles.QeiInfo:
+) -> core_sources.QeiInfo:
   """Computes Qei via the coll_exchange model."""
   source_params = runtime_params.sources[QeiSource.SOURCE_ID]
   assert isinstance(source_params, RuntimeParams)
@@ -111,7 +111,7 @@ def _model_based_qei(
   p_ei = qei_coef * jnp.subtract(
       core_profiles.kinetic.T_e.value, core_profiles.kinetic.T_i.value
   )
-  return source_profiles.QeiInfo(
+  return core_sources.QeiInfo(
       implicit_ii=implicit_ii,
       explicit_i=explicit_i,
       implicit_ee=implicit_ee,

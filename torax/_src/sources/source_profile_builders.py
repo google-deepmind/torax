@@ -26,8 +26,8 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
 )
+from torax._src.sources import core_sources
 from torax._src.sources import source_models as source_models_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 
@@ -40,7 +40,7 @@ def evaluate_basic_sources(
     explicit: bool,
     calculate_anyway: bool = False,
 ) -> tuple[
-    dict[str, source_profiles.SourceOutput],
+    dict[str, core_sources.SourceOutput],
     dict[str, source_state_lib.SourceState],
 ]:
   """Evaluates basic standard sources depending only on SolverProfiles.
@@ -63,7 +63,7 @@ def evaluate_basic_sources(
   Returns:
     A tuple of (basic_source_outputs, updated_source_states).
   """
-  outputs: dict[str, source_profiles.SourceOutput] = {}
+  outputs: dict[str, core_sources.SourceOutput] = {}
   updated_source_states = dict(source_states)
   for source_name, source in source_models.basic_sources.items():
     source_params = runtime_params.sources[source_name]
@@ -116,10 +116,10 @@ def evaluate_dependent_sources(
     core_profiles: core_profiles_lib.CoreProfiles,
     source_models: source_models_lib.SourceModels,
     source_states: Mapping[str, source_state_lib.SourceState],
-    basic_source_outputs: Mapping[str, source_profiles.SourceOutput],
+    basic_source_outputs: Mapping[str, core_sources.SourceOutput],
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
 ) -> tuple[
-    source_profiles.SourceProfiles,
+    core_sources.CoreSources,
     dict[str, source_state_lib.SourceState],
 ]:
   """Evaluates remaining standard sources, qei, and final heating sinks.
@@ -138,10 +138,10 @@ def evaluate_dependent_sources(
     bootstrap_current: Bootstrap current calculated for this time step.
 
   Returns:
-    A tuple of (source_profiles, updated_source_states).
+    A tuple of (core_sources, updated_source_states).
   """
   updated_source_states = dict(source_states)
-  core_outputs: dict[str, source_profiles.SourceOutput] = {}
+  core_outputs: dict[str, core_sources.SourceOutput] = {}
   for source_name, source in source_models.core_profiles_sources.items():
     output, new_state = source.get_value(
         runtime_params,
@@ -157,7 +157,7 @@ def evaluate_dependent_sources(
       geo=geo,
       core_profiles=core_profiles,
   )
-  profiles = source_profiles.SourceProfiles.from_source_outputs(
+  profiles = core_sources.CoreSources.from_source_outputs(
       source_outputs=all_standard_outputs,
       standard_sources=source_models.standard_sources,
       bootstrap_current=bootstrap_current,
@@ -165,7 +165,7 @@ def evaluate_dependent_sources(
   )
 
   if source_models.final_sources:
-    final_outputs: dict[str, source_profiles.SourceOutput] = {}
+    final_outputs: dict[str, core_sources.SourceOutput] = {}
     for name, source in source_models.final_sources.items():
       curr_state = source_states[name]
       output, new_state = source.get_value(
@@ -177,10 +177,7 @@ def evaluate_dependent_sources(
       )
       updated_source_states[name] = new_state
       final_outputs[name] = output
-    profiles = profiles.update_source_profiles(
-        final_outputs,
-        source_models,
-    )
+    profiles = profiles.update_sources(final_outputs, source_models)
 
   return profiles, updated_source_states
 

@@ -27,7 +27,7 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import config
 
 
@@ -36,7 +36,7 @@ def core_profiles_to_IMAS(
     torax_config: config.ToraxConfig,
     post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
     core_profiles: Sequence[core_profiles_lib.CoreProfiles],
-    core_sources: Sequence[source_profiles.SourceProfiles],
+    core_sources: Sequence[core_sources_lib.CoreSources],
     geometry: Sequence[geometry_lib.Geometry],
     times: array_typing.FloatVector,
     ids: ids_toplevel.IDSToplevel | None = None,
@@ -54,7 +54,7 @@ def core_profiles_to_IMAS(
     torax_config: ToraxConfig object to get number of main ions.
     post_processed_outputs: Sequence of TORAX PostProcessedOutputs objects.
     core_profiles: Sequence of TORAX CoreProfiles objects.
-    core_sources: Sequence of TORAX SourceProfiles objects.
+    core_sources: Sequence of TORAX CoreSources objects.
     geometry: Sequence of TORAX Geometry objects.
     times: Time array of the slices to save.
     ids: Optional IDS object to be filled. Can be either core_profiles or
@@ -180,7 +180,7 @@ def _fill_profiles_1d(
     ids: ids_toplevel.IDSToplevel,
     post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
     core_profiles: Sequence[core_profiles_lib.CoreProfiles],
-    core_sources: Sequence[source_profiles.SourceProfiles],
+    core_sources: Sequence[core_sources_lib.CoreSources],
     geometry: Sequence[geometry_lib.Geometry],
     times: array_typing.FloatVector,
 ) -> None:
@@ -321,7 +321,7 @@ def _fill_profiles_1d_currents(
     i: int,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     core_profiles: core_profiles_lib.CoreProfiles,
-    cs_state: source_profiles.SourceProfiles,
+    cs_state: core_sources_lib.CoreSources,
     geo: geometry_lib.Geometry,
 ) -> None:
   """Fills `currents` section of `profiles_1d` in-place for the IDS."""

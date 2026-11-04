@@ -59,7 +59,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Save output profiles to IDS
     post_processed_outputs = state_history.post_processed_outputs
     core_profiles = state_history.core_profiles
-    core_sources = state_history.source_profiles
+    core_sources = state_history.core_sources
     geometry = state_history.geometries
     times = state_history.times
     filled_ids = output_core_profiles.core_profiles_to_IMAS(

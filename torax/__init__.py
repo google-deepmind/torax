@@ -40,6 +40,7 @@ from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
+from torax._src.sources.core_sources import CoreSources
 from torax._src.state import CoreTransport
 from torax._src.state import SimError
 from torax._src.state import SolverNumericOutputs
@@ -72,6 +73,7 @@ __all__ = [
     'run_simulation',
     'SolverProfiles',
     'CoreProfiles',
+    'CoreSources',
     'CoreTransport',
     'Geometry',
     'PostProcessedOutputs',

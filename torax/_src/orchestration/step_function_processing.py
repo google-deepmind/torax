@@ -85,7 +85,7 @@ def pre_step(
   # consistent with time t. For the edge and pedestal models, we want all
   # sources consistent with the state at time t, so we replace the explicit
   # sources with the newly calculated profiles.
-  merged_sources = input_state.core_sources.update_source_profiles(
+  merged_sources = input_state.core_sources.update_sources(
       explicit_source_outputs,
       models.source_models,
   )

@@ -36,9 +36,9 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
+from torax._src.sources import core_sources
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -291,7 +291,7 @@ def _iterate_psi_and_sources(
     )
     if runtime_params.numerics.enable_fast_ions:
       fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-          source_profiles.extract_fast_ions(basic_source_outputs),
+          core_sources.extract_fast_ions(basic_source_outputs),
           runtime_params.profile_conditions.prescribed_fast_ions,
           geo.rho_face_norm,
       )
@@ -302,7 +302,7 @@ def _iterate_psi_and_sources(
             runtime_params, geo, base_profiles, fast_ions=fast_ions
         )
     )
-    psi_sources = source_profiles.extract_psi_sources(
+    psi_sources = core_sources.extract_psi_sources(
         basic_source_outputs, source_models
     )
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(

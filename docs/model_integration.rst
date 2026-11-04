@@ -383,7 +383,7 @@ configured with ``is_explicit=True``.
 
 Subclass ``torax.sources.FinalSource`` for a final source or sink evaluated
 after all ``Source`` and ``SourceUsingCoreProfiles`` models have been
-aggregated into ``sources.SourceProfiles`` (for example, a radiation sink
+aggregated into ``sources.CoreSources`` (for example, a radiation sink
 scaling with total input heating). Constraints: at most one ``FinalSource``
 can be active in a simulation, cannot affect ``AffectedCoreProfile.PSI``,
 cannot return ``fast_ions``, and cannot be configured with
@@ -393,7 +393,7 @@ cannot return ``fast_ions``, and cannot be configured with
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class MyFinalHeatSink(sources.FinalSource):
-      """Custom sink depending on aggregated SourceProfiles."""
+      """Custom sink depending on aggregated CoreSources."""
 
       SOURCE_ID: ClassVar[str] = 'impurity_radiation'
       AFFECTED_CORE_PROFILES: ClassVar[
@@ -405,11 +405,11 @@ cannot return ``fast_ions``, and cannot be configured with
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          calculated_source_profiles: sources.SourceProfiles,
+          calculated_core_sources: sources.CoreSources,
           source_state: sources.SourceState,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        total_el_heat = calculated_source_profiles.total_sources(
-            'T_e', geo
+        total_el_heat = calculated_core_sources.total_sources(
+            'power_density_e', geo
         )
         return (
             sources.SourceOutput(power_density_e=-0.1 * total_el_heat),
@@ -556,7 +556,7 @@ as ``None``):
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          core_sources: sources.SourceProfiles,
+          core_sources: sources.CoreSources,
           previous_edge_outputs: edge.EdgeModelOutputs | None = None,
       ) -> edge.EdgeModelOutputs:
         del edge_runtime_params, runtime_params, geo, core_profiles, core_sources

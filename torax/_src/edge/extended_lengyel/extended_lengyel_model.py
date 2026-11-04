@@ -38,7 +38,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.physics import psi_calculations
 from torax._src.solver import jax_root_finding
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 
 # pylint: disable=invalid-name
@@ -137,7 +137,7 @@ class ExtendedLengyelModel(base.EdgeModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
+      core_sources: core_sources_lib.CoreSources,
       previous_edge_outputs: base.EdgeModelOutputs | None = None,
   ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
     """Runs the extended Lengyel model using current TORAX state."""
@@ -191,8 +191,8 @@ class ExtendedLengyelModel(base.EdgeModel):
     # Calculate total power crossing the separatrix from core sources.
     # This sums all electron and ion heating sources (and sinks).
     # Note: `total_sources` returns dPower/drho_norm (already multiplied by V').
-    dP_e_drho_norm = core_sources.total_sources('T_e', geo)
-    dP_i_drho_norm = core_sources.total_sources('T_i', geo)
+    dP_e_drho_norm = core_sources.total_sources('power_density_e', geo)
+    dP_i_drho_norm = core_sources.total_sources('power_density_i', geo)
     # Integrate over rho_norm to get total power out of the separatrix [W].
     P_SOL_total = math_utils.cell_integration(
         dP_e_drho_norm + dP_i_drho_norm, geo

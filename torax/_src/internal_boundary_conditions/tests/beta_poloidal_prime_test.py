@@ -29,7 +29,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import beta_poloidal_prime
 from torax._src.internal_boundary_conditions import config as ibc_config_lib
 from torax._src.orchestration import run_simulation
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -105,7 +105,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
       beta_poloidal_prime_min: float = 0.2,
       P_SOL_scaling: float | None = None,
-      source_profiles: source_profiles_lib.SourceProfiles | None = None,
+      source_profiles: core_sources_lib.CoreSources | None = None,
   ):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
@@ -150,11 +150,10 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams, _MockRuntimeParams()
     )
     if source_profiles is None:
-      source_profiles = mock.create_autospec(
-          source_profiles_lib.SourceProfiles,
-          instance=True,
-          T_e={},
-          T_i={},
+      source_profiles = core_sources_lib.CoreSources(
+          bootstrap_current=mock.ANY,
+          qei=mock.ANY,
+          sources={},
       )
     model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
     ibc_out = model(
@@ -238,11 +237,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   def test_negative_p_sol_clamps_to_min(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    negative_sources = mock.create_autospec(
-        source_profiles_lib.SourceProfiles,
-        instance=True,
-        T_e={'radiation': jnp.full_like(geo.rho_norm, -1.0e6)},
-        T_i={},
+    negative_sources = core_sources_lib.CoreSources(
+        bootstrap_current=mock.ANY,
+        qei=mock.ANY,
+        sources={
+            'radiation': core_sources_lib.SourceOutput(
+                power_density_e=jnp.full_like(geo.rho_norm, -1.0e6)
+            )
+        },
     )
     _, _, ibc_power_dep = self._setup_model_and_profiles(
         mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
@@ -301,11 +303,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       mock_rp = typing.cast(
           runtime_params_lib.RuntimeParams, _MockRuntimeParams()
       )
-      sources = mock.create_autospec(
-          source_profiles_lib.SourceProfiles,
-          instance=True,
-          T_e={'radiation': jnp.full_like(geo.rho_norm, q_density)},
-          T_i={},
+      sources = core_sources_lib.CoreSources(
+          bootstrap_current=mock.ANY,
+          qei=mock.ANY,
+          sources={
+              'radiation': core_sources_lib.SourceOutput(
+                  power_density_e=jnp.full_like(geo.rho_norm, q_density)
+              )
+          },
       )
       out = model(mock_rp, geo, core_profiles, source_profiles=sources)
       return jnp.sum(out.T_e)

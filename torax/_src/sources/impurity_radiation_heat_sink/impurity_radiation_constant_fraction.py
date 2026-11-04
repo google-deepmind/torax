@@ -26,10 +26,10 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
@@ -55,9 +55,9 @@ class ConstantFractionImpurityRadiationHeatSink(
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      calculated_source_profiles: source_profiles_lib.SourceProfiles,
+      calculated_core_sources: core_sources_lib.CoreSources,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles_lib.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources_lib.SourceOutput, source_state_lib.SourceState]:
     """Calculates constant fraction impurity radiation heat sink profile.
 
     Does not modify source_state; returns it unchanged.
@@ -66,7 +66,7 @@ class ConstantFractionImpurityRadiationHeatSink(
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
+      calculated_core_sources: Source profiles calculated so far.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
 
@@ -89,15 +89,15 @@ class ConstantFractionImpurityRadiationHeatSink(
     # (Pohm + Paux + Palpha + ...) and summing over *both* ion +
     # electron heating
 
-    source_profiles = jnp.zeros_like(geo.rho)
-    for name, profile in calculated_source_profiles.T_e.items():
+    total_power_in = jnp.zeros_like(geo.rho)
+    for name, output in calculated_core_sources.sources.items():
       if name not in _HEAT_SINK_SOURCE_IDS:
-        source_profiles += profile
-    for name, profile in calculated_source_profiles.T_i.items():
-      if name not in _HEAT_SINK_SOURCE_IDS:
-        source_profiles += profile
+        if output.power_density_e is not None:
+          total_power_in += output.power_density_e
+        if output.power_density_i is not None:
+          total_power_in += output.power_density_i
 
-    Q_total_in = source_profiles
+    Q_total_in = total_power_in
     P_total_in = math_utils.volume_integration(Q_total_in, geo)
 
     # Calculate the heat sink as a fraction of the total power input.
@@ -108,7 +108,7 @@ class ConstantFractionImpurityRadiationHeatSink(
         * jnp.ones_like(geo.rho)
     )
     return (
-        source_profiles_lib.SourceOutput(power_density_e=-P_rad),
+        core_sources_lib.SourceOutput(power_density_e=-P_rad),
         source_state,
     )
 

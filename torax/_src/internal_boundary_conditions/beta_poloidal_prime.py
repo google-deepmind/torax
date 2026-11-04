@@ -29,7 +29,7 @@ from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
 from torax._src.physics import psi_calculations
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 # pylint: disable=invalid-name
 
@@ -161,7 +161,7 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
   ) -> internal_boundary_conditions.InternalBoundaryConditions:
     """Evaluates edge kinetic profiles (T_e, T_i, n_e) from beta_poloidal_prime.
 
@@ -241,11 +241,11 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
         beta_poloidal_prime = params.beta_poloidal_prime
       case Mode.POWER_DEPENDENT:
         assert params.P_SOL_scaling is not None
-        total_power_density = sum(
-            (*source_profiles.T_e.values(), *source_profiles.T_i.values()),
-            jnp.zeros_like(geo.rho_norm),
+        P_SOL = math_utils.cell_integration(
+            source_profiles.total_sources('power_density_e', geo)
+            + source_profiles.total_sources('power_density_i', geo),
+            geo,
         )
-        P_SOL = math_utils.volume_integration(total_power_density, geo)
         beta_poloidal_prime = _calculate_power_dependent_beta_poloidal_prime(
             P_SOL=P_SOL,
             P_SOL_scaling=params.P_SOL_scaling,

@@ -32,8 +32,8 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
+from torax._src.sources import core_sources
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
@@ -70,7 +70,7 @@ def _make_calc_coeffs_inputs(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
-      source_profiles=source_profiles.SourceProfiles.zeros(geo),
+      source_profiles=core_sources.CoreSources.zeros(geo),
   )
   model_state = model_state_lib.ModelState(
       pedestal=pedestal_state,

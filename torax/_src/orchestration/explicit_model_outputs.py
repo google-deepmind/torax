@@ -17,7 +17,7 @@ from collections.abc import Mapping
 import dataclasses
 import jax
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources
 
 
 @jax.tree_util.register_dataclass
@@ -34,5 +34,5 @@ class ExplicitModelOutputs:
       `explicit_pedestal` is True, or None when evaluated implicitly.
   """
 
-  sources: Mapping[str, source_profiles.SourceOutput]
+  sources: Mapping[str, core_sources.SourceOutput]
   pedestal: pedestal_structure.PedestalStructure | None

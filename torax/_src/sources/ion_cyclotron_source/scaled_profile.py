@@ -24,7 +24,7 @@ from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
@@ -52,7 +52,7 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Compute ICRH heating from prescribed profiles with B-field shift.
 
     The model performs two operations on the reference profiles:
@@ -124,7 +124,7 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
 
     # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
     return (
-        source_profiles.SourceOutput(
+        core_sources.SourceOutput(
             power_density_i=source_ion, power_density_e=source_el
         ),
         source_state,

@@ -17,6 +17,7 @@
 from typing import Final, NamedTuple
 
 from torax._src.sources import bremsstrahlung_heat_sink
+from torax._src.sources import core_sources
 from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import fusion_heat_source
@@ -24,13 +25,12 @@ from torax._src.sources import gas_puff_source
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources import pellet_source
 from torax._src.sources import qei_source
-from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.ion_cyclotron_source import base as ion_cyclotron_source
 
 
 class _SourceMappingEntry(NamedTuple):
-  affected_core_profiles: tuple[source_profiles.AffectedCoreProfile, ...]
+  affected_core_profiles: tuple[core_sources.AffectedCoreProfile, ...]
   torax_source_name: str
   is_external: bool
 

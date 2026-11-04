@@ -25,7 +25,7 @@ from torax._src.internal_boundary_conditions import (
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 # pylint: disable=invalid-name
 
@@ -38,7 +38,7 @@ def build_internal_boundary_conditions(
     internal_boundary_condition_model: (
         base_model.InternalBoundaryConditionModel
     ),
-    source_profiles: source_profiles_lib.SourceProfiles,
+    source_profiles: core_sources_lib.CoreSources,
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
   """Builds the active internal boundary conditions for this time step.
 

@@ -22,8 +22,8 @@ from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -36,10 +36,10 @@ class FusionHeatSource(source.Source):
 
   SOURCE_ID: ClassVar[str] = 'fusion'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
+      tuple[core_sources.AffectedCoreProfile, ...]
   ] = (
-      source_profiles.AffectedCoreProfile.TEMP_ION,
-      source_profiles.AffectedCoreProfile.TEMP_EL,
+      core_sources.AffectedCoreProfile.TEMP_ION,
+      core_sources.AffectedCoreProfile.TEMP_EL,
   )
 
   def _get_model_value(
@@ -48,7 +48,7 @@ class FusionHeatSource(source.Source):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates DT fusion heating power with Bosch-Hale (NF 1992).
 
     Does not modify source_state; returns it unchanged.
@@ -72,7 +72,7 @@ class FusionHeatSource(source.Source):
     main_ion_names = runtime_params.plasma_composition.main_ion_names
     if not {'D', 'T'}.issubset(main_ion_names):
       return (
-          source_profiles.SourceOutput(
+          core_sources.SourceOutput(
               power_density_i=jnp.zeros_like(solver_profiles.kinetic.T_i.value),
               power_density_e=jnp.zeros_like(solver_profiles.kinetic.T_i.value),
           ),
@@ -144,7 +144,7 @@ class FusionHeatSource(source.Source):
     Pfus_i = Pfus_cell * frac_i * alpha_fraction
     Pfus_e = Pfus_cell * frac_e * alpha_fraction
     return (
-        source_profiles.SourceOutput(
+        core_sources.SourceOutput(
             power_density_i=Pfus_i, power_density_e=Pfus_e
         ),
         source_state,

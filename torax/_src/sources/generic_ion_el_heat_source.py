@@ -24,10 +24,10 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -49,10 +49,10 @@ class GenericIonElectronHeatSource(source.Source):
 
   SOURCE_ID: ClassVar[str] = 'generic_heat'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
+      tuple[core_sources.AffectedCoreProfile, ...]
   ] = (
-      source_profiles.AffectedCoreProfile.TEMP_ION,
-      source_profiles.AffectedCoreProfile.TEMP_EL,
+      core_sources.AffectedCoreProfile.TEMP_ION,
+      core_sources.AffectedCoreProfile.TEMP_EL,
   )
 
   def _get_model_value(
@@ -61,7 +61,7 @@ class GenericIonElectronHeatSource(source.Source):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Computes Gaussian ion/electron heat source terms.
 
     Does not modify source_state; returns it unchanged.
@@ -104,7 +104,7 @@ class GenericIonElectronHeatSource(source.Source):
     source_ion = profile * (1 - source_params.electron_heat_fraction)
     source_el = profile * source_params.electron_heat_fraction
     return (
-        source_profiles.SourceOutput(
+        core_sources.SourceOutput(
             power_density_i=source_ion, power_density_e=source_el
         ),
         source_state,

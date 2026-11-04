@@ -21,8 +21,8 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -41,8 +41,8 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
 
   SOURCE_ID: ClassVar[str] = 'ohmic'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
-  ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
+      tuple[core_sources.AffectedCoreProfile, ...]
+  ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
 
   def _get_model_value(
       self,
@@ -50,7 +50,7 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.
 
     Does not modify source_state; returns it unchanged.
@@ -80,7 +80,7 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
     P_ohm = core_profiles.conductivity.sigma * E_dot_B**2 / geo.gm5
-    return source_profiles.SourceOutput(power_density_e=P_ohm), source_state
+    return core_sources.SourceOutput(power_density_e=P_ohm), source_state
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):

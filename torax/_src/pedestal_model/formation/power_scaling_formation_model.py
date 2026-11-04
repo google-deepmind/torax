@@ -29,7 +29,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.pedestal_model.formation import base
 from torax._src.physics import formulas
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from typing_extensions import override
 
 # pylint: disable=invalid-name
@@ -72,7 +72,7 @@ class PowerScalingFormationState(pedestal_state_lib.FormationState):
 
 @jax.jit
 def calculate_P_SOL_total(
-    core_sources: source_profiles_lib.SourceProfiles,
+    core_sources: core_sources_lib.CoreSources,
     geo: geometry.Geometry,
     dW_thermal_dt_smoothed: array_typing.FloatScalar | None = None,
 ) -> jax.Array:
@@ -88,15 +88,13 @@ def calculate_P_SOL_total(
   Returns:
     P_SOL or P_heat total [W].
   """
-  P_heat_e = sum(
-      math_utils.volume_integration(source, geo)
-      for source in core_sources.T_e.values()
+  P_heat_total = jnp.asarray(
+      math_utils.cell_integration(
+          core_sources.total_sources('power_density_e', geo)
+          + core_sources.total_sources('power_density_i', geo),
+          geo,
+      )
   )
-  P_heat_i = sum(
-      math_utils.volume_integration(source, geo)
-      for source in core_sources.T_i.values()
-  )
-  P_heat_total = jnp.asarray(P_heat_e + P_heat_i)
   if dW_thermal_dt_smoothed is None:
     return P_heat_total
   return P_heat_total - dW_thermal_dt_smoothed
@@ -204,7 +202,7 @@ class PowerScalingFormationModel(base.FormationModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
+      core_sources: core_sources_lib.CoreSources,
       formation_state: PowerScalingFormationState,
   ) -> tuple[jax.Array, jax.Array]:
     """Calculates P_SOL and rescaled P_LH."""
@@ -231,7 +229,7 @@ class PowerScalingFormationModel(base.FormationModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       formation_state: pedestal_state_lib.FormationState,
   ) -> tuple[
       array_typing.BoolScalar,
@@ -266,7 +264,7 @@ class PowerScalingFormationModel(base.FormationModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),

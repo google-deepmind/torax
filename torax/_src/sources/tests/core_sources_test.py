@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dataclasses
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -23,15 +24,15 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 
 # pylint: disable=invalid-name
-class SourceProfilesTest(parameterized.TestCase):
+class CoreSourcesTest(parameterized.TestCase):
 
   def test_source_output_zeros_all_profiles(self):
     geo = circular_geometry.CircularConfig().build_geometry()
-    all_zeros = source_profiles_lib.SourceOutput.zeros(geo)
+    all_zeros = core_sources_lib.SourceOutput.zeros(geo)
     self.assertIsNotNone(all_zeros.power_density_i)
     self.assertIsNotNone(all_zeros.power_density_e)
     self.assertIsNotNone(all_zeros.j_parallel)
@@ -43,11 +44,11 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_source_output_zeros_affected_core_profiles_subset(self):
     geo = circular_geometry.CircularConfig().build_geometry()
-    partial_zeros = source_profiles_lib.SourceOutput.zeros(
+    partial_zeros = core_sources_lib.SourceOutput.zeros(
         geo,
         affected_core_profiles=(
-            source_profiles_lib.AffectedCoreProfile.TEMP_EL,
-            source_profiles_lib.AffectedCoreProfile.PSI,
+            core_sources_lib.AffectedCoreProfile.TEMP_EL,
+            core_sources_lib.AffectedCoreProfile.PSI,
         ),
     )
     self.assertIsNone(partial_zeros.power_density_i)
@@ -57,58 +58,47 @@ class SourceProfilesTest(parameterized.TestCase):
     np.testing.assert_allclose(partial_zeros.power_density_e, 0.0)
     np.testing.assert_allclose(partial_zeros.j_parallel, 0.0)
 
-  def test_summed_T_i_profiles_dont_change_when_jitting(self):
+  def test_summed_power_density_profiles_dont_change_when_jitting(self):
     geo = circular_geometry.CircularConfig().build_geometry()
 
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)
-    profiles = source_profiles_lib.SourceProfiles(
+    profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
-        qei=source_profiles_lib.QeiInfo.zeros(geo),
-        T_i={
-            'generic_heat': ones,
-            'fusion': ones * 3,
+        qei=core_sources_lib.QeiInfo.zeros(geo),
+        sources={
+            'generic_heat': core_sources_lib.SourceOutput(
+                power_density_i=ones,
+                power_density_e=ones * 2,
+            ),
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=ones * 3,
+                power_density_e=ones * 4,
+            ),
+            'bremsstrahlung': core_sources_lib.SourceOutput(
+                power_density_e=-ones,
+            ),
+            'ohmic': core_sources_lib.SourceOutput(
+                power_density_e=ones * 5,
+            ),
         },
-        T_e={
-            'generic_heat': ones * 2,
-            'fusion': ones * 4,
-            'bremsstrahlung': -ones,
-            'ohmic': ones * 5,
-        },
-        n_e={},
-        psi={},
     )
     with self.subTest('without_jit'):
-      summed_T_i = profiles.total_sources('T_i', geo)
+      summed_T_i = profiles.total_sources('power_density_i', geo)
       np.testing.assert_allclose(summed_T_i, ones * 4 * geo.vpr)
-      summed_T_e = profiles.total_sources('T_e', geo)
+      summed_T_e = profiles.total_sources('power_density_e', geo)
       np.testing.assert_allclose(summed_T_e, ones * 10 * geo.vpr)
 
     with self.subTest('with_jit'):
       sum_temp = jax.jit(profiles.total_sources, static_argnames='source_type')
-      jitted_T_i = sum_temp('T_i', geo)
+      jitted_T_i = sum_temp('power_density_i', geo)
       np.testing.assert_allclose(jitted_T_i, ones * 4 * geo.vpr)
-      jitted_T_e = sum_temp('T_e', geo)
+      jitted_T_e = sum_temp('power_density_e', geo)
       np.testing.assert_allclose(jitted_T_e, ones * 10 * geo.vpr)
 
   def test_from_source_outputs(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     ones = jnp.ones(10)
-
-    @dataclasses.dataclass(frozen=True)
-    class DummySource:
-      AFFECTED_CORE_PROFILES: tuple[
-          source_profiles_lib.AffectedCoreProfile, ...
-      ]
-
-    standard_sources = {
-        'heat': DummySource((
-            source_profiles_lib.AffectedCoreProfile.TEMP_ION,
-            source_profiles_lib.AffectedCoreProfile.TEMP_EL,
-        )),
-        'particle': DummySource((source_profiles_lib.AffectedCoreProfile.NE,)),
-        'current': DummySource((source_profiles_lib.AffectedCoreProfile.PSI,)),
-    }
     mock_fast_ion = fast_ion_lib.FastIon(
         species='He3',
         source='heat',
@@ -122,39 +112,128 @@ class SourceProfilesTest(parameterized.TestCase):
         ),
     )
     bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-    qei = source_profiles_lib.QeiInfo.zeros(geo)
+    qei = core_sources_lib.QeiInfo.zeros(geo)
+    standard_sources = {
+        'heat': object(),
+        'particle': object(),
+        'current': object(),
+    }
     source_outputs = {
-        'heat': source_profiles_lib.SourceOutput(
+        'heat': core_sources_lib.SourceOutput(
             power_density_i=ones * 2.0,
             power_density_e=ones * 3.0,
             fast_ions=(mock_fast_ion,),
         ),
-        'particle': source_profiles_lib.SourceOutput(
+        'particle': core_sources_lib.SourceOutput(
             particle_source=ones * 4.0,
         ),
-        'current': source_profiles_lib.SourceOutput(
+        'current': core_sources_lib.SourceOutput(
             j_parallel=ones * 5.0,
         ),
-        'ignored_nonstandard': source_profiles_lib.SourceOutput(
-            j_parallel=ones * 99.0,
+        'ignored_nonstandard': core_sources_lib.SourceOutput(
+            power_density_e=ones * 99.0,
         ),
     }
-    profiles = source_profiles_lib.SourceProfiles.from_source_outputs(
+    profiles = core_sources_lib.CoreSources.from_source_outputs(
         source_outputs=source_outputs,
         standard_sources=standard_sources,
         bootstrap_current=bootstrap_current,
         qei=qei,
     )
-    self.assertIn('heat', profiles.T_i)
-    self.assertIn('heat', profiles.T_e)
-    self.assertIn('particle', profiles.n_e)
-    self.assertIn('current', profiles.psi)
-    self.assertNotIn('ignored_nonstandard', profiles.psi)
-    np.testing.assert_allclose(profiles.T_i['heat'], ones * 2.0)
-    np.testing.assert_allclose(profiles.T_e['heat'], ones * 3.0)
-    np.testing.assert_allclose(profiles.n_e['particle'], ones * 4.0)
-    np.testing.assert_allclose(profiles.psi['current'], ones * 5.0)
-    self.assertEqual(profiles.fast_ions['heat'], (mock_fast_ion,))
+    self.assertIn('heat', profiles.sources)
+    self.assertIn('particle', profiles.sources)
+    self.assertIn('current', profiles.sources)
+    self.assertNotIn('ignored_nonstandard', profiles.sources)
+    self.assertIsNotNone(profiles.sources['heat'].power_density_i)
+    self.assertIsNotNone(profiles.sources['heat'].power_density_e)
+    self.assertIsNotNone(profiles.sources['particle'].particle_source)
+    self.assertIsNotNone(profiles.sources['current'].j_parallel)
+    np.testing.assert_allclose(
+        profiles.sources['heat'].power_density_i, ones * 2.0
+    )
+    np.testing.assert_allclose(
+        profiles.sources['heat'].power_density_e, ones * 3.0
+    )
+    np.testing.assert_allclose(
+        profiles.sources['particle'].particle_source, ones * 4.0
+    )
+    np.testing.assert_allclose(
+        profiles.sources['current'].j_parallel, ones * 5.0
+    )
+    self.assertEqual(profiles.sources['heat'].fast_ions, (mock_fast_ion,))
+
+  def test_update_sources(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    ones = jnp.ones(10)
+    standard_sources = {
+        'heat': object(),
+        'particle': object(),
+        'radiation': object(),
+    }
+    source_models = mock.Mock(standard_sources=standard_sources)
+    profiles = core_sources_lib.CoreSources.from_source_outputs(
+        source_outputs={
+            'heat': core_sources_lib.SourceOutput(
+                power_density_e=ones * 2.0,
+            ),
+            'particle': core_sources_lib.SourceOutput(
+                particle_source=ones * 4.0,
+            ),
+        },
+        standard_sources=standard_sources,
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
+        qei=core_sources_lib.QeiInfo.zeros(geo),
+    )
+    updated = profiles.update_sources(
+        {
+            'heat': core_sources_lib.SourceOutput(
+                power_density_e=ones * 7.0,
+            ),
+            'radiation': core_sources_lib.SourceOutput(
+                power_density_e=-ones,
+            ),
+            'ignored_nonstandard': core_sources_lib.SourceOutput(
+                power_density_e=ones * 99.0,
+            ),
+        },
+        source_models,
+    )
+    self.assertNotIn('ignored_nonstandard', updated.sources)
+    self.assertIsNotNone(profiles.sources['heat'].power_density_e)
+    self.assertIsNotNone(updated.sources['heat'].power_density_e)
+    self.assertIsNotNone(updated.sources['particle'].particle_source)
+    self.assertIsNotNone(updated.sources['radiation'].power_density_e)
+    np.testing.assert_allclose(
+        profiles.sources['heat'].power_density_e, ones * 2.0
+    )
+    np.testing.assert_allclose(
+        updated.sources['heat'].power_density_e, ones * 7.0
+    )
+    np.testing.assert_allclose(
+        updated.sources['particle'].particle_source, ones * 4.0
+    )
+    np.testing.assert_allclose(
+        updated.sources['radiation'].power_density_e, -ones
+    )
+
+  def test_extract_psi_sources(self):
+    ones = np.ones(10)
+    source_models = mock.Mock(
+        standard_sources={'heat': object(), 'current': object()}
+    )
+    psi_sources = core_sources_lib.extract_psi_sources(
+        {
+            'heat': core_sources_lib.SourceOutput(power_density_e=ones * 2.0),
+            'current': core_sources_lib.SourceOutput(j_parallel=ones * 5.0),
+            'ignored_nonstandard': core_sources_lib.SourceOutput(
+                j_parallel=ones * 9.0
+            ),
+        },
+        source_models,
+    )
+    self.assertEqual(list(psi_sources.keys()), ['current'])
+    self.assertIsInstance(psi_sources['current'], jax.Array)
+    np.testing.assert_allclose(psi_sources['current'], ones * 5.0)
 
   def test_qei_info_to_output_dict(self):
     geo = circular_geometry.CircularConfig().build_geometry()
@@ -168,7 +247,7 @@ class SourceProfilesTest(parameterized.TestCase):
         ),
     )
     p_ei = jnp.ones((2, geo.rho_norm.size)) * 5.0
-    qei = source_profiles_lib.QeiInfo(
+    qei = core_sources_lib.QeiInfo(
         implicit_ii=jnp.zeros((2, geo.rho_norm.size)),
         explicit_i=jnp.zeros((2, geo.rho_norm.size)),
         implicit_ee=jnp.zeros((2, geo.rho_norm.size)),
@@ -214,7 +293,7 @@ class SourceProfilesTest(parameterized.TestCase):
         attrs, {'units': output_keys.Units.AMPERE_PER_SQUARE_METER}
     )
 
-  def test_source_profiles_to_output_dict(self):
+  def test_core_sources_to_output_dict(self):
     geo = circular_geometry.CircularConfig().build_geometry()
     times = np.array([0.0, 1.0])
     rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
@@ -225,12 +304,12 @@ class SourceProfilesTest(parameterized.TestCase):
         rho_cell_plus_boundaries_norm=rho_norm,
     )
     n_cell = geo.rho_norm.size
-    profiles = source_profiles_lib.SourceProfiles(
+    profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent(
             j_parallel_bootstrap=jnp.ones((2, n_cell)),
             j_parallel_bootstrap_face=jnp.ones((2, geo.rho_face_norm.size)),
         ),
-        qei=source_profiles_lib.QeiInfo(
+        qei=core_sources_lib.QeiInfo(
             implicit_ii=jnp.zeros((2, n_cell)),
             explicit_i=jnp.zeros((2, n_cell)),
             implicit_ee=jnp.zeros((2, n_cell)),
@@ -239,10 +318,20 @@ class SourceProfilesTest(parameterized.TestCase):
             implicit_ei=jnp.zeros((2, n_cell)),
             p_ei=jnp.ones((2, n_cell)) * 5.0,
         ),
-        T_i={'fusion': jnp.ones((2, n_cell)) * 10.0},
-        T_e={'ecrh': jnp.ones((2, n_cell)) * 20.0},
-        psi={'eccd': jnp.ones((2, n_cell)) * 30.0},
-        n_e={'pellet': jnp.ones((2, n_cell)) * 40.0},
+        sources={
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=jnp.ones((2, n_cell)) * 10.0
+            ),
+            'ecrh': core_sources_lib.SourceOutput(
+                power_density_e=jnp.ones((2, n_cell)) * 20.0
+            ),
+            'eccd': core_sources_lib.SourceOutput(
+                j_parallel=jnp.ones((2, n_cell)) * 30.0
+            ),
+            'pellet': core_sources_lib.SourceOutput(
+                particle_source=jnp.ones((2, n_cell)) * 40.0
+            ),
+        },
     )
 
     out_dict = profiles.to_output_dict(context)
@@ -266,7 +355,7 @@ class SourceProfilesTest(parameterized.TestCase):
         {'units': output_keys.Units.WATT_PER_CUBIC_METER},
     )
 
-  def test_source_profiles_to_output_dict_empty_channels(self):
+  def test_core_sources_to_output_dict_empty_channels(self):
     geo = circular_geometry.CircularConfig().build_geometry()
     times = np.array([0.0, 1.0])
     rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
@@ -277,12 +366,12 @@ class SourceProfilesTest(parameterized.TestCase):
         rho_cell_plus_boundaries_norm=rho_norm,
     )
     n_cell = geo.rho_norm.size
-    profiles = source_profiles_lib.SourceProfiles(
+    profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent(
             j_parallel_bootstrap=jnp.zeros((2, n_cell)),
             j_parallel_bootstrap_face=jnp.zeros((2, geo.rho_face_norm.size)),
         ),
-        qei=source_profiles_lib.QeiInfo(
+        qei=core_sources_lib.QeiInfo(
             implicit_ii=jnp.zeros((2, n_cell)),
             explicit_i=jnp.zeros((2, n_cell)),
             implicit_ee=jnp.zeros((2, n_cell)),
@@ -304,12 +393,12 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_iterate_channels_for_output_renaming(self):
     n_cell = 10
-    profiles = source_profiles_lib.SourceProfiles(
+    profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent(
             j_parallel_bootstrap=jnp.zeros((1, n_cell)),
             j_parallel_bootstrap_face=jnp.zeros((1, n_cell + 1)),
         ),
-        qei=source_profiles_lib.QeiInfo(
+        qei=core_sources_lib.QeiInfo(
             implicit_ii=jnp.zeros((1, n_cell)),
             explicit_i=jnp.zeros((1, n_cell)),
             implicit_ee=jnp.zeros((1, n_cell)),
@@ -318,10 +407,20 @@ class SourceProfilesTest(parameterized.TestCase):
             implicit_ei=jnp.zeros((1, n_cell)),
             p_ei=jnp.zeros((1, n_cell)),
         ),
-        T_i={'fusion': jnp.ones((1, n_cell))},
-        T_e={'ecrh': jnp.ones((1, n_cell))},
-        psi={'eccd_custom': jnp.ones((1, n_cell))},
-        n_e={'pellet_custom': jnp.ones((1, n_cell))},
+        sources={
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=jnp.ones((1, n_cell))
+            ),
+            'ecrh': core_sources_lib.SourceOutput(
+                power_density_e=jnp.ones((1, n_cell))
+            ),
+            'eccd_custom': core_sources_lib.SourceOutput(
+                j_parallel=jnp.ones((1, n_cell))
+            ),
+            'pellet_custom': core_sources_lib.SourceOutput(
+                particle_source=jnp.ones((1, n_cell))
+            ),
+        },
     )
     keys = [
         key

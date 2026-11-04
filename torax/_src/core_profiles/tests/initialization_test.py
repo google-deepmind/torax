@@ -36,10 +36,10 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import state_evaluation
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import psi_calculations
+from torax._src.sources import core_sources
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import torax_refs
@@ -478,7 +478,7 @@ class InitializationTest(parameterized.TestCase):
         )
     )
     source_states = source_models.initial_state(runtime_params)
-    mock_output = source_profiles.SourceOutput(
+    mock_output = core_sources.SourceOutput(
         power_density_i=jnp.zeros_like(geo.rho),
         power_density_e=jnp.zeros_like(geo.rho),
         fast_ions=(
@@ -536,7 +536,7 @@ class InitializationTest(parameterized.TestCase):
           calculate_anyway=True,
       )
       expected_fast_ions = profile_conditions_lib.apply_prescribed_fast_ions(
-          source_profiles.extract_fast_ions(basic_source_outputs),
+          core_sources.extract_fast_ions(basic_source_outputs),
           runtime_params.profile_conditions.prescribed_fast_ions,
           geo.rho_face_norm,
       )
@@ -594,7 +594,7 @@ class InitializationTest(parameterized.TestCase):
         )
     )
     source_states = source_models.initial_state(runtime_params)
-    mock_output = source_profiles.SourceOutput(
+    mock_output = core_sources.SourceOutput(
         power_density_i=jnp.zeros_like(geo.rho),
         power_density_e=jnp.zeros_like(geo.rho),
         fast_ions=(
@@ -704,7 +704,7 @@ class InitializationTest(parameterized.TestCase):
             runtime_params, geo, result, fast_ions=result.fast_ions
         )
     )
-    expected_psi_sources = source_profiles.sum_total_psi_sources(
+    expected_psi_sources = core_sources.sum_total_psi_sources(
         basic_source_outputs, source_models, bootstrap_current, geo
     )
     expected_psidot = psi_calculations.calculate_psidot(

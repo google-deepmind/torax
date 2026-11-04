@@ -29,7 +29,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.time_step_calculator import time_step_calculator_state
 
 _EXCLUDE_FROM_NAN_CHECK = ("edge_outputs",)
@@ -92,7 +92,7 @@ class SimState:
   dt: array_typing.FloatScalar
   core_profiles: core_profiles_lib.CoreProfiles
   core_transport: state.CoreTransport
-  core_sources: source_profiles.SourceProfiles
+  core_sources: core_sources_lib.CoreSources
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
   solver_numeric_outputs: state.SolverNumericOutputs

@@ -30,7 +30,7 @@ from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -194,7 +194,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
+      core_sources: core_sources_lib.CoreSources,
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> EdgeModelOutputs:
     """Evaluates the edge model at the given time.
@@ -233,7 +233,7 @@ class CombinedEdgeModel(EdgeModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
+      core_sources: core_sources_lib.CoreSources,
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> CombinedEdgeOutputs:
     """Evaluates the edge sub-models and merges their BCs."""

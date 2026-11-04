@@ -19,9 +19,9 @@ import jax.numpy as jnp
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import circular_geometry
+from torax._src.sources import core_sources
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
@@ -101,15 +101,23 @@ class ImpurityRadiationConstantFractionTest(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
-        calculated_source_profiles=source_profiles.SourceProfiles(
+        calculated_core_sources=core_sources.CoreSources(
             bootstrap_current=mock.ANY,
             qei=mock.ANY,
-            T_e={
-                'foo': jnp.asarray(el),
-                'bremsstrahlung': -0.3 * jnp.asarray(el),
-                'cyclotron_radiation': -0.2 * jnp.asarray(el),
+            sources={
+                'foo': core_sources.SourceOutput(
+                    power_density_e=jnp.asarray(el)
+                ),
+                'bremsstrahlung': core_sources.SourceOutput(
+                    power_density_e=-0.3 * jnp.asarray(el)
+                ),
+                'cyclotron_radiation': core_sources.SourceOutput(
+                    power_density_e=-0.2 * jnp.asarray(el)
+                ),
+                'foo_source': core_sources.SourceOutput(
+                    power_density_i=jnp.asarray(ion)
+                ),
             },
-            T_i={'foo_source': jnp.asarray(ion)},
         ),
         source_state=source_state_lib.SourceState(),
     )

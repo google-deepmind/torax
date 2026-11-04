@@ -26,9 +26,9 @@ import pydantic
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -122,7 +122,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
 
   def _evaluate_single_profile_source(
       self, torax_config: config.ToraxConfig
-  ) -> tuple[source_profiles.SourceOutput, geometry.Geometry]:
+  ) -> tuple[core_sources.SourceOutput, geometry.Geometry]:
     """Builds inputs and evaluates the single profile source."""
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
@@ -130,13 +130,20 @@ class SingleProfileSourceTestCase(SourceTestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
     if self._needs_source_models:
-      calculated_source_profiles = source_profiles.SourceProfiles(
+      calculated_core_sources = core_sources.CoreSources(
           bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
-          psi={'foo': jnp.full(geo.rho.shape, 13.0)},
-          T_e={'foo_source': jnp.full(geo.rho.shape, 17.0)},
-          T_i={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
-          n_e={},
-          qei=source_profiles.QeiInfo.zeros(geo),
+          sources={
+              'foo': core_sources.SourceOutput(
+                  j_parallel=jnp.full(geo.rho.shape, 13.0)
+              ),
+              'foo_source': core_sources.SourceOutput(
+                  power_density_e=jnp.full(geo.rho.shape, 17.0)
+              ),
+              'foo_sink': core_sources.SourceOutput(
+                  power_density_i=jnp.full(geo.rho.shape, 19.0)
+              ),
+          },
+          qei=core_sources.QeiInfo.zeros(geo),
       )
       conductivity, _, _, _ = (
           neoclassical_model.calculate_conductivity_current_and_rotation(
@@ -151,15 +158,15 @@ class SingleProfileSourceTestCase(SourceTestCase):
           conductivity=conductivity,
       )
     else:
-      calculated_source_profiles = None
+      calculated_core_sources = None
     source = source_models.standard_sources[self._source_name]
     if isinstance(source, source_lib.FinalSource):
-      assert calculated_source_profiles is not None
+      assert calculated_core_sources is not None
       output, _ = source.get_value(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles,
-          calculated_source_profiles=calculated_source_profiles,
+          calculated_core_sources=calculated_core_sources,
           source_state=source.initial_state(runtime_params),
       )
     elif isinstance(source, source_lib.Source):
@@ -181,7 +188,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     return output, geo
 
   def _extract_single_profile(
-      self, output: source_profiles.SourceOutput
+      self, output: core_sources.SourceOutput
   ) -> jax.Array:
     """Extracts and returns the sole non-None profile array from `output`."""
     profiles = [

@@ -40,8 +40,8 @@ from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.solver import jax_root_finding
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
-from torax._src.sources import source_profiles
 from torax._src.test_utils import sim_test_case
 
 # pylint: disable=invalid-name
@@ -150,18 +150,22 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     ion_heat = profile * 0.3
     el_heat = profile * 0.7
 
-    mock_core_sources = source_profiles.SourceProfiles(
+    mock_core_sources = core_sources.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             mock_geo
         ),
-        qei=source_profiles.QeiInfo.zeros(mock_geo),
-        T_e={'generic_heat': el_heat},  # pyrefly: ignore[bad-assignment]
-        T_i={'generic_heat': ion_heat},  # pyrefly: ignore[bad-assignment]
+        qei=core_sources.QeiInfo.zeros(mock_geo),
+        sources={
+            'generic_heat': core_sources.SourceOutput(
+                power_density_e=el_heat,
+                power_density_i=ion_heat,
+            ),
+        },
     )
 
     # Verify that the mock sources integrate to the target power.
-    dP_e_drho = mock_core_sources.total_sources('T_e', mock_geo)
-    dP_i_drho = mock_core_sources.total_sources('T_i', mock_geo)
+    dP_e_drho = mock_core_sources.total_sources('power_density_e', mock_geo)
+    dP_i_drho = mock_core_sources.total_sources('power_density_i', mock_geo)
 
     integrated_P_SOL = math_utils.cell_integration(
         dP_e_drho + dP_i_drho, mock_geo
@@ -323,7 +327,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     # 3. Mock CoreSources
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     # 4. Configure Edge params
@@ -431,7 +435,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     # 4. Create previous_edge_outputs with known values
@@ -609,7 +613,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1)
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1)
 
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     bad_previous_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
@@ -770,7 +774,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
 
     core_lcfs_ratio = 0.02
@@ -910,7 +914,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
 
     core_lcfs_ratio = 0.02
@@ -1064,7 +1068,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
@@ -1778,7 +1782,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     mock_core_profiles.ions.A_impurity_face = np.ones(n_rho + 1) * 20.0
     mock_core_profiles.poloidal_flux.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources = mock.MagicMock(spec=core_sources.CoreSources)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
     return mock_core_profiles, mock_core_sources
 

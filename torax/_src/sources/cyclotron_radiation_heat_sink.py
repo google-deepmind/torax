@@ -30,9 +30,9 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -240,8 +240,8 @@ class CyclotronRadiationHeatSink(source.Source):
 
   SOURCE_ID: ClassVar[str] = 'cyclotron_radiation'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
-  ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
+      tuple[core_sources.AffectedCoreProfile, ...]
+  ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
 
   def _get_model_value(
       self,
@@ -249,7 +249,7 @@ class CyclotronRadiationHeatSink(source.Source):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates cyclotron radiation heat sink for electron heat equation.
 
     Total cyclotron radiation is from:
@@ -357,7 +357,7 @@ class CyclotronRadiationHeatSink(source.Source):
     rescaling_factor = P_cycl_total / denom
     Q_cycl = Q_cycl_shape * rescaling_factor
 
-    return source_profiles.SourceOutput(power_density_e=-Q_cycl), source_state
+    return core_sources.SourceOutput(power_density_e=-Q_cycl), source_state
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):

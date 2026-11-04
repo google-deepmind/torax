@@ -24,7 +24,7 @@ from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 # pylint: disable=invalid-name
 
@@ -48,7 +48,7 @@ class PrescribedIBCModel(base_model.InternalBoundaryConditionModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
   ) -> internal_boundary_conditions.InternalBoundaryConditions:
     del geo, core_profiles, source_profiles
     params = runtime_params.profile_conditions.internal_boundary_conditions

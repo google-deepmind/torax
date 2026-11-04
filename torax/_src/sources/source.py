@@ -34,7 +34,7 @@ and inputs:
 
 3. :class:`FinalSource`: Source models evaluated after all other sources have
    been computed, with access to both full :class:`~torax.CoreProfiles` and the
-   aggregated :class:`~torax.sources.SourceProfiles`. Used for models such as
+   aggregated :class:`~torax.sources.CoreSources`. Used for models such as
    constant-fraction radiation sinks that depend on the total heating from all
    other sources. At most one ``FinalSource`` may be registered in a simulation.
 """
@@ -49,11 +49,11 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
-AffectedCoreProfile = source_profiles.AffectedCoreProfile
+AffectedCoreProfile = core_sources.AffectedCoreProfile
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -76,7 +76,7 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
 
   SOURCE_ID: ClassVar[str]
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_profiles.AffectedCoreProfile, ...]
+      tuple[core_sources.AffectedCoreProfile, ...]
   ]
 
   def __post_init__(self):
@@ -113,9 +113,9 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       source_state: source_state_lib.SourceState,
       model_fn: Callable[
-          [], tuple[source_profiles.SourceOutput, source_state_lib.SourceState]
+          [], tuple[core_sources.SourceOutput, source_state_lib.SourceState]
       ],
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Evaluates the source according to its configured runtime mode.
 
     Handles dispatching between:
@@ -176,14 +176,14 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
                 strict=True,
             )
         )
-        output = source_profiles.SourceOutput(
+        output = core_sources.SourceOutput(
             power_density_i=prescribed.get(AffectedCoreProfile.TEMP_ION),
             power_density_e=prescribed.get(AffectedCoreProfile.TEMP_EL),
             j_parallel=prescribed.get(AffectedCoreProfile.PSI),
             particle_source=prescribed.get(AffectedCoreProfile.NE),
         )
       case sources_runtime_params_lib.Mode.ZERO:
-        output = source_profiles.SourceOutput.zeros(
+        output = core_sources.SourceOutput.zeros(
             geo, self.AFFECTED_CORE_PROFILES
         )
       case _:
@@ -218,7 +218,7 @@ class Source(SourceBase):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Computes model-based source profile terms and updated dynamic state.
 
     Subclasses must implement this method to perform the physics calculation.
@@ -243,7 +243,7 @@ class Source(SourceBase):
       geo: geometry.Geometry,
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Evaluates the source, applying mode overrides.
 
     Supported modes are MODEL_BASED, PRESCRIBED, and ZERO.
@@ -291,7 +291,7 @@ class SourceUsingCoreProfiles(SourceBase):
 
   def __post_init__(self):
     super().__post_init__()
-    if source_profiles.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+    if core_sources.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
       raise ValueError(
           f'{type(self).__name__} cannot affect PSI, but got'
           f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
@@ -304,7 +304,7 @@ class SourceUsingCoreProfiles(SourceBase):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Computes model-based source profile terms from full CoreProfiles.
 
     Subclasses must implement this method to perform the physics calculation.
@@ -329,7 +329,7 @@ class SourceUsingCoreProfiles(SourceBase):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Evaluates the source with runtime validation and mode dispatch.
 
     Validates that the source is not configured with ``is_explicit=True`` and
@@ -401,7 +401,7 @@ class FinalSource(SourceBase):
 
   def __post_init__(self):
     super().__post_init__()
-    if source_profiles.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+    if core_sources.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
       raise ValueError(
           f'{type(self).__name__} cannot affect PSI, but got'
           f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
@@ -413,9 +413,9 @@ class FinalSource(SourceBase):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles,
+      calculated_core_sources: core_sources.CoreSources,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Computes model-based source profile terms using source profiles.
 
     Subclasses must implement this method to perform the physics calculation.
@@ -425,7 +425,7 @@ class FinalSource(SourceBase):
       geo: Magnetic geometry of the tokamak.
       core_profiles: Full core plasma profiles including neoclassical
         conductivity and psidot.
-      calculated_source_profiles: Aggregated source profiles from all previously
+      calculated_core_sources: Aggregated source profiles from all previously
         evaluated sources in the current step.
       source_state: Dynamic model state carried from the previous timestep.
 
@@ -441,9 +441,9 @@ class FinalSource(SourceBase):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles,
+      calculated_core_sources: core_sources.CoreSources,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Evaluates the final source with runtime validation and mode dispatch.
 
     Validates that the source is not configured with ``is_explicit=True`` and
@@ -454,7 +454,7 @@ class FinalSource(SourceBase):
       geo: Magnetic geometry of the tokamak.
       core_profiles: Full core plasma profiles including neoclassical
         conductivity and psidot.
-      calculated_source_profiles: Aggregated source profiles from all previously
+      calculated_core_sources: Aggregated source profiles from all previously
         evaluated sources in the current step.
       source_state: Current dynamic model state.
 
@@ -479,7 +479,7 @@ class FinalSource(SourceBase):
             runtime_params,
             geo,
             core_profiles,
-            calculated_source_profiles,
+            calculated_core_sources,
             source_state,
         ),
     )

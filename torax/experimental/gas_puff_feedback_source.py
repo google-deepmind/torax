@@ -43,10 +43,10 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import gas_puff_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -79,7 +79,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
       solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
   ) -> tuple[
-      source_profiles.SourceOutput,
+      core_sources.SourceOutput,
       source_state_lib.SourceState,
   ]:
     """Calculates gas puff source with feedback control.
@@ -125,7 +125,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         total=S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(particle_source=profile), source_state
+    return core_sources.SourceOutput(particle_source=profile), source_state
 
 
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):

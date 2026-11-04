@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Source/sink profiles for all the sources in TORAX."""
+"""Core source/sink profiles for all the sources in TORAX."""
 
 from collections.abc import Collection, Iterator, Mapping
 import dataclasses
@@ -118,6 +118,33 @@ class SourceOutput:
     )
 
 
+def _asarray_source_output(output: SourceOutput) -> SourceOutput:
+  """Converts non-None profile arrays in SourceOutput to JAX arrays."""
+  return SourceOutput(
+      power_density_i=(
+          jnp.asarray(output.power_density_i)
+          if output.power_density_i is not None
+          else None
+      ),
+      power_density_e=(
+          jnp.asarray(output.power_density_e)
+          if output.power_density_e is not None
+          else None
+      ),
+      j_parallel=(
+          jnp.asarray(output.j_parallel)
+          if output.j_parallel is not None
+          else None
+      ),
+      particle_source=(
+          jnp.asarray(output.particle_source)
+          if output.particle_source is not None
+          else None
+      ),
+      fast_ions=output.fast_ions,
+  )
+
+
 def extract_fast_ions(
     source_outputs: Mapping[str, SourceOutput],
 ) -> tuple[fast_ion_lib.FastIon, ...]:
@@ -133,11 +160,11 @@ def extract_psi_sources(
     source_models: Any,
 ) -> dict[str, jax.Array]:
   """Extracts psi source profiles from SourceOutput mapping."""
-  psi_sources = {}
-  for name, out in source_outputs.items():
-    if name in source_models.standard_sources and out.j_parallel is not None:
-      psi_sources[name] = jnp.asarray(out.j_parallel)
-  return psi_sources
+  return {
+      name: jnp.asarray(out.j_parallel)
+      for name, out in source_outputs.items()
+      if name in source_models.standard_sources and out.j_parallel is not None
+  }
 
 
 def sum_total_psi_sources(
@@ -202,13 +229,13 @@ class QeiInfo:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class SourceProfiles:
+class CoreSources:
   """Collection of profiles for all sources in TORAX.
 
-  Most profiles are stored in the attributes relating to the core profile they
-  affect, but special-case profiles `bootstrap_current` and `qei` are pulled
-  out into their own attributes as these sources need to be treated differently
-  (though they could still be set to zero using appropriate runtime params).
+  Standard source outputs are stored in `sources`, keyed by source name, while
+  special-case profiles `bootstrap_current` and `qei` are pulled out into their
+  own attributes as these sources need to be treated differently (though they
+  could still be set to zero using appropriate runtime params).
 
   This dataclass is inspired by the IMAS `core_sources` IDS. It is not a 1:1
   mapping to that schema, but it contains similar profiles as you'd expect in
@@ -218,27 +245,25 @@ class SourceProfiles:
   # Special-case profiles.
   bootstrap_current: bootstrap_current_base.BootstrapCurrent
   qei: QeiInfo
-  # Other profiles organised by the affected core profile. These are the
-  # profiles that are used to compute the core profile equations.
-  # The form is a dict of jax.Arrays, keyed by the name of the source. The array
-  # is the profile on the cell grid from that source for that core profile.
-  # For sources that affect multiple core profiles, they will have an entry for
-  # each core profile they affect.
-  T_e: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
-  T_i: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
-  n_e: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
-  psi: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
-  # The fast_ions field differs from the other attributes, which are
-  # dicts of `jax.Array` source profiles on the grid. `FastIon` objects contain
-  # richer information about fast ion distributions beyond what can be
-  # represented in a single profile.
-  fast_ions: dict[str, tuple[fast_ion_lib.FastIon, ...]] = dataclasses.field(
-      default_factory=dict
-  )
+  # Outputs of standard sources keyed by source name.
+  sources: dict[str, SourceOutput] = dataclasses.field(default_factory=dict)
+
+  def j_parallel(self, geo: geometry.Geometry) -> array_typing.FloatVectorCell:
+    """Returns the summed parallel current density across all sources."""
+    return jnp.asarray(
+        sum(
+            (
+                output.j_parallel
+                for output in self.sources.values()
+                if output.j_parallel is not None
+            ),
+            start=jnp.zeros_like(geo.rho),
+        )
+    )
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a SourceProfiles object with all zero profiles."""
+    """Returns a CoreSources object with all zero profiles."""
     return cls(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=QeiInfo.zeros(geo),
@@ -248,7 +273,7 @@ class SourceProfiles:
     """Returns the total poloidal flux source terms on the cell grid.
 
     All `psi` sources (`bootstrap_current.j_parallel_bootstrap` and
-    `self.psi.values()`) are assumed to follow the `<j.B> / B_0` convention
+    `self.j_parallel(geo)`) are assumed to follow the `<j.B> / B_0` convention
     (flux-surface-averaged `j.B` normalized by the on-axis vacuum toroidal
     field `B_0`).
 
@@ -258,14 +283,16 @@ class SourceProfiles:
     Returns:
       Array of total poloidal flux source terms on the cell grid.
     """
-    total_j_parallel = self.bootstrap_current.j_parallel_bootstrap + sum(
-        self.psi.values(), start=jnp.zeros_like(geo.rho)
+    total_j_parallel = (
+        self.bootstrap_current.j_parallel_bootstrap + self.j_parallel(geo)
     )
     return j_parallel_to_psi_source(total_j_parallel, geo)
 
   def total_sources(
       self,
-      source_type: Literal['n_e', 'T_i', 'T_e'],
+      source_type: Literal[
+          'particle_source', 'power_density_i', 'power_density_e'
+      ],
       geo: geometry.Geometry,
   ) -> array_typing.Array:
     """Returns the total volume-weighted sources for a given profile channel.
@@ -273,17 +300,21 @@ class SourceProfiles:
     To compute `psi` sources, use `total_psi_sources` instead.
 
     Args:
-      source_type: The core profile channel ('n_e', 'T_i', or 'T_e').
+      source_type: The source output channel ('particle_source',
+        'power_density_i', or 'power_density_e').
       geo: The magnetic geometry of the tokamak.
 
     Returns:
       Array of total source terms weighted by `geo.vpr` on the cell grid.
     """
-    source: dict[str, jax.Array] = getattr(self, source_type)
-    if not source:
+    profiles = [
+        getattr(output, source_type)
+        for output in self.sources.values()
+        if getattr(output, source_type) is not None
+    ]
+    if not profiles:
       return jnp.zeros_like(geo.vpr)
-    total = sum(source.values())
-    return total * geo.vpr
+    return sum(profiles) * geo.vpr
 
   @classmethod
   def from_source_outputs(
@@ -293,64 +324,31 @@ class SourceProfiles:
       bootstrap_current: bootstrap_current_base.BootstrapCurrent,
       qei: QeiInfo,
   ) -> Self:
-    """Constructs SourceProfiles from evaluated source outputs."""
-    T_e = {}
-    T_i = {}
-    n_e = {}
-    psi = {}
-    fast_ions = {}
-    for name, output in source_outputs.items():
-      if name in standard_sources:
-        if output.j_parallel is not None:
-          psi[name] = jnp.asarray(output.j_parallel)
-        if output.particle_source is not None:
-          n_e[name] = jnp.asarray(output.particle_source)
-        if output.power_density_i is not None:
-          T_i[name] = jnp.asarray(output.power_density_i)
-        if output.power_density_e is not None:
-          T_e[name] = jnp.asarray(output.power_density_e)
-        if output.fast_ions:
-          fast_ions[name] = output.fast_ions
+    """Constructs CoreSources from evaluated source outputs."""
+    sources = {
+        name: _asarray_source_output(output)
+        for name, output in source_outputs.items()
+        if name in standard_sources
+    }
     return cls(
         bootstrap_current=bootstrap_current,
         qei=qei,
-        T_e=T_e,
-        T_i=T_i,
-        n_e=n_e,
-        psi=psi,
-        fast_ions=fast_ions,
+        sources=sources,
     )
 
-  def update_source_profiles(
+  def update_sources(
       self,
       source_outputs: Mapping[str, SourceOutput],
       source_models: Any,
   ) -> Self:
-    """Updates source profiles with source_outputs, returning a new SourceProfiles."""
-    T_e = dict(self.T_e)
-    T_i = dict(self.T_i)
-    n_e = dict(self.n_e)
-    psi = dict(self.psi)
-    fast_ions = dict(self.fast_ions)
+    """Updates sources with source_outputs, returning a new CoreSources."""
+    sources = dict(self.sources)
     for name, output in source_outputs.items():
       if name in source_models.standard_sources:
-        if output.j_parallel is not None:
-          psi[name] = jnp.asarray(output.j_parallel)
-        if output.particle_source is not None:
-          n_e[name] = jnp.asarray(output.particle_source)
-        if output.power_density_i is not None:
-          T_i[name] = jnp.asarray(output.power_density_i)
-        if output.power_density_e is not None:
-          T_e[name] = jnp.asarray(output.power_density_e)
-        if output.fast_ions:
-          fast_ions[name] = output.fast_ions
+        sources[name] = _asarray_source_output(output)
     return dataclasses.replace(
         self,
-        T_e=T_e,
-        T_i=T_i,
-        n_e=n_e,
-        psi=psi,
-        fast_ions=fast_ions,
+        sources=sources,
     )
 
   def _iterate_channels_for_output(
@@ -366,46 +364,44 @@ class SourceProfiles:
     Yields:
       Tuples of (OutputKey, data) for all active source profiles.
     """
-    for profile, data in self.T_i.items():
+    for profile, output in self.sources.items():
       name = renames.get(profile, profile)
-      yield (
-          output_keys.OutputKey(
-              output_keys.p_source_i_key(name),
-              units=output_keys.Units.WATT_PER_CUBIC_METER,
-              grid_type=output_keys.GridType.CELL,
-          ),
-          data,
-      )
-    for profile, data in self.T_e.items():
-      name = renames.get(profile, profile)
-      yield (
-          output_keys.OutputKey(
-              output_keys.p_source_e_key(name),
-              units=output_keys.Units.WATT_PER_CUBIC_METER,
-              grid_type=output_keys.GridType.CELL,
-          ),
-          data,
-      )
-    for profile, data in self.psi.items():
-      name = renames.get(profile, profile)
-      yield (
-          output_keys.OutputKey(
-              output_keys.j_parallel_source_key(name),
-              units=output_keys.Units.AMPERE_PER_SQUARE_METER,
-              grid_type=output_keys.GridType.CELL,
-          ),
-          data,
-      )
-    for profile, data in self.n_e.items():
-      name = renames.get(profile, profile)
-      yield (
-          output_keys.OutputKey(
-              output_keys.s_source_key(name),
-              units=output_keys.Units.INVERSE_CUBIC_METER_PER_SECOND,
-              grid_type=output_keys.GridType.CELL,
-          ),
-          data,
-      )
+      if output.power_density_i is not None:
+        yield (
+            output_keys.OutputKey(
+                output_keys.p_source_i_key(name),
+                units=output_keys.Units.WATT_PER_CUBIC_METER,
+                grid_type=output_keys.GridType.CELL,
+            ),
+            output.power_density_i,
+        )
+      if output.power_density_e is not None:
+        yield (
+            output_keys.OutputKey(
+                output_keys.p_source_e_key(name),
+                units=output_keys.Units.WATT_PER_CUBIC_METER,
+                grid_type=output_keys.GridType.CELL,
+            ),
+            output.power_density_e,
+        )
+      if output.j_parallel is not None:
+        yield (
+            output_keys.OutputKey(
+                output_keys.j_parallel_source_key(name),
+                units=output_keys.Units.AMPERE_PER_SQUARE_METER,
+                grid_type=output_keys.GridType.CELL,
+            ),
+            output.j_parallel,
+        )
+      if output.particle_source is not None:
+        yield (
+            output_keys.OutputKey(
+                output_keys.s_source_key(name),
+                units=output_keys.Units.INVERSE_CUBIC_METER_PER_SECOND,
+                grid_type=output_keys.GridType.CELL,
+            ),
+            output.particle_source,
+        )
 
   def to_output_dict(
       self,
@@ -422,9 +418,9 @@ class SourceProfiles:
       `OutputVar` tuples:
         - `j_parallel_bootstrap`: `('time', 'rho_norm')` with shape
           `(n_time, n_rho_cell + 2)`.
-        - `ei_exchange` and per-source heating/current/particle channels
-          (`p_*_i`, `p_*_e`, `j_parallel_*`, `s_*`):
-          `('time', 'rho_cell_norm')` with shape `(n_time, n_rho_cell)`.
+        - `p_ei_exchange_i`, `p_ei_exchange_e`, and per-source
+          heating/current/particle channels (`p_*_i`, `p_*_e`, `j_parallel_*`,
+          `s_*`): `('time', 'rho_cell_norm')` with shape `(n_time, n_rho_cell)`.
     """
     out_dict = self.bootstrap_current.to_output_dict(context)
     out_dict.update(self.qei.to_output_dict(context))

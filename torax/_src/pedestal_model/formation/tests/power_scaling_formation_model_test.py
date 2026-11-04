@@ -23,6 +23,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
@@ -206,8 +207,12 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     aux_power_profile = power * jnp.ones_like(self.initial_state.geometry.rho)
     high_power_profiles = dataclasses.replace(
         self.initial_state.core_sources,
-        T_e={'aux': aux_power_profile},
-        T_i={'aux': aux_power_profile},
+        sources={
+            'aux': core_sources_lib.SourceOutput(
+                power_density_e=aux_power_profile,
+                power_density_i=aux_power_profile,
+            )
+        },
     )
 
     transport_multipliers = formation_model(

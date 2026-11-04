@@ -19,10 +19,10 @@ from absl.testing import parameterized
 import immutabledict
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.sources import config as sources_config
+from torax._src.sources import core_sources
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
-from torax._src.sources import source_profiles
 from torax._src.test_utils import default_sources
 
 
@@ -176,8 +176,8 @@ class SourceModelsTest(parameterized.TestCase):
     class DummyFinalSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = 'final1'
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -186,8 +186,8 @@ class SourceModelsTest(parameterized.TestCase):
     class DummyFinalSource2(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = 'final2'
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.TEMP_ION,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.TEMP_ION,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError

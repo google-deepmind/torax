@@ -38,7 +38,7 @@ from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources as core_sources_lib
 
 
 # pylint: disable=invalid-name
@@ -719,23 +719,22 @@ PARTICLE_SOURCES: Final[Sequence[str]] = (
 
 
 def _get_integrated_source_value(
-    source_profiles_dict: dict[str, array_typing.FloatVector],
-    internal_source_name: str,
+    profile: array_typing.FloatVector | None,
     geo: geometry.Geometry,
     integration_fn: Callable[
-        [array_typing.FloatVector, geometry.Geometry], jax.Array
+        [array_typing.FloatVector, geometry.Geometry], array_typing.FloatScalar
     ],
 ) -> jax.Array:
-  """Integrates a source profile if it exists, otherwise returns 0.0."""
-  if internal_source_name in source_profiles_dict:
-    return integration_fn(source_profiles_dict[internal_source_name], geo)
+  """Integrates a source profile if it is not None, otherwise returns 0.0."""
+  if profile is not None:
+    return jnp.asarray(integration_fn(profile, geo))
   else:
     return jnp.array(0.0, dtype=jax_utils.get_dtype())
 
 
 def _calculate_integrated_sources(
     geo: geometry.Geometry,
-    core_sources: source_profiles.SourceProfiles,
+    core_sources: core_sources_lib.CoreSources,
     runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
@@ -776,20 +775,26 @@ def _calculate_integrated_sources(
 
   # Calculate integrated sources using unified output key names.
   for key in ION_EL_HEAT_SOURCES:
-    is_in_T_i = key in core_sources.T_i
-    is_in_T_e = key in core_sources.T_e
-    if is_in_T_i != is_in_T_e:
+    source_output = core_sources.sources.get(key)
+    power_density_i = (
+        source_output.power_density_i if source_output is not None else None
+    )
+    power_density_e = (
+        source_output.power_density_e if source_output is not None else None
+    )
+    if (power_density_i is not None) != (power_density_e is not None):
       raise ValueError(
           f"Source '{key}' is expected to be defined for both ion and electron"
-          ' channels (in core_sources.T_i and core_sources.T_e respectively).'
-          f' Found in T_i: {is_in_T_i}, Found in T_e: {is_in_T_e}.'
+          ' channels (power_density_i and power_density_e).'
+          f' Found power_density_i: {power_density_i is not None},'
+          f' Found power_density_e: {power_density_e is not None}.'
       )
     output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
     integrated[f'P_{output_name}_i'] = _get_integrated_source_value(
-        core_sources.T_i, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+        power_density_i, geo, math_utils.volume_integration
     )
     integrated[f'P_{output_name}_e'] = _get_integrated_source_value(
-        core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+        power_density_e, geo, math_utils.volume_integration
     )
     integrated[f'P_{output_name}_total'] = (
         integrated[f'P_{output_name}_i'] + integrated[f'P_{output_name}_e']
@@ -815,26 +820,35 @@ def _calculate_integrated_sources(
         ]
 
   for key in EL_HEAT_SOURCES:
-    if key in core_sources.T_e and key in core_sources.T_i:
+    source_output = core_sources.sources.get(key)
+    power_density_e = (
+        source_output.power_density_e if source_output is not None else None
+    )
+    if (
+        source_output is not None
+        and power_density_e is not None
+        and source_output.power_density_i is not None
+    ):
       raise ValueError(
-          f"Source '{key}' was expected to only be an electron heat source (in"
-          ' core_sources.T_e), but it was also found in ion heat sources'
-          ' (core_sources.T_i).'
+          f"Source '{key}' was expected to only be an electron heat source"
+          ' (power_density_e), but it was also found in ion heat sources'
+          ' (power_density_i).'
       )
     output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
     scalar_key = f'P_{output_name}_e'
     integrated[scalar_key] = _get_integrated_source_value(
-        core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+        power_density_e, geo, math_utils.volume_integration
     )
     if key in EXTERNAL_HEATING_SOURCES:
       integrated['P_aux_e'] += integrated[scalar_key]
       integrated['P_external_injected'] += integrated[scalar_key]
 
   for key in CURRENT_SOURCES:
+    source_output = core_sources.sources.get(key)
+    j_parallel = source_output.j_parallel if source_output is not None else None
     output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
     integrated[f'I_{output_name}'] = _get_integrated_source_value(
-        core_sources.psi,  # pyrefly: ignore[bad-argument-type]
-        key,
+        j_parallel,
         geo,
         # Convert current sources to toroidal current before integrating
         lambda x, geo: math_utils.area_integration(  # pyrefly: ignore[bad-argument-type]
@@ -846,10 +860,14 @@ def _calculate_integrated_sources(
     )
 
   for key in PARTICLE_SOURCES:
+    source_output = core_sources.sources.get(key)
+    particle_source = (
+        source_output.particle_source if source_output is not None else None
+    )
     output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
     scalar_key = f'S_{output_name}'
     integrated[scalar_key] = _get_integrated_source_value(
-        core_sources.n_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+        particle_source, geo, math_utils.volume_integration
     )
     integrated['S_total'] += integrated[scalar_key]
 
@@ -1157,10 +1175,7 @@ def make_post_processed_outputs(
   j_parallel_bootstrap = (
       sim_state.core_sources.bootstrap_current.j_parallel_bootstrap
   )
-  j_parallel_external = sum(
-      sim_state.core_sources.psi.values(),
-      jnp.zeros(sim_state.geometry.rho.shape),
-  )
+  j_parallel_external = sim_state.core_sources.j_parallel(sim_state.geometry)
   j_parallel_ohmic = (
       j_parallel_total - j_parallel_external - j_parallel_bootstrap
   )
@@ -1196,10 +1211,11 @@ def make_post_processed_outputs(
   )
   j_toroidal_sources = {}
   for source_name in ['ecrh', 'generic_current']:
-    if source_name in sim_state.core_sources.psi.keys():
+    source_output = sim_state.core_sources.sources.get(source_name)
+    if source_output is not None and source_output.j_parallel is not None:
       j_toroidal_sources[f'j_toroidal_{source_name}'] = (
           psi_calculations.j_parallel_to_j_toroidal(
-              sim_state.core_sources.psi[source_name],
+              source_output.j_parallel,
               sim_state.geometry,
               runtime_params.numerics.min_rho_norm,
           )

@@ -339,9 +339,9 @@ def _calc_coeffs_full(
 
   # --- Source terms --- #
   # Construct the source vectors
-  source_i = core_sources.total_sources('T_i', geo)
-  source_e = core_sources.total_sources('T_e', geo)
-  source_n_e = core_sources.total_sources('n_e', geo)
+  source_i = core_sources.total_sources('power_density_i', geo)
+  source_e = core_sources.total_sources('power_density_e', geo)
+  source_n_e = core_sources.total_sources('particle_source', geo)
   source_psi = core_sources.total_psi_sources(geo)
 
   # Initialize source matrices to zero

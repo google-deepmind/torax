@@ -21,11 +21,11 @@ import numpy as np
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.physics import fast_ion as fast_ion_lib
+from torax._src.sources import core_sources
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 
@@ -37,8 +37,8 @@ class SourceTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.PSI,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -111,7 +111,7 @@ class SourceTest(parameterized.TestCase):
             args[-1] if args else source_state_lib.SourceState(),
         )
         return (
-            source_profiles.SourceOutput(j_parallel=np.full([4], 42.0)),
+            core_sources.SourceOutput(j_parallel=np.full([4], 42.0)),
             source_state,
         )
 
@@ -214,8 +214,8 @@ class SourceTest(parameterized.TestCase):
     class BadSource(source_lib.SourceUsingCoreProfiles):
       SOURCE_ID: ClassVar[str] = "bad_core_profile_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.PSI,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -228,8 +228,8 @@ class SourceTest(parameterized.TestCase):
     class BadSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = "bad_final_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.PSI,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -246,12 +246,12 @@ class SourceTest(parameterized.TestCase):
     class FastIonCoreProfilesSource(source_lib.SourceUsingCoreProfiles):
       SOURCE_ID: ClassVar[str] = "fast_ion_core_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
 
       def _get_model_value(self, *args, **kwargs):
         return (
-            source_profiles.SourceOutput(
+            core_sources.SourceOutput(
                 power_density_e=np.zeros(4), fast_ions=(dummy_fi,)
             ),
             source_state_lib.SourceState(),
@@ -285,12 +285,12 @@ class SourceTest(parameterized.TestCase):
     class FastIonFinalSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = "fast_ion_final_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_profiles.AffectedCoreProfile, ...]
-      ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
+          tuple[core_sources.AffectedCoreProfile, ...]
+      ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
 
       def _get_model_value(self, *args, **kwargs):
         return (
-            source_profiles.SourceOutput(
+            core_sources.SourceOutput(
                 power_density_e=np.zeros(4), fast_ions=(dummy_fi,)
             ),
             source_state_lib.SourceState(),
@@ -312,7 +312,7 @@ class SourceTest(parameterized.TestCase):
           runtime_params=runtime_params,
           geo=mock.ANY,
           core_profiles=mock.ANY,
-          calculated_source_profiles=mock.ANY,
+          calculated_core_sources=mock.ANY,
           source_state=source_state_lib.SourceState(),
       )
 

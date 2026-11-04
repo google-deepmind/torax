@@ -29,7 +29,7 @@ from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import no_ibc
 from torax._src.internal_boundary_conditions import prescribed
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_2d
@@ -126,7 +126,7 @@ class PrescribedIBCTest(parameterized.TestCase):
             core_profiles_lib.CoreProfiles, instance=True
         ),
         source_profiles=mock.create_autospec(
-            source_profiles_lib.SourceProfiles, instance=True
+            core_sources_lib.CoreSources, instance=True
         ),
     )
     self.assertIsInstance(
@@ -156,7 +156,7 @@ class NoIBCTest(absltest.TestCase):
             core_profiles_lib.CoreProfiles, instance=True
         ),
         source_profiles=mock.create_autospec(
-            source_profiles_lib.SourceProfiles, instance=True
+            core_sources_lib.CoreSources, instance=True
         ),
     )
     np.testing.assert_array_equal(res.T_i, jnp.zeros(5))

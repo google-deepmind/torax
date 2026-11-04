@@ -33,7 +33,7 @@ from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import config
 
@@ -49,7 +49,7 @@ class BuilderTest(absltest.TestCase):
         core_profiles_lib.CoreProfiles, instance=True
     )
     self.source_profiles = mock.create_autospec(
-        source_profiles_lib.SourceProfiles, instance=True
+        core_sources_lib.CoreSources, instance=True
     )
     self.inboard_mask = self.geo.rho_norm <= 0.3
     self.ped_cell = int(jnp.argmin(jnp.abs(self.geo.rho_norm - 0.9)))

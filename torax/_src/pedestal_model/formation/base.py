@@ -26,7 +26,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -71,7 +71,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),
@@ -98,7 +98,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       formation_state: pedestal_state_lib.FormationState,
   ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
     """Evaluates L-H and H-L transition triggers.
@@ -124,7 +124,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       formation_state: pedestal_state_lib.FormationState,
   ) -> array_typing.IntScalar:
     """Returns the initial confinement mode at t_initial."""

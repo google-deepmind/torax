@@ -18,7 +18,7 @@ import dataclasses
 from absl.testing import absltest
 import jax
 import numpy as np
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
@@ -32,7 +32,7 @@ class _DummySource(icrh_base.IonCyclotronSource):
 
   def _get_model_value(self, *args, **kwargs):
     return (
-        source_profiles.SourceOutput(),
+        core_sources.SourceOutput(),
         source_state_lib.SourceState(),
     )
 
@@ -55,8 +55,8 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
 
   def test_affected_core_profiles(self):
     expected = (
-        source_profiles.AffectedCoreProfile.TEMP_ION,
-        source_profiles.AffectedCoreProfile.TEMP_EL,
+        core_sources.AffectedCoreProfile.TEMP_ION,
+        core_sources.AffectedCoreProfile.TEMP_EL,
     )
     self.assertEqual(
         icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected

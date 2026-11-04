@@ -32,7 +32,7 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
@@ -55,31 +55,44 @@ class PostProcessingTest(parameterized.TestCase):
     )
     # Make some dummy source profiles.
     ones = np.ones_like(self.geo.rho)
-    self.source_profiles = source_profiles_lib.SourceProfiles(
+    self.source_profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        T_i={
-            'fusion': ones,  # pyrefly: ignore[bad-assignment]
-            'generic_heat': 2 * ones,  # pyrefly: ignore[bad-assignment]
-            'icrh': 3 * ones,  # pyrefly: ignore[bad-assignment]
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
+        sources={
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=ones,
+                power_density_e=ones,
+            ),
+            'generic_heat': core_sources_lib.SourceOutput(
+                power_density_i=2 * ones,
+                power_density_e=3 * ones,
+            ),
+            'icrh': core_sources_lib.SourceOutput(
+                power_density_i=3 * ones,
+                power_density_e=1.5 * ones,
+            ),
+            'bremsstrahlung': core_sources_lib.SourceOutput(
+                power_density_e=-ones,
+            ),
+            'cyclotron_radiation': core_sources_lib.SourceOutput(
+                power_density_e=-2 * ones,
+            ),
+            'impurity_radiation': core_sources_lib.SourceOutput(
+                power_density_e=-3 * ones,
+            ),
+            'ohmic': core_sources_lib.SourceOutput(
+                power_density_e=5 * ones,
+            ),
+            'ecrh': core_sources_lib.SourceOutput(
+                power_density_e=7 * ones,
+                j_parallel=2 * ones,
+            ),
+            'generic_current': core_sources_lib.SourceOutput(
+                j_parallel=2 * ones,
+            ),
         },
-        T_e={
-            'bremsstrahlung': -ones,  # pyrefly: ignore[bad-assignment]
-            'cyclotron_radiation': -2 * ones,  # pyrefly: ignore[bad-assignment]
-            'impurity_radiation': -3 * ones,  # pyrefly: ignore[bad-assignment]
-            'ohmic': 5 * ones,  # pyrefly: ignore[bad-assignment]
-            'fusion': ones,  # pyrefly: ignore[bad-assignment]
-            'generic_heat': 3 * ones,  # pyrefly: ignore[bad-assignment]
-            'ecrh': 7 * ones,  # pyrefly: ignore[bad-assignment]
-            'icrh': 1.5 * ones,  # pyrefly: ignore[bad-assignment]
-        },
-        psi={
-            'generic_current': 2 * ones,  # pyrefly: ignore[bad-assignment]
-            'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
-        },
-        n_e={},
     )
 
   def test_calculate_integrated_sources(self):
@@ -201,11 +214,11 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
   def test_zero_sources_do_not_make_nans(self):
-    source_profiles = source_profiles_lib.SourceProfiles(
+    source_profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
     )
     _, pedestal_state = self.models.pedestal_model.initialize(
         self.runtime_params,

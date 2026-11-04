@@ -60,9 +60,9 @@ from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
 from torax._src.physics import psi_calculations
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources import source_state as source_state_lib
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_state as transport_state_lib
@@ -82,7 +82,7 @@ class EvaluatedState:
   """
 
   core_profiles: core_profiles_lib.CoreProfiles
-  core_sources: source_profiles_lib.SourceProfiles
+  core_sources: core_sources_lib.CoreSources
   core_transport: state.CoreTransport
   pedestal_output: pedestal_model_output_lib.PedestalModelOutput
   internal_boundary_conditions: (
@@ -202,13 +202,13 @@ def _build_core_profiles(
     *,
     explicit: bool,
     explicit_source_outputs: (
-        Mapping[str, source_profiles_lib.SourceOutput] | None
+        Mapping[str, core_sources_lib.SourceOutput] | None
     ) = None,
     calculate_anyway: bool = False,
     v_loop_lcfs: array_typing.FloatScalar | None = None,
 ) -> tuple[
     core_profiles_lib.CoreProfiles,
-    dict[str, source_profiles_lib.SourceOutput],
+    dict[str, core_sources_lib.SourceOutput],
     dict[str, source_state_lib.SourceState],
     bootstrap_current_base.BootstrapCurrent,
     neoclassical_intermediates_lib.NeoclassicalIntermediates,
@@ -273,7 +273,7 @@ def _build_core_profiles(
     }
   if runtime_params.numerics.enable_fast_ions:
     fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        source_profiles_lib.extract_fast_ions(basic_source_outputs),
+        core_sources_lib.extract_fast_ions(basic_source_outputs),
         runtime_params.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
@@ -291,7 +291,7 @@ def _build_core_profiles(
       runtime_params, geo, solver_profiles, fast_ions=fast_ions
   )
 
-  total_psi_sources = source_profiles_lib.sum_total_psi_sources(
+  total_psi_sources = core_sources_lib.sum_total_psi_sources(
       basic_source_outputs=basic_source_outputs,
       source_models=source_models,
       bootstrap_current=bootstrap_current,
@@ -332,7 +332,7 @@ def _evaluate_ibc_and_transport(
     core_profiles: core_profiles_lib.CoreProfiles,
     pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
     models: models_lib.Models,
-    source_profiles: source_profiles_lib.SourceProfiles,
+    source_profiles: core_sources_lib.CoreSources,
     neoclassical_intermediates: (
         neoclassical_intermediates_lib.NeoclassicalIntermediates
     ),

@@ -24,13 +24,13 @@ from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.imas_tools import sources_mapping
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.sources import qei_source
-from torax._src.sources import source_profiles
 
 
 # pylint: disable=invalid-name
 def core_sources_to_IMAS(
-    core_sources: Sequence[source_profiles.SourceProfiles],
+    core_sources: Sequence[core_sources_lib.CoreSources],
     geometry: Sequence[geometry_lib.Geometry],
     times: array_typing.FloatVector,
 ) -> ids_toplevel.IDSToplevel:
@@ -42,11 +42,7 @@ def core_sources_to_IMAS(
   # Collect active TORAX source names.
   active_sources = set()
   for source in core_sources:
-    active_sources.update(source.T_e.keys())
-    active_sources.update(source.T_i.keys())
-    active_sources.update(source.n_e.keys())
-    active_sources.update(source.psi.keys())
-    active_sources.update(source.fast_ions.keys())
+    active_sources.update(source.sources.keys())
     # qei source treated differently so added separately.
     active_sources.add(qei_source.QeiSource.SOURCE_ID)
 
@@ -115,7 +111,7 @@ def _fill_grid_coordinates(
 
 
 def _compute_source_profiles(
-    core_source_state: source_profiles.SourceProfiles,
+    core_source_state: core_sources_lib.CoreSources,
     geo: geometry_lib.Geometry,
     source_name: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -138,17 +134,28 @@ def _compute_source_profiles(
     # qei represents power to ions.
     energy_ion = core_source_state.qei.p_ei
     energy_el = -core_source_state.qei.p_ei
-  else:
-    energy_el = core_source_state.T_e.get(source_name, energy_el)
-    energy_ion = core_source_state.T_i.get(source_name, energy_ion)
-    particles_el = core_source_state.n_e.get(source_name, particles_el)
-    j_par = core_source_state.psi.get(source_name, j_par)
-  return energy_el, energy_ion, particles_el, j_par  # pyrefly: ignore[bad-return]
+  elif (
+      source_output := core_source_state.sources.get(source_name)
+  ) is not None:
+    if source_output.power_density_e is not None:
+      energy_el = source_output.power_density_e
+    if source_output.power_density_i is not None:
+      energy_ion = source_output.power_density_i
+    if source_output.particle_source is not None:
+      particles_el = source_output.particle_source
+    if source_output.j_parallel is not None:
+      j_par = source_output.j_parallel
+  return (
+      np.asarray(energy_el),
+      np.asarray(energy_ion),
+      np.asarray(particles_el),
+      np.asarray(j_par),
+  )
 
 
 def _fill_profiles_1d(
     profiles_1d_slice: imas.ids_structure.IDSStructure,
-    core_source_state: source_profiles.SourceProfiles,
+    core_source_state: core_sources_lib.CoreSources,
     geo: geometry_lib.Geometry,
     source_name: str,
 ) -> None:
@@ -170,7 +177,7 @@ def _fill_profiles_1d(
 
 def _fill_global_quantities(
     global_quantities_slice: imas.ids_structure.IDSStructure,
-    core_source_state: source_profiles.SourceProfiles,
+    core_source_state: core_sources_lib.CoreSources,
     geo: geometry_lib.Geometry,
     source_name: str,
 ) -> None:
