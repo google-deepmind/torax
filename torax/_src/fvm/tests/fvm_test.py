@@ -223,7 +223,7 @@ class FVMTest(parameterized.TestCase):
                 ),
                 chi_min=0,
             ),
-            time_step_calculator=dict(),
+            time_step_calculator=dict(max_steps=100),
         )
     )
     step_fn = run_simulation.make_step_fn(torax_config)

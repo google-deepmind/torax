@@ -91,6 +91,7 @@ class StateHistoryTest(parameterized.TestCase):
             },
         },
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     })
     models = self.torax_config.build_models()
     # Make some dummy source profiles that could have come from these sources.
@@ -720,6 +721,7 @@ class StateHistoryTest(parameterized.TestCase):
             },
         },
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     })
 
     # Create core profiles at two different times
@@ -807,6 +809,7 @@ class StateHistoryTest(parameterized.TestCase):
             },
         },
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     })
 
     # Create core profiles at two different times

@@ -580,6 +580,7 @@ class SimTest(sim_test_case.SimTestCase):
         },
         'time_step_calculator': {
             't_final': 3.0,
+            'max_steps': 100,
         },
         'geometry': {
             'geometry_type': 'circular',

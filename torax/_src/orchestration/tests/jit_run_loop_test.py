@@ -33,88 +33,6 @@ jax.config.update('jax_enable_x64', True)
 
 class JitRunLoopTest(parameterized.TestCase):
 
-  @parameterized.parameters('chi', 'from_previous_dt')
-  def test_get_max_steps_non_fixed_raises_not_implemented_error(
-      self, calculator_type
-  ):
-    config_dict = default_configs.get_default_config_dict()
-    config_dict['time_step_calculator'] = {'calculator_type': calculator_type}
-    torax_config = torax.ToraxConfig.from_dict(config_dict)
-    step_fn = torax_experimental.make_step_fn(torax_config)
-
-    with self.assertRaisesRegex(
-        NotImplementedError, 'max_steps must be specified when using'
-    ):
-      jit_run_loop._get_max_steps(step_fn)
-
-    with self.assertRaisesRegex(
-        NotImplementedError, 'max_steps must be specified when using'
-    ):
-      jit_run_loop.run_loop(step_fn)
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='fixed_no_adaptive_exact_division',
-          t_initial=0.0,
-          t_final=5.0,
-          dt=0.5,
-          adaptive_dt=False,
-          expected_max_steps=10,
-      ),
-      dict(
-          testcase_name='fixed_no_adaptive_ceil_division',
-          t_initial=0.0,
-          t_final=5.0,
-          dt=2.0,
-          adaptive_dt=False,
-          expected_max_steps=3,
-      ),
-      dict(
-          testcase_name='fixed_no_adaptive_time_varying_dt',
-          t_initial=0.0,
-          t_final=5.0,
-          dt={0.0: 2.0, 2.0: 0.5},
-          adaptive_dt=False,
-          expected_max_steps=10,
-      ),
-      dict(
-          testcase_name='fixed_with_adaptive_exact_division',
-          t_initial=0.0,
-          t_final=5.0,
-          dt=0.5,
-          adaptive_dt=True,
-          expected_max_steps=100,
-      ),
-      dict(
-          testcase_name='fixed_with_adaptive_ceil_division',
-          t_initial=0.0,
-          t_final=5.0,
-          dt=2.0,
-          adaptive_dt=True,
-          expected_max_steps=30,
-      ),
-  )
-  def test_get_max_steps_fixed(
-      self,
-      t_initial,
-      t_final,
-      dt,
-      adaptive_dt,
-      expected_max_steps,
-  ):
-    config_dict = default_configs.get_default_config_dict()
-    config_dict['time_step_calculator'] = {
-        'calculator_type': 'fixed',
-        't_initial': t_initial,
-        't_final': t_final,
-        'dt': dt,
-        'allow_backtracking': adaptive_dt,
-    }
-    torax_config = torax.ToraxConfig.from_dict(config_dict)
-    step_fn = torax_experimental.make_step_fn(torax_config)
-
-    self.assertEqual(jit_run_loop._get_max_steps(step_fn), expected_max_steps)
-
   def test_run_loop_fixed_default_and_explicit_max_steps(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['time_step_calculator'] = {
@@ -136,8 +54,10 @@ class JitRunLoopTest(parameterized.TestCase):
       self.assertIsInstance(leaf, jax.Array)
       self.assertEqual(leaf.shape[0], 3)
 
+    torax_config.update_fields({'time_step_calculator.max_steps': 5})
+    step_fn_explicit = torax_experimental.make_step_fn(torax_config)
     states_explicit, outputs_explicit, sim_error_explicit = (
-        jit_run_loop.run_loop(step_fn, max_steps=5)
+        jit_run_loop.run_loop(step_fn_explicit)
     )
     self.assertEqual(sim_error_explicit, torax.SimError.NO_ERROR)
     self.assertLen(states_explicit.t, 3)
@@ -182,11 +102,12 @@ class JitRunLoopTest(parameterized.TestCase):
         't_final': 0.5,
         'dt': 0.1,
         'allow_backtracking': False,
+        'max_steps': 5,
     }
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
-    states, outputs, sim_error = jit_run_loop.run_loop(step_fn, max_steps=5)
+    states, outputs, sim_error = jit_run_loop.run_loop(step_fn)
 
     self.assertEqual(sim_error, torax.SimError.LOW_TEMPERATURE_COLLAPSE)
     chex.assert_trees_all_close(states.t, jnp.asarray(expected_times))
@@ -197,7 +118,7 @@ class JitRunLoopTest(parameterized.TestCase):
       if jnp.issubdtype(leaf.dtype, jnp.floating):
         self.assertFalse(bool(jnp.any(jnp.isnan(leaf))))
 
-  def test_max_steps_precedence(self):
+  def test_run_loop_uses_config_and_override_max_steps(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['time_step_calculator'] = {
         'calculator_type': 'fixed',
@@ -210,16 +131,19 @@ class JitRunLoopTest(parameterized.TestCase):
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
-    # Config attribute (5) takes precedence over default_max_steps (10).
-    self.assertEqual(jit_run_loop._get_max_steps(step_fn), 5)
     states_cfg, _, sim_error_cfg = jit_run_loop.run_loop(step_fn)
     self.assertEqual(sim_error_cfg, torax.SimError.DID_NOT_REACH_T_FINAL)
     self.assertLen(states_cfg.t, 6)
 
-    # Explicit run_loop argument (2) takes precedence over config attribute (5).
-    states_arg, _, sim_error_arg = jit_run_loop.run_loop(step_fn, max_steps=2)
-    self.assertEqual(sim_error_arg, torax.SimError.DID_NOT_REACH_T_FINAL)
-    self.assertLen(states_arg.t, 3)
+    override_config = torax.ToraxConfig.from_dict(config_dict)
+    override_config.update_fields({'time_step_calculator.max_steps': 2})
+    override_step_fn = torax_experimental.make_step_fn(override_config)
+    states_override, _, sim_error_override = jit_run_loop.run_loop(
+        step_fn,
+        runtime_params_overrides=override_step_fn.runtime_params_provider,
+    )
+    self.assertEqual(sim_error_override, torax.SimError.DID_NOT_REACH_T_FINAL)
+    self.assertLen(states_override.t, 3)
 
   def test_gradient(self):
 
@@ -290,9 +214,9 @@ class JitRunLoopTest(parameterized.TestCase):
     chex.assert_trees_all_close(grad_diff, grad_vjp[index], rtol=1e-3)
 
   def test_progress_bar_update(self):
-    torax_config = torax.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict()
-    )
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator']['max_steps'] = 10
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
     with mock.patch.object(tqdm, 'tqdm') as mock_tqdm_cls:
@@ -303,7 +227,6 @@ class JitRunLoopTest(parameterized.TestCase):
 
       jit_run_loop.run_loop(
           step_fn=step_fn,
-          max_steps=10,
           progress_bar=True,
           log_n_steps=2,
       )
@@ -317,15 +240,14 @@ class JitRunLoopTest(parameterized.TestCase):
       self.assertEmpty(jit_run_loop._TQDM_REF)
 
   def test_timestep_logging(self):
-    torax_config = torax.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict()
-    )
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator']['max_steps'] = 10
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
     with mock.patch.object(tqdm.tqdm, 'write') as mock_write:
       jit_run_loop.run_loop(
           step_fn=step_fn,
-          max_steps=10,
           log_timestep_info=True,
           log_n_steps=5,
       )
@@ -338,9 +260,9 @@ class JitRunLoopTest(parameterized.TestCase):
         self.assertIn('previous solver iterations:', log_line)
 
   def test_thread_safety(self):
-    torax_config = torax.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict()
-    )
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator']['max_steps'] = 10
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
     pbars = []
@@ -364,7 +286,6 @@ class JitRunLoopTest(parameterized.TestCase):
           executor.submit(
               jit_run_loop.run_loop,
               step_fn=step_fn,
-              max_steps=10,
               progress_bar=True,
               log_n_steps=2,
           )
@@ -388,9 +309,9 @@ class JitRunLoopTest(parameterized.TestCase):
       self.assertEmpty(jit_run_loop._TQDM_REF)
 
   def test_changing_log_n_steps_does_not_recompile(self):
-    torax_config = torax.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict()
-    )
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator']['max_steps'] = 10
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
     with (
@@ -402,7 +323,6 @@ class JitRunLoopTest(parameterized.TestCase):
       )
       jit_run_loop.run_loop(
           step_fn=step_fn,
-          max_steps=10,
           progress_bar=True,
           log_timestep_info=True,
           log_n_steps=2,
@@ -411,7 +331,6 @@ class JitRunLoopTest(parameterized.TestCase):
 
       jit_run_loop.run_loop(
           step_fn=step_fn,
-          max_steps=10,
           progress_bar=True,
           log_timestep_info=True,
           log_n_steps=3,

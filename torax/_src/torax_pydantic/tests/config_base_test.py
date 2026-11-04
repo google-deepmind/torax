@@ -399,6 +399,66 @@ class PydanticBaseTest(parameterized.TestCase):
       self.assertEqual(m.b, b_new)
       self.assertEqual(m.c, c_new)
 
+  def test_update_fields_default_factory_with_validated_data(self):
+
+    class Child(config_base.ConfigBase):
+      a: float = 1.0
+      b: float = 2.0
+      derived: int = pydantic.Field(
+          default_factory=lambda data: int(data['a'] + data['b'])
+      )
+
+    class Parent(config_base.ConfigBase):
+      child: Child
+
+    with self.subTest('recomputes_when_not_explicitly_set'):
+      m = Parent(child=Child(a=3.0))
+      self.assertEqual(m.child.derived, 5)
+      m._update_fields({'child.b': 10.0})
+      self.assertEqual(m.child.derived, 13)
+
+    with self.subTest('preserves_when_explicitly_set_at_init'):
+      m = Parent(child=Child(a=3.0, derived=99))
+      self.assertEqual(m.child.derived, 99)
+      m._update_fields({'child.b': 10.0})
+      self.assertEqual(m.child.derived, 99)
+
+    with self.subTest('preserves_when_explicitly_set_via_update_fields'):
+      m = Parent(child=Child(a=3.0))
+      m._update_fields({'child.derived': 42})
+      self.assertEqual(m.child.derived, 42)
+      m._update_fields({'child.b': 10.0})
+      self.assertEqual(m.child.derived, 42)
+
+  def test_update_fields_after_validator_populated_field(self):
+
+    class Child(config_base.ConfigBase):
+      a: float = 1.0
+      b: float = 2.0
+      derived: int | None = None
+
+      @pydantic.model_validator(mode='after')
+      def _populate_derived(self):
+        if self.derived is None:
+          object.__setattr__(self, 'derived', int(self.a + self.b))
+        return self
+
+    class Parent(config_base.ConfigBase):
+      child: Child
+
+    m = Parent(child=Child(a=3.0))
+    self.assertEqual(m.child.derived, 5)
+
+    m._update_fields({'child.b': 10.0})
+    self.assertEqual(m.child.derived, 13)
+
+    m._update_fields({'child.derived': 42})
+    m._update_fields({'child.b': 20.0})
+    self.assertEqual(m.child.derived, 42)
+
+    m._update_fields({'child.derived': None})
+    self.assertEqual(m.child.derived, 23)
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -70,6 +70,7 @@ class PoloidalVelocityTest(absltest.TestCase):
         'solver': {},
         'pedestal': {},
         'sources': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     })
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)

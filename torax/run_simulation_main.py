@@ -103,7 +103,7 @@ _QUIT = flags.DEFINE_bool(
 _MAX_STEPS = flags.DEFINE_integer(
     'max_steps',
     None,
-    'Maximum number of steps to take in the simulation.',
+    'If provided, overrides `time_step_calculator.max_steps` from the config.',
 )
 
 # Needed to test-time name collision with the flag in regenerate_torax_refs.py.

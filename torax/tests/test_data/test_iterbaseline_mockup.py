@@ -185,5 +185,6 @@ CONFIG = {
         # likely be increased further beyond this default
         'chi_timestep_prefactor': 100,
         't_final': 10,  # length of simulation time in seconds
+        'max_steps': 100,
     },
 }

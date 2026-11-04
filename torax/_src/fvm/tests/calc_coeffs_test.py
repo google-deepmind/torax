@@ -132,7 +132,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                 ),
                 chi_min=0,
             ),
-            time_step_calculator=dict(),
+            time_step_calculator=dict(max_steps=100),
         )
     )
     inputs = _make_calc_coeffs_inputs(torax_config)
@@ -172,6 +172,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         'sources': {},
         'geometry': {'geometry_type': 'circular'},
         'plasma_composition': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     config_dict_with_pedestal = copy.deepcopy(config_dict)
     config_dict_with_pedestal['pedestal'] = {
@@ -256,7 +257,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                 )
             ),
         ),
-        time_step_calculator=dict(),
+        time_step_calculator=dict(max_steps=100),
     )
     per_cfg = copy.deepcopy(base_cfg)
     per_cfg['solver'] = dict(
@@ -340,7 +341,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                     prescribed=dict(model_name='prescribed', V_e=0.0)
                 ),
             ),
-            time_step_calculator=dict(),
+            time_step_calculator=dict(max_steps=100),
         )
     )
     inputs = _make_calc_coeffs_inputs(torax_config)
@@ -426,7 +427,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                     )
                 ),
             ),
-            time_step_calculator=dict(),
+            time_step_calculator=dict(max_steps=100),
         )
     )
     inputs = _make_calc_coeffs_inputs(torax_config)

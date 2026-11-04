@@ -127,6 +127,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict['time_step_calculator'] = {
         'min_dt': 2.0,
         'dt_backtracking_factor': 2.0,
+        'max_steps': 100,
     }
     step_fn, sim_state, post_processed_outputs = (
         get_step_fn_sim_state_and_post_processed_outputs(config_dict)
@@ -155,6 +156,7 @@ class StepFunctionTest(parameterized.TestCase):
         'min_dt': 2.0,
         'dt_backtracking_factor': 2.0,
         'exact_t_final': True,
+        'max_steps': 100,
     }
     step_fn, sim_state, post_processed_outputs = (
         get_step_fn_sim_state_and_post_processed_outputs(config_dict)
@@ -351,6 +353,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict['time_step_calculator'] = {
         'min_dt': 0.1,
         'allow_backtracking': True,
+        'max_steps': 100,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     (

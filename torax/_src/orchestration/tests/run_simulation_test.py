@@ -17,11 +17,14 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import pydantic
 from torax._src import state
 from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import config as torax_config_lib
 import xarray as xr
 
 _ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')
@@ -152,6 +155,37 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
     with jit_run_loop._LOCK:
       self.assertEmpty(jit_run_loop._TQDM_REF)
+
+  def test_max_steps_override_does_not_mutate_input_config(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': 0.0,
+        't_final': 1.0,
+        'dt': 0.1,
+        'allow_backtracking': False,
+        'max_steps': 50,
+    }
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
+
+    state_history = run_simulation.run_simulation(
+        torax_config, max_steps=2, progress_bar=False
+    )
+
+    self.assertEqual(torax_config.time_step_calculator.max_steps, 50)
+    self.assertEqual(
+        state_history.torax_config.time_step_calculator.max_steps, 2
+    )
+    self.assertEqual(
+        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+    )
+    self.assertLen(state_history.times, 3)
+
+    for invalid_max_steps in (0, -1):
+      with self.assertRaises(pydantic.ValidationError):
+        run_simulation.run_simulation(
+            torax_config, max_steps=invalid_max_steps, progress_bar=False
+        )
 
 
 if __name__ == '__main__':

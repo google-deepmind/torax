@@ -250,37 +250,6 @@ def run_loop_jit(
   return states_history, post_processed_outputs_history, final_i
 
 
-def _get_max_steps(
-    step_fn: step_function.SimulationStepFn,
-    runtime_params_overrides: (
-        build_runtime_params.RuntimeParamsProvider | None
-    ) = None,
-) -> int:
-  """Returns the maximum number of simulation steps from config or default.
-
-  Args:
-    step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
-      after one timestep.
-    runtime_params_overrides: Optional runtime params overrides.
-
-  Returns:
-    The maximum number of steps to pre-allocate for the JITted run loop.
-
-  Raises:
-    NotImplementedError: If `max_steps` is not set in the config and the time
-      step calculator does not support `default_max_steps`.
-  """
-  runtime_params_provider = (
-      runtime_params_overrides
-      if runtime_params_overrides is not None
-      else step_fn.runtime_params_provider
-  )
-  tsc_config = runtime_params_provider.time_step_calculator
-  if tsc_config.max_steps is not None:
-    return tsc_config.max_steps
-  return tsc_config.default_max_steps
-
-
 def run_loop(
     step_fn: step_function.SimulationStepFn,
     runtime_params_overrides: (
@@ -289,7 +258,6 @@ def run_loop(
     log_timestep_info: bool = False,
     progress_bar: bool = False,
     log_n_steps: int = 20,
-    max_steps: int | None = None,
     initial_state: sim_state.SimState | None = None,
     initial_post_processed_outputs: (
         post_processing.PostProcessedOutputs | None
@@ -313,9 +281,6 @@ def run_loop(
       every step.
     progress_bar: If True, displays a progress bar.
     log_n_steps: Frequency in steps for logging and progress bar updates.
-    max_steps: Optional maximum number of steps to take. If None, uses
-      `time_step_calculator.max_steps` from the config if set, or falls back to
-      `time_step_calculator.default_max_steps`.
     initial_state: Optional initial state for the simulation (e.g. from file
       restart). If None, computed from `step_fn`.
     initial_post_processed_outputs: Optional initial post-processed outputs for
@@ -339,9 +304,13 @@ def run_loop(
   """
   # TODO(b/579944647): Consider applying all the overrides at once, rather than
   # passing them in at every call.
-
-  if max_steps is None:
-    max_steps = _get_max_steps(step_fn, runtime_params_overrides)
+  runtime_params_provider = (
+      runtime_params_overrides
+      if runtime_params_overrides is not None
+      else step_fn.runtime_params_provider
+  )
+  max_steps = runtime_params_provider.time_step_calculator.max_steps
+  assert max_steps is not None
 
   # Use a nullcontext when `progress_bar` is False to manage the progress bar
   # lifecycle with a single `with` block.

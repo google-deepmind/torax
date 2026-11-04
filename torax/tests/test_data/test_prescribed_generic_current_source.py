@@ -93,5 +93,6 @@ CONFIG = {
     'time_step_calculator': {
         'calculator_type': 'chi',
         't_final': 5,
+        'max_steps': 100,
     },
 }

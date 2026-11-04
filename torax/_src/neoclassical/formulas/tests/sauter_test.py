@@ -55,6 +55,7 @@ class SauterFormulasTest(parameterized.TestCase):
         'solver': {},
         'pedestal': {},
         'sources': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     })
 
     self.core_profiles, _, self.geo = core_profile_helpers.make_initial_inputs(

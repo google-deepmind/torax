@@ -214,14 +214,6 @@ class SimTestCase(parameterized.TestCase):
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
 
     torax_config = self._get_torax_config(config_name)
-    if (
-        max_steps is None
-        and torax_config.time_step_calculator.max_steps is None
-    ):
-      try:
-        max_steps = torax_config.time_step_calculator.default_max_steps
-      except NotImplementedError:
-        max_steps = len(ref_time) * 2
 
     state_history = run_simulation.run_simulation(
         torax_config,

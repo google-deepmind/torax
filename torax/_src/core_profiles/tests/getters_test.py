@@ -407,6 +407,7 @@ class GettersTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     initial_core_profiles, runtime_params, geo = (
@@ -452,6 +453,7 @@ class GettersTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     _, runtime_params, geo = core_profile_helpers.make_initial_inputs(
@@ -492,6 +494,7 @@ class GettersTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     _, runtime_params, geo = core_profile_helpers.make_initial_inputs(
@@ -530,6 +533,7 @@ class GettersTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     initial_core_profiles, runtime_params, geo = (
@@ -571,6 +575,7 @@ class GettersTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     _, runtime_params, geo = core_profile_helpers.make_initial_inputs(

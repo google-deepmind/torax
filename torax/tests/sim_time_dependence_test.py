@@ -129,7 +129,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         log_timestep_info: bool = False,
         progress_bar: bool = False,
         log_n_steps: int = 20,
-        max_steps: int | None = None,
         initial_state: sim_state.SimState | None = None,
         initial_post_processed_outputs: (
             post_processing.PostProcessedOutputs | None
@@ -144,7 +143,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           log_timestep_info,
           progress_bar,
           log_n_steps,
-          max_steps,
           initial_state,
           initial_post_processed_outputs,
       )
