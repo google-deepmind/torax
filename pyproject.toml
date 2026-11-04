@@ -22,7 +22,6 @@ dependencies = [
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
     "fusion_surrogates[tglfnnukaea]==0.4.8",
-    "matplotlib>=3.3.0",
     "numpy>2",
     "setuptools;python_version>='3.12'",
     "chex>=0.1.90",
@@ -64,6 +63,7 @@ documentation = "https://github.com/google-deepmind/torax/blob/main/README.md"
 # Installed through `pip install -e .[dev]`
 dev = [
     "isort",
+    "matplotlib>=3.3.0",
     "pytest",
     "pytest-xdist",
     "pytest-shard",
@@ -79,6 +79,7 @@ dev = [
 
 # Installed through `pip install -e .[tutorial]`
 tutorial = [
+    "matplotlib>=3.3.0",
     "seaborn",
     "notebook",
 ]

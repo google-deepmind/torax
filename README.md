@@ -72,12 +72,6 @@ is outlined in our readthedocs pages.
 
 Install Python 3.12 or greater.
 
-Make sure that tkinter is installed:
-
-```shell
-sudo apt-get install python3-tk
-```
-
 ### How to install
 
 #### Prepare a virtual environment

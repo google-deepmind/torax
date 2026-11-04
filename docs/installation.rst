@@ -8,12 +8,6 @@ Requirements
 
 Install Python 3.12 or greater.
 
-Make sure that tkinter is installed:
-
-.. code-block:: console
-
-  sudo apt-get install python3-tk
-
 .. _how_to_install:
 
 How to install
