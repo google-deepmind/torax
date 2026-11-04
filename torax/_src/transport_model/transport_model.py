@@ -29,6 +29,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -39,6 +40,7 @@ from torax._src.transport_model import (
 )
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
+import xarray as xr
 
 MIN_SMOOTHING_WIDTH = 1e-5
 # Smoothing kernel values below this fraction of the peak are set to zero,
@@ -66,6 +68,51 @@ class TransportModel(static_dataclass.StaticDataclass):
         pedestal_transport_states={
             name: model.initial_state(runtime_params)
             for name, model in self.pedestal_transport_models.items()
+        },
+    )
+
+  def initial_state_from_datatree(
+      self,
+      transport_datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.TransportState:
+    """Reconstructs TransportState from a DataTree.
+
+    Args:
+      transport_datatree: DataTree containing transport model states, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed TransportState.
+    """
+    core_node = (
+        transport_datatree.children.get(output_keys.CORE)
+        if transport_datatree is not None
+        else None
+    )
+    core_children = core_node.children if core_node is not None else {}
+
+    pedestal_node = (
+        transport_datatree.children.get(output_keys.PEDESTAL)
+        if transport_datatree is not None
+        else None
+    )
+    pedestal_children = (
+        pedestal_node.children if pedestal_node is not None else {}
+    )
+
+    return transport_state_lib.TransportState(
+        core_transport_states={
+            name: sub.initial_state_from_datatree(
+                core_children.get(name), runtime_params
+            )
+            for name, sub in self.core_transport_models.items()
+        },
+        pedestal_transport_states={
+            name: sub.initial_state_from_datatree(
+                pedestal_children.get(name), runtime_params
+            )
+            for name, sub in self.pedestal_transport_models.items()
         },
     )
 

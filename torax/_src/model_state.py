@@ -19,6 +19,7 @@ import dataclasses
 import jax
 from torax._src.edge import edge_state
 from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_state
 from torax._src.sources import source_state
 from torax._src.transport_model import transport_state
@@ -48,8 +49,17 @@ class ModelState:
       An xr.DataTree containing model states, or None if all models are
       stateless.
     """
-    del context
     children: dict[str, xr.DataTree] = {}
+    transport_tree = self.transport.to_xr_datatree(context)
+    if transport_tree is not None:
+      children[output_keys.TRANSPORT] = transport_tree
+    sources_children: dict[str, xr.DataTree] = {}
+    for name, source in self.sources.items():
+      source_tree = source.to_xr_datatree(context)
+      if source_tree is not None:
+        sources_children[name] = source_tree
+    if sources_children:
+      children[output_keys.SOURCES] = xr.DataTree(children=sources_children)
     if not children:
       return None
     return xr.DataTree(children=children)

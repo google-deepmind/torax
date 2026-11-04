@@ -23,6 +23,7 @@ from torax._src.sources import core_sources
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_state as source_state_lib
+import xarray as xr
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -65,6 +66,28 @@ class SourceModels(static_dataclass.StaticDataclass):
     """Returns the initial state mapping for all sources."""
     return {
         name: src.initial_state(runtime_params)
+        for name, src in self.standard_sources.items()
+    }
+
+  def initial_state_from_datatree(
+      self,
+      sources_datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> dict[str, source_state_lib.SourceState]:
+    """Reconstructs source states from a DataTree.
+
+    Args:
+      sources_datatree: DataTree containing source model states, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Dictionary mapping source name to reconstructed SourceState.
+    """
+    children = sources_datatree.children if sources_datatree is not None else {}
+    return {
+        name: src.initial_state_from_datatree(
+            children.get(name), runtime_params
+        )
         for name, src in self.standard_sources.items()
     }
 

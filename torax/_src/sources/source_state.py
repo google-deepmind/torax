@@ -16,9 +16,26 @@
 
 import dataclasses
 import jax
+from torax._src.output_tools import output_grid_context
+import xarray as xr
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class SourceState:
   """Base class for cross-timestep state of a single Source model."""
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of cross-timestep source state, or None.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of source state, or None if the source model is stateless.
+    """
+    del context
+    return None

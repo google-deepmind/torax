@@ -32,6 +32,7 @@ from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -46,6 +47,23 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   ) -> transport_state_lib.ComponentTransportState:
     """Returns the initial `ComponentTransportState` for this model."""
     del runtime_params
+    return transport_state_lib.ComponentTransportState()
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.ComponentTransportState:
+    """Reconstructs ComponentTransportState from a DataTree.
+
+    Args:
+      datatree: DataTree containing component transport state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed ComponentTransportState.
+    """
+    del datatree, runtime_params
     return transport_state_lib.ComponentTransportState()
 
   def __call__(

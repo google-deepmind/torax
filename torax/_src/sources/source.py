@@ -52,6 +52,7 @@ from torax._src.geometry import geometry
 from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_state as source_state_lib
+import xarray as xr
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -107,6 +108,23 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
       base state).
     """
     del runtime_params
+    return source_state_lib.SourceState()
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> source_state_lib.SourceState:
+    """Reconstructs SourceState from a DataTree.
+
+    Args:
+      datatree: DataTree containing source model state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed SourceState.
+    """
+    del datatree, runtime_params
     return source_state_lib.SourceState()
 
   def _evaluate(

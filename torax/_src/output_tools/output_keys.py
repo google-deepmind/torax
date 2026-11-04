@@ -185,6 +185,16 @@ MODEL_STATE: Final[OutputKey] = OutputKey(
     units=Units.NOT_APPLICABLE,
     grid_type=GridType.NOT_APPLICABLE,
 )
+SOURCES: Final[OutputKey] = OutputKey(
+    "sources",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+TRANSPORT: Final[OutputKey] = OutputKey(
+    "transport",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.
