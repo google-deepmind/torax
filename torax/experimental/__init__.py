@@ -29,12 +29,14 @@ from torax._src.torax_pydantic.interpolated_param_2d import TimeVaryingArrayUpda
 from torax.experimental import fast_ion
 from torax.experimental import gas_puff_feedback_source
 from torax.experimental import geometry
+from torax.experimental import jax_utils
 
 __all__ = [
     'create_plotly_figure',
     'fast_ion',
     'gas_puff_feedback_source',
     'geometry',
+    'jax_utils',
     'make_step_fn',
     'run_loop_jit',
     'RuntimeParamsProvider',
