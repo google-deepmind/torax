@@ -28,7 +28,6 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import profile_conditions
@@ -65,6 +64,7 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_state as source_state_lib
 from torax._src.transport_model import transport_coefficients_builder
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
 
 
@@ -83,7 +83,7 @@ class EvaluatedState:
 
   core_profiles: core_profiles_lib.CoreProfiles
   core_sources: core_sources_lib.CoreSources
-  core_transport: state.CoreTransport
+  core_transport: transport_coeffs.CoreTransport
   pedestal_output: pedestal_model_output_lib.PedestalModelOutput
   internal_boundary_conditions: (
       internal_boundary_conditions_lib.InternalBoundaryConditions
@@ -341,7 +341,7 @@ def _evaluate_ibc_and_transport(
     use_pereverzev: bool,
 ) -> tuple[
     internal_boundary_conditions_lib.InternalBoundaryConditions,
-    state.CoreTransport,
+    transport_coeffs.CoreTransport,
     transport_state_lib.TransportState,
 ]:
   """Evaluates internal boundary conditions and transport coefficients."""

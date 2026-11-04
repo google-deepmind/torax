@@ -64,9 +64,9 @@ from typing import Callable, Final
 from absl import logging
 import jax
 import numpy as np
-from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.torax_pydantic import config
 import xarray as xr
 
@@ -204,7 +204,7 @@ def main(
   data_tree = state_history.simulation_output_to_xr()
 
   # Check if simulation encountered an error
-  if state_history.sim_error != state.SimError.NO_ERROR:
+  if state_history.sim_error != sim_error.SimError.NO_ERROR:
     log_to_stdout(
         f'Simulation stopped with error: {state_history.sim_error.name}',
         color=AnsiColors.YELLOW,

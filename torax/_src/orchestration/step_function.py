@@ -24,7 +24,6 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
@@ -35,11 +34,15 @@ from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import adaptive_step
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sawtooth_step
+from torax._src.orchestration import sim_error
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
 from torax._src.solver import solver as solver_lib
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.time_step_calculator import time_step_calculator as ts
 
 
@@ -170,7 +173,7 @@ class SimulationStepFn:
       self,
       output_state: sim_state.SimState,
       post_processed_outputs: post_processing.PostProcessedOutputs,
-  ) -> state.SimError:
+  ) -> sim_error.SimError:
     """Checks for errors in the simulation state and post-processed outputs.
 
     Args:
@@ -191,20 +194,20 @@ class SimulationStepFn:
             ),
         )
     ):
-      return state.SimError.NO_ERROR
+      return sim_error.SimError.NO_ERROR
 
     # Low-temperature collapse check
     if output_state.core_profiles.below_minimum_temperature(
         self._runtime_params_provider.numerics.T_min_eV
     ):
-      return state.SimError.LOW_TEMPERATURE_COLLAPSE
+      return sim_error.SimError.LOW_TEMPERATURE_COLLAPSE
 
     state_error = output_state.check_for_errors()
-    if state_error != state.SimError.NO_ERROR:
+    if state_error != sim_error.SimError.NO_ERROR:
       return state_error
 
     post_processed_error = post_processed_outputs.check_for_errors()
-    if post_processed_error != state.SimError.NO_ERROR:
+    if post_processed_error != sim_error.SimError.NO_ERROR:
       return post_processed_error
 
     # Check if reached the minimum time step last - this is often caused by
@@ -213,9 +216,9 @@ class SimulationStepFn:
       if output_state.solver_numeric_outputs.solver_error_state == 1:
         # If using adaptive stepping and the solver did not converge we must
         # have reached the minimum time step, so we can exit the simulation.
-        return state.SimError.REACHED_MIN_DT
+        return sim_error.SimError.REACHED_MIN_DT
 
-    return state.SimError.NO_ERROR
+    return sim_error.SimError.NO_ERROR
 
   @jax.jit
   def __call__(
@@ -564,19 +567,21 @@ class SimulationStepFn:
         result.state, adaptive_step.AdaptiveStepState
     ), 'adaptive step state is not the expected type.'
 
-    final_solver_numeric_outputs = state.SolverNumericOutputs(
-        solver_error_state=jnp.array(
-            result.state.solver_numeric_outputs.solver_error_state,
-            jax_utils.get_int_dtype(),
-        ),
-        outer_solver_iterations=jnp.array(
-            result.counter, jax_utils.get_int_dtype()
-        ),
-        inner_solver_iterations=jnp.array(
-            result.loop_statistics['inner_solver_iterations'],
-            jax_utils.get_int_dtype(),
-        ),
-        sawtooth_crash=False,
+    final_solver_numeric_outputs = (
+        solver_numeric_outputs_lib.SolverNumericOutputs(
+            solver_error_state=jnp.array(
+                result.state.solver_numeric_outputs.solver_error_state,
+                jax_utils.get_int_dtype(),
+            ),
+            outer_solver_iterations=jnp.array(
+                result.counter, jax_utils.get_int_dtype()
+            ),
+            inner_solver_iterations=jnp.array(
+                result.loop_statistics['inner_solver_iterations'],
+                jax_utils.get_int_dtype(),
+            ),
+            sawtooth_crash=False,
+        )
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(

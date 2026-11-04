@@ -26,9 +26,9 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.orchestration import sim_error
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output_grid_context
@@ -477,7 +477,7 @@ class PostProcessedOutputs:
         jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
     )
 
-  def check_for_errors(self) -> state.SimError:
+  def check_for_errors(self) -> sim_error.SimError:
     """Checks for NaNs in the post-processed outputs.
 
     Returns:
@@ -492,9 +492,9 @@ class PostProcessedOutputs:
               'Found NaNs in post_processed_outputs%s',
               jax.tree_util.keystr(path),
           )
-      return state.SimError.NAN_DETECTED
+      return sim_error.SimError.NAN_DETECTED
     else:
-      return state.SimError.NO_ERROR
+      return sim_error.SimError.NO_ERROR
 
   def to_output_dict(
       self,

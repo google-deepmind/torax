@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Unit tests for CoreProfiles methods, cached properties, and conversions."""
+
 import copy
 import dataclasses
 
@@ -21,24 +23,19 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
-from torax._src import state
-from torax._src.core_profiles import core_profiles as core_profiles_lib
-from torax._src.core_profiles import (
-    solver_profiles as solver_profiles_lib,
-)
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
 
@@ -267,7 +264,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
 
-    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
 
     for i, t in enumerate(state_history.times):
       fractions = state_history.core_profiles[i].ions.impurity_fractions
@@ -313,7 +310,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
 
-    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
 
     for i, t in enumerate(state_history.times):
       fractions = state_history.core_profiles[i].ions.impurity_fractions
@@ -344,7 +341,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         )
 
   def test_negative_impurity_triggers_error(self):
-    """Tests that an unphysical config leading to negative impurity fraction is caught."""
+    """Tests that negative impurity fraction in config triggers error."""
     config_dict = copy.deepcopy(self.base_config_dict)
     config_dict['plasma_composition'] = {
         'main_ion': 'D',
@@ -365,7 +362,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
 
     # The simulation should have stopped early with an error.
     self.assertEqual(
-        state_history.sim_error, state.SimError.NEGATIVE_CORE_PROFILES
+        state_history.sim_error, sim_error.SimError.NEGATIVE_CORE_PROFILES
     )
     # Verify that the simulation terminated before reaching t_final.
     self.assertLess(
@@ -720,224 +717,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         data, np.stack([expected_extended, expected_extended])
     )
-
-
-class CoreTransportTest(parameterized.TestCase):
-
-  def test_core_transport_to_output_dict(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    times = np.array([0.0, 1.0])
-    context = output_grid_context.OutputGridContext(
-        times=times,
-        rho_face_norm=geo.rho_face_norm,
-        rho_cell_norm=geo.rho_norm,
-        rho_cell_plus_boundaries_norm=np.concatenate(
-            [[0.0], geo.rho_norm, [1.0]]
-        ),
-    )
-    n_face = geo.rho_face_norm.size
-    turbulent_core = transport_coeffs_lib.TransportCoeffs(
-        chi_face_ion=jnp.ones((2, n_face)) * 1.5,
-        chi_face_el=jnp.ones((2, n_face)) * 2.0,
-        d_face_el=jnp.ones((2, n_face)) * 0.5,
-        v_face_el=jnp.ones((2, n_face)) * -0.2,
-    )
-    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs(
-        chi_face_ion=jnp.zeros((2, n_face)),
-        chi_face_el=jnp.zeros((2, n_face)),
-        d_face_el=jnp.zeros((2, n_face)),
-        v_face_el=jnp.zeros((2, n_face)),
-    )
-    turbulent = transport_coeffs_lib.TurbulentTransport(
-        core=turbulent_core,
-        pedestal=turbulent_pedestal,
-        core_components={},
-        pedestal_components={},
-    )
-    neoclassical = transport_coeffs_lib.NeoclassicalTransport(
-        chi_face_ion=jnp.ones((2, n_face)) * 0.1,
-        chi_face_el=jnp.ones((2, n_face)) * 0.05,
-        d_face_el=jnp.ones((2, n_face)) * 0.01,
-        v_face_el=jnp.ones((2, n_face)) * -0.03,
-        v_face_el_ware=jnp.ones((2, n_face)) * -0.01,
-    )
-    pereverzev = transport_coeffs_lib.PereverzevTransport(
-        chi_face_ion=jnp.ones((2, n_face)) * 0.05,
-        chi_face_el=jnp.ones((2, n_face)) * 0.04,
-        full_v_heat_face_ion=jnp.ones((2, n_face)) * 0.02,
-        full_v_heat_face_el=jnp.ones((2, n_face)) * 0.01,
-        d_face_el=jnp.ones((2, n_face)) * 0.005,
-        v_face_el=jnp.ones((2, n_face)) * -0.001,
-    )
-    total = transport_coeffs_lib.sum_transport_coeffs(
-        turbulent.total, neoclassical, pereverzev
-    )
-    core_transport = state.CoreTransport(
-        total=total,
-        turbulent=turbulent,
-        neoclassical=neoclassical,
-        pereverzev=pereverzev,
-    )
-    out_dict = core_transport.to_output_dict(context)
-
-    # Verify turbulent keys.
-    self.assertIn(output_keys.CHI_TURB_I, out_dict)
-    self.assertIn(output_keys.CHI_TURB_E, out_dict)
-    self.assertIn(output_keys.D_TURB_E, out_dict)
-    self.assertIn(output_keys.V_TURB_E, out_dict)
-
-    # Verify neoclassical keys.
-    self.assertIn(output_keys.CHI_NEO_I, out_dict)
-    self.assertIn(output_keys.CHI_NEO_E, out_dict)
-    self.assertIn(output_keys.D_NEO_E, out_dict)
-    self.assertIn(output_keys.V_NEO_E, out_dict)
-    self.assertIn(output_keys.V_NEO_WARE_E, out_dict)
-
-    # Check dimensions and data for sample channels.
-    dims, data, attrs = out_dict[output_keys.CHI_TURB_I]
-    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
-    np.testing.assert_allclose(data, np.ones((2, n_face)) * 1.5)
-    self.assertEqual(
-        attrs, {'units': output_keys.Units.SQUARE_METER_PER_SECOND}
-    )
-
-  def test_core_transport_total_chi_max(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    core_transport = state.CoreTransport.zeros(geo)
-    chi_max = core_transport.total.chi_max(geo)
-    self.assertEqual(chi_max.shape, ())
-
-
-class SolverNumericOutputsTest(parameterized.TestCase):
-
-  def test_solver_numeric_outputs_to_output_dict(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    times = np.array([0.0, 1.0])
-    context = output_grid_context.OutputGridContext(
-        times=times,
-        rho_face_norm=geo.rho_face_norm,
-        rho_cell_norm=geo.rho_norm,
-        rho_cell_plus_boundaries_norm=np.concatenate(
-            [[0.0], geo.rho_norm, [1.0]]
-        ),
-    )
-    solver_numeric_outputs = state.SolverNumericOutputs(
-        outer_solver_iterations=np.array([3, 4]),
-        inner_solver_iterations=np.array([10, 12]),
-        solver_error_state=np.array([0, 0]),
-        sawtooth_crash=np.array([False, True]),
-    )
-    out_dict = solver_numeric_outputs.to_output_dict(context)
-
-    expected_keys = {
-        output_keys.OUTER_SOLVER_ITERATIONS,
-        output_keys.INNER_SOLVER_ITERATIONS,
-        output_keys.SOLVER_ERROR_STATE,
-        output_keys.SAWTOOTH_CRASH,
-    }
-    self.assertEqual(out_dict.keys(), expected_keys)
-
-    for key in expected_keys:
-      dims, _, attrs = out_dict[key]
-      self.assertEqual(dims, (output_keys.TIME,))
-      self.assertEqual(attrs, {})
-
-    np.testing.assert_array_equal(
-        out_dict[output_keys.OUTER_SOLVER_ITERATIONS][1], np.array([3, 4])
-    )
-    np.testing.assert_array_equal(
-        out_dict[output_keys.INNER_SOLVER_ITERATIONS][1], np.array([10, 12])
-    )
-    np.testing.assert_array_equal(
-        out_dict[output_keys.SOLVER_ERROR_STATE][1], np.array([0, 0])
-    )
-    np.testing.assert_array_equal(
-        out_dict[output_keys.SAWTOOTH_CRASH][1], np.array([False, True])
-    )
-
-
-class SolverProfilesTest(parameterized.TestCase):
-  """Unit tests for SolverProfiles and CoreProfiles."""
-
-  def setUp(self):
-    super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    torax_config = config.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict()
-    )
-    core_profiles, self.runtime_params, _ = (
-        core_profile_helpers.make_initial_inputs(torax_config)
-    )
-    self.base_profiles = solver_profiles_lib.SolverProfiles(
-        kinetic=core_profiles.kinetic,
-        ions=core_profiles.ions,
-        poloidal_flux=core_profiles.poloidal_flux,
-    )
-    self.core_profiles = core_profiles
-
-  def test_solver_profiles_properties(self):
-    self.assertTrue(self.base_profiles.quasineutrality_satisfied())
-    self.assertFalse(self.base_profiles.negative_temperature_or_density())
-    self.assertFalse(self.base_profiles.below_minimum_temperature(10.0))
-
-    np.testing.assert_allclose(
-        self.base_profiles.impurity_density_scaling,
-        self.core_profiles.impurity_density_scaling,
-    )
-    np.testing.assert_allclose(
-        self.base_profiles.impurity_density_scaling_face,
-        self.core_profiles.impurity_density_scaling_face,
-    )
-    np.testing.assert_allclose(
-        self.base_profiles.psi_norm,
-        self.core_profiles.psi_norm,
-    )
-    np.testing.assert_allclose(
-        self.base_profiles.psi_norm_face,
-        self.core_profiles.psi_norm_face,
-    )
-    np.testing.assert_allclose(
-        self.base_profiles.pressure_thermal_e.value,
-        self.core_profiles.pressure_thermal_e.value,
-    )
-
-  def test_core_profiles_pressures(self):
-    result = core_profiles_lib.CoreProfiles(
-        kinetic=self.base_profiles.kinetic,
-        ions=self.base_profiles.ions,
-        poloidal_flux=self.base_profiles.poloidal_flux,
-        fast_ions=self.core_profiles.fast_ions,
-        conductivity=self.core_profiles.conductivity,
-        poloidal_velocity=self.core_profiles.poloidal_velocity,
-        psidot=self.core_profiles.psidot,
-    )
-
-    self.assertIsInstance(result, core_profiles_lib.CoreProfiles)
-    np.testing.assert_allclose(
-        result.conductivity.sigma,
-        self.core_profiles.conductivity.sigma,
-    )
-    np.testing.assert_allclose(
-        result.conductivity.sigma_face,
-        self.core_profiles.conductivity.sigma_face,
-    )
-
-    pressure_attrs = (
-        'pressure_thermal_e',
-        'pressure_thermal_i',
-        'pressure_thermal_total',
-        'pressure_fast_i',
-        'pressure_total_i',
-        'pressure_total',
-    )
-    for attr in pressure_attrs:
-      p1 = getattr(result, attr)
-      p2 = getattr(self.core_profiles, attr)
-      np.testing.assert_allclose(p1.value, p2.value)
-      np.testing.assert_allclose(p1.face_value(), p2.face_value())
-      np.testing.assert_allclose(
-          p1.cell_plus_boundaries(), p2.cell_plus_boundaries()
-      )
 
 
 if __name__ == '__main__':

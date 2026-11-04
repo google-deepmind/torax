@@ -25,7 +25,6 @@ from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.edge import base as edge_base
@@ -35,17 +34,19 @@ from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
 )
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
+from torax._src.solver import solver_numeric_outputs
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
 # pylint: disable=invalid-name
@@ -128,23 +129,19 @@ class StateHistoryTest(parameterized.TestCase):
     self.core_profiles, _, _ = core_profile_helpers.make_initial_inputs(
         self.torax_config
     )
-    self.core_transport = state.CoreTransport(
-        total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
-        turbulent=transport_coeffs_lib.TurbulentTransport(
-            core=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
-            pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+    self.core_transport = transport_coeffs.CoreTransport(
+        total=transport_coeffs.TransportCoeffs.zeros(self.geo),
+        turbulent=transport_coeffs.TurbulentTransport(
+            core=transport_coeffs.TransportCoeffs.zeros(self.geo),
+            pedestal=transport_coeffs.TransportCoeffs.zeros(self.geo),
             core_components={
-                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
-                    self.geo
-                )
+                'prescribed': transport_coeffs.TransportCoeffs.zeros(self.geo)
             },
             pedestal_components={
-                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
-                    self.geo
-                )
+                'prescribed': transport_coeffs.TransportCoeffs.zeros(self.geo)
             },
         ),
-        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo),
+        neoclassical=transport_coeffs.NeoclassicalTransport.zeros(self.geo),
     )
     self.source_models = models.source_models
     pedestal_output, pedestal_state = models.pedestal_model.initialize(
@@ -162,7 +159,7 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,
@@ -180,7 +177,7 @@ class StateHistoryTest(parameterized.TestCase):
             sources=source_states,
         ),
     )
-    sim_error = state.SimError.NO_ERROR
+    sim_error = sim_error_lib.SimError.NO_ERROR
     previous_post_processed_outputs = (
         post_processing.PostProcessedOutputs.zeros(self.geo)
     )
@@ -234,7 +231,7 @@ class StateHistoryTest(parameterized.TestCase):
         ),
     )
     state_history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(self.sim_state, self.sim_state_t2),
         post_processed_outputs_history=_stack_pytrees(
             self._output_state,
@@ -430,7 +427,7 @@ class StateHistoryTest(parameterized.TestCase):
         self.geo
     )
     state_history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(torax_state, torax_state),
         post_processed_outputs_history=_stack_pytrees(
             post_processed_outputs,
@@ -614,7 +611,7 @@ class StateHistoryTest(parameterized.TestCase):
         edge_outputs=single_step_outputs,
     )
     history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(sim_state_with_edge),
         post_processed_outputs_history=_stack_pytrees(self._output_state),
         torax_config=self.torax_config,
@@ -663,7 +660,7 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = self.history.simulation_output_to_xr()
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
-        output_xr.numerics.sim_error, state.SimError.NO_ERROR.value
+        output_xr.numerics.sim_error, sim_error_lib.SimError.NO_ERROR.value
     )
     self.assertIn(output_keys.SOLVER_ERROR_STATE, output_xr.numerics)
 
@@ -671,13 +668,13 @@ class StateHistoryTest(parameterized.TestCase):
     history_with_error = output.StateHistory(
         state_history=_stack_pytrees(self.sim_state),
         post_processed_outputs_history=_stack_pytrees(self._output_state),
-        sim_error=state.SimError.NAN_DETECTED,
+        sim_error=sim_error_lib.SimError.NAN_DETECTED,
         torax_config=self.torax_config,
     )
     output_xr = history_with_error.simulation_output_to_xr()
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
-        output_xr.numerics.sim_error, state.SimError.NAN_DETECTED.value
+        output_xr.numerics.sim_error, sim_error_lib.SimError.NAN_DETECTED.value
     )
 
   def test_main_ion_fractions_output_matches_config(self):
@@ -823,7 +820,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(sim_state_t0, sim_state_t1),
         post_processed_outputs_history=_stack_pytrees(
             self._output_state, self._output_state
@@ -1002,7 +999,7 @@ class StateHistoryTest(parameterized.TestCase):
         ),
     )
     history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(self.sim_state, sim_state_t1),
         post_processed_outputs_history=_stack_pytrees(
             self._output_state, self._output_state

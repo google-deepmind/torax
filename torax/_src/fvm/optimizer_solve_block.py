@@ -23,7 +23,6 @@ import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import solver_state
@@ -36,6 +35,9 @@ from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import fixed_point_method
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
@@ -67,7 +69,7 @@ def optimizer_solve_block(
     model_state: model_state_lib.ModelState,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
-    state.SolverNumericOutputs,
+    solver_numeric_outputs_lib.SolverNumericOutputs,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an optimization-based solver on the equation defined by `coeffs`.
@@ -112,8 +114,7 @@ def optimizer_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    solver_numeric_outputs: SolverNumericOutputs. Info about iterations and
-      errors
+    solver_numeric_outputs: Info about iterations and errors.
   """
   # pyformat: enable
 
@@ -204,7 +205,7 @@ def optimizer_solve_block(
       lambda: 0,  # Called when False
   )
 
-  solver_numeric_outputs = state.SolverNumericOutputs(
+  solver_numeric_outputs = solver_numeric_outputs_lib.SolverNumericOutputs(
       inner_solver_iterations=inner_solver_iterations,
       outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       solver_error_state=solver_error_state,

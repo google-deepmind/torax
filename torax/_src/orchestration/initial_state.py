@@ -19,7 +19,6 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
@@ -33,6 +32,9 @@ from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 from torax._src.torax_pydantic import file_restart as file_restart_config
 import xarray as xr
 
@@ -142,7 +144,7 @@ def _get_initial_state(
       core_profiles=evaluated_state.core_profiles,
       core_sources=evaluated_state.core_sources,
       core_transport=evaluated_state.core_transport,
-      solver_numeric_outputs=state.SolverNumericOutputs(
+      solver_numeric_outputs=solver_numeric_outputs_lib.SolverNumericOutputs(
           solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
           inner_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
@@ -306,15 +308,17 @@ def get_initial_state_and_post_processed_outputs_from_file(
           initial_state,
           core_profiles=core_profiles,
           model_state=model_state,
-          solver_numeric_outputs=state.SolverNumericOutputs(
-              sawtooth_crash=sawtooth_crash,
-              solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
-              outer_solver_iterations=jnp.asarray(
-                  outer_solver_iterations, jax_utils.get_int_dtype()
-              ),
-              inner_solver_iterations=jnp.asarray(
-                  inner_solver_iterations, jax_utils.get_int_dtype()
-              ),
+          solver_numeric_outputs=(
+              solver_numeric_outputs_lib.SolverNumericOutputs(
+                  sawtooth_crash=sawtooth_crash,
+                  solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
+                  outer_solver_iterations=jnp.asarray(
+                      outer_solver_iterations, jax_utils.get_int_dtype()
+                  ),
+                  inner_solver_iterations=jnp.asarray(
+                      inner_solver_iterations, jax_utils.get_int_dtype()
+                  ),
+              )
           ),
       ),
       post_processed_outputs,
@@ -333,61 +337,61 @@ def _override_initial_runtime_params_from_file(
   # TODO(b/446608829): Implement passing of impurity content needed when
   # restarting with inverse model extended-lengyel.
 
+  # Density in output is in m^-3.
+  # When loading from file we want ne not to have transformations.
+  # Both ne and the boundary condition are given in absolute values (not f_GW).
+  # Additionally we want to avoid normalizing to n_e_bar.
+  profile_conditions = dataclasses.replace(
+      runtime_params.profile_conditions,
+      I_p=profiles_ds.data_vars[output_keys.I_P_PROFILE].to_numpy()[-1],
+      T_e=(
+          profiles_ds.data_vars[output_keys.T_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      T_e_right_bc=(
+          profiles_ds.data_vars[output_keys.T_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy()
+      ),
+      T_i=(
+          profiles_ds.data_vars[output_keys.T_I]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      T_i_right_bc=(
+          profiles_ds.data_vars[output_keys.T_I]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy()
+      ),
+      n_e=(
+          profiles_ds.data_vars[output_keys.N_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      n_e_right_bc=(
+          profiles_ds.data_vars[output_keys.N_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy()
+      ),
+      psi=(
+          profiles_ds.data_vars[output_keys.PSI]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      psi_source=(core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS),
+      n_e_right_bc_is_f_GW=False,
+      n_e_bar_is_f_GW=False,
+      normalize_n_e=False,
+      n_e_right_bc_is_absolute=True,
+  )
   runtime_params = dataclasses.replace(
       runtime_params,
       time_step_calculator=dataclasses.replace(
           runtime_params.time_step_calculator,
           t_initial=t_restart,
       ),
+      profile_conditions=profile_conditions,
   )
-  runtime_params.profile_conditions.I_p = profiles_ds.data_vars[
-      output_keys.I_P_PROFILE
-  ].to_numpy()[-1]
-  runtime_params.profile_conditions.T_e = (
-      profiles_ds.data_vars[output_keys.T_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_e_right_bc = (
-      profiles_ds.data_vars[output_keys.T_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_i = (
-      profiles_ds.data_vars[output_keys.T_I]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_i_right_bc = (
-      profiles_ds.data_vars[output_keys.T_I]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  # Density in output is in m^-3.
-  runtime_params.profile_conditions.n_e = (
-      profiles_ds.data_vars[output_keys.N_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.n_e_right_bc = (
-      profiles_ds.data_vars[output_keys.N_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.psi = (
-      profiles_ds.data_vars[output_keys.PSI]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.psi_source = (
-      core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
-  )
-  # When loading from file we want ne not to have transformations.
-  # Both ne and the boundary condition are given in absolute values (not f_GW).
-  # Additionally we want to avoid normalizing to n_e_bar.
-  runtime_params.profile_conditions.n_e_right_bc_is_f_GW = False
-  runtime_params.profile_conditions.n_e_bar_is_f_GW = False
-  runtime_params.profile_conditions.normalize_n_e = False
-  runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
   return runtime_params, geo

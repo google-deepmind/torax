@@ -17,9 +17,9 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src import state
 from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
 import xarray as xr
@@ -131,7 +131,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     state_history = run_simulation.run_simulation(torax_config, max_steps=1)
 
     self.assertEqual(
-        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+        state_history.sim_error, sim_error.SimError.DID_NOT_REACH_T_FINAL
     )
 
   @parameterized.named_parameters(
@@ -149,7 +149,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     )
     self.assertIsInstance(state_history.simulation_output_to_xr(), xr.DataTree)
     self.assertIsInstance(state_history, output.StateHistory)
-    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
     with jit_run_loop._LOCK:
       self.assertEmpty(jit_run_loop._TQDM_REF)
 

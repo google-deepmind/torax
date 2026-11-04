@@ -23,9 +23,9 @@ import chex
 import numpy as np
 from torax._src import constants
 from torax._src import simulation_app
-from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
@@ -230,7 +230,7 @@ class SimTestCase(parameterized.TestCase):
     )
     output_xr = state_history.simulation_output_to_xr()
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
-    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
 
     self._check_profiles_vs_expected(
         t=output_xr.time.values,

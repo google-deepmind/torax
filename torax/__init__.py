@@ -36,14 +36,13 @@ from torax._src.core_profiles.core_profiles import CoreProfiles
 from torax._src.core_profiles.solver_profiles import SolverProfiles
 from torax._src.geometry.geometry import Geometry
 from torax._src.orchestration.run_simulation import run_simulation
+from torax._src.orchestration.sim_error import SimError
 from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
+from torax._src.solver.solver_numeric_outputs import SolverNumericOutputs
 from torax._src.sources.core_sources import CoreSources
-from torax._src.state import CoreTransport
-from torax._src.state import SimError
-from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.config import ToraxConfig
 
 # pylint: enable=g-importing-member
@@ -74,7 +73,6 @@ __all__ = [
     'SolverProfiles',
     'CoreProfiles',
     'CoreSources',
-    'CoreTransport',
     'Geometry',
     'PostProcessedOutputs',
     'RuntimeParams',

@@ -22,6 +22,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src.core_profiles import core_profiles
 from torax._src.core_profiles import solver_profiles
 from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
@@ -207,6 +208,80 @@ class SolverProfilesTest(parameterized.TestCase):
         * (profiles.kinetic.n_i.value + n_imp.value)
     )
     np.testing.assert_allclose(p_i.value, expected_p_i_val)
+
+  def test_solver_profiles_properties(self):
+    base_profiles = solver_profiles.SolverProfiles(
+        kinetic=self.core_profiles_t0.kinetic,
+        ions=self.core_profiles_t0.ions,
+        poloidal_flux=self.core_profiles_t0.poloidal_flux,
+    )
+    self.assertTrue(base_profiles.quasineutrality_satisfied())
+    self.assertFalse(base_profiles.negative_temperature_or_density())
+    self.assertFalse(base_profiles.below_minimum_temperature(10.0))
+
+    np.testing.assert_allclose(
+        base_profiles.impurity_density_scaling,
+        self.core_profiles_t0.impurity_density_scaling,
+    )
+    np.testing.assert_allclose(
+        base_profiles.impurity_density_scaling_face,
+        self.core_profiles_t0.impurity_density_scaling_face,
+    )
+    np.testing.assert_allclose(
+        base_profiles.psi_norm,
+        self.core_profiles_t0.psi_norm,
+    )
+    np.testing.assert_allclose(
+        base_profiles.psi_norm_face,
+        self.core_profiles_t0.psi_norm_face,
+    )
+    np.testing.assert_allclose(
+        base_profiles.pressure_thermal_e.value,
+        self.core_profiles_t0.pressure_thermal_e.value,
+    )
+
+  def test_core_profiles_pressures(self):
+    base_profiles = solver_profiles.SolverProfiles(
+        kinetic=self.core_profiles_t0.kinetic,
+        ions=self.core_profiles_t0.ions,
+        poloidal_flux=self.core_profiles_t0.poloidal_flux,
+    )
+    result = core_profiles.CoreProfiles(
+        kinetic=base_profiles.kinetic,
+        ions=base_profiles.ions,
+        poloidal_flux=base_profiles.poloidal_flux,
+        fast_ions=self.core_profiles_t0.fast_ions,
+        conductivity=self.core_profiles_t0.conductivity,
+        poloidal_velocity=self.core_profiles_t0.poloidal_velocity,
+        psidot=self.core_profiles_t0.psidot,
+    )
+
+    self.assertIsInstance(result, core_profiles.CoreProfiles)
+    np.testing.assert_allclose(
+        result.conductivity.sigma,
+        self.core_profiles_t0.conductivity.sigma,
+    )
+    np.testing.assert_allclose(
+        result.conductivity.sigma_face,
+        self.core_profiles_t0.conductivity.sigma_face,
+    )
+
+    pressure_attrs = (
+        'pressure_thermal_e',
+        'pressure_thermal_i',
+        'pressure_thermal_total',
+        'pressure_fast_i',
+        'pressure_total_i',
+        'pressure_total',
+    )
+    for attr in pressure_attrs:
+      p1 = getattr(result, attr)
+      p2 = getattr(self.core_profiles_t0, attr)
+      np.testing.assert_allclose(p1.value, p2.value)
+      np.testing.assert_allclose(p1.face_value(), p2.face_value())
+      np.testing.assert_allclose(
+          p1.cell_plus_boundaries(), p2.cell_plus_boundaries()
+      )
 
 
 if __name__ == '__main__':

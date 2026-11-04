@@ -19,6 +19,7 @@ import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.test_utils import transport_helpers
 from torax._src.transport_model import transport_coeffs
 
 
@@ -223,6 +224,92 @@ class TransportCoeffsTest(parameterized.TestCase):
     np.testing.assert_allclose(
         turb.total.v_face_el, np.ones(self.n_face) * -0.15
     )
+
+
+class CoreTransportTest(parameterized.TestCase):
+
+  def test_core_transport_to_output_dict(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], geo.rho_norm, [1.0]]
+        ),
+    )
+    n_face = geo.rho_face_norm.size
+    turbulent_core = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((2, n_face)) * 1.5,
+        chi_face_el=jnp.ones((2, n_face)) * 2.0,
+        d_face_el=jnp.ones((2, n_face)) * 0.5,
+        v_face_el=jnp.ones((2, n_face)) * -0.2,
+    )
+    turbulent_pedestal = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.zeros((2, n_face)),
+        chi_face_el=jnp.zeros((2, n_face)),
+        d_face_el=jnp.zeros((2, n_face)),
+        v_face_el=jnp.zeros((2, n_face)),
+    )
+    turbulent = transport_coeffs.TurbulentTransport(
+        core=turbulent_core,
+        pedestal=turbulent_pedestal,
+        core_components={},
+        pedestal_components={},
+    )
+    neoclassical = transport_coeffs.NeoclassicalTransport(
+        chi_face_ion=jnp.ones((2, n_face)) * 0.1,
+        chi_face_el=jnp.ones((2, n_face)) * 0.05,
+        d_face_el=jnp.ones((2, n_face)) * 0.01,
+        v_face_el=jnp.ones((2, n_face)) * -0.03,
+        v_face_el_ware=jnp.ones((2, n_face)) * -0.01,
+    )
+    pereverzev = transport_coeffs.PereverzevTransport(
+        chi_face_ion=jnp.ones((2, n_face)) * 0.05,
+        chi_face_el=jnp.ones((2, n_face)) * 0.04,
+        full_v_heat_face_ion=jnp.ones((2, n_face)) * 0.02,
+        full_v_heat_face_el=jnp.ones((2, n_face)) * 0.01,
+        d_face_el=jnp.ones((2, n_face)) * 0.005,
+        v_face_el=jnp.ones((2, n_face)) * -0.001,
+    )
+    total = transport_coeffs.sum_transport_coeffs(
+        turbulent.total, neoclassical, pereverzev
+    )
+    core_transport = transport_coeffs.CoreTransport(
+        total=total,
+        turbulent=turbulent,
+        neoclassical=neoclassical,
+        pereverzev=pereverzev,
+    )
+    out_dict = core_transport.to_output_dict(context)
+
+    # Verify turbulent keys.
+    self.assertIn(output_keys.CHI_TURB_I, out_dict)
+    self.assertIn(output_keys.CHI_TURB_E, out_dict)
+    self.assertIn(output_keys.D_TURB_E, out_dict)
+    self.assertIn(output_keys.V_TURB_E, out_dict)
+
+    # Verify neoclassical keys.
+    self.assertIn(output_keys.CHI_NEO_I, out_dict)
+    self.assertIn(output_keys.CHI_NEO_E, out_dict)
+    self.assertIn(output_keys.D_NEO_E, out_dict)
+    self.assertIn(output_keys.V_NEO_E, out_dict)
+    self.assertIn(output_keys.V_NEO_WARE_E, out_dict)
+
+    # Check dimensions and data for sample channels.
+    dims, data, attrs = out_dict[output_keys.CHI_TURB_I]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    np.testing.assert_allclose(data, np.ones((2, n_face)) * 1.5)
+    self.assertEqual(
+        attrs, {'units': output_keys.Units.SQUARE_METER_PER_SECOND}
+    )
+
+  def test_core_transport_total_chi_max(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    core_transport = transport_helpers.make_zero_core_transport(geo)
+    chi_max = core_transport.total.chi_max(geo)
+    self.assertEqual(chi_max.shape, ())
 
 
 if __name__ == '__main__':
