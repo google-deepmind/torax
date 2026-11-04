@@ -16,68 +16,14 @@
 
 import dataclasses
 import enum
-from typing import Self
 
 from absl import logging
 import jax
 from torax._src import array_typing
-from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class CoreTransport:
-  """Composite coefficients for plasma transport.
-
-  Attributes:
-    total: Combined 4-channel net transport coefficients (turbulent +
-      neoclassical + pereverzev).
-    turbulent: Turbulent transport output containing total and per-model
-      outputs.
-    neoclassical: Neoclassical transport output.
-    pereverzev: Pereverzev-Corrigan transport output.
-  """
-
-  total: transport_coeffs_lib.TransportCoeffs
-  turbulent: transport_coeffs_lib.TurbulentTransport
-  neoclassical: transport_coeffs_lib.NeoclassicalTransport
-  pereverzev: transport_coeffs_lib.PereverzevTransport | None = None
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a CoreTransport with all zeros, used for initializing."""
-    return cls(
-        total=transport_coeffs_lib.TransportCoeffs.zeros(geo),
-        turbulent=transport_coeffs_lib.TurbulentTransport.zeros(geo),
-        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(geo),
-        pereverzev=None,
-    )
-
-  def to_output_dict(
-      self,
-      context: output_grid_context.OutputGridContext,
-  ) -> dict[str, output_grid_context.OutputVar]:
-    """Packs time-stacked core transport outputs into xarray-ready variables.
-
-    Args:
-      context: Grid context providing time and radial coordinates for shape
-        validation and `(dims, data, attrs)` packing.
-
-    Returns:
-      Mapping from turbulent and neoclassical transport channel names
-      (`chi_turb_*`, `d_turb_e`, `v_turb_e`, `chi_neo_*`, `d_neo_e`,
-      `v_neo_e`, `v_neo_ware_e`) to `(dims, data, attrs)` `OutputVar` tuples
-      on `('time', 'rho_face_norm')` with shape `(n_time, n_rho_face)`.
-    """
-    return {
-        **self.turbulent.to_output_dict(context),
-        **self.neoclassical.to_output_dict(context),
-    }
 
 
 @jax.tree_util.register_dataclass

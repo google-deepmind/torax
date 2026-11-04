@@ -39,6 +39,7 @@ from torax._src.output_tools import post_processing
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import file_restart as file_restart_config
+from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
 # Internal import.
@@ -178,7 +179,7 @@ class StateHistory:
     self._core_sources: core_sources_lib.CoreSources = (
         state_history.core_sources
     )
-    self._stacked_core_transport: state.CoreTransport = (
+    self._stacked_core_transport: transport_coeffs.CoreTransport = (
         state_history.core_transport
     )
     self._stacked_post_processed_outputs: (
@@ -256,7 +257,7 @@ class StateHistory:
     return _unstack_pytree(self._core_sources)
 
   @functools.cached_property
-  def core_transport(self) -> Sequence[state.CoreTransport]:
+  def core_transport(self) -> Sequence[transport_coeffs.CoreTransport]:
     """Returns the core transport for the simulation."""
     return _unstack_pytree(self._stacked_core_transport)
 

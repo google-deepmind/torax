@@ -41,7 +41,6 @@ from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
 from torax._src.sources.core_sources import CoreSources
-from torax._src.state import CoreTransport
 from torax._src.state import SimError
 from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.config import ToraxConfig
@@ -74,7 +73,6 @@ __all__ = [
     'SolverProfiles',
     'CoreProfiles',
     'CoreSources',
-    'CoreTransport',
     'Geometry',
     'PostProcessedOutputs',
     'RuntimeParams',

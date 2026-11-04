@@ -31,6 +31,7 @@ from torax._src.pedestal_model import (
 )
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.time_step_calculator import time_step_calculator_state
+from torax._src.transport_model import transport_coeffs
 
 _EXCLUDE_FROM_NAN_CHECK = ("edge_outputs",)
 _GEOMETRY_EXCLUDE_FROM_NAN_CHECK = (
@@ -91,7 +92,7 @@ class SimState:
   t: array_typing.FloatScalar
   dt: array_typing.FloatScalar
   core_profiles: core_profiles_lib.CoreProfiles
-  core_transport: state.CoreTransport
+  core_transport: transport_coeffs.CoreTransport
   core_sources: core_sources_lib.CoreSources
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry

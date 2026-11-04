@@ -333,61 +333,61 @@ def _override_initial_runtime_params_from_file(
   # TODO(b/446608829): Implement passing of impurity content needed when
   # restarting with inverse model extended-lengyel.
 
+  # Density in output is in m^-3.
+  # When loading from file we want ne not to have transformations.
+  # Both ne and the boundary condition are given in absolute values (not f_GW).
+  # Additionally we want to avoid normalizing to n_e_bar.
+  profile_conditions = dataclasses.replace(
+      runtime_params.profile_conditions,
+      I_p=profiles_ds.data_vars[output_keys.I_P_PROFILE].to_numpy()[-1],
+      T_e=(
+          profiles_ds.data_vars[output_keys.T_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      T_e_right_bc=(
+          profiles_ds.data_vars[output_keys.T_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy()
+      ),
+      T_i=(
+          profiles_ds.data_vars[output_keys.T_I]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      T_i_right_bc=(
+          profiles_ds.data_vars[output_keys.T_I]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy()
+      ),
+      n_e=(
+          profiles_ds.data_vars[output_keys.N_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      n_e_right_bc=(
+          profiles_ds.data_vars[output_keys.N_E]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy()
+      ),
+      psi=(
+          profiles_ds.data_vars[output_keys.PSI]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+          .to_numpy()
+      ),
+      psi_source=(core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS),
+      n_e_right_bc_is_f_GW=False,
+      n_e_bar_is_f_GW=False,
+      normalize_n_e=False,
+      n_e_right_bc_is_absolute=True,
+  )
   runtime_params = dataclasses.replace(
       runtime_params,
       time_step_calculator=dataclasses.replace(
           runtime_params.time_step_calculator,
           t_initial=t_restart,
       ),
+      profile_conditions=profile_conditions,
   )
-  runtime_params.profile_conditions.I_p = profiles_ds.data_vars[
-      output_keys.I_P_PROFILE
-  ].to_numpy()[-1]
-  runtime_params.profile_conditions.T_e = (
-      profiles_ds.data_vars[output_keys.T_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_e_right_bc = (
-      profiles_ds.data_vars[output_keys.T_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_i = (
-      profiles_ds.data_vars[output_keys.T_I]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_i_right_bc = (
-      profiles_ds.data_vars[output_keys.T_I]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  # Density in output is in m^-3.
-  runtime_params.profile_conditions.n_e = (
-      profiles_ds.data_vars[output_keys.N_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.n_e_right_bc = (
-      profiles_ds.data_vars[output_keys.N_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.psi = (
-      profiles_ds.data_vars[output_keys.PSI]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.psi_source = (
-      core_profile_runtime_params.PsiSource.PROFILE_CONDITIONS
-  )
-  # When loading from file we want ne not to have transformations.
-  # Both ne and the boundary condition are given in absolute values (not f_GW).
-  # Additionally we want to avoid normalizing to n_e_bar.
-  runtime_params.profile_conditions.n_e_right_bc_is_f_GW = False
-  runtime_params.profile_conditions.n_e_bar_is_f_GW = False
-  runtime_params.profile_conditions.normalize_n_e = False
-  runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
   return runtime_params, geo

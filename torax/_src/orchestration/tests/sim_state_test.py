@@ -29,6 +29,7 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.sources import core_sources
 from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import transport_helpers
 from torax._src.time_step_calculator import time_step_calculator_state
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -79,7 +80,7 @@ class SimStateTest(parameterized.TestCase):
 
   def _make_sim_state(self, geo: geometry.Geometry) -> sim_state.SimState:
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    core_transport = state.CoreTransport.zeros(geo)
+    core_transport = transport_helpers.make_zero_core_transport(geo)
 
     sp = core_sources.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),

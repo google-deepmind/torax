@@ -24,7 +24,6 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import (
@@ -34,7 +33,7 @@ from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 from typing_extensions import override
 
 # pylint: disable=invalid-name
@@ -326,10 +325,10 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
 
   def modify_core_transport(
       self,
-      core_transport: state.CoreTransport,
+      core_transport: transport_coeffs.CoreTransport,
       geo: geometry.Geometry,
       pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
-  ) -> state.CoreTransport:
+  ) -> transport_coeffs.CoreTransport:
     """Modifies core transport coefficients in the pedestal region.
 
     Scales the turbulent core transport coefficients in the pedestal region by
@@ -440,8 +439,8 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
     coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
     if core_transport.pereverzev is not None:
       coeffs_to_sum.append(core_transport.pereverzev)
-    total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
-    return state.CoreTransport(
+    total = transport_coeffs.sum_transport_coeffs(*coeffs_to_sum)
+    return transport_coeffs.CoreTransport(
         total=total,
         turbulent=modified_turbulent,
         neoclassical=core_transport.neoclassical,
