@@ -571,6 +571,47 @@ be left as ``None``) and ``torax.edge.EdgeState``:
         )
 
 
+Serializing custom model state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Stateful custom models that carry cross-timestep state (by subclassing
+``edge.EdgeState``, ``sources.SourceState``, or ``pedestal.StructureState``)
+can override ``to_xr_datatree`` using ``torax.output`` types so their state is
+included under ``/model_state`` in simulation outputs and restarts:
+
+.. code-block:: python
+
+    import dataclasses
+    import jax
+    import numpy as np
+    from torax import edge
+    from torax import output
+    import xarray as xr
+
+    MY_STATE_VAR = output.OutputKey(
+        'my_state_var',
+        units=output.Units.DIMENSIONLESS,
+        grid_type=output.GridType.SCALAR,
+    )
+
+    @jax.tree_util.register_dataclass
+    @dataclasses.dataclass(frozen=True)
+    class MyStatefulEdgeState(edge.EdgeState):
+      counter: jax.Array
+
+      def to_xr_datatree(
+          self,
+          context: output.OutputGridContext,
+      ) -> xr.DataTree:
+        data_vars: dict[str, output.OutputVar] = {
+            MY_STATE_VAR: context.pack(
+                MY_STATE_VAR,
+                np.atleast_1d(np.asarray(self.counter)),
+            ),
+        }
+        return xr.DataTree(dataset=context.build_dataset(data_vars))
+
+
 Step 2: Define the pydantic config
 ----------------------------------
 

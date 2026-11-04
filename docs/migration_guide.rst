@@ -155,9 +155,9 @@ internal modules have moved into dedicated public subpackages:
 
 TORAX v2 exposes the public subpackages ``torax.constants``, ``torax.edge``,
 ``torax.experimental``, ``torax.math_utils``, ``torax.neoclassical``,
-``torax.pedestal``, ``torax.sources``, ``torax.torax_pydantic``, and
-``torax.transport``, as well as ``torax.CoreSources`` and
-``torax.SolverProfiles`` at the top level.
+``torax.output``, ``torax.pedestal``, ``torax.sources``,
+``torax.torax_pydantic``, and ``torax.transport``, as well as ``torax.CoreSources``
+and ``torax.SolverProfiles`` at the top level.
 
 ``CoreProfiles`` nested container structure
 -------------------------------------------

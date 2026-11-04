@@ -24,6 +24,7 @@ from torax import edge
 from torax import experimental
 from torax import math_utils
 from torax import neoclassical
+from torax import output
 from torax import pedestal
 from torax import sources
 from torax import torax_pydantic
@@ -62,6 +63,7 @@ __all__ = [
     'experimental',
     'math_utils',
     'neoclassical',
+    'output',
     'pedestal',
     'sources',
     'torax_pydantic',
