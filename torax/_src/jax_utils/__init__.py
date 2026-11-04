@@ -23,6 +23,8 @@ from torax._src.jax_utils.common import get_dtype
 from torax._src.jax_utils.common import get_int_dtype
 from torax._src.jax_utils.common import get_np_dtype
 from torax._src.jax_utils.common import get_number_of_compiles
+from torax._src.jax_utils.common import log_jax_backend
+from torax._src.jax_utils.common import set_jax_precision
 from torax._src.jax_utils.matrix_inverse import fast_matrix_inverse
 from torax._src.jax_utils.while_loop_bounded import while_loop_bounded
 
@@ -34,10 +36,12 @@ __all__ = [
     'enable_errors',
     'env_bool',
     'error_if',
+    'fast_matrix_inverse',
     'get_dtype',
     'get_int_dtype',
     'get_np_dtype',
     'get_number_of_compiles',
-    'fast_matrix_inverse',
+    'log_jax_backend',
+    'set_jax_precision',
     'while_loop_bounded',
 ]

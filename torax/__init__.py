@@ -14,11 +14,9 @@
 
 """Library functionality for TORAX."""
 
-import logging
 import os
 
 # pylint: disable=g-importing-member
-import jax
 from torax import constants
 from torax import experimental
 from torax import math_utils
@@ -27,6 +25,7 @@ from torax import pedestal
 from torax import sources
 from torax import torax_pydantic
 from torax import transport
+from torax._src import jax_utils
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module
@@ -39,10 +38,8 @@ from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
-from torax._src.sources.core_sources import CoreSources
 from torax._src.state import CoreTransport
 from torax._src.state import SimError
-from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.config import ToraxConfig
 
 # pylint: enable=g-importing-member
@@ -71,37 +68,13 @@ __all__ = [
     'run_simulation',
     'SolverProfiles',
     'CoreProfiles',
-    'CoreSources',
     'CoreTransport',
     'Geometry',
     'PostProcessedOutputs',
     'RuntimeParams',
     'SimError',
-    'SolverNumericOutputs',
     'StateHistory',
     'ToraxConfig',
 ]
 
-
-def set_jax_precision():
-  """Sets the JAX precision based on the JAX_PRECISION environment variable.
-
-  Raises:
-    ValueError: If JAX_PRECISION is not 'f64' or 'f32'.
-  """
-  # Default TORAX JAX precision is f64
-  precision = os.getenv('JAX_PRECISION', 'f64')
-  if precision not in ('f64', 'f32'):
-    raise ValueError(
-        'Unknown JAX precision environment variable: %s' % precision
-    )
-  if precision == 'f64':
-    jax.config.update('jax_enable_x64', True)
-
-
-def log_jax_backend():
-  """Logs the default JAX backend being used."""
-  logging.info('JAX running on a default %s backend', jax.default_backend())
-
-
-set_jax_precision()
+jax_utils.set_jax_precision()

@@ -26,7 +26,6 @@ from torax._src.sources.runtime_params import Mode
 from torax._src.sources.runtime_params import RuntimeParams
 from torax._src.sources.source import FinalSource
 from torax._src.sources.source import Source
-from torax._src.sources.source import SourceBase
 from torax._src.sources.source import SourceUsingCoreProfiles
 from torax._src.sources.source_state import SourceState
 
@@ -37,7 +36,6 @@ __all__ = [
     'PopulatedSourceOutput',
     'RuntimeParams',
     'Source',
-    'SourceBase',
     'SourceConfigBase',
     'SourceOutput',
     'SourceState',

@@ -22,16 +22,12 @@ from torax._src.transport_model.component import ComponentTransportModel
 from torax._src.transport_model.config_base import ComponentTransportConfigBase
 from torax._src.transport_model.register_model import register_transport_model
 from torax._src.transport_model.runtime_params import ComponentRuntimeParams
-from torax._src.transport_model.runtime_params import RuntimeParams
 from torax._src.transport_model.transport_coeffs import TransportCoeffs
-from torax._src.transport_model.transport_coeffs import TurbulentTransport
 
 __all__ = [
     'ComponentRuntimeParams',  # Runtime parameters for component models
     'ComponentTransportConfigBase',  # Base Pydantic config for component models
     'ComponentTransportModel',  # Base class for individual transport models
-    'RuntimeParams',  # Runtime parameters for transport models
     'TransportCoeffs',  # Base dataclass containing 4 main transport channels
-    'TurbulentTransport',  # Combined container holding model outputs
     'register_transport_model',  # Register custom transport model configs
 ]

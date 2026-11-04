@@ -145,9 +145,9 @@ internal modules have moved into dedicated public subpackages:
    * - ``torax.PedestalModelOutput``
      - ``torax.pedestal.PedestalStructure``
    * - ``torax.SourceProfiles``
-     - ``torax.CoreSources`` (also ``torax.sources.CoreSources``;
-       ``state_history.source_profiles`` is now ``state_history.core_sources``,
-       with per-source ``SourceOutput`` entries in ``core_sources.sources``)
+     - ``torax.sources.CoreSources`` (``state_history.source_profiles`` is now
+       ``state_history.core_sources``, with per-source ``SourceOutput`` entries
+       in ``core_sources.sources``)
    * - ``torax_pydantic.BaseModelFrozen``
      - ``torax.torax_pydantic.ConfigBase``
    * - ``torax.experimental.run_simulation_jitted``
@@ -156,8 +156,7 @@ internal modules have moved into dedicated public subpackages:
 TORAX v2 exposes the public subpackages ``torax.constants``,
 ``torax.experimental``, ``torax.math_utils``, ``torax.output``,
 ``torax.pedestal``, ``torax.sources``, ``torax.torax_pydantic``, and
-``torax.transport``, as well as ``torax.CoreSources`` and
-``torax.SolverProfiles`` at the top level.
+``torax.transport``, as well as ``torax.SolverProfiles`` at the top level.
 
 ``CoreProfiles`` nested container structure
 -------------------------------------------

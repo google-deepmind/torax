@@ -16,6 +16,7 @@
 
 import contextlib
 import functools
+import logging
 import os
 from typing import Any, Callable, Literal, TypeAlias
 import chex
@@ -54,6 +55,27 @@ def get_int_dtype() -> type(jnp.int32):  # pyrefly: ignore[invalid-annotation]
       'Unknown JAX precision environment variable: %s' % precision
   )
   return jnp.int64 if precision == 'f64' else jnp.int32
+
+
+def set_jax_precision() -> None:
+  """Sets the JAX precision based on the JAX_PRECISION environment variable.
+
+  Raises:
+    ValueError: If JAX_PRECISION is not 'f64' or 'f32'.
+  """
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  if precision not in ('f64', 'f32'):
+    raise ValueError(
+        'Unknown JAX precision environment variable: %s' % precision
+    )
+  if precision == 'f64':
+    jax.config.update('jax_enable_x64', True)
+
+
+def log_jax_backend() -> None:
+  """Logs the default JAX backend being used."""
+  logging.info('JAX running on a default %s backend', jax.default_backend())
 
 
 def env_bool(name: str, default: bool) -> bool:

@@ -424,7 +424,7 @@ Create a pydantic config class that inherits from
 ``torax.sources.SourceConfigBase``:
 
 - Implement ``build_source``: returns the source instance (a subclass of
-  ``SourceBase``).
+  ``Source``, ``SourceUsingCoreProfiles``, or ``FinalSource``).
 - Override ``build_runtime_params`` if your source requires custom
   ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 
