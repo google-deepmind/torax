@@ -180,13 +180,10 @@ def main(
     plot_sim_progress: If True, then a plotting spectator will be attached to
       the sim.
     log_sim_progress_bar: If True, then a progress bar will be logged.
-    max_steps: Optional maximum number of steps to take in the simulation. If
-      None, `max_steps` is determined automatically for
-      `fixed_time_step_calculator` (exact step count when
-      `allow_backtracking=False`, or 10x that value when
-      `allow_backtracking=True`), while `chi_time_step_calculator` and
-      `from_previous_time_step_calculator` require `max_steps` to be explicitly
-      specified (otherwise a `ValueError` is raised).
+    max_steps: Optional override for the maximum number of steps to take in the
+      simulation. If provided, overrides `time_step_calculator.max_steps` from
+      the config. If None, uses `time_step_calculator.max_steps` from the
+      config.
 
   Returns:
     The output state file path.

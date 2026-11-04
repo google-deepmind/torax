@@ -36,6 +36,8 @@ class ExamplesTest(parameterized.TestCase):
         example_config_path
     )
     self.assertIsInstance(torax_config, config.ToraxConfig)
+    assert torax_config.time_step_calculator.max_steps is not None
+    self.assertGreater(torax_config.time_step_calculator.max_steps, 0)
 
 
 if __name__ == '__main__':

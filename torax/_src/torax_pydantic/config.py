@@ -82,7 +82,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
   edge: edge_config.EdgeConfig | None = None
   time_step_calculator: time_step_calculator_config.TimeStepCalculatorConfig = (
-      time_step_calculator_config.ChiTimeStepCalculatorConfig()
+      pydantic.Field()
   )
   restart: file_restart_config.FileRestartConfig | None = pydantic.Field(
       default=None

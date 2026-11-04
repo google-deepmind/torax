@@ -134,6 +134,7 @@ def circular_references() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
+      'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
       'sources': {
           'generic_current': {
               'fraction_of_total_current': 0.2,
@@ -166,6 +167,7 @@ def chease_references_I_p_from_chease() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
+      'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
       'sources': {
           'generic_current': {
               'fraction_of_total_current': 0.2,
@@ -200,6 +202,7 @@ def chease_references_I_p_from_runtime_params() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
+      'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
       'sources': {
           'generic_current': {
               'fraction_of_total_current': 0.2,

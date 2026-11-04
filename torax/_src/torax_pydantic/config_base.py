@@ -30,6 +30,18 @@ StaticKwargs: TypeAlias = dict[str, Any]
 DynamicArgs: TypeAlias = list[Any]
 
 
+def _validate_field_value(field_type: Any, value: Any) -> Any:
+  """Validates `value` against `field_type` using `pydantic.TypeAdapter`."""
+  # TypeAdapter does not allow a config arg if the value is a Pydantic
+  # model, as this has its own config.
+  cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
+  try:
+    cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg  # pyrefly: ignore[bad-argument-type]
+  except TypeError:
+    pass
+  return pydantic.TypeAdapter(field_type, config=cfg).validate_python(value)
+
+
 class ConfigBase(pydantic.BaseModel):
   """Base config with frozen fields.
 
@@ -275,26 +287,39 @@ class ConfigBase(pydantic.BaseModel):
             ' ConfigBase model.'
         )
       assert value_name in model.__dict__
-      field_type = model.__class__.model_fields[value_name].annotation
-
-      # TypeAdapter does not allow a config arg if the value is a Pydantic
-      # model, as this has its own config.
-      cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
-      try:
-        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg  # pyrefly: ignore[bad-argument-type]
-      except TypeError:
-        pass
-      value = pydantic.TypeAdapter(field_type, config=cfg).validate_python(
-          value
+      field_info = model.__class__.model_fields[value_name]
+      model.__dict__[value_name] = _validate_field_value(
+          field_info.annotation, value
       )
-      model.__dict__[value_name] = value
+      if value is None and field_info.default is None:
+        model.model_fields_set.discard(value_name)
+      else:
+        model.model_fields_set.add(value_name)
 
-    for model in mutated_models:
+    mutated_by_id = {id(m): m for m in mutated_models}
+    for model in mutated_by_id.values():
       for model_ancestral in model_tree.rsearch(id(model)):
         m = model_tree.get_node(model_ancestral).data
         m.clear_cached_properties()
-        # Re-validate all ancestral models.
-        m.__class__.from_dict(m.to_dict())
+        # Re-validate all ancestral models. For directly mutated models, omit
+        # unset optional/derived scalar fields so model validators and default
+        # factories recompute them against the updated values.
+        d = m.to_dict()
+        unset_scalar_fields = []
+        if id(m) in mutated_by_id:
+          for f_name, f_info in m.__class__.model_fields.items():
+            if (
+                f_name not in m.model_fields_set
+                and not f_info.is_required()
+                and isinstance(
+                    m.__dict__[f_name], (int, float, bool, str, type(None))
+                )
+            ):
+              unset_scalar_fields.append(f_name)
+              d.pop(f_name, None)
+        revalidated = m.__class__.from_dict(d)
+        for f_name in unset_scalar_fields:
+          m.__dict__[f_name] = revalidated.__dict__[f_name]
 
   def _lookup_path(self, paths: Sequence[str]) -> Self:
     """Returns the model at the given path."""

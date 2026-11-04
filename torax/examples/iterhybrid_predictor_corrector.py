@@ -180,5 +180,6 @@ CONFIG = {
         'chi_timestep_prefactor': 50,
         'dt_backtracking_factor': 3,
         't_final': 5,  # Simulated plasma duration [s]
+        'max_steps': 100,
     },
 }

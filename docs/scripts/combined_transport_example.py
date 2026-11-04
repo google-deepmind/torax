@@ -69,11 +69,13 @@ def main(argv: Sequence[str]) -> None:
               },
           },
       },
+      'time_step_calculator': {
+          'calculator_type': 'chi',
+          'max_steps': 100,
+      },
   }
   torax_config = torax.ToraxConfig.from_dict(config_dict)
-  data_tree = torax.run_simulation(
-      torax_config, max_steps=100
-  ).simulation_output_to_xr()
+  data_tree = torax.run_simulation(torax_config).simulation_output_to_xr()
   plt.figure(figsize=(8, 2))
   plt.plot(
       data_tree.rho_face_norm,

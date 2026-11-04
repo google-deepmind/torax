@@ -227,7 +227,7 @@ class BuilderTest(absltest.TestCase):
             sources=dict(),
             solver=dict(use_fixed_point=False),
             transport=dict(),
-            time_step_calculator=dict(),
+            time_step_calculator=dict(max_steps=100),
         )
     )
     core_profiles, runtime_params, geo = (

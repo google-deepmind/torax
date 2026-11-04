@@ -69,5 +69,6 @@ CONFIG = {
         'calculator_type': 'chi',
         'chi_timestep_prefactor': 9.0,
         't_final': 1,
+        'max_steps': 100,
     },
 }

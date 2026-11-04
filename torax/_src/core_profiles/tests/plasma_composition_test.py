@@ -482,6 +482,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
 
     config_updates = {

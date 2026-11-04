@@ -42,6 +42,7 @@ CONFIG = {
     },
     'time_step_calculator': {
         't_final': 3,
+        'max_steps': 100,
     },
     'plasma_composition': {},
     'geometry': {

@@ -19,6 +19,7 @@ from typing import Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import pydantic
 from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
@@ -299,14 +300,12 @@ class JitSimTest(sim_test_case.SimTestCase):
     test_data_dir = paths.test_data_dir()
     config_path = os.path.join(test_data_dir, 'test_implicit.py')
     torax_config = config_loader.build_torax_config_from_file(config_path)
-    torax_config.update_fields(
-        {'time_step_calculator': {'calculator_type': calculator_type}}
-    )
-
     with self.assertRaisesRegex(
-        NotImplementedError, 'max_steps must be specified when using'
+        pydantic.ValidationError, 'max_steps must be specified when using'
     ):
-      run_simulation.run_simulation(torax_config, progress_bar=False)
+      torax_config.update_fields(
+          {'time_step_calculator': {'calculator_type': calculator_type}}
+      )
 
 
 if __name__ == '__main__':

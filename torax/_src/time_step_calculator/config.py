@@ -50,8 +50,9 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
       call is made where the timestep is reduced by a factor of
       `dt_backtracking_factor`. This is applied iteratively until either the
       solver converges, or `min_dt` is reached.
-    max_steps: Optional maximum number of simulation steps. If `None`, falls
-      back to `default_max_steps` if supported by the time step calculator.
+    max_steps: Optional maximum number of simulation steps. If `None`, populated
+      during validation using `default_max_steps` if supported by the time step
+      calculator; otherwise raises a validation error.
   """
 
   t_initial: torax_pydantic.Second = 0.0
@@ -65,13 +66,27 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
       pydantic.PositiveInt | None, torax_pydantic.JAX_STATIC
   ] = None
 
-  @pydantic.model_validator(mode='after')
-  def _validate_base(self) -> Self:
+  def _validate_fields(self) -> None:
+    """Validates fields before computing `default_max_steps`."""
     if self.t_initial > self.t_final:
       raise ValueError(
           't_initial must be less than or equal to t_final. '
           f't_initial: {self.t_initial}, t_final: {self.t_final}'
       )
+
+  @pydantic.model_validator(mode='after')
+  def _validate_base(self) -> Self:
+    self._validate_fields()
+    if self.max_steps is None:
+      try:
+        default_max_steps = self.default_max_steps
+      except NotImplementedError as e:
+        raise ValueError(str(e)) from e
+      if default_max_steps <= 0:
+        raise ValueError(
+            f'default_max_steps must be positive, got {default_max_steps}.'
+        )
+      object.__setattr__(self, 'max_steps', default_max_steps)
     return self
 
   def build_runtime_params(
@@ -145,14 +160,13 @@ class ChiTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
   max_dt: torax_pydantic.Second = 2.0
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
 
-  @pydantic.model_validator(mode='after')
-  def model_validation(self) -> Self:
+  def _validate_fields(self) -> None:
+    super()._validate_fields()
     if not self.max_dt >= self.min_dt:
       raise ValueError(
           'max_dt must be greater than or equal to min_dt. '
           f'max_dt: {self.max_dt}, min_dt: {self.min_dt}'
       )
-    return self
 
   def build_runtime_params(
       self, t: chex.Numeric
@@ -206,6 +220,8 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
   @property
   def default_max_steps(self) -> int:
     """Returns the default maximum number of simulation steps."""
+    if self.t_final == self.t_initial:
+      return 1
     min_dt_val = float(np.min(self.dt.value))
     max_steps = math.ceil((self.t_final - self.t_initial) / min_dt_val)
     if self.allow_backtracking:
@@ -260,8 +276,8 @@ class FromPreviousTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
   initial_dt: pydantic.PositiveFloat = 1e-1
   max_dt: torax_pydantic.Second = 2.0
 
-  @pydantic.model_validator(mode='after')
-  def model_validation(self) -> Self:
+  def _validate_fields(self) -> None:
+    super()._validate_fields()
     if not self.allow_backtracking:
       raise ValueError(
           'allow_backtracking must be True when using from_previous_dt.'
@@ -276,7 +292,6 @@ class FromPreviousTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
           'max_dt must be greater than or equal to initial_dt. '
           f'max_dt: {self.max_dt}, initial_dt: {self.initial_dt}'
       )
-    return self
 
   def build_runtime_params(
       self, t: chex.Numeric

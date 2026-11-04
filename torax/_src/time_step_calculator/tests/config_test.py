@@ -124,7 +124,10 @@ class ConfigTest(parameterized.TestCase):
   ):
     """Builds a time step calculator from the config."""
     config = default_configs.get_default_config_dict()
-    config['time_step_calculator'] = {'calculator_type': calculator_type}
+    tsc_config: dict[str, object] = {'calculator_type': calculator_type}
+    if calculator_type != 'fixed':
+      tsc_config['max_steps'] = 100
+    config['time_step_calculator'] = tsc_config
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     self.assertIsInstance(
         torax_config.time_step_calculator, expected_config_type
@@ -151,10 +154,13 @@ class ConfigTest(parameterized.TestCase):
   def test_time_step_calculator_under_jit(self, calculator_type):
     """Builds a time step calculator from the config."""
     config = default_configs.get_default_config_dict()
-    config['time_step_calculator'] = {
+    tsc_config: dict[str, object] = {
         'calculator_type': calculator_type,
         'tolerance': 2e-5,
     }
+    if calculator_type != 'fixed':
+      tsc_config['max_steps'] = 100
+    config['time_step_calculator'] = tsc_config
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     x = torax_config.time_step_calculator
 
@@ -180,42 +186,172 @@ class ConfigTest(parameterized.TestCase):
       self.assertFalse(output.exact_t_final)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 2)
 
-  @parameterized.parameters('chi', 'from_previous_dt')
-  def test_non_fixed_max_steps_is_none(self, calculator_type):
+  @parameterized.parameters('chi', 'from_previous_dt', None)
+  def test_non_fixed_requires_max_steps(self, calculator_type):
     config = default_configs.get_default_config_dict()
-    config['time_step_calculator'] = {'calculator_type': calculator_type}
+    if calculator_type is None:
+      del config['time_step_calculator']
+    else:
+      config['time_step_calculator'] = {'calculator_type': calculator_type}
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'max_steps must be specified when using'
+    ):
+      torax_config_lib.ToraxConfig.from_dict(config)
+
+  @parameterized.parameters('chi', 'from_previous_dt')
+  def test_non_fixed_default_max_steps_raises_not_implemented_error(
+      self, calculator_type
+  ):
+    config = default_configs.get_default_config_dict()
+    config['time_step_calculator'] = {
+        'calculator_type': calculator_type,
+        'max_steps': 100,
+    }
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
-    self.assertIsNone(torax_config.time_step_calculator.max_steps)
-    with self.assertRaises(NotImplementedError):
+    with self.assertRaisesRegex(
+        NotImplementedError, 'max_steps must be specified when using'
+    ):
       _ = torax_config.time_step_calculator.default_max_steps
+
+  @parameterized.parameters(0, -5)
+  def test_non_positive_max_steps_raises_error(self, invalid_max_steps):
+    config = default_configs.get_default_config_dict()
+    config['time_step_calculator'] = {
+        'calculator_type': 'chi',
+        'max_steps': invalid_max_steps,
+    }
+    with self.assertRaises(pydantic.ValidationError):
+      torax_config_lib.ToraxConfig.from_dict(config)
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='no_backtracking',
+          testcase_name='no_backtracking_exact_division',
+          t_initial=0.0,
+          t_final=5.0,
+          dt=0.5,
+          allow_backtracking=False,
+          expected_max_steps=10,
+      ),
+      dict(
+          testcase_name='no_backtracking_ceil_division',
+          t_initial=0.0,
+          t_final=5.0,
+          dt=2.0,
           allow_backtracking=False,
           expected_max_steps=3,
       ),
       dict(
-          testcase_name='with_backtracking',
+          testcase_name='no_backtracking_time_varying_dt',
+          t_initial=0.0,
+          t_final=5.0,
+          dt={0.0: 2.0, 2.0: 0.5},
+          allow_backtracking=False,
+          expected_max_steps=10,
+      ),
+      dict(
+          testcase_name='with_backtracking_exact_division',
+          t_initial=0.0,
+          t_final=5.0,
+          dt=0.5,
+          allow_backtracking=True,
+          expected_max_steps=100,
+      ),
+      dict(
+          testcase_name='with_backtracking_ceil_division',
+          t_initial=0.0,
+          t_final=5.0,
+          dt=2.0,
           allow_backtracking=True,
           expected_max_steps=30,
       ),
+      dict(
+          testcase_name='equal_t_initial_and_t_final',
+          t_initial=2.0,
+          t_final=2.0,
+          dt=0.5,
+          allow_backtracking=True,
+          expected_max_steps=1,
+      ),
   )
-  def test_fixed_max_steps(self, allow_backtracking, expected_max_steps):
+  def test_fixed_default_max_steps(
+      self,
+      t_initial,
+      t_final,
+      dt,
+      allow_backtracking,
+      expected_max_steps,
+  ):
+    config = default_configs.get_default_config_dict()
+    config['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': t_initial,
+        't_final': t_final,
+        'dt': dt,
+        'allow_backtracking': allow_backtracking,
+    }
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
+    self.assertEqual(
+        torax_config.time_step_calculator.default_max_steps,
+        expected_max_steps,
+    )
+    self.assertEqual(
+        torax_config.time_step_calculator.max_steps,
+        expected_max_steps,
+    )
+
+  def test_fixed_max_steps_explicit_and_update_fields(self):
     config = default_configs.get_default_config_dict()
     config['time_step_calculator'] = {
         'calculator_type': 'fixed',
         't_initial': 0.0,
         't_final': 5.0,
-        'dt': 2.0,
-        'allow_backtracking': allow_backtracking,
+        'dt': 1.0,
+        'allow_backtracking': False,
     }
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
-    self.assertIsNone(torax_config.time_step_calculator.max_steps)
-    self.assertEqual(
-        torax_config.time_step_calculator.default_max_steps,
-        expected_max_steps,
-    )
+    self.assertEqual(torax_config.time_step_calculator.max_steps, 5)
+
+    # Updating t_final recomputes max_steps when max_steps was not explicitly
+    # provided.
+    torax_config.update_fields({'time_step_calculator.t_final': 10.0})
+    self.assertEqual(torax_config.time_step_calculator.max_steps, 10)
+
+    # Explicit max_steps is preserved across updates to t_final.
+    torax_config.update_fields({'time_step_calculator.max_steps': 25})
+    self.assertEqual(torax_config.time_step_calculator.max_steps, 25)
+    torax_config.update_fields({'time_step_calculator.t_final': 20.0})
+    self.assertEqual(torax_config.time_step_calculator.max_steps, 25)
+    self.assertEqual(torax_config.time_step_calculator.default_max_steps, 20)
+
+    # Resetting max_steps to None restores default_max_steps.
+    torax_config.update_fields({'time_step_calculator.max_steps': None})
+    self.assertEqual(torax_config.time_step_calculator.max_steps, 20)
+
+  def test_subclass_default_max_steps_populated_in_validation(self):
+
+    class CustomTimeStepCalculatorConfig(
+        time_step_config.TimeStepCalculatorConfigBase
+    ):
+      heuristic_steps: int = 42
+
+      @property
+      def default_max_steps(self) -> int:
+        return self.heuristic_steps
+
+      def build_time_step_calculator(self):
+        return fixed_time_step_calculator.FixedTimeStepCalculator()
+
+    custom_config = CustomTimeStepCalculatorConfig()
+    self.assertEqual(custom_config.max_steps, 42)
+
+    explicit_config = CustomTimeStepCalculatorConfig(max_steps=12)
+    self.assertEqual(explicit_config.max_steps, 12)
+    self.assertEqual(explicit_config.default_max_steps, 42)
+
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'default_max_steps must be positive'
+    ):
+      CustomTimeStepCalculatorConfig(heuristic_steps=0)
 
 
 if __name__ == '__main__':

@@ -111,5 +111,6 @@ CONFIG = {
         'chi_timestep_prefactor': 150,
         'max_dt': 0.5,
         't_final': 10,
+        'max_steps': 100,
     },
 }

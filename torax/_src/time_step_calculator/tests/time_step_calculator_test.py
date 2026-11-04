@@ -97,6 +97,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         'calculator_type': 'chi',
         'chi_timestep_prefactor': chi_timestep_prefactor,
         'max_dt': max_dt,
+        'max_steps': 100,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
@@ -124,6 +125,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         'initial_dt': 0.25,
         'max_dt': 1.0,
         'dt_backtracking_factor': 3.0,
+        'max_steps': 100,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
@@ -150,6 +152,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         'initial_dt': 0.25,
         'max_dt': 1.0,
         'dt_backtracking_factor': 3.0,
+        'max_steps': 100,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)

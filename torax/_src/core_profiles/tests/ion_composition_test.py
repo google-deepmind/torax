@@ -193,6 +193,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
@@ -297,6 +298,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
@@ -392,6 +394,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
 
     config_dict_ne_ratios = base_config_dict.copy()
@@ -476,6 +479,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -568,6 +572,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
     geo = geometry_config.GeometryConfig.from_dict(
         base_config_dict['geometry']
@@ -660,6 +665,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
 
     config_dict_ne_ratios = base_config_dict.copy()
@@ -757,6 +763,7 @@ class IonCompositionTest(parameterized.TestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
 
     config_dict_ne_ratios = base_config_dict.copy()
@@ -869,7 +876,7 @@ class IonCompositionTest(parameterized.TestCase):
             },
         },
         'numerics': {},
-        'time_step_calculator': {'t_final': 0.1},
+        'time_step_calculator': {'t_final': 0.1, 'max_steps': 100},
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},

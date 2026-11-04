@@ -24,6 +24,8 @@ new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
 
+import copy
+
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import jit_run_loop
@@ -113,9 +115,10 @@ def run_simulation(
     progress_bar: Whether to show a progress bar.
     log_n_steps: The number of steps between logging events. This affects both
       the `log_timestep_info` and `progress_bar` arguments.
-    max_steps: The maximum number of steps to take. If None, uses
-      `time_step_calculator.max_steps` from the config if set, or falls back to
-      `time_step_calculator.default_max_steps`.
+    max_steps: Optional override for the maximum number of steps to take. If
+      provided, overrides `torax_config.time_step_calculator.max_steps` on a
+      copy of `torax_config` without mutating the input config. If None, uses
+      `torax_config.time_step_calculator.max_steps`.
 
   Returns:
     The state history which contains the `CoreProfiles`, `CoreTransport`,
@@ -123,6 +126,9 @@ def run_simulation(
     step of the simulation. A DataTree can be obtained via
     `state_history.simulation_output_to_xr()`.
   """
+  if max_steps is not None:
+    torax_config = copy.deepcopy(torax_config)
+    torax_config.update_fields({'time_step_calculator.max_steps': max_steps})
 
   # Only prepare the initial state if we are doing a restart, as this is more
   # expensive than doing this in the JITted function.
@@ -138,7 +144,6 @@ def run_simulation(
   state_history, post_processed_outputs_history, sim_error = (
       jit_run_loop.run_loop(
           step_fn,
-          max_steps=max_steps,
           log_timestep_info=log_timestep_info,
           progress_bar=progress_bar,
           log_n_steps=log_n_steps,

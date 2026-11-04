@@ -119,6 +119,7 @@ CONFIG['time_step_calculator'] = {
     'initial_dt': 1.0,
     'min_dt': 1e-3,
     'dt_backtracking_factor': 2.0,
+    'max_steps': 200,
 }
 
 # Turn off resistivity multiplier, as otherwise high chi -> low temp -> high

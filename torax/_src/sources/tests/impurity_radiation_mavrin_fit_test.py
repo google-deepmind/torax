@@ -346,6 +346,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
 
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -415,6 +416,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'solver': {},
         'transport': {},
         'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'chi', 'max_steps': 100},
     }
 
     # Config 1: n_e_ratios
