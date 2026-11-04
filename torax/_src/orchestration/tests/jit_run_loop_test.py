@@ -422,6 +422,67 @@ class JitRunLoopTest(parameterized.TestCase):
         num_compiles,
     )
 
+  def test_changing_num_states_does_not_recompile(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': 0.0,
+        't_final': 0.6,
+        'dt': 0.3,
+        'allow_backtracking': False,
+    }
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+    provider = step_fn.runtime_params_provider
+    dt_times = jnp.array([0.0])
+
+    def _make_dt_overrides(dt: float):
+      return provider.update_provider_from_mapping({
+          'time_step_calculator.dt': torax_experimental.TimeVaryingScalarUpdate(
+              time=dt_times,
+              value=jnp.array([dt]),
+          )
+      })
+
+    warmup_overrides = _make_dt_overrides(0.3)
+    sweep_cases = (
+        (_make_dt_overrides(0.2), 4),
+        (_make_dt_overrides(0.15), 5),
+    )
+
+    initial_states, _, initial_error = jit_run_loop.run_loop(
+        step_fn=step_fn,
+        runtime_params_overrides=warmup_overrides,
+        max_steps=10,
+    )
+    self.assertEqual(initial_error, torax.SimError.NO_ERROR)
+    self.assertLen(initial_states.t, 3)
+
+    compiled_fns: list[str | int | None] = []
+
+    def _record_compile(
+        event: str, duration_secs: float, **kwargs: str | int
+    ) -> None:
+      del duration_secs
+      if event == '/jax/core/compile/backend_compile_duration':
+        compiled_fns.append(kwargs.get('fun_name'))
+
+    jax.monitoring.register_event_duration_secs_listener(_record_compile)
+    try:
+      for overrides, expected_len in sweep_cases:
+        states, outputs, sim_error = jit_run_loop.run_loop(
+            step_fn=step_fn,
+            runtime_params_overrides=overrides,
+            max_steps=10,
+        )
+        self.assertEqual(sim_error, torax.SimError.NO_ERROR)
+        self.assertLen(states.t, expected_len)
+        self.assertLen(outputs.Q_fusion, expected_len)
+    finally:
+      jax.monitoring.unregister_event_duration_listener(_record_compile)
+
+    self.assertEmpty(compiled_fns)
+
 
 if __name__ == '__main__':
   absltest.main()
