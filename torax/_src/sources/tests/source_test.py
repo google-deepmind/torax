@@ -69,7 +69,9 @@ class SourceTest(parameterized.TestCase):
     source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=np.zeros_like(geo.rho_norm),
+                prescribed_values=core_sources.SourceOutput(
+                    j_parallel=np.zeros_like(geo.rho_norm)
+                ),
                 mode=sources_runtime_params_lib.Mode.ZERO,
                 is_explicit=False,
             )
@@ -119,7 +121,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0),),
+                prescribed_values=core_sources.SourceOutput(
+                    j_parallel=np.full([4], 3.0)
+                ),
                 mode=mode,
                 is_explicit=False,
             )
@@ -152,7 +156,10 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
+                prescribed_values=core_sources.SourceOutput(
+                    power_density_e=np.full([4], 3.0),
+                    j_parallel=np.full([4], 4.0),
+                ),
                 mode=sources_runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
@@ -188,7 +195,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0),),
+                prescribed_values=core_sources.SourceOutput(
+                    power_density_e=np.full([4], 3.0),
+                ),
                 mode=sources_runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
@@ -200,7 +209,8 @@ class SourceTest(parameterized.TestCase):
     )
     with self.assertRaisesRegex(
         ValueError,
-        "the number of prescribed values must match the number of populated",
+        r"ElectronCyclotronSource populated .* expected .*"
+        r" \(POPULATED_SOURCE_OUTPUTS\)",
     ):
       source.get_value(
           runtime_params=dynamic_slice,
@@ -262,7 +272,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         sources={
             "fast_ion_core_source": sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(),
+                prescribed_values=core_sources.SourceOutput(),
                 mode=sources_runtime_params_lib.Mode.MODEL_BASED,
                 is_explicit=False,
             )
@@ -301,7 +311,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         sources={
             "fast_ion_final_source": sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(),
+                prescribed_values=core_sources.SourceOutput(),
                 mode=sources_runtime_params_lib.Mode.MODEL_BASED,
                 is_explicit=False,
             )

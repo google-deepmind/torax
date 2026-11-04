@@ -230,6 +230,14 @@ class SingleProfileSourceTestCase(SourceTestCase):
         'is_explicit': True,
         **self.extra_source_config_kwargs,
     }
+    if mode == runtime_params_lib.Mode.PRESCRIBED:
+      source_model = self._source_config_class.from_dict(
+          dict(self.extra_source_config_kwargs)
+      ).build_source()
+      source_cfg['prescribed_values'] = {
+          output_field.value: 0.0
+          for output_field in source_model.POPULATED_SOURCE_OUTPUTS
+      }
     if self._model_name is not None:
       source_cfg['model_name'] = self._model_name
     config_dict['sources'] = {self._source_name: source_cfg}

@@ -145,7 +145,7 @@ class QeiSourceConfig(torax_pydantic.ConfigBase):
   ) -> RuntimeParams:
     del t
     return RuntimeParams(
-        prescribed_values=(),
+        prescribed_values=core_sources.SourceOutput(),
         mode=self.mode,
         is_explicit=False,
         Qei_multiplier=self.Qei_multiplier,

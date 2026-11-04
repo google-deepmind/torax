@@ -13,9 +13,8 @@
 # limitations under the License.
 """Core source/sink profiles for all the sources in TORAX."""
 
-from collections.abc import Collection, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 import dataclasses
-import enum
 from typing import Any, Literal, Self
 
 import jax
@@ -27,18 +26,12 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
+from torax._src.sources import runtime_params
 
 # pylint: disable=invalid-name
 
-
-@enum.unique
-class PopulatedSourceOutput(enum.StrEnum):
-  """Defines which profile fields on `SourceOutput` a source populates."""
-
-  POWER_DENSITY_I = 'power_density_i'
-  POWER_DENSITY_E = 'power_density_e'
-  J_PARALLEL = 'j_parallel'
-  PARTICLE_SOURCE_E = 'particle_source_e'
+PopulatedSourceOutput = runtime_params.PopulatedSourceOutput
+SourceOutput = runtime_params.SourceOutput
 
 
 def j_parallel_to_psi_source(
@@ -51,66 +44,6 @@ def j_parallel_to_psi_source(
       8 * geo.vpr * jnp.pi**2 * constants.CONSTANTS.mu_0 * geo.Phi_b / geo.F**2
   )
   return -total_j_dot_B * prefactor
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class SourceOutput:
-  """Output of a single Source model evaluation for one time step.
-
-  Attributes:
-    power_density_i: Ion power density profile on the cell grid [W/m^3].
-    power_density_e: Electron power density profile on the cell grid [W/m^3].
-    j_parallel: Parallel current density profile on the cell grid [A/m^2].
-    particle_source_e: Electron particle source profile on the cell grid [m^-3
-      s^-1].
-    fast_ions: Fast ion species distributions produced by this source, if any.
-  """
-
-  power_density_i: array_typing.FloatVectorCell | None = None
-  power_density_e: array_typing.FloatVectorCell | None = None
-  j_parallel: array_typing.FloatVectorCell | None = None
-  particle_source_e: array_typing.FloatVectorCell | None = None
-  fast_ions: tuple[fast_ion_lib.FastIon, ...] = ()
-
-  @classmethod
-  def zeros(
-      cls,
-      geo: geometry.Geometry,
-      populated_source_outputs: Collection[PopulatedSourceOutput] | None = None,
-  ) -> Self:
-    """Returns a SourceOutput with zero profiles for populated outputs."""
-    zero_profile = jnp.zeros(geo.rho_norm.shape)
-    if populated_source_outputs is None:
-      return cls(
-          power_density_i=zero_profile,
-          power_density_e=zero_profile,
-          j_parallel=zero_profile,
-          particle_source_e=zero_profile,
-      )
-    outputs = set(populated_source_outputs)
-    return cls(
-        power_density_i=(
-            zero_profile
-            if PopulatedSourceOutput.POWER_DENSITY_I in outputs
-            else None
-        ),
-        power_density_e=(
-            zero_profile
-            if PopulatedSourceOutput.POWER_DENSITY_E in outputs
-            else None
-        ),
-        j_parallel=(
-            zero_profile
-            if PopulatedSourceOutput.J_PARALLEL in outputs
-            else None
-        ),
-        particle_source_e=(
-            zero_profile
-            if PopulatedSourceOutput.PARTICLE_SOURCE_E in outputs
-            else None
-        ),
-    )
 
 
 def _asarray_source_output(output: SourceOutput) -> SourceOutput:

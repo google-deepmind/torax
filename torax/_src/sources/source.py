@@ -132,9 +132,8 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
       A tuple of ``(output, updated_source_state)``.
 
     Raises:
-      ValueError: If in ``PRESCRIBED`` mode and the length of prescribed values
-        does not match the number of populated source outputs, or if an unknown
-        mode is encountered.
+      ValueError: If the populated fields on the output do not match
+        ``POPULATED_SOURCE_OUTPUTS``, or if an unknown mode is encountered.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
 
@@ -142,48 +141,10 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
         output, source_state = model_fn()
-        populated = {
-            f
-            for f in core_sources.PopulatedSourceOutput
-            if getattr(output, f) is not None
-        }
-        expected = set(self.POPULATED_SOURCE_OUTPUTS)
-        if populated != expected:
-          raise ValueError(
-              f'{type(self).__name__} populated {populated}, expected'
-              f' {expected} (POPULATED_SOURCE_OUTPUTS).'
-          )
+        self._validate_output_profiles(output)
       case sources_runtime_params_lib.Mode.PRESCRIBED:
-        if len(source_params.prescribed_values) != len(
-            self.POPULATED_SOURCE_OUTPUTS
-        ):
-          raise ValueError(
-              'When using PRESCRIBED mode, the number of prescribed values must'
-              ' match the number of populated source outputs. Was: '
-              f'{len(source_params.prescribed_values)} '
-              f' Expected: {len(self.POPULATED_SOURCE_OUTPUTS)}.'
-          )
-        prescribed = dict(
-            zip(
-                self.POPULATED_SOURCE_OUTPUTS,
-                source_params.prescribed_values,
-                strict=True,
-            )
-        )
-        output = core_sources.SourceOutput(
-            power_density_i=prescribed.get(
-                core_sources.PopulatedSourceOutput.POWER_DENSITY_I
-            ),
-            power_density_e=prescribed.get(
-                core_sources.PopulatedSourceOutput.POWER_DENSITY_E
-            ),
-            j_parallel=prescribed.get(
-                core_sources.PopulatedSourceOutput.J_PARALLEL
-            ),
-            particle_source_e=prescribed.get(
-                core_sources.PopulatedSourceOutput.PARTICLE_SOURCE_E
-            ),
-        )
+        output = source_params.prescribed_values
+        self._validate_output_profiles(output)
       case sources_runtime_params_lib.Mode.ZERO:
         output = core_sources.SourceOutput.zeros(
             geo, self.POPULATED_SOURCE_OUTPUTS
@@ -192,6 +153,23 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
         raise ValueError(f'Unknown mode: {mode}')
 
     return output, source_state
+
+  def _validate_output_profiles(
+      self,
+      output: core_sources.SourceOutput,
+  ) -> None:
+    """Validates that output fields match this source's capabilities."""
+    populated = {
+        f
+        for f in core_sources.PopulatedSourceOutput
+        if getattr(output, f) is not None
+    }
+    expected = set(self.POPULATED_SOURCE_OUTPUTS)
+    if populated != expected:
+      raise ValueError(
+          f'{type(self).__name__} populated {populated}, expected {expected}'
+          ' (POPULATED_SOURCE_OUTPUTS).'
+      )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)

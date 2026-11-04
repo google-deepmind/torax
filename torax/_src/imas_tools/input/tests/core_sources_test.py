@@ -71,10 +71,10 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     result_dict = collection.to_dict()
     ecrh_data = result_dict["ecrh"]["prescribed_values"]
     assert len(ecrh_data) == 2
-    total_heat = ecrh_data[0][2]
+    total_heat = ecrh_data["power_density_e"][2]
     expected_heat = ec1_heat + ec2_heat
     np.testing.assert_allclose(total_heat, expected_heat)
-    total_current = ecrh_data[1][2]
+    total_current = ecrh_data["j_parallel"][2]
     expected_current = ec1_curr + ec2_curr
     np.testing.assert_allclose(total_current, expected_current)
 

@@ -90,15 +90,19 @@ class _SourceCollection:
     # them here as IMAS fast ion data seems to be in core_profiles.
     output = {}
     for name, source_data in self._data.items():
-      values_list = []
+      prescribed_values = {}
       for output_field in source_data.populated_outputs:
         profile = source_data.profiles[output_field]
-        values_list.append((source_data.time, source_data.rho_norm, profile))
+        prescribed_values[output_field.value] = (
+            source_data.time,
+            source_data.rho_norm,
+            profile,
+        )
 
-      if values_list:
+      if prescribed_values:
         output[name] = {
             "mode": "prescribed",
-            "prescribed_values": tuple(values_list),
+            "prescribed_values": prescribed_values,
         }
     return output
 
