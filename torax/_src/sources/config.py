@@ -30,6 +30,7 @@ from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
 from torax._src.sources import neutral_beam_injection_source as neutral_beam_injection_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
+from torax._src.sources import particle_feedback_source as particle_feedback_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import runtime_params
@@ -108,7 +109,9 @@ class SourcesConfig(torax_pydantic.ConfigBase):
       default_config_if_enabled=generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig
   )
   generic_particle: (
-      generic_particle_source_lib.GenericParticleSourceConfig | None
+      generic_particle_source_lib.GenericParticleSourceConfig
+      | particle_feedback_source_lib.ParticleFeedbackSourceConfig
+      | None
   ) = _source_field(
       default_config_if_enabled=generic_particle_source_lib.GenericParticleSourceConfig
   )

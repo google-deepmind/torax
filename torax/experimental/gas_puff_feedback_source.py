@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Gas puff feedback source for the electron density (n_e) equation.
+"""Deprecated gas puff feedback source; use `generic_particle` feedback instead.
 
-This module implements an experimental particle source for electron density that
-combines a feedforward gas puff term with a proportional feedback control loop.
-The feedback loop adjusts the total particle fueling rate to track a prescribed
-line-averaged or volume-averaged electron density target.
-
-To use this source, you must register it with TORAX:
-```python
-import torax
-from torax.experimental import gas_puff_feedback_source
-from torax._src.sources import register_model
-
-register_model.register_source_config(
-    gas_puff_feedback_source.GasPuffFeedbackSourceConfig
-)
-```
+This module is retained for backward compatibility with downstream callers. New
+configurations should configure `sources['generic_particle']` with
+`model_name='feedback'`
+(`torax._src.sources.particle_feedback_source.ParticleFeedbackSourceConfig`).
 """
 
 import dataclasses
 import enum
 from typing import Annotated, Literal
+import warnings
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -128,6 +119,8 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
     return core_sources.SourceOutput(particle_source_e=profile), source_state
 
 
+# TODO(b/323504363): Remove gas_puff_feedback_source after migrating callers to
+# generic_particle feedback.
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
   """Config for the gas puff electron density source with feedback control.
 
@@ -195,4 +188,10 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
 
   def build_source(self) -> GasPuffFeedbackSource:
     """Builds a `GasPuffFeedbackSource` from the config."""
+    warnings.warn(
+        'GasPuffFeedbackSourceConfig is deprecated; configure'
+        " generic_particle with model_name='feedback' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return GasPuffFeedbackSource()

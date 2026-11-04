@@ -26,7 +26,9 @@ from torax._src.sources import base
 from torax._src.sources import config as sources_config
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
+from torax._src.sources import generic_particle_source
 from torax._src.sources import neutral_beam_injection_source
+from torax._src.sources import particle_feedback_source
 from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
@@ -64,6 +66,26 @@ class SourcesConfigTest(parameterized.TestCase):
               'nbi': {},
           },
           expected_sources_model=neutral_beam_injection_source.NeutralBeamInjectionSourceConfig,
+      ),
+      dict(
+          config_dict={
+              'generic_particle': {
+                  'particle_width': 0.25,
+                  'deposition_location': 0.0,
+                  'S_total': 0.0,
+              },
+          },
+          expected_sources_model=(
+              generic_particle_source.GenericParticleSourceConfig
+          ),
+      ),
+      dict(
+          config_dict={
+              'generic_particle': {'model_name': 'feedback'},
+          },
+          expected_sources_model=(
+              particle_feedback_source.ParticleFeedbackSourceConfig
+          ),
       ),
       dict(
           config_dict={
@@ -318,6 +340,14 @@ class SourcesConfigTest(parameterized.TestCase):
           initial_value=1e22,
           updated_value=2e22,
           extra_fields={'particle_width': 0.25, 'deposition_location': 0.0},
+      ),
+      dict(
+          testcase_name='generic_particle_feedback',
+          source_name='generic_particle',
+          model_name='feedback',
+          field_to_update='proportional_gain',
+          initial_value=1.0,
+          updated_value=2.0,
       ),
       dict(
           testcase_name='icrh_scaled_profile',

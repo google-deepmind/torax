@@ -197,74 +197,15 @@ Gas puff particle source for the electron density equation deposited radially
 using an exponential profile decaying inwards from the outer edge boundary
 (:math:`\hat{\rho} = 1.0`).
 
-Two models are supported via ``model_name``:
-
-1. ``'exponential'`` (default): A fixed or time-varying prescribed particle
-   injection rate set by ``S_total``.
-2. ``'feedback'`` (experimental): Computes the injection rate using a proportional
-   feedback control loop added to a baseline feedforward rate:
-   :math:`S_{\text{total}} = \max(0, S_{\text{feedforward}} + \text{feedback\_gain} \cdot (\text{target\_average\_n\_e} - \text{current\_average\_n\_e}))`.
-
-.. warning::
-  Models and features located in ``torax.experimental`` are not guaranteed to
-  be maintained, keep the same API, or remain backward compatible. Fields
-  and behaviors may change without notice or deprecation warnings.
-
-To use the experimental ``'feedback'`` model in TORAX, you must first register
-its configuration class in Python:
-
-.. code-block:: python
-
-  from torax._src.sources import register_model
-  from torax.experimental import gas_puff_feedback_source
-
-  register_model.register_source_config(
-      gas_puff_feedback_source.GasPuffFeedbackSourceConfig
-  )
-
-**Common Parameters:**
-
 ``mode`` (str [default = 'model'])
 
 ``puff_decay_length`` (**time-varying-scalar** [default = None])
   Gas puff decay length from edge in units of :math:`\hat{\rho}`. Required
   when ``mode == 'model_based'``.
 
-**Parameters for** ``model_name = 'exponential'`` **:**
-
 ``S_total`` (**time-varying-scalar** [default = None])
   Total number of particle source in units of particles/s. Required when
   ``mode == 'model_based'``.
-
-**Parameters for** ``model_name = 'feedback'`` **:**
-
-``S_feedforward`` (**time-varying-scalar** [default = 1e22])
-  Baseline feedforward particle injection rate [particles/s].
-
-``average_type`` (str [default = 'line'])
-  Method for spatial electron density averaging (``'line'`` or ``'volume'``)
-  used to calculate the feedback error.
-
-``feedback_gain`` (**time-varying-scalar** [default = 1.0])
-  Proportional feedback gain [ :math:`m^3/s` ] mapping density error to an
-  incremental particle fueling rate.
-
-``target_average_n_e`` (**time-varying-scalar** [default = 0.77e20])
-  Desired target average electron density [ :math:`m^{-3}` ] for feedback
-  regulation.
-
-**Example Configuration:**
-
-.. code-block:: python
-
-  config['sources']['gas_puff'] = {
-      'model_name': 'feedback',
-      'average_type': 'line',
-      'feedback_gain': 10.0,
-      'target_average_n_e': 1.0e20,
-      'S_feedforward': 1.0e22,
-      'puff_decay_length': 0.05,
-  }
 
 generic_current
 ===============
@@ -321,10 +262,26 @@ electron heat source.
 generic_particle
 ================
 
-Time-dependent Gaussian particle source. No first-principle-based model is yet
-implemented in TORAX.
+Generic particle source for the electron density equation. Two models are
+supported via ``model_name``:
+
+1. ``'gaussian'`` (default): A time-dependent Gaussian particle source with
+   prescribed injection rate ``S_total``.
+2. ``'feedback'``: Computes the injection rate using a PID feedback control
+   loop added to a baseline feedforward rate:
+   :math:`S_{\text{total}} = \max(0, S_{\text{feedforward}} + S_p + S_i + S_d)`,
+   with tracking error :math:`e(t) = \text{target\_average\_n\_e}(t) - \text{current\_average\_n\_e}(t)`,
+   :math:`S_p = \text{proportional\_gain} \cdot e(t)`,
+   :math:`S_i = \text{clip}(S_{i,\text{prev}} + \text{integral\_gain} \cdot e(t) \cdot \Delta t, \text{min\_integral}, \text{max\_integral})`,
+   and :math:`S_d = \text{derivative\_gain} \cdot (de/dt)_{\text{smoothed}}`.
+   The total injection rate is deposited radially using a configurable
+   ``profile`` shape (``'exponential'``, ``'gaussian'``, or ``'prescribed'``).
+
+**Common Parameters:**
 
 ``mode`` (str [default = 'model'])
+
+**Parameters for** ``model_name = 'gaussian'`` **:**
 
 ``deposition_location`` (**time-varying-scalar** [default = None])
   Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
@@ -337,6 +294,77 @@ implemented in TORAX.
 ``S_total`` (**time-varying-scalar** [default = None])
   Total particle source in units of particles/s. Required when
   ``mode == 'model_based'``.
+
+**Parameters for** ``model_name = 'feedback'`` **:**
+
+``profile`` (dict [default = ``{'profile_type': 'exponential', 'width': 0.05}``])
+  Radial deposition shape configuration, discriminated by ``profile_type``:
+
+  * ``'exponential'``: ``width`` (**time-varying-scalar** [default = 0.05]),
+    exponential decay length from the edge inwards in units of
+    :math:`\hat{\rho}`.
+  * ``'gaussian'``: ``center`` (**time-varying-scalar** [default = 0.0]) and
+    ``width`` (**time-varying-scalar** [default = 0.25]) in units of
+    :math:`\hat{\rho}`.
+  * ``'prescribed'``: ``values`` (**time-varying-array**
+    [default = ``{0.0: {0.0: 1.0, 1.0: 1.0}}``]), a non-negative radial shape
+    rescaled so its volume integral equals :math:`S_{\text{total}}`.
+
+``S_feedforward`` (**time-varying-scalar** [default = 1e22])
+  Baseline feedforward particle injection rate [particles/s].
+
+``average_type`` (str [default = 'line'])
+  Method for spatial electron density averaging (``'line'`` or ``'volume'``)
+  used to calculate the feedback error.
+
+``proportional_gain`` (**time-varying-scalar** [default = 1.0])
+  Proportional feedback gain [ :math:`m^3/s` ] mapping density error to an
+  incremental particle fueling rate.
+
+``integral_gain`` (**time-varying-scalar** [default = 0.0])
+  Integral feedback gain [ :math:`m^3/s^2` ] mapping time-integrated density
+  error to an incremental particle fueling rate.
+
+``derivative_gain`` (**time-varying-scalar** [default = 0.0])
+  Derivative feedback gain [ :math:`m^3` ] mapping the time derivative of
+  density error to an incremental particle fueling rate.
+
+``derivative_smoothing_time_scale`` (**time-varying-scalar** [default = 0.0])
+  Non-negative exponential smoothing time constant [ :math:`s` ] for the error
+  time derivative :math:`de/dt`. ``0.0`` uses the raw finite difference.
+
+``min_integral`` (**time-varying-scalar** | None [default = None])
+  Optional lower bound [particles/s] on the integral term :math:`S_i` for
+  anti-windup clamping.
+
+``max_integral`` (**time-varying-scalar** | None [default = None])
+  Optional upper bound [particles/s] on the integral term :math:`S_i` for
+  anti-windup clamping.
+
+``target_average_n_e`` (**time-varying-scalar** [default = 0.77e20])
+  Desired target average electron density [ :math:`m^{-3}` ] for feedback
+  regulation.
+
+**Example Configuration:**
+
+.. code-block:: python
+
+  config['sources']['generic_particle'] = {
+      'model_name': 'feedback',
+      'average_type': 'line',
+      'proportional_gain': 10.0,
+      'integral_gain': 1.0,
+      'derivative_gain': 0.5,
+      'derivative_smoothing_time_scale': 0.01,
+      'min_integral': -1.0e22,
+      'max_integral': 1.0e22,
+      'target_average_n_e': 1.0e20,
+      'S_feedforward': 1.0e22,
+      'profile': {
+          'profile_type': 'exponential',
+          'width': 0.05,
+      },
+  }
 
 icrh
 ====
