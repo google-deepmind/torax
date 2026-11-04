@@ -63,8 +63,8 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
     )
     return (
         core_sources.SourceOutput(
-            particle_source=2 * output.particle_source
-            if output.particle_source is not None
+            particle_source_e=2 * output.particle_source_e
+            if output.particle_source_e is not None
             else None
         ),
         source_state,

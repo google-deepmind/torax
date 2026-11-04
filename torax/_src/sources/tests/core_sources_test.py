@@ -36,23 +36,23 @@ class CoreSourcesTest(parameterized.TestCase):
     self.assertIsNotNone(all_zeros.power_density_i)
     self.assertIsNotNone(all_zeros.power_density_e)
     self.assertIsNotNone(all_zeros.j_parallel)
-    self.assertIsNotNone(all_zeros.particle_source)
+    self.assertIsNotNone(all_zeros.particle_source_e)
     np.testing.assert_allclose(all_zeros.power_density_i, 0.0)
     np.testing.assert_allclose(all_zeros.power_density_e, 0.0)
     np.testing.assert_allclose(all_zeros.j_parallel, 0.0)
-    np.testing.assert_allclose(all_zeros.particle_source, 0.0)
+    np.testing.assert_allclose(all_zeros.particle_source_e, 0.0)
 
-  def test_source_output_zeros_affected_core_profiles_subset(self):
+  def test_source_output_zeros_populated_source_outputs_subset(self):
     geo = circular_geometry.CircularConfig().build_geometry()
     partial_zeros = core_sources_lib.SourceOutput.zeros(
         geo,
-        affected_core_profiles=(
-            core_sources_lib.AffectedCoreProfile.TEMP_EL,
-            core_sources_lib.AffectedCoreProfile.PSI,
+        populated_source_outputs=(
+            core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E,
+            core_sources_lib.PopulatedSourceOutput.J_PARALLEL,
         ),
     )
     self.assertIsNone(partial_zeros.power_density_i)
-    self.assertIsNone(partial_zeros.particle_source)
+    self.assertIsNone(partial_zeros.particle_source_e)
     self.assertIsNotNone(partial_zeros.power_density_e)
     self.assertIsNotNone(partial_zeros.j_parallel)
     np.testing.assert_allclose(partial_zeros.power_density_e, 0.0)
@@ -125,7 +125,7 @@ class CoreSourcesTest(parameterized.TestCase):
             fast_ions=(mock_fast_ion,),
         ),
         'particle': core_sources_lib.SourceOutput(
-            particle_source=ones * 4.0,
+            particle_source_e=ones * 4.0,
         ),
         'current': core_sources_lib.SourceOutput(
             j_parallel=ones * 5.0,
@@ -146,7 +146,7 @@ class CoreSourcesTest(parameterized.TestCase):
     self.assertNotIn('ignored_nonstandard', profiles.sources)
     self.assertIsNotNone(profiles.sources['heat'].power_density_i)
     self.assertIsNotNone(profiles.sources['heat'].power_density_e)
-    self.assertIsNotNone(profiles.sources['particle'].particle_source)
+    self.assertIsNotNone(profiles.sources['particle'].particle_source_e)
     self.assertIsNotNone(profiles.sources['current'].j_parallel)
     np.testing.assert_allclose(
         profiles.sources['heat'].power_density_i, ones * 2.0
@@ -155,7 +155,7 @@ class CoreSourcesTest(parameterized.TestCase):
         profiles.sources['heat'].power_density_e, ones * 3.0
     )
     np.testing.assert_allclose(
-        profiles.sources['particle'].particle_source, ones * 4.0
+        profiles.sources['particle'].particle_source_e, ones * 4.0
     )
     np.testing.assert_allclose(
         profiles.sources['current'].j_parallel, ones * 5.0
@@ -177,7 +177,7 @@ class CoreSourcesTest(parameterized.TestCase):
                 power_density_e=ones * 2.0,
             ),
             'particle': core_sources_lib.SourceOutput(
-                particle_source=ones * 4.0,
+                particle_source_e=ones * 4.0,
             ),
         },
         standard_sources=standard_sources,
@@ -201,7 +201,7 @@ class CoreSourcesTest(parameterized.TestCase):
     self.assertNotIn('ignored_nonstandard', updated.sources)
     self.assertIsNotNone(profiles.sources['heat'].power_density_e)
     self.assertIsNotNone(updated.sources['heat'].power_density_e)
-    self.assertIsNotNone(updated.sources['particle'].particle_source)
+    self.assertIsNotNone(updated.sources['particle'].particle_source_e)
     self.assertIsNotNone(updated.sources['radiation'].power_density_e)
     np.testing.assert_allclose(
         profiles.sources['heat'].power_density_e, ones * 2.0
@@ -210,7 +210,7 @@ class CoreSourcesTest(parameterized.TestCase):
         updated.sources['heat'].power_density_e, ones * 7.0
     )
     np.testing.assert_allclose(
-        updated.sources['particle'].particle_source, ones * 4.0
+        updated.sources['particle'].particle_source_e, ones * 4.0
     )
     np.testing.assert_allclose(
         updated.sources['radiation'].power_density_e, -ones
@@ -329,7 +329,7 @@ class CoreSourcesTest(parameterized.TestCase):
                 j_parallel=jnp.ones((2, n_cell)) * 30.0
             ),
             'pellet': core_sources_lib.SourceOutput(
-                particle_source=jnp.ones((2, n_cell)) * 40.0
+                particle_source_e=jnp.ones((2, n_cell)) * 40.0
             ),
         },
     )
@@ -418,7 +418,7 @@ class CoreSourcesTest(parameterized.TestCase):
                 j_parallel=jnp.ones((1, n_cell))
             ),
             'pellet_custom': core_sources_lib.SourceOutput(
-                particle_source=jnp.ones((1, n_cell))
+                particle_source_e=jnp.ones((1, n_cell))
             ),
         },
     )

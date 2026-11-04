@@ -197,7 +197,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
             output.power_density_i,
             output.power_density_e,
             output.j_parallel,
-            output.particle_source,
+            output.particle_source_e,
         )
         if p is not None
     ]
@@ -275,7 +275,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
             output.power_density_i,
             output.power_density_e,
             output.j_parallel,
-            output.particle_source,
+            output.particle_source_e,
         )
         if p is not None
     ]

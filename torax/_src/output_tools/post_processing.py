@@ -862,7 +862,7 @@ def _calculate_integrated_sources(
   for key in PARTICLE_SOURCES:
     source_output = core_sources.sources.get(key)
     particle_source = (
-        source_output.particle_source if source_output is not None else None
+        source_output.particle_source_e if source_output is not None else None
     )
     output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
     scalar_key = f'S_{output_name}'

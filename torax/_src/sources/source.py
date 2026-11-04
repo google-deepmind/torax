@@ -53,8 +53,6 @@ from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_state as source_state_lib
 
-AffectedCoreProfile = core_sources.AffectedCoreProfile
-
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
@@ -69,22 +67,22 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
       ``'icrh'``, ``'fusion'``). This corresponds to the field name on the
       :class:`~torax.sources.SourcesConfig` Pydantic configuration and the key
       in ``runtime_params.sources`` and ``SourceModels.standard_sources``.
-    AFFECTED_CORE_PROFILES: Tuple of :class:`~torax.sources.AffectedCoreProfile`
-      enum members defining which PDE channel equations this source's output
-      profiles contribute to.
+    POPULATED_SOURCE_OUTPUTS: Tuple of
+      :class:`~torax.sources.PopulatedSourceOutput` enum members defining which
+      fields on :class:`~torax.sources.SourceOutput` this source populates.
   """
 
   SOURCE_ID: ClassVar[str]
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
   ]
 
   def __post_init__(self):
     super().__post_init__()
     if not hasattr(self, 'SOURCE_ID'):
       raise ValueError('Source ID must be set.')
-    if not getattr(self, 'AFFECTED_CORE_PROFILES', None):
-      raise ValueError('Affected core profiles must be set.')
+    if not getattr(self, 'POPULATED_SOURCE_OUTPUTS', None):
+      raise ValueError('Populated source outputs must be set.')
 
   def initial_state(
       self,
@@ -135,7 +133,7 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
 
     Raises:
       ValueError: If in ``PRESCRIBED`` mode and the length of prescribed values
-        does not match the number of affected core profiles, or if an unknown
+        does not match the number of populated source outputs, or if an unknown
         mode is encountered.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -144,47 +142,51 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
         output, source_state = model_fn()
-        for affected_profile in AffectedCoreProfile:
-          value = getattr(output, affected_profile)
-          if affected_profile in self.AFFECTED_CORE_PROFILES:
-            if value is None:
-              raise ValueError(
-                  f'{type(self).__name__} must return'
-                  f' {affected_profile.value!r} for affected core profile'
-                  f' {affected_profile.name}.'
-              )
-          elif value is not None:
-            raise ValueError(
-                f'{type(self).__name__} returned {affected_profile.value!r}'
-                f' but {affected_profile.name} is not in'
-                ' AFFECTED_CORE_PROFILES.'
-            )
+        populated = {
+            f
+            for f in core_sources.PopulatedSourceOutput
+            if getattr(output, f) is not None
+        }
+        expected = set(self.POPULATED_SOURCE_OUTPUTS)
+        if populated != expected:
+          raise ValueError(
+              f'{type(self).__name__} populated {populated}, expected'
+              f' {expected} (POPULATED_SOURCE_OUTPUTS).'
+          )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         if len(source_params.prescribed_values) != len(
-            self.AFFECTED_CORE_PROFILES
+            self.POPULATED_SOURCE_OUTPUTS
         ):
           raise ValueError(
               'When using PRESCRIBED mode, the number of prescribed values must'
-              ' match the number of affected core profiles. Was: '
+              ' match the number of populated source outputs. Was: '
               f'{len(source_params.prescribed_values)} '
-              f' Expected: {len(self.AFFECTED_CORE_PROFILES)}.'
+              f' Expected: {len(self.POPULATED_SOURCE_OUTPUTS)}.'
           )
         prescribed = dict(
             zip(
-                self.AFFECTED_CORE_PROFILES,
+                self.POPULATED_SOURCE_OUTPUTS,
                 source_params.prescribed_values,
                 strict=True,
             )
         )
         output = core_sources.SourceOutput(
-            power_density_i=prescribed.get(AffectedCoreProfile.TEMP_ION),
-            power_density_e=prescribed.get(AffectedCoreProfile.TEMP_EL),
-            j_parallel=prescribed.get(AffectedCoreProfile.PSI),
-            particle_source=prescribed.get(AffectedCoreProfile.NE),
+            power_density_i=prescribed.get(
+                core_sources.PopulatedSourceOutput.POWER_DENSITY_I
+            ),
+            power_density_e=prescribed.get(
+                core_sources.PopulatedSourceOutput.POWER_DENSITY_E
+            ),
+            j_parallel=prescribed.get(
+                core_sources.PopulatedSourceOutput.J_PARALLEL
+            ),
+            particle_source_e=prescribed.get(
+                core_sources.PopulatedSourceOutput.PARTICLE_SOURCE_E
+            ),
         )
       case sources_runtime_params_lib.Mode.ZERO:
         output = core_sources.SourceOutput.zeros(
-            geo, self.AFFECTED_CORE_PROFILES
+            geo, self.POPULATED_SOURCE_OUTPUTS
         )
       case _:
         raise ValueError(f'Unknown mode: {mode}')
@@ -203,8 +205,8 @@ class Source(SourceBase):
   heating profiles from other sources.
 
   Capabilities and constraints:
-  - May affect any core profile channel, including
-    :attr:`~torax.sources.AffectedCoreProfile.PSI`.
+  - May populate any :class:`~torax.sources.SourceOutput` profile field,
+    including :attr:`~torax.sources.PopulatedSourceOutput.J_PARALLEL`.
   - May be configured as explicit (evaluated once before the solver step) or
     implicit (evaluated iteratively during each solver sub-step).
   - May generate fast ion populations by returning :class:`~torax.FastIon`
@@ -233,7 +235,7 @@ class Source(SourceBase):
     Returns:
       A tuple of ``(output, updated_source_state)``, where ``output`` is a
       :class:`~torax.sources.SourceOutput` containing profile arrays on the
-      cell grid (one per entry in :attr:`AFFECTED_CORE_PROFILES`) and any
+      cell grid (one per entry in :attr:`POPULATED_SOURCE_OUTPUTS`) and any
       generated fast ion populations.
     """
 
@@ -278,9 +280,9 @@ class SourceUsingCoreProfiles(SourceBase):
   time derivative of poloidal flux (:attr:`CoreProfiles.psidot`).
 
   Capabilities and constraints:
-  - Cannot affect :attr:`~torax.sources.AffectedCoreProfile.PSI` because
-    :math:`\\dot{\\psi}` depends on the total current from all current-driving
-    sources.
+  - Cannot populate :attr:`~torax.sources.PopulatedSourceOutput.J_PARALLEL`
+    because :math:`\\dot{\\psi}` depends on the total current from all
+    current-driving sources.
   - Cannot produce fast ions (:attr:`SourceOutput.fast_ions` must be empty)
     because fast ions must be known before neoclassical and transport
     calculations.
@@ -291,10 +293,13 @@ class SourceUsingCoreProfiles(SourceBase):
 
   def __post_init__(self):
     super().__post_init__()
-    if core_sources.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+    if (
+        core_sources.PopulatedSourceOutput.J_PARALLEL
+        in self.POPULATED_SOURCE_OUTPUTS
+    ):
       raise ValueError(
-          f'{type(self).__name__} cannot affect PSI, but got'
-          f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
+          f'{type(self).__name__} cannot populate J_PARALLEL, but got'
+          f' POPULATED_SOURCE_OUTPUTS={self.POPULATED_SOURCE_OUTPUTS}.'
       )
 
   @abc.abstractmethod
@@ -319,7 +324,7 @@ class SourceUsingCoreProfiles(SourceBase):
     Returns:
       A tuple of ``(output, updated_source_state)``, where ``output`` is a
       :class:`~torax.sources.SourceOutput` containing profile arrays on the
-      cell grid (one per entry in :attr:`AFFECTED_CORE_PROFILES`). Must not
+      cell grid (one per entry in :attr:`POPULATED_SOURCE_OUTPUTS`). Must not
       contain fast ions.
     """
 
@@ -386,10 +391,10 @@ class FinalSource(SourceBase):
     deterministic and unambiguous; configuring more than one raises a
     :exc:`ValueError` during :class:`~torax.sources.SourceModels`
     initialization.
-  - Cannot affect :attr:`~torax.sources.AffectedCoreProfile.PSI`: all current
-    sources affecting poloidal flux must be evaluated in Stage 1 prior to
-    solving Ohm's law, neoclassical conductivity, and `psidot`, which precede
-    :class:`FinalSource` evaluation.
+  - Cannot populate :attr:`~torax.sources.PopulatedSourceOutput.J_PARALLEL`:
+    all current sources affecting poloidal flux must be evaluated in Stage 1
+    prior to solving Ohm's law, neoclassical conductivity, and `psidot`, which
+    precede :class:`FinalSource` evaluation.
   - Cannot produce fast ions (:attr:`SourceOutput.fast_ions` must be empty):
     fast-ion populations are required inputs to neoclassical conductivity and
     bootstrap current when constructing the :class:`~torax.CoreProfiles`
@@ -401,10 +406,13 @@ class FinalSource(SourceBase):
 
   def __post_init__(self):
     super().__post_init__()
-    if core_sources.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+    if (
+        core_sources.PopulatedSourceOutput.J_PARALLEL
+        in self.POPULATED_SOURCE_OUTPUTS
+    ):
       raise ValueError(
-          f'{type(self).__name__} cannot affect PSI, but got'
-          f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
+          f'{type(self).__name__} cannot populate J_PARALLEL, but got'
+          f' POPULATED_SOURCE_OUTPUTS={self.POPULATED_SOURCE_OUTPUTS}.'
       )
 
   @abc.abstractmethod
@@ -432,7 +440,7 @@ class FinalSource(SourceBase):
     Returns:
       A tuple of ``(output, updated_source_state)``, where ``output`` is a
       :class:`~torax.sources.SourceOutput` containing profile arrays on the
-      cell grid (one per entry in :attr:`AFFECTED_CORE_PROFILES`). Must not
+      cell grid (one per entry in :attr:`POPULATED_SOURCE_OUTPUTS`). Must not
       contain fast ions.
     """
 

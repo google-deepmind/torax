@@ -53,13 +53,13 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
   def test_source_name(self):
     self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_ID, 'icrh')
 
-  def test_affected_core_profiles(self):
+  def test_populated_source_outputs(self):
     expected = (
-        core_sources.AffectedCoreProfile.TEMP_ION,
-        core_sources.AffectedCoreProfile.TEMP_EL,
+        core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+        core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
     )
     self.assertEqual(
-        icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected
+        icrh_base.IonCyclotronSource.POPULATED_SOURCE_OUTPUTS, expected
     )
 
   def test_build_source_returns_correct_type(self):

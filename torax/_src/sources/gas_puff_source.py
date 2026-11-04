@@ -46,9 +46,9 @@ class GasPuffSource(source.Source):
   """Gas puff source for the n_e equation."""
 
   SOURCE_ID: ClassVar[str] = 'gas_puff'
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
-  ] = (core_sources.AffectedCoreProfile.NE,)
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (core_sources.PopulatedSourceOutput.PARTICLE_SOURCE_E,)
 
   def _get_model_value(
       self,
@@ -70,7 +70,7 @@ class GasPuffSource(source.Source):
 
     Returns:
       A tuple containing:
-        - SourceOutput, with the particle_source profile populated.
+        - SourceOutput, with the particle_source_e profile populated.
         - SourceState for this source.
     """
     del solver_profiles
@@ -86,7 +86,7 @@ class GasPuffSource(source.Source):
         total=source_params.S_total,
         geo=geo,
     )
-    return core_sources.SourceOutput(particle_source=profile), source_state
+    return core_sources.SourceOutput(particle_source_e=profile), source_state
 
 
 class GasPuffSourceConfig(base.SourceConfigBase):

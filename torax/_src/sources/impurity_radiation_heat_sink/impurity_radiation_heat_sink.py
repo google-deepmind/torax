@@ -29,6 +29,6 @@ class ImpurityRadiationHeatSink(source_lib.SourceBase):
   """Impurity radiation heat sink for electron heat equation."""
 
   SOURCE_ID: ClassVar[str] = 'impurity_radiation'
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
-  ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (core_sources.PopulatedSourceOutput.POWER_DENSITY_E,)

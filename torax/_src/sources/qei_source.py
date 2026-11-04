@@ -46,12 +46,6 @@ class QeiSource(static_dataclass.StaticDataclass):
   """
 
   SOURCE_ID: ClassVar[str] = 'ei_exchange'
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
-  ] = (
-      core_sources.AffectedCoreProfile.TEMP_ION,
-      core_sources.AffectedCoreProfile.TEMP_EL,
-  )
 
   def get_qei(
       self,

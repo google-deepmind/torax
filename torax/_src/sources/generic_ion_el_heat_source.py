@@ -48,11 +48,11 @@ class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
   SOURCE_ID: ClassVar[str] = 'generic_heat'
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
   ] = (
-      core_sources.AffectedCoreProfile.TEMP_ION,
-      core_sources.AffectedCoreProfile.TEMP_EL,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
 
   def _get_model_value(

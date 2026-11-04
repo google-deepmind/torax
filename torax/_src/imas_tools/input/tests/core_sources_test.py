@@ -38,28 +38,28 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     ec2_heat = np.array([[50.0, 50.0, 50.0], [50.0, 50.0, 50.0]])
     ec2_curr = np.array([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
 
-    ecrh_affected_profiles = (
-        core_sources_lib.AffectedCoreProfile.TEMP_EL,
-        core_sources_lib.AffectedCoreProfile.PSI,
+    ecrh_populated_outputs = (
+        core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E,
+        core_sources_lib.PopulatedSourceOutput.J_PARALLEL,
     )
     profiles1 = {
-        core_sources_lib.AffectedCoreProfile.TEMP_EL: ec1_heat,
-        core_sources_lib.AffectedCoreProfile.PSI: ec1_curr,
+        core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E: ec1_heat,
+        core_sources_lib.PopulatedSourceOutput.J_PARALLEL: ec1_curr,
     }
     profiles2 = {
-        core_sources_lib.AffectedCoreProfile.TEMP_EL: ec2_heat,
-        core_sources_lib.AffectedCoreProfile.PSI: ec2_curr,
+        core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E: ec2_heat,
+        core_sources_lib.PopulatedSourceOutput.J_PARALLEL: ec2_curr,
     }
     ec1 = core_sources._SourceProfiles(
         time=time,  # pyrefly: ignore[bad-argument-type]
         rho_norm=rho_norm,  # pyrefly: ignore[bad-argument-type]
-        affected_profiles=ecrh_affected_profiles,
+        populated_outputs=ecrh_populated_outputs,
         profiles=profiles1,  # pyrefly: ignore[bad-argument-type]
     )
     ec2 = core_sources._SourceProfiles(
         time=time,  # pyrefly: ignore[bad-argument-type]
         rho_norm=rho_norm,  # pyrefly: ignore[bad-argument-type]
-        affected_profiles=ecrh_affected_profiles,
+        populated_outputs=ecrh_populated_outputs,
         profiles=profiles2,  # pyrefly: ignore[bad-argument-type]
     )
     collection = core_sources._SourceCollection()

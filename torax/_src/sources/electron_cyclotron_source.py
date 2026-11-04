@@ -54,11 +54,11 @@ class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the T_e and Psi equations."""
 
   SOURCE_ID: ClassVar[str] = "ecrh"
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
   ] = (
-      core_sources.AffectedCoreProfile.TEMP_EL,
-      core_sources.AffectedCoreProfile.PSI,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
+      core_sources.PopulatedSourceOutput.J_PARALLEL,
   )
 
   def _get_model_value(

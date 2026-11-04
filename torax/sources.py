@@ -18,8 +18,8 @@ for interacting with the sources or implementing a custom sources.
 """
 
 from torax._src.sources.base import SourceConfigBase
-from torax._src.sources.core_sources import AffectedCoreProfile
 from torax._src.sources.core_sources import CoreSources
+from torax._src.sources.core_sources import PopulatedSourceOutput
 from torax._src.sources.core_sources import SourceOutput
 from torax._src.sources.register_model import register_source_config
 from torax._src.sources.runtime_params import Mode
@@ -31,10 +31,10 @@ from torax._src.sources.source import SourceUsingCoreProfiles
 from torax._src.sources.source_state import SourceState
 
 __all__ = [
-    'AffectedCoreProfile',
     'CoreSources',
     'FinalSource',
     'Mode',
+    'PopulatedSourceOutput',
     'RuntimeParams',
     'Source',
     'SourceBase',

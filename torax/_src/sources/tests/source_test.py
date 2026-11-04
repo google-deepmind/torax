@@ -36,9 +36,9 @@ class SourceTest(parameterized.TestCase):
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[core_sources.AffectedCoreProfile, ...]
-      ] = (core_sources.AffectedCoreProfile.PSI,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[core_sources.PopulatedSourceOutput, ...]
+      ] = (core_sources.PopulatedSourceOutput.J_PARALLEL,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -46,7 +46,7 @@ class SourceTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, "Source ID must be set."):
       BadSource()
 
-  def test_missing_affected_core_profiles_raises_error(self):
+  def test_missing_populated_source_outputs_raises_error(self):
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
@@ -56,7 +56,7 @@ class SourceTest(parameterized.TestCase):
         raise NotImplementedError
 
     with self.assertRaisesRegex(
-        ValueError, "Affected core profiles must be set."
+        ValueError, "Populated source outputs must be set."
     ):
       BadSource()
 
@@ -147,7 +147,7 @@ class SourceTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
-  def test_prescribed_values_for_multiple_affected_profiles(self):
+  def test_prescribed_values_for_multiple_populated_outputs(self):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
@@ -200,7 +200,7 @@ class SourceTest(parameterized.TestCase):
     )
     with self.assertRaisesRegex(
         ValueError,
-        "the number of prescribed values must match the number of affected",
+        "the number of prescribed values must match the number of populated",
     ):
       source.get_value(
           runtime_params=dynamic_slice,
@@ -209,32 +209,32 @@ class SourceTest(parameterized.TestCase):
           source_state=source_state_lib.SourceState(),
       )
 
-  def test_source_using_core_profiles_rejects_psi(self):
+  def test_source_using_core_profiles_rejects_j_parallel(self):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.SourceUsingCoreProfiles):
       SOURCE_ID: ClassVar[str] = "bad_core_profile_source"
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[core_sources.AffectedCoreProfile, ...]
-      ] = (core_sources.AffectedCoreProfile.PSI,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[core_sources.PopulatedSourceOutput, ...]
+      ] = (core_sources.PopulatedSourceOutput.J_PARALLEL,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
 
-    with self.assertRaisesRegex(ValueError, "cannot affect.*PSI"):
+    with self.assertRaisesRegex(ValueError, "cannot populate.*J_PARALLEL"):
       BadSource()
 
-  def test_final_source_rejects_psi(self):
+  def test_final_source_rejects_j_parallel(self):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = "bad_final_source"
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[core_sources.AffectedCoreProfile, ...]
-      ] = (core_sources.AffectedCoreProfile.PSI,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[core_sources.PopulatedSourceOutput, ...]
+      ] = (core_sources.PopulatedSourceOutput.J_PARALLEL,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
 
-    with self.assertRaisesRegex(ValueError, "cannot affect.*PSI"):
+    with self.assertRaisesRegex(ValueError, "cannot populate.*J_PARALLEL"):
       BadSource()
 
   def test_source_using_core_profiles_rejects_fast_ions_output(self):
@@ -245,9 +245,9 @@ class SourceTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class FastIonCoreProfilesSource(source_lib.SourceUsingCoreProfiles):
       SOURCE_ID: ClassVar[str] = "fast_ion_core_source"
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[core_sources.AffectedCoreProfile, ...]
-      ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[core_sources.PopulatedSourceOutput, ...]
+      ] = (core_sources.PopulatedSourceOutput.POWER_DENSITY_E,)
 
       def _get_model_value(self, *args, **kwargs):
         return (
@@ -284,9 +284,9 @@ class SourceTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class FastIonFinalSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = "fast_ion_final_source"
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[core_sources.AffectedCoreProfile, ...]
-      ] = (core_sources.AffectedCoreProfile.TEMP_EL,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[core_sources.PopulatedSourceOutput, ...]
+      ] = (core_sources.PopulatedSourceOutput.POWER_DENSITY_E,)
 
       def _get_model_value(self, *args, **kwargs):
         return (

@@ -95,7 +95,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
 
     Returns:
       A tuple containing:
-        - SourceOutput, with the particle_source profile populated.
+        - SourceOutput, with the particle_source_e profile populated.
         - SourceState for this source.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -125,7 +125,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         total=S_total,
         geo=geo,
     )
-    return core_sources.SourceOutput(particle_source=profile), source_state
+    return core_sources.SourceOutput(particle_source_e=profile), source_state
 
 
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):

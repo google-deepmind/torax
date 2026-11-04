@@ -85,9 +85,11 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    assert output.particle_source is not None
+    assert output.particle_source_e is not None
 
-    total_particles = math_utils.volume_integration(output.particle_source, geo)
+    total_particles = math_utils.volume_integration(
+        output.particle_source_e, geo
+    )
 
     # Expected error = (initial_line_avg + 1e19) - initial_line_avg = 1e19
     # Expected S_total = 10.0 * 1e19 = 1e20

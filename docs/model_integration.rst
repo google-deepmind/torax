@@ -296,18 +296,19 @@ attributes:
 
 * ``SOURCE_ID``: The target source name (e.g. ``'generic_heat'``), matching the
   corresponding field in the ``Sources`` config.
-* ``AFFECTED_CORE_PROFILES``: A tuple of ``torax.sources.AffectedCoreProfile``
-  values (``PSI``, ``NE``, ``TEMP_ION``, or ``TEMP_EL``)
-  specifying which core profile equations the source contributes to.
+* ``POPULATED_SOURCE_OUTPUTS``: A tuple of
+  ``torax.sources.PopulatedSourceOutput`` values (``POWER_DENSITY_I``,
+  ``POWER_DENSITY_E``, ``J_PARALLEL``, or ``PARTICLE_SOURCE_E``) specifying which
+  fields on ``SourceOutput`` the source populates.
 
 If you instead subclass an existing source class (e.g.
-``GenericIonElectronHeatSource``), ``SOURCE_ID`` and ``AFFECTED_CORE_PROFILES``
-are inherited automatically.
+``GenericIonElectronHeatSource``), ``SOURCE_ID`` and
+``POPULATED_SOURCE_OUTPUTS`` are inherited automatically.
 
 ``_get_model_value`` receives the simulation state and returns a tuple of
 ``sources.SourceOutput`` (containing the 1D cell-grid profiles as named
-attributes corresponding to ``AFFECTED_CORE_PROFILES``, and optional fast ions)
-and the (possibly updated) ``source_state``.
+attributes corresponding to ``POPULATED_SOURCE_OUTPUTS``, and optional fast
+ions) and the (possibly updated) ``source_state``.
 
 .. code-block:: python
 
@@ -322,11 +323,11 @@ and the (possibly updated) ``source_state``.
       """Custom heat source model."""
 
       SOURCE_ID: ClassVar[str] = 'generic_heat'
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[sources.AffectedCoreProfile, ...]
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[sources.PopulatedSourceOutput, ...]
       ] = (
-          sources.AffectedCoreProfile.TEMP_ION,
-          sources.AffectedCoreProfile.TEMP_EL,
+          sources.PopulatedSourceOutput.POWER_DENSITY_I,
+          sources.PopulatedSourceOutput.POWER_DENSITY_E,
       )
 
       def _get_model_value(
@@ -336,7 +337,7 @@ and the (possibly updated) ``source_state``.
           solver_profiles: torax.SolverProfiles,
           source_state: sources.SourceState,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        # Return a SourceOutput with attributes set for each affected core profile.
+        # Return a SourceOutput with attributes set for each populated output.
         ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
         el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
         return (
@@ -353,8 +354,8 @@ Dependent and final sources
 Subclass ``torax.sources.SourceUsingCoreProfiles`` for dependent sources
 evaluated after neoclassical and transport models that require full
 ``torax.CoreProfiles`` (such as ``core_profiles.conductivity`` or
-``core_profiles.psidot``, e.g. Ohmic heating). Constraints: cannot affect
-``AffectedCoreProfile.PSI``, cannot return ``fast_ions``, and cannot be
+``core_profiles.psidot``, e.g. Ohmic heating). Constraints: cannot populate
+``PopulatedSourceOutput.J_PARALLEL``, cannot return ``fast_ions``, and cannot be
 configured with ``is_explicit=True``.
 
 .. code-block:: python
@@ -364,9 +365,9 @@ configured with ``is_explicit=True``.
       """Custom heat source using full CoreProfiles."""
 
       SOURCE_ID: ClassVar[str] = 'ohmic'
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[sources.AffectedCoreProfile, ...]
-      ] = (sources.AffectedCoreProfile.TEMP_EL,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[sources.PopulatedSourceOutput, ...]
+      ] = (sources.PopulatedSourceOutput.POWER_DENSITY_E,)
 
       def _get_model_value(
           self,
@@ -385,9 +386,9 @@ Subclass ``torax.sources.FinalSource`` for a final source or sink evaluated
 after all ``Source`` and ``SourceUsingCoreProfiles`` models have been
 aggregated into ``sources.CoreSources`` (for example, a radiation sink
 scaling with total input heating). Constraints: at most one ``FinalSource``
-can be active in a simulation, cannot affect ``AffectedCoreProfile.PSI``,
-cannot return ``fast_ions``, and cannot be configured with
-``is_explicit=True``.
+can be active in a simulation, cannot populate
+``PopulatedSourceOutput.J_PARALLEL``, cannot return ``fast_ions``, and cannot be
+configured with ``is_explicit=True``.
 
 .. code-block:: python
 
@@ -396,9 +397,9 @@ cannot return ``fast_ions``, and cannot be configured with
       """Custom sink depending on aggregated CoreSources."""
 
       SOURCE_ID: ClassVar[str] = 'impurity_radiation'
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[sources.AffectedCoreProfile, ...]
-      ] = (sources.AffectedCoreProfile.TEMP_EL,)
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[sources.PopulatedSourceOutput, ...]
+      ] = (sources.PopulatedSourceOutput.POWER_DENSITY_E,)
 
       def _get_model_value(
           self,

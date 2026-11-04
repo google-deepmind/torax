@@ -72,13 +72,13 @@ class SourceModels(static_dataclass.StaticDataclass):
   def psi_sources(
       self,
   ) -> immutabledict.immutabledict[str, source_lib.Source]:
-    """A derived dictionary of sources that affect the psi core_profile."""
+    """A derived dictionary of sources that populate `j_parallel`."""
     return immutabledict.immutabledict({
         name: source
         for name, source in self.standard_sources.items()
         if isinstance(source, source_lib.Source)
-        and core_sources.AffectedCoreProfile.PSI
-        in source.AFFECTED_CORE_PROFILES
+        and core_sources.PopulatedSourceOutput.J_PARALLEL
+        in source.POPULATED_SOURCE_OUTPUTS
     })
 
   @functools.cached_property

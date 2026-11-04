@@ -46,9 +46,10 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
       If an incorrect combination of source type and is_explicit is passed in,
       an error will be thrown when running the simulation.
     prescribed_values: Tuple of prescribed values for the source, one for each
-      affected core profile. Used only when the source is fully prescribed (i.e.
-      source.mode == Mode.PRESCRIBED). The default here is a vector of all zeros
-      along for all rho and time, and the output vector is along the cell grid.
+      populated source output. Used only when the source is fully prescribed
+      (i.e. source.mode == Mode.PRESCRIBED). The default here is a vector of all
+      zeros along for all rho and time, and the output vector is along the cell
+      grid.
   """
 
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (

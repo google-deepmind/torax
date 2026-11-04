@@ -46,8 +46,8 @@ The configurable runtime parameters of each source are as follows:
     these values are treated completely independently of each other so for
     sources with multiple time dimensions, the prescribed values should each
     contain all the information they need.
-    For sources which affect multiple core profiles, look at the source's
-    ``affected_core_profiles`` property to see the order in which the
+    For sources which populate multiple source outputs, look at the source's
+    ``POPULATED_SOURCE_OUTPUTS`` attribute to see the order in which the
     prescribed values should be provided.
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity

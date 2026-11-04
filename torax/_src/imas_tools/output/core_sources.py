@@ -141,8 +141,8 @@ def _compute_source_profiles(
       energy_el = source_output.power_density_e
     if source_output.power_density_i is not None:
       energy_ion = source_output.power_density_i
-    if source_output.particle_source is not None:
-      particles_el = source_output.particle_source
+    if source_output.particle_source_e is not None:
+      particles_el = source_output.particle_source_e
     if source_output.j_parallel is not None:
       j_par = source_output.j_parallel
   return (

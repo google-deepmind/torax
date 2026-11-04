@@ -44,11 +44,11 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source."""
 
   SOURCE_ID: ClassVar[str] = 'icrh'
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[core_sources.AffectedCoreProfile, ...]
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
   ] = (
-      core_sources.AffectedCoreProfile.TEMP_ION,
-      core_sources.AffectedCoreProfile.TEMP_EL,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
 
 
