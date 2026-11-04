@@ -101,6 +101,7 @@ class QuaLiKizNDNN:
   def _load_prescale(self, key: str, names: list[str]) -> np.ndarray:
     return np.array([self._model_config[key][k] for k in names])[np.newaxis, :]
 
+  @jax_utils.pointwise_jvp(nondiff_argnums=(0,), mode='rev')
   def __call__(
       self,
       inputs: jax.Array,

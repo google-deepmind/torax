@@ -24,6 +24,7 @@ from torax._src.jax_utils.common import get_int_dtype
 from torax._src.jax_utils.common import get_np_dtype
 from torax._src.jax_utils.common import get_number_of_compiles
 from torax._src.jax_utils.matrix_inverse import fast_matrix_inverse
+from torax._src.jax_utils.pointwise_jvp import pointwise_jvp
 from torax._src.jax_utils.while_loop_bounded import while_loop_bounded
 
 # pylint: enable=g-importing-member
@@ -39,5 +40,6 @@ __all__ = [
     'get_np_dtype',
     'get_number_of_compiles',
     'fast_matrix_inverse',
+    'pointwise_jvp',
     'while_loop_bounded',
 ]

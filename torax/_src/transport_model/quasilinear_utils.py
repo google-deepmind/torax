@@ -24,6 +24,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
@@ -354,6 +355,16 @@ def _load_fi_stabilization_model(model: str):
   return fast_ion_model.FastIonStabilizationModel.load_model_from_path(model)
 
 
+@jax_utils.pointwise_jvp(nondiff_argnums=(0,), mode="rev")
+def _predict_fast_ion_stabilization_factor(
+    fi_model: fast_ion_model.FastIonStabilizationModel,
+    inputs: jax.Array,
+) -> jax.Array:
+  """Predicts per-species fast ion stabilization factor on the face grid."""
+  species_factor, _ = fi_model.predict(inputs, clip_inputs=True)
+  return species_factor.squeeze(axis=-1)
+
+
 def _compute_fast_ion_stabilization_factor(
     core_profiles: core_profiles_lib.CoreProfiles,
     smag: jax.Array,
@@ -406,8 +417,7 @@ def _compute_fast_ion_stabilization_factor(
     # TODO(b/512128432): Extend the parameter space based on values ranges
     # observed following analysis of integrated modelling results.
     # TODO(b/512476967): Propagate and handle OOD warnings.
-    species_factor, _ = fi_model.predict(inputs, clip_inputs=True)
-    species_factor = species_factor.squeeze(axis=-1)
+    species_factor = _predict_fast_ion_stabilization_factor(fi_model, inputs)
     factor = factor * species_factor
   return factor
 
