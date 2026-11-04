@@ -79,9 +79,9 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    geo = torax_config.geometry.build_provider(
+    geo = torax_config.geometry.build_runtime_params(
         torax_config.time_step_calculator.t_initial
-    )
+    ).geometry
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     L_ref = 3.0
     An_min = 0.05
@@ -132,10 +132,12 @@ class QuasilinearUtilsTest(parameterized.TestCase):
       self, pfe_value: float
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'chease'}
-    geo = config.ToraxConfig.from_dict(config_dict).geometry.build_provider(
-        t=0.0
-    )
+    config_dict['geometry'] = {
+        'model_name': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
     n_e = cell_variable.CellVariable(
         value=1.0e20 * (1.0 - 0.7 * geo.rho_norm**2),
         face_centers=geo.rho_face_norm,
@@ -248,7 +250,11 @@ class QuasilinearUtilsTest(parameterized.TestCase):
 
   def test_apply_fast_ion_stabilization_multiplier_scales_correction(self):
     n_rho = 5
-    geo = circular_geometry.CircularConfig(n_rho=n_rho - 1).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho - 1)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     smag = jnp.ones(n_rho)
     q = 1.5 * jnp.ones(n_rho)
     n_e = 1e20
@@ -339,7 +345,11 @@ class QuasilinearUtilsTest(parameterized.TestCase):
   )
   def test_per_species_model_selection(self, mock_get_default, mock_load_model):
     n_rho = 5
-    geo = circular_geometry.CircularConfig(n_rho=n_rho - 1).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho - 1)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     smag = jnp.ones(n_rho)
     q = 1.5 * jnp.ones(n_rho)
     n_e = 1e20
@@ -402,7 +412,11 @@ class QuasilinearUtilsTest(parameterized.TestCase):
   )
   def test_he4_maps_to_he3_default(self, mock_get_default):
     n_rho = 5
-    geo = circular_geometry.CircularConfig(n_rho=n_rho - 1).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho - 1)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     smag = jnp.ones(n_rho)
     q = 1.5 * jnp.ones(n_rho)
     n_e = 1e20

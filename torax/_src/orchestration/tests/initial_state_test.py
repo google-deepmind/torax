@@ -89,6 +89,9 @@ class InitialStateTest(sim_test_case.SimTestCase):
     self.assertNotEqual(
         float(result.core_profiles.psidot.right_face_grad_constraint), 0.0
     )
+    chex.assert_trees_all_close(
+        result.model_state.geometry.Phi_b, result.geometry.Phi_b
+    )
 
   def test_from_file_restart_without_v_loop_dataset(self):
     """Verifies file restart under I_p BC when V_LOOP is omitted."""
@@ -124,6 +127,19 @@ class InitialStateTest(sim_test_case.SimTestCase):
         result.core_profiles.v_loop_lcfs,
         result.core_profiles.psidot.face_value()[-1],
         rtol=1e-6,
+    )
+
+  def test_restart_uses_new_geometry_phi_b(self):
+    torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')
+    step_fn = run_simulation.make_step_fn(torax_config)
+    result, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            file_restart=torax_config.restart,  # pyrefly: ignore[bad-argument-type]
+            step_fn=step_fn,
+        )
+    )
+    chex.assert_trees_all_close(
+        result.model_state.geometry.Phi_b, result.geometry.Phi_b
     )
 
   @parameterized.parameters(
@@ -162,7 +178,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.time_step_calculator.t_initial,
             runtime_params_provider=step_fn.runtime_params_provider,
-            geometry_provider=step_fn.geometry_provider,
+            geometry_model=step_fn.solver.models.geometry_model,
             is_initialization=True,
         )
     )
@@ -204,7 +220,11 @@ class InitialStateTest(sim_test_case.SimTestCase):
         ),
     )
 
-    result = initial_state._get_initial_state(runtime_params, geo, step_fn)
+    result = initial_state._get_initial_state(
+        runtime_params=runtime_params,
+        geo=geo,
+        step_fn=step_fn,
+    )
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )
@@ -351,7 +371,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
   def test_restart_ibc_pedestal_mid_transition(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
     config_dict['time_step_calculator'] = {
         'calculator_type': 'fixed',
         'dt': 0.05,
@@ -443,7 +463,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
   )
   def test_restart_power_scaling_formation_with_dw_dt(self, mode: str):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
     config_dict['time_step_calculator'] = {
         'calculator_type': 'fixed',
         'dt': 0.05,
@@ -510,7 +530,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
   def test_restart_ip_boundary_condition_uses_file_ip(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
     config_dict['time_step_calculator'] = {
         'calculator_type': 'fixed',
         'dt': 0.05,

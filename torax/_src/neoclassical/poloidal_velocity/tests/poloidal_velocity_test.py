@@ -63,7 +63,8 @@ class PoloidalVelocityTest(absltest.TestCase):
             'Z_eff': 2.0,
         },
         'geometry': {
-            'geometry_type': 'chease',
+            'model_name': 'chease',
+            'geometry_file': 'iterhybrid.mat2cols',
             'n_rho': 10,
         },
         'transport': {},

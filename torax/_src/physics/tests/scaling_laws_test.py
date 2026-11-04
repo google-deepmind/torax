@@ -31,14 +31,18 @@ from torax._src.physics import scaling_laws
 class ScalingLawsTest(parameterized.TestCase):
 
   def _get_test_geo_and_profiles(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=1.0,
-        hires_factor=4,
-        R_major=6.0,
-        a_minor=2.0,
-        B_0=5.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+            elongation_LCFS=1.0,
+            hires_factor=4,
+            R_major=6.0,
+            a_minor=2.0,
+            B_0=5.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     core_profiles = solver_profiles.SolverProfiles(
         kinetic=kinetic_profiles.KineticProfiles(
@@ -170,14 +174,20 @@ class ScalingLawsTest(parameterized.TestCase):
       dict(elongation_LCFS=1.5),
   ])
   def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
-    geo = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=elongation_LCFS,
-        hires_factor=4,
-        R_major=6.0,
-        a_minor=2.0,
-        B_0=5.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+            elongation_LCFS=elongation_LCFS,
+            hires_factor=4,
+            R_major=6.0,
+            a_minor=2.0,
+            B_0=5.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
+    # property needed in calculate_plh_delabie.
     core_profiles = solver_profiles.SolverProfiles(
         kinetic=kinetic_profiles.KineticProfiles(
             n_e=cell_variable.CellVariable(

@@ -26,7 +26,11 @@ from torax._src.solver import solver_numeric_outputs
 class SolverNumericOutputsTest(parameterized.TestCase):
 
   def test_solver_numeric_outputs_to_output_dict(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     times = np.array([0.0, 1.0])
     context = output_grid_context.OutputGridContext(
         times=times,

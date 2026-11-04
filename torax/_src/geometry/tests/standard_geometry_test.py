@@ -19,8 +19,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+import pydantic
 from torax._src import array_typing
 from torax._src.fvm import cell_variable
+from torax._src.geometry import base
 from torax._src.geometry import chease
 from torax._src.geometry import config as geometry_config
 from torax._src.geometry import geometry
@@ -34,6 +36,8 @@ from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import interpolated_param_2d
 
 # pylint: disable=invalid-name
+
+_ADAPTER = pydantic.TypeAdapter(geometry_config.GeometryConfig)
 
 
 class GeometryTest(parameterized.TestCase):
@@ -118,7 +122,7 @@ class GeometryTest(parameterized.TestCase):
 
     # Check that the stacked geometry has the correct type and mesh
     self.assertEqual(stacked_geo.geometry_type, geo0.geometry_type)
-    self.assertEqual(stacked_geo.torax_mesh, geo0.torax_mesh)
+    np.testing.assert_allclose(stacked_geo.rho_face_norm[0], geo0.rho_face_norm)
 
     # Check some specific stacked values
     np.testing.assert_allclose(
@@ -332,18 +336,18 @@ class GeometryTest(parameterized.TestCase):
     )
 
   @parameterized.named_parameters(
-      ('circular', {'geometry_type': 'circular'}),
+      ('circular', {'model_name': 'circular'}),
       (
           'chease',
           {
-              'geometry_type': 'chease',
+              'model_name': 'chease',
               'geometry_file': 'iterhybrid.mat2cols',
           },
       ),
       (
           'eqdsk',
           {
-              'geometry_type': 'eqdsk',
+              'model_name': 'eqdsk',
               'geometry_file': 'iterhybrid_cocos02.eqdsk',
               'cocos': 2,
           },
@@ -351,17 +355,18 @@ class GeometryTest(parameterized.TestCase):
       (
           'imas',
           {
-              'geometry_type': 'imas',
+              'model_name': 'imas',
               'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
           },
       ),
   )
   def test_g0_g1_cauchy_schwarz_consistency(self, geo_config_dict):
     """Tests that g0^2 / g1 is in a physically reasonable range."""
-    geo_provider = geometry_config.GeometryConfig.from_dict(
-        geo_config_dict
-    ).build_provider
-    geo = geo_provider(0.0)
+    geo = (
+        _ADAPTER.validate_python(geo_config_dict)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     # By Cauchy-Schwarz, <|nabla V|>^2 <= <(nabla V)^2>, so g0^2 / g1
     # must be <= 1. For a shaped tokamak this ratio is typically 0.6-1.0.
@@ -464,11 +469,27 @@ class GeometryTest(parameterized.TestCase):
       self.assertNotIn(key, out_none)
     self.assertNotIn(output_keys.DIVERTED, out_none)
 
+  def test_interpolated_geometry_boolean_diverted(self):
+    inter0 = self._make_intermediates(diverted=np.array(False))
+    inter1 = self._make_intermediates(diverted=np.array(True))
+    geo0 = standard_geometry.build_standard_geometry(inter0)
+    geo1 = standard_geometry.build_standard_geometry(inter1)
+    interp_geo = base.InterpolatedGeometry(
+        times=np.array([0.0, 10.0]),
+        stacked_geometry=geometry.stack_geometries([geo0, geo1]),
+    )
+    geo_left = interp_geo.get_value(2.0)
+    assert isinstance(geo_left, standard_geometry.StandardGeometry)
+    self.assertFalse(bool(geo_left.diverted))
+    geo_right = interp_geo.get_value(8.0)
+    assert isinstance(geo_right, standard_geometry.StandardGeometry)
+    self.assertTrue(bool(geo_right.diverted))
+
   @parameterized.named_parameters(
       (
           'chease',
           {
-              'geometry_type': 'chease',
+              'model_name': 'chease',
               'geometry_file': 'iterhybrid.mat2cols',
               'n_rho': 400,
           },
@@ -476,7 +497,7 @@ class GeometryTest(parameterized.TestCase):
       (
           'eqdsk',
           {
-              'geometry_type': 'eqdsk',
+              'model_name': 'eqdsk',
               'geometry_file': 'iterhybrid_cocos02.eqdsk',
               'cocos': 2,
               'n_rho': 400,
@@ -486,9 +507,11 @@ class GeometryTest(parameterized.TestCase):
   def test_g1_over_vpr2_bounded_near_axis(self, geo_config_dict):
     # On a mesh finer than the equilibrium grid, g1/vpr^2 (~<|grad rho|^2>)
     # must stay close to its on-axis value 1/rho_b^2 rather than diverge.
-    geo = geometry_config.GeometryConfig.from_dict(
-        geo_config_dict
-    ).build_provider(0.0)
+    geo = (
+        _ADAPTER.validate_python(geo_config_dict)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     near_axis = geo.rho_face_norm < 0.1
     normalized = np.asarray(geo.g1_over_vpr2_face)[near_axis] * geo.rho_b**2
     np.testing.assert_array_less(normalized, 1.5)
@@ -501,11 +524,15 @@ class PsiFromIPTest(absltest.TestCase):
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    geo = geometry_config.GeometryConfig.from_dict({
-        'geometry_type': 'chease',
-        'geometry_file': 'iterhybrid.mat2cols',
-        'n_rho': 400,
-    }).build_provider(0.0)
+    geo = (
+        chease.CheaseConfig.from_dict({
+            'model_name': 'chease',
+            'geometry_file': 'iterhybrid.mat2cols',
+            'n_rho': 400,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     assert isinstance(geo, standard_geometry.StandardGeometry)
     # LCFS psi value constraint (as with the V_loop boundary condition), so the
     # edge gradient also comes from the psi_from_I_p interpolation.
@@ -563,9 +590,11 @@ class OffAxisGridTest(parameterized.TestCase):
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
+    chease_data = geometry_loader.load_geo_data(
+        None, 'iterhybrid.mat2cols', geometry_loader.GeometrySource.CHEASE
+    )
     chease_kwargs = dict(
-        geometry_directory=None,
-        geometry_file='iterhybrid.mat2cols',
+        chease_data=chease_data,
         face_centers=interpolated_param_2d.get_face_centers(400),
         R_major=6.2,
         a_minor=2.0,
@@ -577,16 +606,15 @@ class OffAxisGridTest(parameterized.TestCase):
 
     # Drop the magnetic axis (index 0) from each CHEASE profile to simulate an
     # equilibrium grid that starts off-axis.
-    chease_data = geometry_loader.load_geo_data(
-        None, 'iterhybrid.mat2cols', geometry_loader.GeometrySource.CHEASE
-    )
     off_axis_chease_data = {k: v[1:] for k, v in chease_data.items()}
-    with mock.patch.object(
-        geometry_loader, 'load_geo_data', return_value=off_axis_chease_data
-    ):
-      cls.intermediates_off_axis = chease._construct_intermediates_from_chease(
-          **chease_kwargs
-      )
+    cls.intermediates_off_axis = chease._construct_intermediates_from_chease(
+        chease_data=off_axis_chease_data,
+        face_centers=interpolated_param_2d.get_face_centers(400),
+        R_major=6.2,
+        a_minor=2.0,
+        B_0=5.3,
+        hires_factor=4,
+    )
     cls.geo_off_axis = standard_geometry.build_standard_geometry(
         cls.intermediates_off_axis
     )

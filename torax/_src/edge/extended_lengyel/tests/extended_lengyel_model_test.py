@@ -835,7 +835,11 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
   ):
     mock_run_standalone.return_value = self._make_dummy_outputs()
     n_rho = 10
-    geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
+    geo = (
+        chease.CheaseConfig(geometry_file='iterhybrid.mat2cols', n_rho=n_rho)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
@@ -959,7 +963,11 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     """Transitioning from limited to diverted evaluates Kallenbach immediately."""
     mock_run_standalone.return_value = self._make_dummy_outputs()
     n_rho = 10
-    geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
+    geo = (
+        chease.CheaseConfig(geometry_file='iterhybrid.mat2cols', n_rho=n_rho)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     mock_core_profiles = mock.MagicMock(spec=core_profiles_lib.CoreProfiles)
     mock_core_profiles.poloidal_flux = mock.MagicMock()
@@ -1845,7 +1853,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge.computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
     })
 
-    geo = self.torax_config.geometry.build_provider(t=0.0)
+    geo = self.torax_config.geometry.build_runtime_params(t=0.0).geometry
     mock_core_profiles, mock_core_sources = (
         self._make_mock_core_profiles_and_sources(geo.rho_norm.shape[0])
     )
@@ -1906,7 +1914,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge.enrichment_factor': {'Ne': self._CONFIG_ENRICHMENT, 'N': 1.0},
     })
 
-    geo = self.torax_config.geometry.build_provider(t=0.0)
+    geo = self.torax_config.geometry.build_runtime_params(t=0.0).geometry
     mock_core_profiles, mock_core_sources = (
         self._make_mock_core_profiles_and_sources(geo.rho_norm.shape[0])
     )

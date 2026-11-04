@@ -16,6 +16,7 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -26,6 +27,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import circular_geometry
+from torax._src.geometry import runtime_params as geometry_runtime_params
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import config as pedestal_config
 from torax._src.pedestal_model.formation import prescribed_formation_model
@@ -41,9 +43,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._torax_mesh = torax_pydantic.Grid1D(
-        face_centers=interpolated_param_2d.get_face_centers(nx=4),
-    )
+    self._grid = torax_pydantic.Grid1D.uniform_from_n_rho(4)
 
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params provider is time dependent."""
@@ -79,7 +79,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         T_e_right_bc=4.5,  # not time-dependent.
         n_e_right_bc=({5.0: 6.0e20, 7.0: 8.0e20}, 'step'),
     )
-    torax_pydantic.set_grid(profile_conditions, self._torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self._grid)
     np.testing.assert_allclose(
         profile_conditions.build_runtime_params(
             t=2.0,
@@ -211,8 +211,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         temperatures
     )
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
-    torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self._grid)
     profile_condition_params = profile_conditions.build_runtime_params(t=0.0)
 
     np.testing.assert_allclose(
@@ -578,15 +577,15 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    geo_provider = torax_config.geometry.build_provider
-    geo = geo_provider(0.0)
+    geo_model = torax_config.geometry.build_geometry_model()
+    geo = torax_config.geometry.build_runtime_params(0.0).geometry
 
     # Call without core_profiles → fallback to prescribed n_e.
     runtime_params, _ = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0.0,
             runtime_params_provider=dcs_provider,
-            geometry_provider=geo_provider,
+            geometry_model=geo_model,
             is_initialization=True,
         )
     )
@@ -622,8 +621,8 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    geo_provider = torax_config.geometry.build_provider
-    geo = geo_provider(0.0)
+    geo_model = torax_config.geometry.build_geometry_model()
+    geo = torax_config.geometry.build_runtime_params(0.0).geometry
 
     # Create a mock CoreProfiles with known n_e face values.
     n_e_face_profile = jax.numpy.linspace(
@@ -636,7 +635,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0.0,
             runtime_params_provider=dcs_provider,
-            geometry_provider=geo_provider,
+            geometry_model=geo_model,
             core_profiles=mock_core_profiles,
         )
     )
@@ -658,7 +657,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     """Tests that I_p is populated from geometry before density_fraction BC."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     }
     del config_dict['profile_conditions']['I_p']
@@ -676,14 +675,14 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    geo_provider = torax_config.geometry.build_provider
-    geo = geo_provider(0.0)
+    geo_model = torax_config.geometry.build_geometry_model()
+    geo = torax_config.geometry.build_runtime_params(0.0).geometry
 
     runtime_params, _ = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0.0,
             runtime_params_provider=dcs_provider,
-            geometry_provider=geo_provider,
+            geometry_model=geo_model,
             is_initialization=True,
         )
     )
@@ -692,6 +691,57 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         geo.I_p_profile_face[-1],  # pyrefly: ignore[missing-attribute]
     )
     self.assertGreater(runtime_params.profile_conditions.n_e_right_bc, 0.0)
+
+  def test_runtime_params_provider_geometry(self):
+    """Tests geometry in RuntimeParamsProvider and updating it under jit."""
+    config_dict = default_configs.get_default_config_dict()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    t = jnp.array(0.0)
+    runtime_params = provider(t)
+    self.assertIsInstance(
+        runtime_params.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
+    model = torax_config.geometry.build_geometry_model()
+    geo, _ = model.initialize(runtime_params)
+    chex.assert_trees_all_close(
+        geo.R_major,
+        torax_config.geometry.build_runtime_params(0.0).geometry.R_major,
+    )
+
+    # Test update_provider under jit with new GeometryConfigBase
+    new_geo_config = circular_geometry.CircularConfig(
+        B_0=6.0, n_rho=torax_config.geometry.n_rho
+    )
+
+    @jax.jit
+    def _jit_update(p, new_g):
+      return p.update_provider(
+          get_nodes_to_replace=lambda p: (p.geometry,),
+          replacement_values=(new_g,),
+      )
+
+    updated_provider = _jit_update(provider, new_geo_config)
+    updated_params = updated_provider(t)
+    self.assertIsInstance(
+        updated_params.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
+
+    # Test update_provider_from_mapping under jit
+    @jax.jit
+    def _jit_update_mapping(p, new_g):
+      return p.update_provider_from_mapping({'geometry': new_g})
+
+    updated_provider_mapping = _jit_update_mapping(provider, new_geo_config)
+    updated_params_mapping = updated_provider_mapping(t)
+    self.assertIsInstance(
+        updated_params_mapping.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
 
 
 if __name__ == '__main__':

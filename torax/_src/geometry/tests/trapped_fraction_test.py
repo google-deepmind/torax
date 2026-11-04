@@ -29,7 +29,9 @@ class TrappedFractionTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig().build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
+    )
 
   def test_calculate_sauter_trapped_fraction_positive_triangularity(self):
     result = trapped_fraction.calculate_sauter_trapped_fraction(

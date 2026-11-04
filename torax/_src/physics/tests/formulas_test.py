@@ -33,9 +33,11 @@ class FormulasTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=10, a_minor=1.0
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10, a_minor=1.0)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
         self.core_profiles,
@@ -121,9 +123,13 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(beta_N, beta_N_expected)
 
   def test_calc_dvar_dpsi_against_analytical_solution(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     psi_0 = 1.0
     Delta_psi = 2.5
     rho_norm_face = geo.rho_face / geo.rho_face[-1]
@@ -169,9 +175,13 @@ class FormulasTest(parameterized.TestCase):
       )
 
   def test_calculate_beta_pol_profile_and_derivative_analytical_circular(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     I_p = 1e6
     mu0 = constants.CONSTANTS.mu_0
     R0 = geo.R_major
@@ -251,9 +261,13 @@ class FormulasTest(parameterized.TestCase):
       np.testing.assert_allclose(beta_pol_prime[1:], beta_prime, rtol=1e-4)
 
   def test_calculate_alpha_mhd_analytical_circular(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     mu0 = constants.CONSTANTS.mu_0
     p_0 = 1.0e5
     # Quadratic pressure profile p(r_mid) = p_0 * (1 - (r_mid / a_minor)^2),
@@ -301,13 +315,17 @@ class FormulasTest(parameterized.TestCase):
   def test_calculate_alpha_mhd_miller(self):
     # In unelongated circular geometry (elongation_LCFS=1.0), Miller alpha_mhd
     # reduces identically to the circular s-alpha definition when q = dPhi/dpsi.
-    geo = circular_geometry.CircularConfig(
-        n_rho=50,
-        a_minor=1.0,
-        R_major=10.0,
-        B_0=2.0,
-        elongation_LCFS=1.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50,
+            a_minor=1.0,
+            R_major=10.0,
+            B_0=2.0,
+            elongation_LCFS=1.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     p_0 = 1.0e5
     # Quadratic pressure profile p(rho_norm) = p_0 * (1 - rho_norm^2).
     p_tot_cell = p_0 * (1.0 - geo.rho_norm**2)

@@ -30,7 +30,6 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
@@ -63,10 +62,6 @@ class References:
   q: np.ndarray
   s: np.ndarray
 
-  @property
-  def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
-    return self.torax_config.geometry.build_provider
-
   def get_runtime_params_and_geo(
       self,
   ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
@@ -77,7 +72,7 @@ class References:
     return build_runtime_params.get_consistent_runtime_params_and_geometry(
         t=t,
         runtime_params_provider=params,
-        geometry_provider=self.torax_config.geometry.build_provider,
+        geometry_model=self.torax_config.geometry.build_geometry_model(),
         is_initialization=True,
     )
 
@@ -86,9 +81,9 @@ def _build_references_from_case_data(
     case_name: str, torax_config: config.ToraxConfig
 ) -> References:
   """Helper function to build a References object from a config and JSON data."""
-  geo = torax_config.geometry.build_provider(
+  geo = torax_config.geometry.build_runtime_params(
       torax_config.time_step_calculator.t_initial
-  )
+  ).geometry
   all_references = _load_all_references()
   case_data = all_references[case_name]
 
@@ -129,7 +124,7 @@ def circular_references() -> References:
       'numerics': {},
       'plasma_composition': {},
       'geometry': {
-          'geometry_type': 'circular',
+          'model_name': 'circular',
       },
       'transport': {},
       'solver': {},
@@ -161,7 +156,8 @@ def chease_references_I_p_from_chease() -> References:
       'numerics': {},
       'plasma_composition': {},
       'geometry': {
-          'geometry_type': 'chease',
+          'model_name': 'chease',
+          'geometry_file': 'iterhybrid.mat2cols',
       },
       'transport': {},
       'solver': {},
@@ -195,7 +191,8 @@ def chease_references_I_p_from_runtime_params() -> References:
       'numerics': {},
       'plasma_composition': {},
       'geometry': {
-          'geometry_type': 'chease',
+          'model_name': 'chease',
+          'geometry_file': 'iterhybrid.mat2cols',
       },
       'transport': {},
       'solver': {},

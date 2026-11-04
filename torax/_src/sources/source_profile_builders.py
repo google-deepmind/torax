@@ -19,6 +19,7 @@
 from collections.abc import Mapping
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
@@ -118,6 +119,8 @@ def evaluate_dependent_sources(
     source_states: Mapping[str, source_state_lib.SourceState],
     basic_source_outputs: Mapping[str, core_sources.SourceOutput],
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
+    *,
+    phi_b_dot: array_typing.FloatScalar,
 ) -> tuple[
     core_sources.CoreSources,
     dict[str, source_state_lib.SourceState],
@@ -136,6 +139,8 @@ def evaluate_dependent_sources(
     source_states: Cross-timestep source states mapping.
     basic_source_outputs: Outputs from basic sources evaluation.
     bootstrap_current: Bootstrap current calculated for this time step.
+    phi_b_dot: Time derivative of the toroidal magnetic flux at the plasma
+      boundary (LCFS) [Wb/s].
 
   Returns:
     A tuple of (core_sources, updated_source_states).
@@ -148,6 +153,7 @@ def evaluate_dependent_sources(
         geo,
         core_profiles,
         source_states[source_name],
+        phi_b_dot=phi_b_dot,
     )
     updated_source_states[source_name] = new_state
     core_outputs[source_name] = output
@@ -180,4 +186,3 @@ def evaluate_dependent_sources(
     profiles = profiles.update_sources(final_outputs, source_models)
 
   return profiles, updated_source_states
-

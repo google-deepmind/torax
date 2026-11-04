@@ -11,12 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Ohmic heat source."""
+
 # pylint: disable=invalid-name
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
@@ -50,6 +53,8 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
+      *,
+      phi_b_dot: array_typing.FloatScalar,
   ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.
 
@@ -61,6 +66,8 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
       core_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
+      phi_b_dot: Time derivative of the toroidal magnetic flux at the plasma
+        boundary (LCFS) [Wb/s].
 
     Returns:
       A tuple containing:
@@ -74,7 +81,7 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
     psidot_fixed_phi = (
         core_profiles.psidot.value
         - geo.rho_norm
-        * geo.Phi_b_dot
+        * phi_b_dot
         / (2.0 * geo.Phi_b)
         * core_profiles.poloidal_flux.psi.grad()
     )

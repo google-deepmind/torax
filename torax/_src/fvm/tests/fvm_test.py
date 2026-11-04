@@ -213,7 +213,7 @@ class FVMTest(parameterized.TestCase):
                 I_p_source='profile_conditions',
                 psi_source='j',
             ),
-            geometry=dict(geometry_type='circular', n_rho=num_cells),
+            geometry=dict(model_name='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=dict(),
             solver=dict(use_fixed_point=False, theta_implicit=theta_implicit),
@@ -230,7 +230,7 @@ class FVMTest(parameterized.TestCase):
     runtime_params = step_fn.runtime_params_provider(
         t=torax_config.time_step_calculator.t_initial
     )
-    geo = step_fn.geometry_provider(torax_config.time_step_calculator.t_initial)
+    geo, _ = step_fn.solver.models.geometry_model.initialize(runtime_params)
     sim_state = initial_state._get_initial_state(
         runtime_params=runtime_params,
         geo=geo,

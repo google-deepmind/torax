@@ -208,7 +208,6 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
-        geometry_provider=step_fn.geometry_provider,
         model_state_t=sim_state.model_state,
     )
     self.assertGreater(config_dt, passed_max_dt)
@@ -248,7 +247,6 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
-        geometry_provider=step_fn.geometry_provider,
         model_state_t=sim_state.model_state,
     )
     self.assertGreater(passed_max_dt, config_dt)
@@ -287,7 +285,6 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
-        geometry_provider=step_fn.geometry_provider,
         model_state_t=sim_state.model_state,
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
@@ -442,14 +439,23 @@ class StepFunctionTest(parameterized.TestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
 
+    baseline_state, _ = step_fn(
+        sim_state,
+        post_processed_outputs,
+    )
+
     # Construct a new step function with a different geometry.
-    torax_config.update_fields({'geometry.calc_Phi_b_dot': False})
+    torax_config.update_fields({'geometry.B_0': 6.0})
     new_step_fn = run_simulation.make_step_fn(torax_config)
     # Use original step function with new step function's geometry as overrides.
+    runtime_params_overrides = dataclasses.replace(
+        step_fn.runtime_params_provider,
+        geometry=new_step_fn.runtime_params_provider.geometry,
+    )
     override_state, override_post_processed_outputs = step_fn(
         sim_state,
         post_processed_outputs,
-        geometry_overrides=new_step_fn.geometry_provider,
+        runtime_params_overrides=runtime_params_overrides,
     )
 
     # Use the new step function.
@@ -462,6 +468,12 @@ class StepFunctionTest(parameterized.TestCase):
     chex.assert_trees_all_close(override_state, ref_state)
     chex.assert_trees_all_close(
         override_post_processed_outputs, ref_post_processed_outputs
+    )
+    self.assertFalse(
+        np.allclose(
+            override_state.geometry.B_0,
+            baseline_state.geometry.B_0,
+        )
     )
 
 

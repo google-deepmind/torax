@@ -42,7 +42,6 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     geo = mock.Mock()
     geo.rho_norm = jnp.linspace(0.05, 0.95, n_rho)
     geo.Phi_b = jnp.asarray(4.0)
-    geo.Phi_b_dot = jnp.asarray(0.0)
     geo.F = jnp.full((n_rho,), 15.0)
     geo.g3 = jnp.full((n_rho,), 0.04)
     geo.gm5 = jnp.full((n_rho,), 9.0)
@@ -59,6 +58,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_state=source_state_lib.SourceState(),
+        phi_b_dot=jnp.asarray(0.0),
     )
     assert output.power_density_e is not None
 
@@ -80,7 +80,6 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     geo = mock.Mock()
     geo.rho_norm = rho_norm
     geo.Phi_b = phi_b
-    geo.Phi_b_dot = phi_b_dot
     geo.F = jnp.full((n_rho,), 10.0)
     geo.g3 = jnp.full((n_rho,), 0.05)
     geo.gm5 = jnp.full((n_rho,), 4.0)
@@ -97,6 +96,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_state=source_state_lib.SourceState(),
+        phi_b_dot=phi_b_dot,
     )
     assert output.power_density_e is not None
 
@@ -107,13 +107,17 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def test_ohmic_power_agrees_with_large_aspect_ratio_formula_for_pure_ohmic_current(
       self,
   ):
-    geo = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=1.0,
-        R_major=100.0,
-        a_minor=1.0,
-        B_0=5.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+            elongation_LCFS=1.0,
+            R_major=100.0,
+            a_minor=1.0,
+            B_0=5.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     ip_tot = 1e6
     j_toroidal_total_hires_shape = (1.0 - geo.rho_hires_norm**2) ** 2
     j_toroidal_total_hires = jnp.asarray(
@@ -139,6 +143,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         geo=geo,
         evolve_current=True,
         right_face_grad_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
+        phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
     )
 
     core_profiles = mock.Mock()
@@ -153,6 +158,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_state=source_state_lib.SourceState(),
+        phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
     )
     assert output.power_density_e is not None
     large_aspect_ratio_pohm = (
@@ -161,6 +167,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     np.testing.assert_allclose(
         np.asarray(output.power_density_e), large_aspect_ratio_pohm, rtol=3e-4
     )
+
 
 if __name__ == '__main__':
   absltest.main()

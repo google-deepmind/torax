@@ -24,6 +24,7 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
@@ -145,6 +146,7 @@ def evaluate_state(
       explicit=explicit,
       explicit_source_outputs=explicit_source_outputs,
       calculate_anyway=explicit,
+      phi_b_dot=model_state.geometry.Phi_b_dot,
   )
 
   # Remaining implicit source profiles.
@@ -157,6 +159,7 @@ def evaluate_state(
           source_states=basic_source_states,
           basic_source_outputs=basic_source_outputs,
           bootstrap_current=bootstrap_current,
+          phi_b_dot=model_state.geometry.Phi_b_dot,
       )
   )
 
@@ -186,6 +189,7 @@ def evaluate_state(
   )
 
   updated_model_state = model_state_lib.ModelState(
+      geometry=model_state.geometry,
       pedestal=updated_pedestal_state,
       transport=updated_transport_state,
       sources=updated_source_states,
@@ -215,6 +219,7 @@ def _build_core_profiles(
         Mapping[str, core_sources_lib.SourceOutput] | None
     ) = None,
     calculate_anyway: bool = False,
+    phi_b_dot: array_typing.FloatScalar,
 ) -> tuple[
     core_profiles_lib.CoreProfiles,
     dict[str, core_sources_lib.SourceOutput],
@@ -234,6 +239,8 @@ def _build_core_profiles(
     explicit: Whether to evaluate explicit sources.
     explicit_source_outputs: Pre-evaluated explicit source outputs, if any.
     calculate_anyway: Whether to calculate sources even if inactive.
+    phi_b_dot: Time derivative of the toroidal magnetic flux at the plasma
+      boundary (LCFS) [Wb/s].
 
   Returns:
     A tuple containing:
@@ -322,6 +329,7 @@ def _build_core_profiles(
       prescribed_psidot=runtime_params.profile_conditions.psidot,
       right_face_constraint=right_face_constraint,
       right_face_grad_constraint=right_face_grad_constraint,
+      phi_b_dot=phi_b_dot,
   )
   core_profiles = core_profiles_lib.CoreProfiles(
       kinetic=solver_profiles.kinetic,
@@ -416,6 +424,7 @@ def evaluate_initial_state(
   Returns:
     A tuple of (EvaluatedState, initial_model_state).
   """
+  _, initial_geometry_state = models.geometry_model.initialize(runtime_params)
   initial_source_states = models.source_models.initial_state(runtime_params)
   (
       core_profiles,
@@ -432,6 +441,7 @@ def evaluate_initial_state(
       source_states=initial_source_states,
       explicit=True,
       calculate_anyway=True,
+      phi_b_dot=initial_geometry_state.Phi_b_dot,
   )
   total_source_profiles, initial_source_states = (
       source_profile_builders.evaluate_dependent_sources(
@@ -442,6 +452,7 @@ def evaluate_initial_state(
           source_states=basic_source_states,
           basic_source_outputs=basic_source_outputs,
           bootstrap_current=bootstrap_current,
+          phi_b_dot=initial_geometry_state.Phi_b_dot,
       )
   )
   initial_pedestal_output, initial_pedestal_state = (
@@ -475,6 +486,7 @@ def evaluate_initial_state(
       internal_boundary_conditions=internal_boundary_conditions,
   )
   initial_model_state = model_state_lib.ModelState(
+      geometry=initial_geometry_state,
       pedestal=initial_pedestal_state,
       transport=initial_transport_state,
       sources=initial_source_states,

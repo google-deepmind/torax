@@ -62,7 +62,7 @@ def make_initial_inputs(
                   torax_config
               )
           ),
-          geometry_provider=torax_config.geometry.build_provider,
+          geometry_model=models.geometry_model,
           is_initialization=True,
       )
   )

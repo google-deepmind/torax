@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for representing a circular geometry."""
-
+from collections.abc import Mapping
 from typing import Annotated, Literal, Self
 import numpy as np
 import pydantic
@@ -29,7 +29,7 @@ class CircularConfig(base.GeometryConfigBase):
   Intended for testing purposes only.
 
   Attributes:
-    geometry_type: Always set to `'circular'`.
+    model_name: Always set to `'circular'`.
     R_major: Major radius, defined as the midplane average of the LCFS radius,
       $R_major = (R_max + R_min) / 2$ [m].
     a_minor: Minor radius, defined as half the horizontal width of the LCFS,
@@ -45,29 +45,74 @@ class CircularConfig(base.GeometryConfigBase):
   ) -> frozenset[trapped_fraction.TrappedFractionSource]:
     return frozenset({trapped_fraction.TrappedFractionSource.SAUTER})
 
-  geometry_type: Annotated[
-      Literal['circular'], torax_pydantic.TIME_INVARIANT
+  model_name: Annotated[
+      Literal['circular'],
+      torax_pydantic.TIME_INVARIANT,
+      torax_pydantic.JAX_STATIC,
   ] = 'circular'
-  R_major: torax_pydantic.Meter = 6.2
-  a_minor: torax_pydantic.Meter = 2.0
-  B_0: torax_pydantic.Tesla = 5.3
-  elongation_LCFS: pydantic.PositiveFloat = 1.72
+  R_major: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(6.2)
+  )
+  a_minor: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(2.0)
+  )
+  B_0: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(5.3)
+  elongation_LCFS: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.72)
+  )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> Self:
-    if not self.R_major >= self.a_minor:
-      raise ValueError('a_minor must be less than or equal to R_major.')
+    # Check the union of configured time points across the piecewise-linear
+    # scalar inputs to guarantee a_minor <= R_major for all t.
+    time_points = sorted(
+        set(self.R_major.time)
+        | set(self.a_minor.time)
+        | set(self.B_0.time)
+        | set(self.elongation_LCFS.time)
+    )
+    for t_k in time_points:
+      if not float(self.R_major.get_value(t_k)) >= float(
+          self.a_minor.get_value(t_k)
+      ):
+        raise ValueError('a_minor must be less than or equal to R_major.')
     return self
 
-  def build_geometry(self) -> geometry.Geometry:
-    return _build_circular_geometry(
-        face_centers=self.get_face_centers(),
-        elongation_LCFS=self.elongation_LCFS,
-        R_major=self.R_major,
-        a_minor=self.a_minor,
-        B_0=self.B_0,
-        hires_factor=self.hires_factor,
+  def _build_geometry(
+      self,
+  ) -> geometry.Geometry | Mapping[float, geometry.Geometry]:
+    scalars = (self.R_major, self.a_minor, self.B_0, self.elongation_LCFS)
+    if (
+        all(len(s.time) == 1 for s in scalars)
+        and len({float(s.time[0]) for s in scalars}) == 1
+    ):
+      t = float(self.R_major.time[0])
+      return _build_circular_geometry(
+          face_centers=self.get_face_centers(),
+          elongation_LCFS=float(self.elongation_LCFS.get_value(t)),
+          R_major=float(self.R_major.get_value(t)),
+          a_minor=float(self.a_minor.get_value(t)),
+          B_0=float(self.B_0.get_value(t)),
+          hires_factor=self.hires_factor,
+      )
+
+    time_points = sorted(
+        set(self.R_major.time)
+        | set(self.a_minor.time)
+        | set(self.B_0.time)
+        | set(self.elongation_LCFS.time)
     )
+    return {
+        float(t_k): _build_circular_geometry(
+            face_centers=self.get_face_centers(),
+            elongation_LCFS=float(self.elongation_LCFS.get_value(t_k)),
+            R_major=float(self.R_major.get_value(t_k)),
+            a_minor=float(self.a_minor.get_value(t_k)),
+            B_0=float(self.B_0.get_value(t_k)),
+            hires_factor=self.hires_factor,
+        )
+        for t_k in time_points
+    }
 
 
 def _build_circular_geometry(
@@ -284,9 +329,5 @@ def _build_circular_geometry(
       spr_hires=spr_hires,
       rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
-      # always initialize Phibdot as zero. It will be replaced once both geo_t
-      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
-      # geo_t_plus_dt for each given time interval.
-      Phi_b_dot=np.asarray(0.0),
       _z_magnetic_axis=np.asarray(0.0),
   )

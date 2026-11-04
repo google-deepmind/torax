@@ -14,11 +14,11 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider
 from torax._src.geometry import trapped_fraction
 
 
@@ -32,33 +32,22 @@ class CircularGeometryTest(parameterized.TestCase):
       self, trapped_fraction_source: trapped_fraction.TrappedFractionSource
   ):
     """Tests that CircularConfig only supports SAUTER."""
-    with self.assertRaisesRegex(ValueError, "not supported for CircularConfig"):
+    with self.assertRaisesRegex(ValueError, 'not supported for CircularConfig'):
       circular_geometry.CircularConfig(
           trapped_fraction_source=trapped_fraction_source
       )
 
-  def test_build_geometry_provider_from_circular(self):
-    """Test that the circular geometry provider can be built."""
-    geo_0 = circular_geometry.CircularConfig(
+  def test_build_time_dependent_geometry_from_circular(self):
+    """Test that time-dependent circular geometry can be built."""
+    cfg = circular_geometry.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.72,
-        R_major=6.2,
-        a_minor=2.0,
+        R_major={0.0: 6.2, 10.0: 7.2},
+        a_minor={0.0: 2.0, 10.0: 1.0},
         B_0=5.3,
         hires_factor=4,
-    ).build_geometry()
-    geo_1 = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        R_major=7.2,
-        a_minor=1.0,
-        B_0=5.3,
-        hires_factor=4,
-    ).build_geometry()
-    provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
-        {0.0: geo_0, 10.0: geo_1}, calc_Phi_b_dot=True,
     )
-    geo = provider(5.0)
+    geo = cfg.build_runtime_params(5.0).geometry
     np.testing.assert_allclose(geo.R_major, 6.7)
     np.testing.assert_allclose(geo.a_minor, 1.5)
 
@@ -68,17 +57,93 @@ class CircularGeometryTest(parameterized.TestCase):
     def foo(geo: geometry.Geometry):
       return geo.R_major
 
-    geo = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        R_major=6.2,
-        a_minor=2.0,
-        B_0=5.3,
-        hires_factor=4,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+            elongation_LCFS=1.72,
+            R_major=6.2,
+            a_minor=2.0,
+            B_0=5.3,
+            hires_factor=4,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     # Make sure you can call the function with geo as an arg.
     foo(geo)
 
+  def test_constant_circular_config_prescribed_model(self):
+    cfg = circular_geometry.CircularConfig()
+    params = cfg.build_runtime_params(0.0)
+    geo = params.geometry
+    np.testing.assert_allclose(geo.R_major, 6.2)
 
-if __name__ == "__main__":
+  def test_time_varying_circular_config_prescribed_model(self):
+    cfg_with_phi_b = circular_geometry.CircularConfig(
+        R_major={0.0: 6.2, 1.0: 7.0},
+        a_minor={0.0: 2.0, 1.0: 2.0},
+        calc_Phi_b_dot=True,
+    )
+    params = cfg_with_phi_b.build_runtime_params(0.5)
+    geo = params.geometry
+    np.testing.assert_allclose(geo.R_major, 6.6)
+    self.assertTrue(params.calc_Phi_b_dot)
+
+    @jax.jit
+    def jitted_eval(cfg_t, t):
+      return cfg_t.build_runtime_params(t)
+
+    params_jit = jitted_eval(cfg_with_phi_b, 0.5)
+    np.testing.assert_allclose(params_jit.geometry.R_major, 6.6)
+    self.assertTrue(params_jit.calc_Phi_b_dot)
+
+    cfg_without_phi_b = circular_geometry.CircularConfig(
+        R_major={0.0: 6.2, 1.0: 7.0},
+        a_minor={0.0: 2.0, 1.0: 2.0},
+        calc_Phi_b_dot=False,
+    )
+    params_no_phi = cfg_without_phi_b.build_runtime_params(0.5)
+    self.assertFalse(params_no_phi.calc_Phi_b_dot)
+    params_no_phi_jit = jitted_eval(cfg_without_phi_b, 0.5)
+    self.assertFalse(params_no_phi_jit.calc_Phi_b_dot)
+
+  def test_circular_config_json_roundtrip(self):
+    cfg = circular_geometry.CircularConfig(
+        R_major={0.0: 6.2, 1.0: 7.0},
+        a_minor=2.0,
+    )
+    json_str = cfg.model_dump_json()
+    cfg_restored = circular_geometry.CircularConfig.model_validate_json(
+        json_str
+    )
+    chex.assert_trees_all_equal(cfg.model_dump(), cfg_restored.model_dump())
+    self.assertEqual(
+        cfg_restored.build_runtime_params(0.0).geometry.geometry_type,
+        geometry.GeometryType.CIRCULAR,
+    )
+
+  def test_circular_config_update_fields(self):
+    cfg = circular_geometry.CircularConfig()
+    cfg._update_fields({'R_major': 7.0})
+    np.testing.assert_allclose(cfg.R_major.get_value(0.0), 7.0)
+    np.testing.assert_allclose(
+        cfg.build_runtime_params(0.0).geometry.R_major, 7.0
+    )
+
+  def test_circular_config_invalid_a_minor_raises(self):
+    with self.assertRaisesRegex(
+        ValueError, 'a_minor must be less than or equal to R_major.'
+    ):
+      circular_geometry.CircularConfig(R_major=1.0, a_minor=2.0)
+
+    with self.assertRaisesRegex(
+        ValueError, 'a_minor must be less than or equal to R_major.'
+    ):
+      circular_geometry.CircularConfig(
+          R_major={0.0: 2.0, 1.0: 1.0},
+          a_minor={0.0: 1.0, 1.0: 1.5},
+      )
+
+
+if __name__ == '__main__':
   absltest.main()

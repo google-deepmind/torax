@@ -17,7 +17,9 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Self, Sequence, TypeAlias
+import types
+import typing
+from typing import Annotated, Any, Final, Mapping, Self, Sequence, TypeAlias, get_args, get_origin
 
 import jax
 import pydantic
@@ -28,6 +30,12 @@ JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
 
 StaticKwargs: TypeAlias = dict[str, Any]
 DynamicArgs: TypeAlias = list[Any]
+
+
+def _has_pydantic_model(t: Any) -> bool:
+  if isinstance(t, type) and issubclass(t, pydantic.BaseModel):
+    return True
+  return any(_has_pydantic_model(arg) for arg in get_args(t))
 
 
 class ConfigBase(pydantic.BaseModel):
@@ -275,15 +283,51 @@ class ConfigBase(pydantic.BaseModel):
             ' ConfigBase model.'
         )
       assert value_name in model.__dict__
-      field_type = model.__class__.model_fields[value_name].annotation
+      field_info = model.__class__.model_fields[value_name]
+      field_type = field_info.rebuild_annotation()
+      disc = field_info.discriminator
+      disc_key = (
+          disc.discriminator
+          if isinstance(disc, pydantic.Discriminator)
+          else disc
+      )
+
+      current_val = model.__dict__[value_name]
+      if isinstance(value, dict):
+        if (
+            isinstance(disc_key, str)
+            and disc_key not in value
+            and isinstance(current_val, ConfigBase)
+            and hasattr(current_val, disc_key)
+        ):
+          value = {disc_key: getattr(current_val, disc_key), **value}
+        elif (
+            field_info.json_schema_extra
+            and isinstance(field_info.json_schema_extra, dict)
+            and 'default_model_name' in field_info.json_schema_extra
+            and 'model_name' not in value
+        ):
+          value = {
+              'model_name': field_info.json_schema_extra['default_model_name'],
+              **value,
+          }
+
+      if disc is not None and get_origin(field_type) in (
+          types.UnionType,
+          typing.Union,
+      ):
+        disc_obj = (
+            pydantic.Discriminator(disc_key)
+            if isinstance(disc_key, str)
+            else disc
+        )
+        field_type = Annotated[field_type, disc_obj]
 
       # TypeAdapter does not allow a config arg if the value is a Pydantic
       # model, as this has its own config.
       cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
-      try:
-        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg  # pyrefly: ignore[bad-argument-type]
-      except TypeError:
-        pass
+      if _has_pydantic_model(field_type):
+        cfg = None
       value = pydantic.TypeAdapter(field_type, config=cfg).validate_python(
           value
       )

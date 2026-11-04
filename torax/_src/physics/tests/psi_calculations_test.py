@@ -33,7 +33,6 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import torax_refs
-from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -49,11 +48,12 @@ class PsiCalculationsTest(parameterized.TestCase):
       jax.Array,
   ]:
     # Load geo from IMAS
-    config = imas_geometry.IMASConfig(
-        imas_filepath=imas_filename,
-        n_rho=200,
-    )
-    geo = config.build_geometry()
+    config = imas_geometry.IMASConfig.from_dict({
+        'imas_filepath': imas_filename,
+        'n_rho': 200,
+    })
+    geo = config.build_runtime_params(0.0).geometry
+    assert isinstance(geo, standard_geometry.StandardGeometry)
 
     # Load profiles from IMAS
     core_profiles_ids = imas_loader.load_imas_data(
@@ -70,8 +70,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     return geo, j_parallel_truth, j_tor_truth
 
   def test_extrapolation_to_axis(self):
-    face_centers = interpolated_param_2d.get_face_centers(nx=5)
-    grid = torax_pydantic.Grid1D(face_centers=face_centers)
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(5)
     rho_norm = grid.cell_centers
     rho_face_norm = grid.face_centers
     cell_profile = rho_norm
@@ -168,9 +167,7 @@ class PsiCalculationsTest(parameterized.TestCase):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
-    geo = references.geometry_provider(
-        references.torax_config.time_step_calculator.t_initial
-    )
+    _, geo = references.get_runtime_params_and_geo()
     # pylint: disable=invalid-name
     j, _, I_p_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
@@ -200,9 +197,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   ])
   def test_calc_s(self, references_getter: Callable[[], torax_refs.References]):
     references = references_getter()
-    geo = references.geometry_provider(
-        references.torax_config.time_step_calculator.t_initial
-    )
+    _, geo = references.get_runtime_params_and_geo()
 
     s = psi_calculations.calc_s_face(geo, references.psi)
     np.testing.assert_allclose(s, references.s, rtol=1e-5)
@@ -250,6 +245,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         sigma=conductivity.sigma,
         psi=references.psi,
         geo=geo,
+        phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
     )
 
     psidot_expected = references.psidot
@@ -261,13 +257,17 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Small inverse aspect ratio limit of circular geometry, such that we
     # approximate the simplest form of circular geometry where the analytical
     # Bpol formula is applicable.
-    geo = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=1.0,
-        R_major=100.0,
-        a_minor=1.0,
-        B_0=5.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+            elongation_LCFS=1.0,
+            R_major=100.0,
+            a_minor=1.0,
+            B_0=5.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     I_p = 15e6
     # calculate high resolution j_toroidal_total consistent with total current
     # profile
@@ -308,13 +308,17 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Small inverse aspect ratio limit of circular geometry, such that we
     # approximate the simplest form of circular geometry where the analytical
     # Bpol formula is applicable.
-    geo = circular_geometry.CircularConfig(
-        n_rho=25,
-        elongation_LCFS=1.0,
-        R_major=100.0,
-        a_minor=1.0,
-        B_0=5.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+            elongation_LCFS=1.0,
+            R_major=100.0,
+            a_minor=1.0,
+            B_0=5.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     I_p = 15e6
     # calculate high resolution j_toroidal_total consistent with total current
     # profile
@@ -445,7 +449,11 @@ class PsiCalculationsTest(parameterized.TestCase):
       right_face_constraint: float | None,
       right_face_grad_constraint: float | None = None,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=8).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=8)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     psi = initialization.update_psi_from_j(
         1e6, geo, jnp.ones_like(geo.rho_hires_norm) * 1e5
     )
@@ -473,6 +481,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         psi_sources=psi_sources,
         geo=geo,
         evolve_current=evolve_current,
+        phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
         prescribed_psidot=prescribed_psidot,
         right_face_constraint=right_face_arg,
         right_face_grad_constraint=grad_arg,
@@ -486,6 +495,7 @@ class PsiCalculationsTest(parameterized.TestCase):
           sigma=sigma,
           psi=psi,
           geo=geo,
+          phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
       )
     expected_grad = (
         0.0 if right_face_grad_constraint is None
@@ -512,7 +522,11 @@ class PsiCalculationsTest(parameterized.TestCase):
     np.testing.assert_allclose(psidot.face_value()[-1], expected_right_bc)
 
   def test_calculate_psidot_raises_when_both_constraints_none(self):
-    geo = circular_geometry.CircularConfig(n_rho=8).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=8)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     psi = initialization.update_psi_from_j(
         1e6, geo, jnp.ones_like(geo.rho_hires_norm) * 1e5
     )
@@ -527,10 +541,15 @@ class PsiCalculationsTest(parameterized.TestCase):
           evolve_current=True,
           right_face_constraint=None,
           right_face_grad_constraint=None,
+          phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
       )
 
   def test_calculate_psidot_raises_when_both_constraints_set(self):
-    geo = circular_geometry.CircularConfig(n_rho=8).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=8)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     psi = initialization.update_psi_from_j(
         1e6, geo, jnp.ones_like(geo.rho_hires_norm) * 1e5
     )
@@ -544,10 +563,40 @@ class PsiCalculationsTest(parameterized.TestCase):
           geo=geo,
           evolve_current=True,
           right_face_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
-          right_face_grad_constraint=jnp.zeros(
-              (), dtype=jax_utils.get_dtype()
-          ),
+          right_face_grad_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
+          phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
       )
+
+  def test_calculate_psidot_with_phi_b_dot(self):
+    geo = (
+        circular_geometry.CircularConfig(n_rho=8)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    psi = initialization.update_psi_from_j(
+        1e6, geo, jnp.ones_like(geo.rho_hires_norm) * 1e5
+    )
+    sigma = jnp.full_like(geo.rho_norm, 1e6)
+    psi_sources = jnp.zeros_like(geo.rho_norm)
+    phi_b_dot = jnp.asarray(2.5, dtype=jax_utils.get_dtype())
+    psidot_zero = psi_calculations.calculate_psidot_from_psi_sources(
+        psi_sources=psi_sources,
+        sigma=sigma,
+        psi=psi,
+        geo=geo,
+        phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
+    )
+    psidot_nonzero = psi_calculations.calculate_psidot_from_psi_sources(
+        psi_sources=psi_sources,
+        sigma=sigma,
+        psi=psi,
+        geo=geo,
+        phi_b_dot=phi_b_dot,
+    )
+    expected_diff = 0.5 * geo.rho_norm / geo.Phi_b * psi.grad() * phi_b_dot
+    np.testing.assert_allclose(
+        psidot_nonzero - psidot_zero, expected_diff, atol=1e-6
+    )
 
 
 if __name__ == '__main__':

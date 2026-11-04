@@ -28,7 +28,11 @@ class SauterTest(absltest.TestCase):
 
   def test_sauter_bootstrap_current_is_correct_shape(self):
     n_rho = 10
-    geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     bootstrap_params = bootstrap_current_runtime_params.RuntimeParams(
         bootstrap_multiplier=1.0
     )

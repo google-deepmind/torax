@@ -18,6 +18,7 @@ from collections.abc import Mapping
 import dataclasses
 import jax
 from torax._src.edge import edge_state
+from torax._src.geometry import geometry_state
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_state
@@ -31,6 +32,7 @@ import xarray as xr
 class ModelState:
   """Cross-timestep state for stateful physics models."""
 
+  geometry: geometry_state.GeometryState
   pedestal: pedestal_state.PedestalState
   transport: transport_state.TransportState
   sources: Mapping[str, source_state.SourceState]
@@ -50,6 +52,9 @@ class ModelState:
       stateless.
     """
     children: dict[str, xr.DataTree] = {}
+    geometry_tree = self.geometry.to_xr_datatree(context)
+    if geometry_tree is not None:
+      children[output_keys.GEOMETRY] = geometry_tree
     pedestal_tree = self.pedestal.to_xr_datatree(context)
     if pedestal_tree is not None:
       children[output_keys.PEDESTAL] = pedestal_tree

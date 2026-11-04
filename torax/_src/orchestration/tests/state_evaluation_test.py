@@ -49,7 +49,7 @@ class StateEvaluationTest(parameterized.TestCase):
     self.runtime_params = self.step_fn.runtime_params_provider(
         t=self.sim_state.t
     )
-    self.geo = self.step_fn.geometry_provider(self.sim_state.t)
+    self.geo = self.sim_state.geometry
     self.models = self.step_fn.solver.models
     self.solver_state = self.sim_state.core_profiles.to_solver_state()
     source_states = self.models.source_models.initial_state(self.runtime_params)
@@ -162,7 +162,7 @@ class StateEvaluationTest(parameterized.TestCase):
 
   def test_explicit_source_preservation(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 4}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 4}
     config_dict['numerics'] = {
         'evolve_current': True,
         'enable_fast_ions': True,
@@ -197,7 +197,7 @@ class StateEvaluationTest(parameterized.TestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
     runtime_params = step_fn.runtime_params_provider(t=sim_state.t)
-    geo = step_fn.geometry_provider(sim_state.t)
+    geo = sim_state.geometry
     models = step_fn.solver.models
     solver_state = sim_state.core_profiles.to_solver_state()
 

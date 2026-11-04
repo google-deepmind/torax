@@ -107,7 +107,7 @@ class ConfigTest(parameterized.TestCase):
       )
 
     with self.subTest("geometry_grid_set"):
-      mesh = torax_config.geometry.build_provider.torax_mesh
+      grid = torax_config.geometry.get_grid()
       time_varying_arrays = [
           m
           for m in torax_config.submodels
@@ -115,8 +115,8 @@ class ConfigTest(parameterized.TestCase):
       ]
       assert time_varying_arrays  # Should be non-empty.
       for m in time_varying_arrays:
-        chex.assert_trees_all_equal(mesh.face_centers, m.grid.face_centers)  # pyrefly: ignore[missing-attribute]
-        chex.assert_trees_all_equal(mesh.cell_centers, m.grid.cell_centers)  # pyrefly: ignore[missing-attribute]
+        chex.assert_trees_all_equal(grid.face_centers, m.grid.face_centers)  # pyrefly: ignore[missing-attribute]
+        chex.assert_trees_all_equal(grid.cell_centers, m.grid.cell_centers)  # pyrefly: ignore[missing-attribute]
 
   def test_geometry_direct_nrho_hires_factor_update(self):
 
@@ -125,26 +125,25 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
-    assert not isinstance(torax_config.geometry.geometry_configs, dict)
-    assert torax_config.geometry.geometry_configs.n_rho is not None
-    new_n_rho = torax_config.geometry.geometry_configs.n_rho * 2
-    new_hires_factor = torax_config.geometry.geometry_configs.hires_factor * 2
+    assert torax_config.geometry.n_rho is not None
+    new_n_rho = torax_config.geometry.n_rho * 2
+    new_hires_factor = torax_config.geometry.hires_factor * 2
 
     # Check that the caches are invalidated.
     torax_config.plasma_composition.Z_eff.get_value(t=0.2, grid_type="cell")
     torax_config.plasma_composition.Z_eff.get_value(t=0.2, grid_type="face")
 
     torax_config.update_fields({
-        "geometry.geometry_configs.n_rho": new_n_rho,
-        "geometry.geometry_configs.hires_factor": new_hires_factor,
+        "geometry.n_rho": new_n_rho,
+        "geometry.hires_factor": new_hires_factor,
     })
 
     self.assertEqual(
-        torax_config.geometry.geometry_configs.n_rho,
+        torax_config.geometry.n_rho,
         new_n_rho,
     )
     self.assertEqual(
-        torax_config.geometry.geometry_configs.hires_factor,
+        torax_config.geometry.hires_factor,
         new_hires_factor,
     )
 
@@ -165,20 +164,19 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
-    assert not isinstance(torax_config.geometry.geometry_configs, dict)
-    assert torax_config.geometry.geometry_configs.n_rho is not None
-    new_n_rho = torax_config.geometry.geometry_configs.n_rho * 2
+    assert torax_config.geometry.n_rho is not None
+    new_n_rho = torax_config.geometry.n_rho * 2
 
     torax_config.update_fields({
         "geometry": {
             "n_rho": new_n_rho,
-            "geometry_type": "circular",
+            "model_name": "circular",
         },
         "profile_conditions.psi_source": "j",
     })
 
     self.assertEqual(
-        torax_config.geometry.geometry_configs.n_rho,
+        torax_config.geometry.n_rho,
         new_n_rho,
     )
 
@@ -187,6 +185,22 @@ class ConfigTest(parameterized.TestCase):
           t=0.2, grid_type="cell"
       )
       self.assertLen(v1_cell, new_n_rho)
+
+  def test_geometry_cache_invalidation_on_update_fields(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {"model_name": "circular", "n_rho": 4}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    geo_0 = torax_config.geometry.build_runtime_params(0.0).geometry
+    self.assertEqual(geo_0.n_rho, 4)
+    self.assertEqual(float(geo_0.R_major), 6.2)
+
+    torax_config.update_fields({"geometry.R_major": 7.0})
+    geo_updated_r = torax_config.geometry.build_runtime_params(0.0).geometry
+    self.assertEqual(float(geo_updated_r.R_major), 7.0)
+
+    torax_config.update_fields({"geometry.n_rho": 50})
+    geo_updated_n = torax_config.geometry.build_runtime_params(0.0).geometry
+    self.assertEqual(geo_updated_n.n_rho, 50)
 
   @parameterized.named_parameters(
       ("const_lin_no_per", "constant", "linear", None, False, False),
@@ -379,13 +393,13 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="circular_geometry_raises",
-          geometry={"geometry_type": "circular", "n_rho": 4},
+          geometry={"model_name": "circular", "n_rho": 4},
           expect_error=True,
       ),
       dict(
           testcase_name="chease_geometry_passes",
           geometry={
-              "geometry_type": "chease",
+              "model_name": "chease",
               "geometry_file": "iterhybrid.mat2cols",
           },
           expect_error=False,
@@ -466,7 +480,7 @@ class ConfigTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     if geometry_type == "chease":
       config_dict["geometry"] = {
-          "geometry_type": "chease",
+          "model_name": "chease",
           "geometry_file": "iterhybrid.mat2cols",
       }
     config_dict["profile_conditions"]["psi_source"] = psi_source
@@ -552,7 +566,7 @@ class ConfigTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     if psi_source == "geometry":
       config_dict["geometry"] = {
-          "geometry_type": "chease",
+          "model_name": "chease",
           "geometry_file": "iterhybrid.mat2cols",
       }
     elif psi_source == "profile_conditions":
@@ -590,13 +604,13 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="circular_geometry_raises",
-          geometry={"geometry_type": "circular", "n_rho": 4},
+          geometry={"model_name": "circular", "n_rho": 4},
           expect_error=True,
       ),
       dict(
           testcase_name="chease_geometry_passes",
           geometry={
-              "geometry_type": "chease",
+              "model_name": "chease",
               "geometry_file": "iterhybrid.mat2cols",
           },
           expect_error=False,
@@ -647,7 +661,7 @@ class ConfigTest(parameterized.TestCase):
   def test_I_p_ignored_warning(self, I_p, I_p_source, expect_warning):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     config_dict["profile_conditions"]["I_p_source"] = I_p_source
@@ -704,7 +718,7 @@ class ConfigTest(parameterized.TestCase):
   def test_edge_model_with_circular_geometry_raises_error(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "circular",
+        "model_name": "circular",
         "n_rho": 33,
     }
     config_dict["edge"] = {
@@ -731,7 +745,7 @@ class ConfigTest(parameterized.TestCase):
     L, LY = get_example_L_LY_data.get_example_L_LY_data(10, 1)
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "meq",
+        "model_name": "meq",
         "L_object": L,
         "LY_object": LY,
     }
@@ -766,7 +780,7 @@ class ConfigTest(parameterized.TestCase):
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     config_dict["edge"] = {
@@ -790,7 +804,7 @@ class ConfigTest(parameterized.TestCase):
     """Tests that overlapping fixed and seeded impurities raise an error."""
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     # Inverse mode logic checks that fixed and seed sets are disjoint.
@@ -820,7 +834,7 @@ class ConfigTest(parameterized.TestCase):
     """Tests that mismatched core and edge species raise an error."""
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     config_dict["edge"] = {
@@ -908,7 +922,7 @@ class ConfigTest(parameterized.TestCase):
 
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "eqdsk",
+        "model_name": "eqdsk",
         "cocos": 11,
         "eqdsk_object": eqdsk_obj,
     }
@@ -916,21 +930,15 @@ class ConfigTest(parameterized.TestCase):
     dumped_config_dict = torax_config.model_dump()
 
     torax_config_restored = config.ToraxConfig.from_dict(dumped_config_dict)
+    self.assertIsInstance(torax_config_restored.geometry, eqdsk.EQDSKConfig)
+    assert isinstance(torax_config_restored.geometry, eqdsk.EQDSKConfig)
+    assert torax_config_restored.geometry.eqdsk_data is not None
     self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs, eqdsk.EQDSKConfig
+        torax_config_restored.geometry.eqdsk_data,
+        eqdsk.EQDSKData,
     )
-    assert isinstance(
-        torax_config_restored.geometry.geometry_configs, eqdsk.EQDSKConfig
-    )
-    assert (
-        torax_config_restored.geometry.geometry_configs.eqdsk_object is not None
-    )
-    self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs.eqdsk_object,
-        eqdsk_lib.EQDSKInterface,
-    )
-    provider = torax_config_restored.geometry.build_provider
-    self.assertIsNotNone(provider(0.0))
+    geo = torax_config_restored.geometry.build_runtime_params(0.0).geometry
+    self.assertIsNotNone(geo)
 
 
 class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
@@ -940,7 +948,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     super().setUp()
     self.config_dict = default_configs.get_default_config_dict()
     self.config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
 

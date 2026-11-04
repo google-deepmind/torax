@@ -582,7 +582,7 @@ class SimTest(sim_test_case.SimTestCase):
             't_final': 3.0,
         },
         'geometry': {
-            'geometry_type': 'circular',
+            'model_name': 'circular',
             'n_rho': 10,
         },
         'sources': {

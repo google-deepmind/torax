@@ -535,7 +535,11 @@ class PedestalStructureTest(parameterized.TestCase):
     )
 
   def test_to_internal_boundary_conditions_tanh_profiles(self):
-    geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=25)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     rho_norm_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
     structure = pedestal_structure.PedestalStructure(
@@ -575,7 +579,11 @@ class PedestalStructureTest(parameterized.TestCase):
 
   @parameterized.parameters(0.925, 0.93)
   def test_interfacial_face_is_in_core_domain(self, rho_norm_top):
-    geo = circular_geometry.CircularConfig(n_rho=100).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=100)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     cell_mask = pedestal_model_output._pedestal_cell_mask(
         geo.rho_face_norm, rho_norm_top
     )
@@ -591,9 +599,13 @@ class PedestalStructureTest(parameterized.TestCase):
     ped_eval = np.linspace(0.94, 0.99, 50)
 
     def _eval_ped_profile(p):
-      geo = circular_geometry.CircularConfig(
-          face_centers=1.0 - (1.0 - np.linspace(0.0, 1.0, 201)) ** p
-      ).build_geometry()
+      geo = (
+          circular_geometry.CircularConfig(
+              face_centers=1.0 - (1.0 - np.linspace(0.0, 1.0, 201)) ** p
+          )
+          .build_runtime_params(0.0)
+          .geometry
+      )
       ibc = _mtanh_ibc(
           geo, rho_norm_top, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0)
       )
@@ -607,7 +619,7 @@ class PedestalStructureTest(parameterized.TestCase):
     )
 
   def test_tanh_ibc_no_pedestal_grad_is_finite(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     no_ped = pedestal_model_output.IBCPedestalModelOutput.empty()
 
     def _sum_ti(psi):
@@ -624,7 +636,11 @@ class PedestalStructureTest(parameterized.TestCase):
     self.assertTrue(bool(jnp.all(jnp.isfinite(grad_psi))))
 
   def test_tanh_ibc_pins_no_cells_when_top_at_lcfs(self):
-    geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=25)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     ibc = _mtanh_ibc(geo, 1.0, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0))
     np.testing.assert_array_equal(ibc.T_i, 0.0)
 
@@ -632,7 +648,11 @@ class PedestalStructureTest(parameterized.TestCase):
     with self.subTest('equals_top_value_when_cell_center_at_top'):
       # With psi linear in rho, psi interpolated at a cell center equals the
       # cell value, so the mtanh there is exactly T_i_top.
-      geo = circular_geometry.CircularConfig(n_rho=100).build_geometry()
+      geo = (
+          circular_geometry.CircularConfig(n_rho=100)
+          .build_runtime_params(0.0)
+          .geometry
+      )
       rho_norm_top = float(geo.rho_norm[93])
       ibc = _mtanh_ibc(
           geo, rho_norm_top, _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
@@ -649,7 +669,11 @@ class PedestalStructureTest(parameterized.TestCase):
     with self.subTest('within_bound_at_half_cell_offset'):
       # With the pedestal top on a face, the first pinned cell center lies half
       # a cell inside it, the worst case.
-      geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
+      geo = (
+          circular_geometry.CircularConfig(n_rho=25)
+          .build_runtime_params(0.0)
+          .geometry
+      )
       rho_norm_top = float(geo.rho_face_norm[24])
       ibc = _mtanh_ibc(
           geo, rho_norm_top, _mtanh_core_profiles(geo, geo.rho_norm**2, 2.0)
@@ -729,7 +753,6 @@ class PedestalModelOutputTest(parameterized.TestCase):
     self.geo.rho_face_norm = jnp.linspace(0, 1, 10)
     self.geo.rho = jnp.linspace(0, 1, 9)
     self.geo.rho_norm = jnp.linspace(0, 1, 9)
-    self.geo.torax_mesh = mock.MagicMock(nx=9)
     self.structure = pedestal_structure.PedestalStructure(
         rho_norm_top=0.99,
         T_i_top=1.0,
@@ -778,7 +801,11 @@ class PedestalModelOutputTest(parameterized.TestCase):
     self.assertEqual(jnp.sum(ibc_set.T_i != 0.0), 1)
 
   def test_ibc_output_to_internal_boundary_conditions_mtanh(self):
-    geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=25)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     rho_norm_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
     output_mtanh = pedestal_model_output.IBCPedestalModelOutput(

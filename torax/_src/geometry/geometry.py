@@ -25,7 +25,6 @@ import numpy as np
 from torax._src import array_typing
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.torax_pydantic import torax_pydantic
 
 
 def face_to_cell(
@@ -177,10 +176,6 @@ class Geometry:
       where Z_upper and Z_lower are the Z coordinates of the upper and lower
       extent of the flux surface.
     elongation_face: Plasma elongation profile on face grid [dimensionless].
-    Phi_b_dot: Time derivative of the toroidal magnetic flux
-      [:math:`\mathrm{Wb/s}`]. Calculated across a time interval using ``Phi``
-      from the Geometry objects at time t and t + dt. See
-      ``torax.orchestration.step_function`` for more details.
     _z_magnetic_axis: Vertical position of the magnetic axis
       [:math:`\mathrm{m}`].
   """
@@ -229,7 +224,6 @@ class Geometry:
   spr_hires: array_typing.FloatVector
   rho_hires_norm: array_typing.FloatVector
   rho_hires: array_typing.FloatVector
-  Phi_b_dot: array_typing.FloatScalar
   _z_magnetic_axis: array_typing.FloatScalar | None
 
   def __eq__(self, other: object) -> bool:
@@ -257,16 +251,6 @@ class Geometry:
   def n_rho(self) -> int:
     """Number of radial cells."""
     return self.rho_face_norm.shape[-1] - 1
-
-  @property
-  def torax_mesh(self) -> torax_pydantic.Grid1D:
-    """Transitional Grid1D compatibility property for legacy tests and callers; removed in follow-up CL."""
-    face_centers = self.rho_face_norm
-    if face_centers.ndim > 1:
-      face_centers = face_centers[0]
-    if isinstance(face_centers, jax.core.Tracer):
-      return torax_pydantic.Grid1D.model_construct(face_centers=face_centers)
-    return torax_pydantic.Grid1D(face_centers=np.asarray(face_centers))
 
   @property
   def rho_norm(self) -> array_typing.Array:
@@ -480,7 +464,6 @@ class Geometry:
         (output_keys.R_MAJOR, self.R_major),
         (output_keys.A_MINOR, self.a_minor),
         (output_keys.B_0, self.B_0),
-        (output_keys.PHI_B_DOT, self.Phi_b_dot),
         (output_keys.RHO_B, self.rho_b),
         (output_keys.PHI_B, self.Phi_b),
     ]
@@ -520,36 +503,6 @@ def stack_geometries[GeometryT: Geometry](
       raise ValueError('All geometries must have the same geometry type.')
 
   return jax.tree.map(lambda *xs: np.stack(xs), *geometries)
-
-
-def update_geometries_with_Phibdot(
-    *,
-    dt: chex.Numeric,
-    geo_t: Geometry,
-    geo_t_plus_dt: Geometry,
-) -> tuple[Geometry, Geometry]:
-  """Update Phibdot in the geometry dataclasses used in the time interval.
-
-  Phibdot is used in calc_coeffs to calculate terms related to time-dependent
-  geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
-  each given time interval. This means that geo_t_plus_dt.Phibdot will not
-  necessarily be the same as the geo_t.Phibdot at the next time step.
-
-  Args:
-    dt: Time step duration.
-    geo_t: The geometry of the torus during this time step of the simulation.
-    geo_t_plus_dt: The geometry of the torus during the next time step of the
-      simulation.
-
-  Returns:
-    Tuple containing:
-      - The geometry of the torus during this time step of the simulation.
-      - The geometry of the torus during the next time step of the simulation.
-  """
-  Phibdot = (geo_t_plus_dt.Phi_b - geo_t.Phi_b) / dt
-  geo_t = dataclasses.replace(geo_t, Phi_b_dot=Phibdot)
-  geo_t_plus_dt = dataclasses.replace(geo_t_plus_dt, Phi_b_dot=Phibdot)
-  return geo_t, geo_t_plus_dt
 
 
 def increase_grid_resolution(

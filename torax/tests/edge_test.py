@@ -186,7 +186,7 @@ def _evaluate_combined_edge(
 def _base_config_dict() -> dict[str, object]:
   config_dict = default_configs.get_default_config_dict()
   config_dict['geometry'] = {
-      'geometry_type': 'chease',
+      'model_name': 'chease',
       'geometry_file': 'iterhybrid.mat2cols',
   }
   config_dict['plasma_composition'] = {

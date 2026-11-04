@@ -25,7 +25,6 @@ from torax._src.core_profiles import solver_state
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import (
     explicit_model_outputs as explicit_model_outputs_lib,
 )
@@ -44,7 +43,6 @@ from torax._src.time_step_calculator import time_step_calculator_state as time_s
 def pre_step(
     input_state: sim_state.SimState,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     models: models_lib.Models,
 ) -> tuple[
     runtime_params_lib.RuntimeParams,
@@ -58,7 +56,7 @@ def pre_step(
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=input_state.t,
           runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
+          geometry_model=models.geometry_model,
           edge_outputs=input_state.edge_outputs,
           core_profiles=input_state.core_profiles,
       )

@@ -22,6 +22,7 @@ import scipy
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import model_state as model_state_lib
+from torax._src.geometry import geometry_state
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_error
@@ -254,6 +255,7 @@ class PostProcessingTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
@@ -319,6 +321,7 @@ class PostProcessingTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
@@ -427,6 +430,7 @@ class PostProcessingTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params

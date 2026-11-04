@@ -57,8 +57,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
   def test_plasma_composition_build_runtime_params_smoke_test(self):
     pc = plasma_composition.PlasmaComposition()
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     pc.build_runtime_params(t=0.0)
 
   @parameterized.parameters(
@@ -67,9 +66,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
       (2.5,),
   )
   def test_zeff_accepts_float_input(self, Z_eff: float):
-    geo = circular_geometry.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     runtime_params = pc.build_runtime_params(t=0.0)
     # Check that the values in both Z_eff and Z_eff_face are the same
     # and consistent with the zeff float input
@@ -89,9 +87,11 @@ class PlasmaCompositionTest(parameterized.TestCase):
         1.0: {0.0: 1.8, 0.5: 2.1, 1.0: 2.4},
     }
 
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(
+        pc, torax_pydantic.Grid1D.uniform_from_n_rho(geo.n_rho)
+    )
 
     # Check values at t=0.0
     runtime_params = pc.build_runtime_params(t=0.0)
@@ -148,8 +148,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
     pc = plasma_composition.PlasmaComposition(
         Z_eff=initial_zeff, A_i_override=A_override
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(25)
+    torax_pydantic.set_grid(pc, grid)
 
     @jax.jit
     def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
@@ -167,7 +167,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       pc._update_fields({'Z_eff': updated_zeff})
       # The Z_eff field is a TimeVaryingArray, which gets recreated on update.
       # We need to set the grid again.
-      torax_pydantic.set_grid(pc, geo.torax_mesh, mode='relaxed')
+      torax_pydantic.set_grid(pc, grid, mode='relaxed')
       output = f(pc, t)
       chex.assert_trees_all_close(output.Z_eff, updated_zeff)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
@@ -238,8 +238,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       expected_impurity_model_type,
   ):
     pc = plasma_composition.PlasmaComposition(**config_dict)
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     self.assertIsInstance(pc.impurity, expected_impurity_model_type)
     self.assertEqual(pc.get_impurity_names(), expected_impurity_names)
     if pc.impurity.Z_override is not None:
@@ -379,14 +378,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
     t = 0.0
 
-    geo = circular_geometry.CircularConfig().build_geometry()
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(25)
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios_species,
         }
     )
-    torax_pydantic.set_grid(pc_ne_ratios, geo.torax_mesh)
+    torax_pydantic.set_grid(pc_ne_ratios, grid)
     ne_params = pc_ne_ratios.impurity.build_runtime_params(t)
     assert isinstance(ne_params, electron_density_ratios.RuntimeParams)
 
@@ -396,8 +395,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': fractions_species,
         }
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc_fractions, geo.torax_mesh)
+    torax_pydantic.set_grid(pc_fractions, grid)
     fractions_params = pc_fractions.impurity.build_runtime_params(t)
     assert isinstance(fractions_params, impurity_fractions.RuntimeParams)
 
@@ -419,8 +417,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': {'C': {0.0: 0.01}, 'N': {0.0: 0.02}},
         }
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
 
     @jax.jit
     def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
@@ -445,8 +442,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         },
         Z_eff=2.0,
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
 
     @jax.jit
     def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
@@ -477,7 +473,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             }
         },
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},

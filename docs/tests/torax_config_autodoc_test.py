@@ -59,6 +59,12 @@ _spec.loader.exec_module(torax_config_autodoc)
 # entries in `docs/configuration/*.rst`.
 _INTERNAL_OR_BASE_CONFIG_CLASSES: frozenset[str] = frozenset({
     'torax.experimental.gas_puff_feedback_source.GasPuffFeedbackSourceConfig',
+    'torax._src.geometry.chease.CheaseData',
+    'torax._src.geometry.eqdsk.EQDSKData',
+    'torax._src.geometry.imas.IMASSliceData',
+    'torax._src.geometry.meq.MEQLData',
+    'torax._src.geometry.meq.MEQLYBundle',
+    'torax._src.geometry.meq.MEQLYSlice',
     'torax._src.geometry.tokamaker.TokaMakerEquilibrium',
     'torax._src.mhd.sawtooth.redistribution_base.RedistributionConfig',
     'torax._src.mhd.sawtooth.trigger_base.TriggerConfig',
@@ -1182,7 +1188,7 @@ class ToraxConfigAutodocTest(parameterized.TestCase):
           'geometry_discriminator',
           ('geometry', 'chease'),
           ['geometry'],
-          ('geometry_type', 'chease'),
+          ('model_name', 'chease'),
       ),
       (
           'dict_container_variant',

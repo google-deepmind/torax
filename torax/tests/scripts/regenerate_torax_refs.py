@@ -135,11 +135,13 @@ def _calculate_new_references(
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
-  evaluated_state, _ = state_evaluation.evaluate_initial_state(
-      runtime_params=runtime_params,
-      geo=geo,
-      solver_state=solver_state,
-      models=models,
+  evaluated_state, initial_model_state = (
+      state_evaluation.evaluate_initial_state(
+          runtime_params=runtime_params,
+          geo=geo,
+          solver_state=solver_state,
+          models=models,
+      )
   )
   initial_core_profiles = evaluated_state.core_profiles
   psi_sources, _ = source_profile_builders.evaluate_psi_sources(
@@ -208,6 +210,7 @@ def _calculate_new_references(
       sigma=conductivity.sigma,
       psi=psi,
       geo=geo,
+      phi_b_dot=initial_model_state.geometry.Phi_b_dot,
   )
 
   return {

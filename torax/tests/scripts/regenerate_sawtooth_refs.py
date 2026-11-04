@@ -117,7 +117,7 @@ def get_sawtooth_test_config_dict() -> Mapping[str, Any]:
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
       },
       'plasma_composition': {},
-      'geometry': {'geometry_type': 'circular', 'n_rho': NRHO},
+      'geometry': {'model_name': 'circular', 'n_rho': NRHO},
       'pedestal': {},
       'sources': {'ohmic': {}},
       'solver': {

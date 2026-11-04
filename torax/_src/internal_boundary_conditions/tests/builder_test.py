@@ -44,7 +44,11 @@ class BuilderTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=20).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=20)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.core_profiles = mock.create_autospec(
         core_profiles_lib.CoreProfiles, instance=True
     )
@@ -222,7 +226,7 @@ class BuilderTest(absltest.TestCase):
                     T_e={0.0: {(0.0, 0.3): 10.0}},
                 ),
             ),
-            geometry=dict(geometry_type='circular', n_rho=20),
+            geometry=dict(model_name='circular', n_rho=20),
             pedestal=dict(),
             sources=dict(),
             solver=dict(use_fixed_point=False),

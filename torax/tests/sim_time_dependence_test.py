@@ -96,7 +96,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'geometry': {
-            'geometry_type': 'circular',
+            'model_name': 'circular',
         },
         'transport': {
             'core_transport_models': {'fake': {'model_name': 'fake'}},

@@ -107,7 +107,11 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       P_SOL_scaling: float | None = None,
       source_profiles: core_sources_lib.CoreSources | None = None,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
@@ -135,7 +139,9 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         T_i_T_e_ratio=T_i_T_e_ratio,
         n_e_is_f_GW=n_e_is_f_GW,
     )
-    torax_pydantic.set_grid(ibc_config, geo.torax_mesh)
+    torax_pydantic.set_grid(
+        ibc_config, torax_pydantic.Grid1D.uniform_from_n_rho(geo.n_rho)
+    )
     ibc_rp = ibc_config.build_runtime_params(t=0.0)
 
     class _MockProfileConditions:
@@ -179,7 +185,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
   ):
     def _build_ibc_from_config(ibc_dict: dict[str, typing.Any]):
       config_dict = default_configs.get_default_config_dict()
-      config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 25}
+      config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 25}
       config_dict['sources'] = {
           'generic_heat': {
               'P_total': P_total,
@@ -236,7 +242,11 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     np.testing.assert_allclose(ibc_power_dep.n_e, ibc_constant_equiv.n_e)
 
   def test_negative_p_sol_clamps_to_min(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     negative_sources = core_sources_lib.CoreSources(
         bootstrap_current=mock.ANY,
         qei=mock.ANY,
@@ -262,7 +272,11 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   @parameterized.parameters(-1.0e6, 0.0, 1.0e-20, 1.0, 1.0e6)
   def test_power_dependent_gradients_finite(self, q_val: float):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
@@ -395,7 +409,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       self, n_e_edge_kwargs: dict[str, typing.Any]
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 25}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 25}
     config_dict['numerics']['evolve_density'] = True
     rho_norm_edge = 0.8
     target_beta_pol_prime = 1.5

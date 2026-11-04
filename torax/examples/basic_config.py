@@ -25,7 +25,7 @@ CONFIG = {
     'numerics': {},  # use default numerics
     # circular geometry is only for testing and prototyping
     'geometry': {
-        'geometry_type': 'circular',
+        'model_name': 'circular',
     },
     'neoclassical': {
         'bootstrap_current': {},

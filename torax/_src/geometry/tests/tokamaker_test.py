@@ -15,9 +15,9 @@ from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import numpy as np
 from torax._src import constants
-from torax._src.geometry import config as geometry_config
 from torax._src.geometry import standard_geometry
 from torax._src.geometry import tokamaker
 
@@ -104,13 +104,17 @@ class TokaMakerGeometryTest(parameterized.TestCase):
   def test_build_geometry_from_get_fsa_dict(self):
     """A `get_fsa()` dict is accepted directly as the equilibrium input."""
     config = tokamaker.TokaMakerConfig(fsa_profiles=_circular_get_fsa())
-    geo = config.build_geometry()
-    self.assertEqual(geo.torax_mesh.nx, 25)
+    geo = config.build_runtime_params(0.0).geometry
+    self.assertEqual(geo.n_rho, 25)
 
   def test_unrecognized_get_fsa_keys_are_ignored(self):
     """Extra keys, such as '<R>', do not need to be stripped by the caller."""
     fsa = _circular_get_fsa() | {'some_future_key': np.zeros(3)}
-    tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+    _ = (
+        tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def test_inconsistent_profile_lengths_raises(self):
     fsa = _circular_get_fsa()
@@ -122,7 +126,11 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     fsa = _circular_get_fsa()
     fsa['psi'][5] = fsa['psi'][3]
     with self.assertRaisesRegex(ValueError, 'strictly monotonic'):
-      tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+      _ = (
+          tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   @parameterized.parameters(
       dict(name='R_major', expected=_R_MAJOR),
@@ -131,9 +139,11 @@ class TokaMakerGeometryTest(parameterized.TestCase):
   )
   def test_reference_scalars(self, name, expected):
     """Reference scalars come from the outermost surface and F0."""
-    geo = tokamaker.TokaMakerConfig(
-        fsa_profiles=_circular_get_fsa()
-    ).build_geometry()
+    geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=_circular_get_fsa())
+        .build_runtime_params(0.0)
+        .geometry
+    )
     np.testing.assert_allclose(getattr(geo, name), expected, rtol=1e-12)
 
   def test_cocos11_unit_conversions(self):
@@ -179,16 +189,24 @@ class TokaMakerGeometryTest(parameterized.TestCase):
   def test_I_p_profile_matches_ampere_law(self):
     """I_p = <B_p^2> int(dl/B_p) / mu_0, with int(dl/B_p) = |dV/dPsi|/(2*pi)."""
     fsa = _circular_get_fsa()
-    geo = tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+    geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    assert isinstance(geo, standard_geometry.StandardGeometry)
     int_dl_over_Bp = np.abs(fsa['dV/dPsi'][-1]) / (2 * np.pi)
     expected = fsa['<Bp^2>'][-1] * int_dl_over_Bp / constants.CONSTANTS.mu_0
     np.testing.assert_allclose(geo.I_p_profile_face[-1], expected, rtol=1e-6)
 
   def test_shape_parameters(self):
     """Concentric circles have zero triangularity and unit elongation."""
-    geo = tokamaker.TokaMakerConfig(
-        fsa_profiles=_circular_get_fsa()
-    ).build_geometry()
+    geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=_circular_get_fsa())
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    assert isinstance(geo, standard_geometry.StandardGeometry)
     np.testing.assert_allclose(geo.delta_face, 0.0, atol=1e-12)
     np.testing.assert_allclose(geo.elongation_face, 1.0, rtol=1e-12)
 
@@ -198,7 +216,11 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     for key in ('R_min', 'R_max', 'Z_min', 'Z_max'):
       # Positive, but a point.
       fsa[key][0] = _R_MAJOR if key.startswith('R') else 0.0
-    geo = tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+    geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.assertTrue(np.all(np.isfinite(geo.elongation_face)))
     self.assertTrue(np.all(np.isfinite(geo.delta_face)))
     np.testing.assert_allclose(geo.delta_face, 0.0, atol=1e-12)
@@ -209,26 +231,41 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     fsa = _circular_get_fsa()
     fsa['R_max'][40] = 0.0
     with self.assertRaisesRegex(ValueError, 'did not trace'):
-      tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+      _ = (
+          tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   def test_collapsed_boundary_surface_raises(self):
     """The boundary surface normalizes the grid, so it has no fallback."""
     fsa = _circular_get_fsa()
     fsa['R_min'][-1] = fsa['R_max'][-1]
     with self.assertRaisesRegex(ValueError, 'outermost traced flux surface'):
-      tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+      _ = (
+          tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   def test_fully_degenerate_equilibrium_raises(self):
     fsa = _circular_get_fsa()
     fsa['R_min'] = fsa['R_max'].copy()
     with self.assertRaisesRegex(ValueError, 'Every traced flux surface'):
-      tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
+      _ = (
+          tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   def test_on_axis_values_are_prescribed(self):
     """No surface can be traced on axis, so TORAX prescribes the axis row."""
-    geo = tokamaker.TokaMakerConfig(
-        fsa_profiles=_circular_get_fsa()
-    ).build_geometry()
+    geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=_circular_get_fsa())
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    assert isinstance(geo, standard_geometry.StandardGeometry)
     # The poloidal field vanishes on axis, so B is purely toroidal there.
     np.testing.assert_allclose(
         geo.gm5_face[0], (_R_MAJOR * _B_0 / _R_MAJOR) ** 2, rtol=1e-12
@@ -245,10 +282,16 @@ class TokaMakerGeometryTest(parameterized.TestCase):
         'F_axis': -fsa['F_axis'],
         'F0': -fsa['F0'],
     }
-    geo = tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
-    reversed_geo = tokamaker.TokaMakerConfig(
-        fsa_profiles=reversed_fsa
-    ).build_geometry()
+    geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    reversed_geo = (
+        tokamaker.TokaMakerConfig(fsa_profiles=reversed_fsa)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     np.testing.assert_allclose(reversed_geo.B_0, _B_0, rtol=1e-12)
     for field in ('vpr', 'g0', 'g1', 'g2', 'g3', 'Phi', 'psi', 'F_face'):
       np.testing.assert_allclose(
@@ -259,17 +302,17 @@ class TokaMakerGeometryTest(parameterized.TestCase):
 
   def test_config_round_trips_through_json(self):
     """The config must serialize, since every output write dumps it to JSON."""
-    config = geometry_config.GeometryConfig.from_dict({
-        'geometry_type': 'tokamaker',
+    config = tokamaker.TokaMakerConfig.from_dict({
+        'model_name': 'tokamaker',
         'n_rho': 25,
         'fsa_profiles': _circular_get_fsa(),
     })
-    restored = geometry_config.GeometryConfig.model_validate_json(
+    restored = tokamaker.TokaMakerConfig.model_validate_json(
         config.model_dump_json()
     )
     geo, geo_restored = (
-        config.build_provider(0.0),
-        restored.build_provider(0.0),
+        config.build_runtime_params(0.0).geometry,
+        restored.build_runtime_params(0.0).geometry,
     )
     for field in ('vpr', 'g0', 'g1', 'g2', 'g3', 'psi', 'I_p_profile_face'):
       np.testing.assert_allclose(
@@ -280,15 +323,15 @@ class TokaMakerGeometryTest(parameterized.TestCase):
 
   def test_time_dependent_geometry_configs(self):
     """Equilibria at several times are interpolated by the standard provider."""
-    config = geometry_config.GeometryConfig.from_dict({
-        'geometry_type': 'tokamaker',
+    config = tokamaker.TokaMakerConfig.from_dict({
+        'model_name': 'tokamaker',
         'n_rho': 25,
-        'geometry_configs': {
-            0.0: {'fsa_profiles': _circular_get_fsa(a_minor=2.0)},
-            1.0: {'fsa_profiles': _circular_get_fsa(a_minor=2.2)},
+        'fsa_profiles': {
+            0.0: _circular_get_fsa(a_minor=2.0),
+            1.0: _circular_get_fsa(a_minor=2.2),
         },
     })
-    provider = config.build_provider
+    provider = lambda t: config.build_runtime_params(t).geometry
     np.testing.assert_allclose(provider(0.0).a_minor, 2.0, rtol=1e-12)
     np.testing.assert_allclose(provider(1.0).a_minor, 2.2, rtol=1e-12)
     np.testing.assert_allclose(provider(0.5).a_minor, 2.1, rtol=1e-12)
@@ -298,6 +341,36 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     fsa = _circular_get_fsa(n_surfaces=1)
     with self.assertRaisesRegex(ValueError, 'At least 2 flux surfaces'):
       tokamaker.TokaMakerConfig(fsa_profiles=fsa)
+
+  def test_tokamaker_multi_slice_direct(self):
+    """Tests multi-slice TokaMaker configuration."""
+    eq0 = tokamaker.TokaMakerEquilibrium.from_dict(
+        _circular_get_fsa(a_minor=2.0)
+    )
+    eq1 = tokamaker.TokaMakerEquilibrium.from_dict(
+        _circular_get_fsa(a_minor=2.2)
+    )
+    multi_config = tokamaker.TokaMakerConfig(
+        fsa_profiles={
+            0.0: eq0,
+            1.0: eq1,
+        }
+    )
+    geo_0 = multi_config.build_runtime_params(0.0).geometry
+    geo_1 = multi_config.build_runtime_params(1.0).geometry
+    self.assertIsInstance(geo_0, standard_geometry.StandardGeometry)
+    self.assertIsInstance(geo_1, standard_geometry.StandardGeometry)
+
+  def test_tokamaker_build_runtime_params(self):
+    """Tests runtime params creation."""
+    config = tokamaker.TokaMakerConfig(fsa_profiles=_circular_get_fsa())
+    runtime_params = config.build_runtime_params(t=0.0)
+    self.assertIsInstance(
+        runtime_params.geometry, standard_geometry.StandardGeometry
+    )
+    chex.assert_trees_all_close(
+        runtime_params.geometry.rho_face_norm, config.get_face_centers()
+    )
 
 
 if __name__ == '__main__':

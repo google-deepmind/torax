@@ -29,7 +29,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
+
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import adaptive_step
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
@@ -88,7 +88,6 @@ class SimulationStepFn:
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
   ):
     """Initializes the SimulationStepFn.
 
@@ -97,14 +96,6 @@ class SimulationStepFn:
       time_step_calculator: Calculates the dt for each time step.
       runtime_params_provider: Object that returns a set of runtime parameters
         which may change from time step to time step or simulation run to run.
-      geometry_provider: Provides the magnetic geometry for each time step based
-        on the ToraxSimState at the start of the time step. The geometry may
-        change from time step to time step, so the sim needs a function to
-        provide which geometry to use for a given time step. A GeometryProvider
-        is any callable (class or function) which takes the ToraxSimState at the
-        start of a time step and returns the Geometry for that time step. For
-        most use cases, only the time will be relevant from the ToraxSimState
-        (in order to support time-dependent geometries).
     """
     self._solver = solver
     if self._solver.models.mhd_models.sawtooth_models is not None:
@@ -114,7 +105,6 @@ class SimulationStepFn:
     else:
       self._sawtooth_solver = None
     self._time_step_calculator = time_step_calculator
-    self._geometry_provider = geometry_provider
     self._runtime_params_provider = runtime_params_provider
 
   @property
@@ -126,10 +116,7 @@ class SimulationStepFn:
 
   def tree_flatten(self):
     """Flattens the SimulationStepFn for JAX PyTree registration."""
-    children = (
-        self._runtime_params_provider,
-        self._geometry_provider,
-    )
+    children = (self._runtime_params_provider,)
     aux_data = (
         self._solver,
         self._time_step_calculator,
@@ -143,13 +130,7 @@ class SimulationStepFn:
         solver=aux_data[0],
         time_step_calculator=aux_data[1],
         runtime_params_provider=children[0],
-        geometry_provider=children[1],
     )
-
-  @property
-  def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
-    """Returns the `GeometryProvider` used by the step function."""
-    return self._geometry_provider
 
   @property
   def solver(self) -> solver_lib.Solver:
@@ -229,7 +210,6 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
-      geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -252,8 +232,6 @@ class SimulationStepFn:
         on the values set in the time_step_calculator config.
       runtime_params_overrides: Runtime parameters to override the ones set in
         the runtime params provider.
-      geometry_overrides: Geometry provider to override the one set in the step
-        function's geometry provider.
 
     Returns:
       ToraxSimState containing:
@@ -274,7 +252,6 @@ class SimulationStepFn:
     runtime_params_provider = (
         runtime_params_overrides or self.runtime_params_provider
     )
-    geometry_provider = geometry_overrides or self._geometry_provider
     (
         runtime_params_t,
         geo_t,
@@ -284,7 +261,6 @@ class SimulationStepFn:
     ) = step_function_processing.pre_step(
         input_state=input_state,
         runtime_params_provider=runtime_params_provider,
-        geometry_provider=geometry_provider,
         models=self._solver.models,
     )
 
@@ -299,7 +275,6 @@ class SimulationStepFn:
           input_state,
           previous_post_processed_outputs,
           runtime_params_provider,
-          geometry_provider,
           model_state_t,
       )
       # If dt backtracking is enabled, take the adaptive step if the max_dt is
@@ -324,7 +299,6 @@ class SimulationStepFn:
           input_state,
           previous_post_processed_outputs,
           runtime_params_provider,
-          geometry_provider,
           model_state_t,
       )
 
@@ -350,7 +324,6 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
-      geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -363,7 +336,6 @@ class SimulationStepFn:
       previous_post_processed_outputs: Post-processed outputs from the previous
         time step.
       runtime_params_overrides: Optional runtime parameters provider override.
-      geometry_overrides: Optional geometry provider override.
 
     Returns:
       Tuple of (`SimState`, `PostProcessedOutputs`) after advancing by `dt`
@@ -393,7 +365,6 @@ class SimulationStepFn:
           prev_post_processed,
           max_dt=remaining_dt,
           runtime_params_overrides=runtime_params_overrides,
-          geometry_overrides=geometry_overrides,
       )
       remaining_dt -= output_state.dt
       return remaining_dt, output_state, post_processed_outputs
@@ -425,7 +396,6 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
-      geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -438,7 +408,6 @@ class SimulationStepFn:
       previous_post_processed_outputs: Post-processed outputs from the previous
         time step.
       runtime_params_overrides: Optional runtime parameters provider override.
-      geometry_overrides: Optional geometry provider override.
 
     Returns:
       Tuple of (`SimState`, `PostProcessedOutputs`) after advancing by `dt`
@@ -449,7 +418,6 @@ class SimulationStepFn:
         input_state,
         previous_post_processed_outputs,
         runtime_params_overrides,
-        geometry_overrides,
     )
 
   def _sawtooth_step(
@@ -462,7 +430,6 @@ class SimulationStepFn:
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
       model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
@@ -488,7 +455,6 @@ class SimulationStepFn:
           runtime_params_t=runtime_params_t,
           runtime_params_provider=runtime_params_provider,
           geo_t=geo_t,
-          geometry_provider=geometry_provider,
           explicit_model_outputs=explicit_model_outputs,
           edge_outputs=edge_outputs,
           input_state=input_state,
@@ -518,7 +484,6 @@ class SimulationStepFn:
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
       model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
@@ -560,7 +525,6 @@ class SimulationStepFn:
         explicit_model_outputs,
         edge_outputs,
         runtime_params_provider,
-        geometry_provider,
         model_state_t,
     )
     assert isinstance(
@@ -598,7 +562,7 @@ class SimulationStepFn:
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
             time_step_calculator_state_t=input_state.time_step_calculator_state,
-            model_state_t=model_state_t,
+            model_state_t=result.state.model_state,
         )
     )
     return output_state, post_processed_outputs
@@ -613,7 +577,6 @@ class SimulationStepFn:
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
       model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
@@ -626,11 +589,13 @@ class SimulationStepFn:
     )
     dt = jnp.minimum(dt, max_dt)
 
-    runtime_params_t_plus_dt, geo_t_plus_dt = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
+    runtime_params_t_plus_dt, geo_t_plus_dt, updated_geometry_state = (
+        build_runtime_params.step_consistent_runtime_params_and_geometry(
             t=input_state.t + dt,
+            dt=dt,
+            geometry_state=model_state_t.geometry,
             runtime_params_provider=runtime_params_provider,
-            geometry_provider=geometry_provider,
+            geometry_model=self._solver.models.geometry_model,
             edge_outputs=edge_outputs,
             core_profiles=input_state.core_profiles,
         )
@@ -644,6 +609,10 @@ class SimulationStepFn:
             core_profiles_t=input_state.core_profiles,
         )
     )
+    model_state = dataclasses.replace(
+        model_state_t,
+        geometry=updated_geometry_state,
+    )
     x_new, solver_numeric_outputs = self._solver(
         t=input_state.t,
         dt=dt,
@@ -654,7 +623,7 @@ class SimulationStepFn:
         solver_state_t=solver_state_t,
         solver_state_t_plus_dt=solver_state_t_plus_dt,
         explicit_model_outputs=explicit_model_outputs,
-        model_state=model_state_t,
+        model_state=model_state,
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(
@@ -671,7 +640,7 @@ class SimulationStepFn:
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
             time_step_calculator_state_t=input_state.time_step_calculator_state,
-            model_state_t=model_state_t,
+            model_state_t=model_state,
         )
     )
     return output_state, post_processed_outputs

@@ -314,11 +314,6 @@ rst_epilog = f"""
 .. |torax.Geometry| replace:: `torax.Geometry <Geometry_target_>`__
 .. _Geometry_target: {github_base_url}/torax/_src/geometry/geometry.py
 
-.. |GeometryProvider| replace:: `GeometryProvider <GeometryProvider_target_>`__
-.. _GeometryProvider_target: {github_base_url}/torax/_src/geometry/geometry_provider.py
-
-.. |StandardGeometryProvider| replace:: `StandardGeometryProvider <StandardGeometryProvider_target_>`__
-.. _StandardGeometryProvider_target: {github_base_url}/torax/_src/geometry/standard_geometry.py
 
 .. |config.runtime_params_slice| replace:: `config.runtime_params_slice <torax_src_config_runtime_params_slice_target_>`__
 .. _torax_src_config_runtime_params_slice_target: {github_base_url}/torax/_src/config/runtime_params_slice.py

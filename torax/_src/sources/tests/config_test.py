@@ -20,7 +20,6 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import jax_utils
-from torax._src.geometry import circular_geometry
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.sources import base
 from torax._src.sources import config as sources_config
@@ -33,7 +32,6 @@ from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
-from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -190,10 +188,9 @@ class SourcesConfigTest(parameterized.TestCase):
             },
         },
     })
-    mesh = torax_pydantic.Grid1D(
-        face_centers=interpolated_param_2d.get_face_centers(nx=4)
+    torax_pydantic.set_grid(
+        sources, torax_pydantic.Grid1D.uniform_from_n_rho(4)
     )
-    torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
     self.assertIsNotNone(source)
     self.assertIsInstance(
@@ -402,8 +399,8 @@ class SourcesConfigTest(parameterized.TestCase):
     if extra_fields is not None:
       config_dict[source_name].update(extra_fields)
     sm = sources_config.SourcesConfig.from_dict(config_dict)
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(sm, geo.torax_mesh)
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(25)
+    torax_pydantic.set_grid(sm, grid)
 
     @jax.jit
     def f(sources: sources_config.SourcesConfig):
@@ -419,7 +416,7 @@ class SourcesConfigTest(parameterized.TestCase):
     with self.subTest('second_jit_updates_value_without_recompile'):
       sm._update_fields({f'{source_name}.{field_to_update}': updated_value})
       # Update the grid for any recreated TimeVaryingArrays.
-      torax_pydantic.set_grid(sm, geo.torax_mesh, mode='relaxed')
+      torax_pydantic.set_grid(sm, grid, mode='relaxed')
       output = f(sm)
       output_field = getattr(output, field_to_update)
       chex.assert_trees_all_close(output_field, updated_value)
@@ -484,8 +481,8 @@ class SourcesConfigTest(parameterized.TestCase):
             },
         },
     })
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(sm, geo.torax_mesh)
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(20)
+    torax_pydantic.set_grid(sm, grid)
 
     @jax.jit
     def f(sources: sources_config.SourcesConfig):
@@ -504,18 +501,18 @@ class SourcesConfigTest(parameterized.TestCase):
     self.assertEqual(set(by_species.keys()), {'D', 'He4'})
     he4 = by_species['He4']
     self.assertEqual(he4.source, 'fusion')
-    expected_n = np.interp(geo.rho_norm, [0.0, 1.0], [2.0e19, 1.0e18])
-    expected_t = np.interp(geo.rho_norm, [0.0, 1.0], [80.0, 5.0])
+    expected_n = np.interp(grid.cell_centers, [0.0, 1.0], [2.0e19, 1.0e18])
+    expected_t = np.interp(grid.cell_centers, [0.0, 1.0], [80.0, 5.0])
     chex.assert_trees_all_close(he4.n.value, expected_n)
     chex.assert_trees_all_close(he4.n.right_face_constraint, 1.0e18)
     chex.assert_trees_all_close(he4.T.value, expected_t)
     chex.assert_trees_all_close(he4.T.right_face_constraint, 5.0)
     self.assertEqual(by_species['D'].source, 'fusion')
     chex.assert_trees_all_close(
-        by_species['D'].n.value, np.full_like(geo.rho_norm, 5.0e18)
+        by_species['D'].n.value, np.full_like(grid.cell_centers, 5.0e18)
     )
     chex.assert_trees_all_close(
-        by_species['D'].T.value, np.full_like(geo.rho_norm, 40.0)
+        by_species['D'].T.value, np.full_like(grid.cell_centers, 40.0)
     )
 
     self.assertLen(icrh_params.prescribed_values.fast_ions, 1)
@@ -532,14 +529,18 @@ class SourcesConfigTest(parameterized.TestCase):
             0.0: {0.0: 60.0, 1.0: 3.0}
         },
     })
-    torax_pydantic.set_grid(sm, geo.torax_mesh, mode='relaxed')
+    torax_pydantic.set_grid(sm, grid, mode='relaxed')
     updated_fusion_params, _ = f(sm)
     updated_he4 = {
         fi.species: fi
         for fi in updated_fusion_params.prescribed_values.fast_ions
     }['He4']
-    expected_updated_n = np.interp(geo.rho_norm, [0.0, 1.0], [3.0e19, 2.0e18])
-    expected_updated_t = np.interp(geo.rho_norm, [0.0, 1.0], [60.0, 3.0])
+    expected_updated_n = np.interp(
+        grid.cell_centers, [0.0, 1.0], [3.0e19, 2.0e18]
+    )
+    expected_updated_t = np.interp(
+        grid.cell_centers, [0.0, 1.0], [60.0, 3.0]
+    )
     chex.assert_trees_all_close(updated_he4.n.value, expected_updated_n)
     chex.assert_trees_all_close(updated_he4.n.right_face_constraint, 2.0e18)
     chex.assert_trees_all_close(updated_he4.T.value, expected_updated_t)

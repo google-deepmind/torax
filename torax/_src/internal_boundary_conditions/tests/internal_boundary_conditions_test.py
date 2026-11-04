@@ -53,8 +53,7 @@ class PrescribedIBCTest(parameterized.TestCase):
             1.0: {0: 3.0, 1: 4.0},
         }
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(ibc_config, grid=grid)
 
     runtime_params = ibc_config.build_runtime_params(t)
@@ -81,8 +80,7 @@ class PrescribedIBCTest(parameterized.TestCase):
     }
     ibc = ibc_config_lib.PrescribedIBCConfig.model_validate(config_dict)
 
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(ibc, grid=grid)
 
     runtime_params = ibc.build_runtime_params(0.0)
@@ -94,14 +92,17 @@ class PrescribedIBCTest(parameterized.TestCase):
     np.testing.assert_allclose(runtime_params.T_e, expected_T_e)
 
   def test_prescribed_ibc_build_runtime_params(self):
-    geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
     ibc = ibc_config_lib.PrescribedIBCConfig()
-    torax_pydantic.set_grid(ibc, geo.torax_mesh)
+    torax_pydantic.set_grid(ibc, torax_pydantic.Grid1D.uniform_from_n_rho(5))
     runtime_params = ibc.build_runtime_params(0.0)
     self.assertIsInstance(runtime_params, prescribed.RuntimeParams)
 
   def test_prescribed_ibc_model(self):
-    geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=5)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     ibc_params = prescribed.RuntimeParams(
         T_i=jnp.array([0.0, 5.0, 0.0, 0.0, 0.0]),
         T_e=jnp.array([0.0, 0.0, 0.0, 10.0, 0.0]),
@@ -145,7 +146,11 @@ class NoIBCTest(absltest.TestCase):
     self.assertIsInstance(runtime_params, ibc_runtime_params.RuntimeParams)
 
   def test_no_ibc_model_returns_empty(self):
-    geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=5)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     model = no_ibc.NoIBCModel()
     res = model(
         runtime_params=mock.create_autospec(
@@ -185,7 +190,11 @@ class InternalBoundaryConditionsTest(absltest.TestCase):
     np.testing.assert_allclose(updated_ibc.n_e, jnp.array([3.3, 0.0, 3.0]))
 
   def test_get_two_point_face_mask(self):
-    geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=5)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     ibc = internal_boundary_conditions.InternalBoundaryConditions(
         T_i=jnp.array([0.0, 5.0, 0.0, 0.0, 0.0]),
         T_e=jnp.array([0.0, 0.0, 0.0, 10.0, 0.0]),

@@ -19,6 +19,7 @@ from torax._src import model_state as model_state_lib
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.edge import base as edge_model_lib
+from torax._src.geometry import geometry_model as geometry_model_lib
 from torax._src.internal_boundary_conditions import base_model as internal_boundary_conditions_base_model
 from torax._src.mhd import base as mhd_model_lib
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
@@ -40,6 +41,7 @@ class Models(static_dataclass.StaticDataclass):
   the class id, so the default frozen dataset hashing works.
   """
 
+  geometry_model: geometry_model_lib.GeometryModel
   source_models: source_models_lib.SourceModels
   transport_model: transport_model_lib.TransportModel
   pedestal_model: pedestal_model_lib.PedestalModel
@@ -76,6 +78,10 @@ class Models(static_dataclass.StaticDataclass):
     else:
       edge_state = None
     return model_state_lib.ModelState(
+        geometry=self.geometry_model.initial_state_from_datatree(
+            children.get(output_keys.GEOMETRY),
+            runtime_params,
+        ),
         pedestal=self.pedestal_model.initial_state_from_datatree(
             children.get(output_keys.PEDESTAL),
             runtime_params,

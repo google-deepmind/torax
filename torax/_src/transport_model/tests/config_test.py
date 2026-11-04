@@ -67,11 +67,9 @@ class ConfigTest(parameterized.TestCase):
       expected_transport_model: type[component.ComponentTransportModel],
   ):
     transport = pydantic_model()
-
-    # Any TimeVaryingArrays in the transport model must have a grid set, so we
-    # need to define a geometry. We use a circular geometry for convenience.
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(transport, geo.torax_mesh)
+    torax_pydantic.set_grid(
+        transport, torax_pydantic.Grid1D.uniform_from_n_rho(25)
+    )
 
     runtime_params = transport.build_runtime_params(t=0.0)
     self.assertIsInstance(runtime_params, expected_runtime_params)
@@ -242,8 +240,8 @@ class ConfigTest(parameterized.TestCase):
       param_name,
   ):
     transport = pydantic_model(**{param_to_update: initial_value})
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(transport, geo.torax_mesh)
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(25)
+    torax_pydantic.set_grid(transport, grid)
 
     @jax.jit
     def f(
@@ -260,7 +258,7 @@ class ConfigTest(parameterized.TestCase):
     with self.subTest('second_jit_updates_value_without_recompile'):
       transport._update_fields({param_to_update: updated_value})
       # Update the grid for any recreated TimeVaryingArrays.
-      torax_pydantic.set_grid(transport, geo.torax_mesh, mode='relaxed')
+      torax_pydantic.set_grid(transport, grid, mode='relaxed')
       output = f(transport)
       val = getattr(output, param_name)
       chex.assert_trees_all_equal(val, updated_value)
@@ -514,11 +512,13 @@ class TransportModelValidationTest(parameterized.TestCase):
       )
 
   def test_critical_gradient_grad_finite_below_threshold(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     cgm_config = (
         transport_config.CriticalGradientTransportModelConfig()
     )
-    torax_pydantic.set_grid(cgm_config, geo.torax_mesh)
+    torax_pydantic.set_grid(
+        cgm_config, torax_pydantic.Grid1D.uniform_from_n_rho(geo.n_rho)
+    )
     t_params = cgm_config.build_runtime_params(t=0.0)
     model = cgm_config.build_transport_model()
     n_face = geo.rho_face_norm.shape[0]

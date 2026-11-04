@@ -31,7 +31,11 @@ class SourceModelsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     (
@@ -74,6 +78,7 @@ class SourceModelsTest(parameterized.TestCase):
             source_states=source_states,
             basic_source_outputs=all_basic_outputs,
             bootstrap_current=bootstrap_current,
+            phi_b_dot=0.0,
         )
     )
 
@@ -256,6 +261,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_states=updated_source_states,
         basic_source_outputs=all_basic_outputs,
         bootstrap_current=bootstrap_current,
+        phi_b_dot=0.0,
     )
 
     self.assertEqual(set(explicit_outputs.keys()), orig_keys)

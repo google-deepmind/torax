@@ -68,8 +68,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions.from_dict(
         {'I_p_source': 'geometry', 'psi_source': 'j'}
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     rp = pc.build_runtime_params(t=0.0)
     self.assertEqual(rp.I_p, 0.0)
     self.assertEqual(
@@ -80,8 +79,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     pc.build_runtime_params(t=0.0)
 
   def test_profile_conditions_under_jit(self):
@@ -90,8 +88,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=initial_I_p, I_p_source='profile_conditions', psi_source='j'
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
 
     @jax.jit
     def f(pc_model: profile_conditions.ProfileConditions):
@@ -123,8 +120,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         T_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_e_right_bc=T_e_right_bc,
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_e_right_bc, expected_initial_value)
     dcs = pc.build_runtime_params(t=1.5)
@@ -145,8 +141,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         T_i={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_i_right_bc=T_i_right_bc,
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_i_right_bc, expected_initial_value)
     dcs = pc.build_runtime_params(t=1.5)
@@ -213,14 +208,13 @@ class ProfileConditionsTest(parameterized.TestCase):
       self, psi, expected_initial_value, expected_second_value
   ):
     """Tests that psi is set correctly."""
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
         psi_source='profile_conditions' if psi is not None else 'j',
         psi=psi,
     )
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(4))
     dcs = pc.build_runtime_params(t=0.0)
     if psi is None:
       self.assertIsNone(dcs.psi)
@@ -816,8 +810,7 @@ class ProfileConditionsTest(parameterized.TestCase):
             },
         ],
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     rp = pc.build_runtime_params(t=0.0)
     self.assertLen(rp.prescribed_fast_ions, 1)
     pfi = rp.prescribed_fast_ions[0]
@@ -830,14 +823,17 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     rp = pc.build_runtime_params(t=0.0)
     self.assertEmpty(rp.prescribed_fast_ions)
 
   def test_apply_prescribed_fast_ions_overwrites_matching(self):
 
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     zeros = np.zeros(4)
     zero_n = cell_variable.CellVariable(
         value=zeros,
@@ -880,7 +876,11 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_apply_prescribed_fast_ions_no_prescribed_returns_unchanged(self):
 
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     zeros = np.zeros(4)
     zero_cv = cell_variable.CellVariable(
         value=zeros,
@@ -902,7 +902,11 @@ class ProfileConditionsTest(parameterized.TestCase):
     np.testing.assert_allclose(result[0].n.value, 0.0, atol=1e-9)
 
   def test_apply_prescribed_fast_ions_appends_when_empty(self):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     prescribed = (
         core_profile_runtime_params.PrescribedFastIonData(
             source='nbi',
@@ -927,7 +931,11 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_apply_prescribed_fast_ions_overwrites_matching_and_appends_unmatched(
       self,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     zeros = np.zeros(4)
     zero_cv = cell_variable.CellVariable(
         value=zeros,
@@ -976,7 +984,11 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_apply_prescribed_fast_ions_later_duplicate_prescribed_overrides(
       self,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     p1 = core_profile_runtime_params.PrescribedFastIonData(
         source='icrh',
         species='He3',
@@ -1005,7 +1017,11 @@ class ProfileConditionsTest(parameterized.TestCase):
     np.testing.assert_allclose(result[0].T.value, 200.0, atol=1e-9)
 
   def test_apply_prescribed_fast_ions_unsupported_species_raises(self):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     p = core_profile_runtime_params.PrescribedFastIonData(
         source='icrh',
         species='UNKNOWN',

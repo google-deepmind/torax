@@ -25,7 +25,6 @@ from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_m
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import config
-from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -64,10 +63,9 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
-    face_centers = interpolated_param_2d.get_face_centers(4)
     torax_pydantic.set_grid(
         sources,
-        torax_pydantic.Grid1D(face_centers=face_centers),
+        torax_pydantic.Grid1D.uniform_from_n_rho(4),
     )
     runtime_params = getattr(sources, self._source_name).build_runtime_params(
         t=0.0
@@ -341,7 +339,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             'Z_eff': zeff_true.item(),  # pyrefly: ignore[missing-attribute]
         },
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {self._source_name: {'model_name': self._model_name}},
         'solver': {},
         'transport': {},
@@ -410,7 +408,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         },
         'plasma_composition': {},  # to be filled
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {self._source_name: {'model_name': self._model_name}},
         'solver': {},
         'transport': {},

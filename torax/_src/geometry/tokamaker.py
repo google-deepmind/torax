@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing a TokaMaker geometry."""
-
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal, Self
 
 import numpy as np
@@ -159,16 +159,20 @@ class TokaMakerConfig(base.GeometryConfigBase):
   `sqrt(psi_norm)` near the axis and a `psi_norm`-uniform grid is coarse there.
 
   Attributes:
-    geometry_type: Always set to `'tokamaker'`.
+    model_name: Always set to `'tokamaker'`.
     fsa_profiles: Dictionary containing flux surface averaged profiles matching
       the format returned by `OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()`
-      (see the |tokamaker_docs|).
+      (see the |tokamaker_docs|), or a mapping from time to profiles.
   """
 
-  geometry_type: Annotated[
-      Literal['tokamaker'], torax_pydantic.TIME_INVARIANT
+  model_name: Annotated[
+      Literal['tokamaker'],
+      torax_pydantic.TIME_INVARIANT,
+      torax_pydantic.JAX_STATIC,
   ] = 'tokamaker'
-  fsa_profiles: TokaMakerEquilibrium
+  fsa_profiles: (
+      TokaMakerEquilibrium | dict[torax_pydantic.Second, TokaMakerEquilibrium]
+  )
 
   @property
   def _supported_trapped_fraction_sources(
@@ -176,14 +180,29 @@ class TokaMakerConfig(base.GeometryConfigBase):
   ) -> frozenset[trapped_fraction.TrappedFractionSource]:
     return frozenset({trapped_fraction.TrappedFractionSource.SAUTER})
 
-  def build_geometry(self) -> standard_geometry.StandardGeometry:
+  def _build_slice_geometry(
+      self, equilibrium: TokaMakerEquilibrium
+  ) -> standard_geometry.StandardGeometry:
     intermediates = _construct_intermediates_from_tokamaker(
-        equilibrium=self.fsa_profiles,
+        equilibrium=equilibrium,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         trapped_fraction_source=self.trapped_fraction_source,
     )
     return standard_geometry.build_standard_geometry(intermediates)
+
+  def _build_geometry(
+      self,
+  ) -> (
+      standard_geometry.StandardGeometry
+      | Mapping[float, standard_geometry.StandardGeometry]
+  ):
+    if isinstance(self.fsa_profiles, TokaMakerEquilibrium):
+      return self._build_slice_geometry(self.fsa_profiles)
+    return {
+        float(t): self._build_slice_geometry(profiles)
+        for t, profiles in self.fsa_profiles.items()
+    }
 
 
 def _construct_intermediates_from_tokamaker(

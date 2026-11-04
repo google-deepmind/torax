@@ -24,7 +24,7 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'circular',
+        'model_name': 'circular',
     },
     'sources': {
         # Current sources (for psi equation)

@@ -28,9 +28,11 @@ class FastIonTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=10, a_minor=1.0
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10, a_minor=1.0)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   @parameterized.parameters(*fast_ion_lib.FAST_ION_SPECIES)
   def test_fast_ion_valid_species(self, species):

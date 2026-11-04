@@ -31,7 +31,7 @@ from torax._src.sources import core_sources as core_sources_lib
 class CoreSourcesTest(parameterized.TestCase):
 
   def test_source_output_zeros_all_profiles(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     all_zeros = core_sources_lib.SourceOutput.zeros(geo)
     self.assertIsNotNone(all_zeros.power_density_i)
     self.assertIsNotNone(all_zeros.power_density_e)
@@ -43,7 +43,7 @@ class CoreSourcesTest(parameterized.TestCase):
     np.testing.assert_allclose(all_zeros.particle_source_e, 0.0)
 
   def test_source_output_zeros_populated_source_outputs_subset(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     partial_zeros = core_sources_lib.SourceOutput.zeros(
         geo,
         populated_source_outputs=(
@@ -59,7 +59,7 @@ class CoreSourcesTest(parameterized.TestCase):
     np.testing.assert_allclose(partial_zeros.j_parallel, 0.0)
 
   def test_summed_power_density_profiles_dont_change_when_jitting(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
 
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)
@@ -97,7 +97,11 @@ class CoreSourcesTest(parameterized.TestCase):
       np.testing.assert_allclose(jitted_T_e, ones * 10 * geo.vpr)
 
   def test_from_source_outputs(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     ones = jnp.ones(10)
     mock_fast_ion = fast_ion_lib.FastIon(
         species='He3',
@@ -163,7 +167,11 @@ class CoreSourcesTest(parameterized.TestCase):
     self.assertEqual(profiles.sources['heat'].fast_ions, (mock_fast_ion,))
 
   def test_update_sources(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     ones = jnp.ones(10)
     standard_sources = {
         'heat': object(),
@@ -236,7 +244,7 @@ class CoreSourcesTest(parameterized.TestCase):
     np.testing.assert_allclose(psi_sources['current'], ones * 5.0)
 
   def test_qei_info_to_output_dict(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     times = np.array([0.0, 1.0])
     context = output_grid_context.OutputGridContext(
         times=times,
@@ -269,7 +277,7 @@ class CoreSourcesTest(parameterized.TestCase):
     self.assertEqual(attrs_e, {'units': output_keys.Units.WATT_PER_CUBIC_METER})
 
   def test_bootstrap_current_to_output_dict(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     times = np.array([0.0, 1.0])
     rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
     context = output_grid_context.OutputGridContext(
@@ -294,7 +302,7 @@ class CoreSourcesTest(parameterized.TestCase):
     )
 
   def test_core_sources_to_output_dict(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     times = np.array([0.0, 1.0])
     rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
     context = output_grid_context.OutputGridContext(
@@ -356,7 +364,7 @@ class CoreSourcesTest(parameterized.TestCase):
     )
 
   def test_core_sources_to_output_dict_empty_channels(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     times = np.array([0.0, 1.0])
     rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
     context = output_grid_context.OutputGridContext(

@@ -31,6 +31,7 @@ from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_state
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.sources import core_sources
 from torax._src.sources import source_profile_builders
@@ -73,6 +74,7 @@ def _make_calc_coeffs_inputs(
       source_profiles=core_sources.CoreSources.zeros(geo),
   )
   model_state = model_state_lib.ModelState(
+      geometry=geometry_state.GeometryState.from_geometry(geo),
       pedestal=pedestal_state,
       transport=models.transport_model.initial_state(runtime_params),
       sources=source_states,
@@ -116,7 +118,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                 I_p_source='profile_conditions',
                 psi_source='j',
             ),
-            geometry=dict(geometry_type='circular', n_rho=num_cells),
+            geometry=dict(model_name='circular', n_rho=num_cells),
             pedestal=dict(
                 structure_model=dict(model_name='set_T_top_n_top'),
                 formation_model=dict(
@@ -170,7 +172,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         },
         'numerics': {},
         'sources': {},
-        'geometry': {'geometry_type': 'circular'},
+        'geometry': {'model_name': 'circular'},
         'plasma_composition': {},
     }
     config_dict_with_pedestal = copy.deepcopy(config_dict)
@@ -234,7 +236,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             n_e={0.0: {0.0: 1.5e20, 0.85: 1.1e20, 1.0: 0.4e20}},
         ),
         geometry=dict(
-            geometry_type='circular',
+            model_name='circular',
             face_centers=face_centers,
         ),
         pedestal=dict(),
@@ -331,7 +333,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                 n_e={0.0: {0.0: 1.0e20, 1.0: 1.0e20}},
                 normalize_n_e=False,
             ),
-            geometry=dict(geometry_type='circular', elongation_LCFS=1.0),
+            geometry=dict(model_name='circular', elongation_LCFS=1.0),
             pedestal=dict(),
             sources=dict(ei_exchange=dict(Qei_multiplier=0.0)),
             solver=dict(),
@@ -344,17 +346,22 @@ class CalcCoeffsTest(parameterized.TestCase):
         )
     )
     inputs = _make_calc_coeffs_inputs(torax_config)
-    geo = dataclasses.replace(inputs.geo, Phi_b_dot=2.5)
+    model_state = dataclasses.replace(
+        inputs.model_state,
+        geometry=geometry_state.GeometryState.from_geometry(
+            inputs.geo, Phi_b_dot=jnp.asarray(2.5)
+        ),
+    )
     evolving_names = ('T_i', 'T_e', 'n_e')
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=inputs.runtime_params,
-        geo=geo,
+        geo=inputs.geo,
         solver_state=inputs.core_profiles.to_solver_state(),
         models=inputs.models,
         explicit_model_outputs=inputs.explicit_model_outputs,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        model_state=inputs.model_state,
+        model_state=model_state,
     )
     x = convertors.solver_state_to_solver_x_tuple(
         inputs.core_profiles.to_solver_state(),
@@ -370,7 +377,9 @@ class CalcCoeffsTest(parameterized.TestCase):
     # reduces to 2 * (Phi_b_dot / Phi_b) * vpr * n * T and the particle RHS
     # 0.5 * (Phi_b_dot / Phi_b) * d/drhon(rhon * vpr * n_e) to
     # (Phi_b_dot / Phi_b) * vpr * n_e.
-    phib_dot_vpr = geo.Phi_b_dot / geo.Phi_b * geo.vpr
+    phib_dot_vpr = (
+        model_state.geometry.Phi_b_dot / inputs.geo.Phi_b * inputs.geo.vpr
+    )
     heat_prefactor = 2.0 * constants.CONSTANTS.keV_to_J
     n_i, n_e = (
         inputs.core_profiles.kinetic.n_i.value,
@@ -407,7 +416,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             numerics=dict(evolve_current=True),
             plasma_composition=dict(),
             profile_conditions=dict(I_p=15e6, psi_source='j'),
-            geometry=dict(geometry_type='circular'),
+            geometry=dict(model_name='circular'),
             pedestal=dict(),
             neoclassical=dict(
                 model_name='analytical',
@@ -526,7 +535,7 @@ class CalcCoeffsTest(parameterized.TestCase):
 
   def test_calc_coeffs_updates_fast_ions_before_neoclassical(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 4}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 4}
     config_dict['numerics'] = {
         'evolve_current': True,
         'enable_fast_ions': True,

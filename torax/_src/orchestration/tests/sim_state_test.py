@@ -21,6 +21,7 @@ from torax._src import model_state as model_state_lib
 from torax._src.edge.extended_lengyel import divertor_sol_1d
 from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_state
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import sim_state
@@ -108,6 +109,7 @@ class SimStateTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(geo),
             pedestal=pedestal_state_lib.PedestalState(),
             transport=transport_state_lib.TransportState(),
             sources={},

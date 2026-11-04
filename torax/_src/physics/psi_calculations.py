@@ -373,6 +373,7 @@ def calculate_psidot_from_psi_sources(
     sigma: array_typing.FloatVector,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
+    phi_b_dot: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates psidot (loop voltage) from the sum of the psi sources."""
 
@@ -391,12 +392,12 @@ def calculate_psidot_from_psi_sources(
   d_face_psi = geo.g2g3_over_rhon_face
   v_face_psi = jnp.zeros_like(d_face_psi)
 
-  # Add effective Phi_b_dot poloidal flux source term
+  # Add effective phi_b_dot poloidal flux source term
   psi_sources += (
       8.0
       * jnp.pi**2
       * consts.mu_0
-      * geo.Phi_b_dot
+      * phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
       * sigma
@@ -424,6 +425,7 @@ def calculate_psidot(
     psi_sources: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
     evolve_current: bool,
+    phi_b_dot: array_typing.FloatScalar,
     prescribed_psidot: array_typing.FloatVectorCell | None = None,
     right_face_constraint: array_typing.FloatScalar | None = None,
     right_face_grad_constraint: array_typing.FloatScalar | None = None,
@@ -450,6 +452,8 @@ def calculate_psidot(
       the cell grid.
     geo: Tokamak geometry.
     evolve_current: Whether the poloidal flux equation is being evolved.
+    phi_b_dot: Time derivative of the toroidal magnetic flux at the plasma
+      boundary (LCFS) [Wb/s].
     prescribed_psidot: Optional prescribed psidot profile on the cell grid, used
       only when `evolve_current` is False.
     right_face_constraint: Optional right-face Dirichlet value constraint on
@@ -474,6 +478,7 @@ def calculate_psidot(
         sigma=sigma,
         psi=psi,
         geo=geo,
+        phi_b_dot=phi_b_dot,
     )
   return cell_variable.CellVariable(
       value=psidot_value,

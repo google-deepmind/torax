@@ -30,7 +30,7 @@ from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.geometry import geometry_state
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import state_evaluation
 from torax._src.orchestration import step_function
@@ -50,7 +50,6 @@ def get_initial_state_and_post_processed_outputs(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
-    geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs.
 
@@ -62,8 +61,6 @@ def get_initial_state_and_post_processed_outputs(
       chosen based on the values set in the numerics config.
     runtime_params_overrides: Optional runtime params provider to override the
       one set in the step function.
-    geometry_overrides: Optional geometry provider to override the one set in
-      the step function.
 
   Returns:
     A tuple of the initial state and post processed outputs.
@@ -71,7 +68,6 @@ def get_initial_state_and_post_processed_outputs(
   runtime_params_provider = (
       runtime_params_overrides or step_fn.runtime_params_provider
   )
-  geometry_provider = geometry_overrides or step_fn.geometry_provider
   t = (
       t
       if t is not None
@@ -82,7 +78,7 @@ def get_initial_state_and_post_processed_outputs(
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t,
           runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
+          geometry_model=step_fn.solver.models.geometry_model,
           is_initialization=True,
       )
   )
@@ -284,7 +280,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
-    geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs from a file.
 
@@ -295,8 +290,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
       provider to use.
     runtime_params_overrides: Optional runtime params provider to override the
       one set in the step function.
-    geometry_overrides: Optional geometry provider to override the one set in
-      the step function.
 
   Returns:
     A tuple of the initial state and post processed outputs.
@@ -304,7 +297,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
   runtime_params_provider = (
       runtime_params_overrides or step_fn.runtime_params_provider
   )
-  geometry_provider = geometry_overrides or step_fn.geometry_provider
 
   full_data_tree = output.load_state_file(str(file_restart.filename))
   first_time_in_file = float(full_data_tree.time.values[0])
@@ -360,7 +352,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t_restart,
           runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
+          geometry_model=step_fn.solver.models.geometry_model,
           edge_outputs=initial_edge_bcs,
           is_initialization=True,
       )
@@ -369,10 +361,25 @@ def get_initial_state_and_post_processed_outputs_from_file(
   solver_state = _solver_state_from_profiles_dataset(
       profiles_dataset, runtime_params_for_init, geo_for_init
   )
+  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset.squeeze()
   model_state = models.initial_state_from_datatree(
       data_tree.children.get(output_keys.MODEL_STATE),
       runtime_params_for_init,
   )
+  if (
+      output_keys.PHI_B_DOT in scalars_dataset.data_vars
+      and runtime_params_for_init.geometry.calc_Phi_b_dot
+  ):
+    phi_b_dot = jnp.asarray(
+        scalars_dataset.data_vars[output_keys.PHI_B_DOT].to_numpy(),
+        dtype=jax_utils.get_dtype(),
+    )
+    model_state = dataclasses.replace(
+        model_state,
+        geometry=geometry_state.GeometryState.from_geometry(
+            geo_for_init, Phi_b_dot=phi_b_dot
+        ),
+    )
   evaluated_state, _ = state_evaluation.evaluate_state(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,

@@ -125,10 +125,8 @@ classes, as well as :ref:`geometry_doc` and :ref:`physics_geometry`.
 Each ``Geometry`` object represents the geometry at a single point in time.
 A sequence of different geometries at different timesteps can be provided at
 config, and the various ``Geometry`` objects are constructed upon
-initialization. These are packaged together into a
-|GeometryProvider| which, interpolates a new ``Geometry`` at each timestep
-allowing for dynamic time stepping. For numerical geometries this is implemented
-as a |StandardGeometryProvider|.
+initialization. These are evaluated at each timestep via ``GeometryModel``
+and ``RuntimeParamsProvider`` allowing for dynamic time stepping.
 
 solver
 ^^^^^^^

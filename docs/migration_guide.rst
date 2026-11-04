@@ -941,7 +941,7 @@ Complete v1 to v2 ``CONFIG`` example
                  'resistivity_multiplier': 1.0,
              },
              'geometry': {
-                 'geometry_type': 'chease',
+                 'model_name': 'chease',
                  'geometry_file': 'iterhybrid.mat2cols',
                  'Ip_from_parameters': True,
              },
@@ -1008,7 +1008,7 @@ Complete v1 to v2 ``CONFIG`` example
                  'current_diffusion_time_reduction_factor': 1.0,
              },
              'geometry': {
-                 'geometry_type': 'chease',
+                 'model_name': 'chease',
                  'geometry_file': 'iterhybrid.mat2cols',
              },
              'sources': {

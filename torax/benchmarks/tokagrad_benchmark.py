@@ -199,7 +199,7 @@ CONFIG = {
         "current_diffusion_time_reduction_factor": 100.0,
     },
     "geometry": {
-        "geometry_type": "circular",
+        "model_name": "circular",
         "R_major": 6.2,
         "a_minor": 2,
         "B_0": 5.3,

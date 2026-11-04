@@ -24,15 +24,11 @@ import functools
 from absl import logging
 import chex
 import jax
-from jax import numpy as jnp
 import numpy as np
 import scipy
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import interpolated_param
-from torax._src import jax_utils
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 
@@ -171,37 +167,6 @@ class StandardGeometry(geometry.Geometry):
     for key, val in vars_to_pack.items():
       output_dict[key] = context.pack(key, val)
     return output_dict
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
-  """Values to be interpolated for a Standard Geometry."""
-
-  I_p_profile_face: interpolated_param.InterpolatedVarSingleAxis
-  psi: interpolated_param.InterpolatedVarSingleAxis
-  psi_from_I_p: interpolated_param.InterpolatedVarSingleAxis
-  psi_from_I_p_face: interpolated_param.InterpolatedVarSingleAxis
-  j_toroidal_total: interpolated_param.InterpolatedVarSingleAxis
-  j_toroidal_total_face: interpolated_param.InterpolatedVarSingleAxis
-  delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
-  delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
-  elongation: interpolated_param.InterpolatedVarSingleAxis
-  elongation_face: interpolated_param.InterpolatedVarSingleAxis
-  connection_length_target: interpolated_param.InterpolatedVarSingleAxis | None
-  connection_length_divertor: (
-      interpolated_param.InterpolatedVarSingleAxis | None
-  )
-  angle_of_incidence_target: interpolated_param.InterpolatedVarSingleAxis | None
-  R_OMP: interpolated_param.InterpolatedVarSingleAxis | None
-  R_target: interpolated_param.InterpolatedVarSingleAxis | None
-  B_pol_OMP: interpolated_param.InterpolatedVarSingleAxis | None
-  diverted: interpolated_param.InterpolatedVarSingleAxis | None
-
-  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
-    """Returns an interpolated `StandardGeometry` instance at time `t`."""
-    chex.assert_type(t, jnp.floating)
-    return self._get_geometry_base(t, StandardGeometry)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -755,10 +720,6 @@ def build_standard_geometry(
       spr_hires=spr_hires,
       rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
-      # always initialize Phibdot as zero. It will be replaced once both geo_t
-      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
-      # geo_t_plus_dt for each given time interval.
-      Phi_b_dot=np.zeros((), dtype=jax_utils.get_int_dtype()),
       _z_magnetic_axis=intermediates.z_magnetic_axis,
       diverted=intermediates.diverted,
       connection_length_target=intermediates.connection_length_target,

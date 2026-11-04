@@ -35,7 +35,7 @@ def main(argv: Sequence[str]) -> None:
       'numerics': {},
       'plasma_composition': {},
       'geometry': {
-          'geometry_type': 'circular',
+          'model_name': 'circular',
           'n_rho': 30,  # for higher resolution plotting
       },
       'pedestal': {

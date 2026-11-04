@@ -21,7 +21,7 @@ CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
 assert isinstance(CONFIG['profile_conditions'], dict)
 assert isinstance(CONFIG['numerics'], dict)
 CONFIG['geometry'] = {
-    'geometry_type': 'imas',
+    'model_name': 'imas',
     'imas_filepath': 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc',
 }
 del CONFIG['profile_conditions']['I_p']

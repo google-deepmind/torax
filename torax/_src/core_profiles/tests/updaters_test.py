@@ -33,7 +33,11 @@ class UpdatersTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Build a default geo object for convenience.
-    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   @parameterized.named_parameters(
       dict(

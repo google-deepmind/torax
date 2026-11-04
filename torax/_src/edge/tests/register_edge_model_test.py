@@ -39,7 +39,7 @@ def _base_config_dict() -> dict[str, object]:
   # Non-circular geometry and n_e_ratios impurity mode are required when an
   # edge model is configured.
   config_dict["geometry"] = {
-      "geometry_type": "chease",
+      "model_name": "chease",
       "geometry_file": "iterhybrid.mat2cols",
   }
   config_dict["plasma_composition"] = {

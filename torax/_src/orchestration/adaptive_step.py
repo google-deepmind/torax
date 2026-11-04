@@ -28,7 +28,6 @@ from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
 from torax._src.solver import solver as solver_lib
@@ -47,6 +46,7 @@ class AdaptiveStepState:
   runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
   solver_state: solver_state_lib.SolverState
+  model_state: model_state_lib.ModelState
 
 
 def create_initial_state(
@@ -76,6 +76,7 @@ def create_initial_state(
       runtime_params=runtime_params_t,
       geo=geo_t,
       solver_state=solver_state_t,
+      model_state=input_state.model_state,
   )
 
 
@@ -89,7 +90,6 @@ def compute_state(
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     model_state_t: model_state_lib.ModelState,
     solver: solver_lib.Solver,
     time_step_calculator: time_step_calculator_lib.TimeStepCalculator,
@@ -100,11 +100,13 @@ def compute_state(
       attempt=i,
       runtime_params=runtime_params_t,
   )
-  runtime_params_t_plus_dt, geo_t_plus_dt = (
-      build_runtime_params.get_consistent_runtime_params_and_geometry(
+  runtime_params_t_plus_dt, geo_t_plus_dt, updated_geometry_state = (
+      build_runtime_params.step_consistent_runtime_params_and_geometry(
           t=input_state.t + dt,
+          dt=dt,
+          geometry_state=model_state_t.geometry,
           runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
+          geometry_model=solver.models.geometry_model,
           edge_outputs=edge_outputs,
           core_profiles=input_state.core_profiles,
       )
@@ -118,6 +120,10 @@ def compute_state(
           core_profiles_t=input_state.core_profiles,
       )
   )
+  model_state_t_plus_dt = dataclasses.replace(
+      model_state_t,
+      geometry=updated_geometry_state,
+  )
   x_new, solver_numeric_outputs = solver(
       t=input_state.t,
       dt=dt,
@@ -128,7 +134,7 @@ def compute_state(
       solver_state_t=solver_state_t,
       solver_state_t_plus_dt=solver_state_t_plus_dt,
       explicit_model_outputs=explicit_model_outputs,
-      model_state=model_state_t,
+      model_state=model_state_t_plus_dt,
   )
   loop_statistics[
       'inner_solver_iterations'
@@ -136,12 +142,13 @@ def compute_state(
 
   return (
       AdaptiveStepState(
-          x_new,
-          dt,
-          solver_numeric_outputs,
-          runtime_params_t_plus_dt,
-          geo_t_plus_dt,
-          solver_state_t_plus_dt,
+          x_new=x_new,
+          dt=dt,
+          solver_numeric_outputs=solver_numeric_outputs,
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geo_t_plus_dt,
+          solver_state=solver_state_t_plus_dt,
+          model_state=model_state_t_plus_dt,
       ),
       loop_statistics,
   )
@@ -158,7 +165,6 @@ def cond_fun(
     ),
     unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    unused_geometry_provider: geometry_provider_lib.GeometryProvider,
     unused_model_state_t: model_state_lib.ModelState,
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""

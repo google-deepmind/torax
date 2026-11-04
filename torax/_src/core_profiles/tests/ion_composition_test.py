@@ -29,7 +29,6 @@ from torax._src.core_profiles import ion_composition as ion_composition_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
-from torax._src.geometry import config as geometry_config
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_error
 from torax._src.physics import charge_states
@@ -66,7 +65,7 @@ class IonCompositionTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=1.0)
-    geo = torax_config.geometry.build_provider(t=1.0)
+    geo = torax_config.geometry.build_runtime_params(t=1.0).geometry
 
     T_e = cell_variable.CellVariable(
         value=jnp.ones_like(geo.rho_norm) * 100.0,
@@ -188,7 +187,7 @@ class IonCompositionTest(parameterized.TestCase):
             'Z_eff': zeff,
         },
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -200,7 +199,7 @@ class IonCompositionTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
+    geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
         face_centers=geo.rho_face_norm,
@@ -263,7 +262,11 @@ class IonCompositionTest(parameterized.TestCase):
         + n_e_ratio_w * z_w[0] ** 2
         + n_e_ratio_he3 * z_he3**2
     )
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     dilution = n_d / n_e
 
     impurity_fraction_w = n_e_ratio_w / (n_e_ratio_w + n_e_ratio_he3)
@@ -292,7 +295,7 @@ class IonCompositionTest(parameterized.TestCase):
             'Z_eff': (geo.rho_norm, zeff),
         },
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -304,7 +307,7 @@ class IonCompositionTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
+    geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
         face_centers=geo.rho_face_norm,
@@ -387,7 +390,7 @@ class IonCompositionTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -420,7 +423,7 @@ class IonCompositionTest(parameterized.TestCase):
           torax_config
       )
       runtime_params = provider(t=0.0)
-      geo = torax_config.geometry.build_provider(t=0.0)
+      geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
@@ -471,7 +474,7 @@ class IonCompositionTest(parameterized.TestCase):
             },
         },
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -482,7 +485,7 @@ class IonCompositionTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
+    geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
 
     T_e_cv = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, t_e_keV),
@@ -563,21 +566,21 @@ class IonCompositionTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
         'pedestal': {},
     }
-    geo = geometry_config.GeometryConfig.from_dict(
+    geo_config = circular_geometry.CircularConfig.from_dict(
         base_config_dict['geometry']
-    ).build_provider(t=0.0)
+    )
 
     total = np.zeros((5,))
     total_sq = np.zeros((5,))
     for s, r in n_e_ratios.items():
       impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(r)
-      torax_pydantic.set_grid(impurity_value_tva, geo.torax_mesh)
+      torax_pydantic.set_grid(impurity_value_tva, geo_config.get_grid())
       impurity_value = impurity_value_tva.get_value(t=0.0, grid_type='face')
       z_impurity = z_impurities[s][0]
       total += impurity_value * z_impurity
@@ -602,7 +605,7 @@ class IonCompositionTest(parameterized.TestCase):
             'impurity_mode': plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
             'species': impurity_fractions,
         },
-        'Z_eff': (geo.rho_face_norm, zeff),
+        'Z_eff': (geo_config.get_face_centers(), zeff),
     }
     torax_config_fractions = config.ToraxConfig.from_dict(config_dict_fractions)
 
@@ -611,7 +614,7 @@ class IonCompositionTest(parameterized.TestCase):
           torax_config
       )
       runtime_params = provider(t=0.0)
-      geo = torax_config.geometry.build_provider(t=0.0)
+      geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
@@ -655,7 +658,7 @@ class IonCompositionTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -678,7 +681,7 @@ class IonCompositionTest(parameterized.TestCase):
           torax_config
       )
       runtime_params = provider(t=0.0)
-      geo = torax_config.geometry.build_provider(t=0.0)
+      geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
@@ -752,7 +755,7 @@ class IonCompositionTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -774,7 +777,7 @@ class IonCompositionTest(parameterized.TestCase):
           torax_config
       )
       runtime_params = provider(t=0.0)
-      geo = torax_config.geometry.build_provider(t=0.0)
+      geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
@@ -798,15 +801,15 @@ class IonCompositionTest(parameterized.TestCase):
     ions_ne_ratios = _run_from_profiles(torax_config_ne_ratios)
 
     config_dict_ne_ratios_zeff = base_config_dict.copy()
-    geo = geometry_config.GeometryConfig.from_dict(
+    geo_config = circular_geometry.CircularConfig.from_dict(
         config_dict_ne_ratios_zeff['geometry']
-    ).build_provider(t=0.0)
+    )
 
     total = np.zeros((5,))
     total_sq = np.zeros((5,))
     for s, r in n_e_ratios.items():
       impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(r)
-      torax_pydantic.set_grid(impurity_value_tva, geo.torax_mesh)
+      torax_pydantic.set_grid(impurity_value_tva, geo_config.get_grid())
       impurity_value = impurity_value_tva.get_value(t=0.0, grid_type='face')
       z_impurity = z_impurities[s][0]
       total += impurity_value * z_impurity
@@ -825,7 +828,7 @@ class IonCompositionTest(parameterized.TestCase):
                 'Ar': {0.0: 0.001, 1.0: 0.0005},
             },
         },
-        'Z_eff': (geo.rho_face_norm, zeff),
+        'Z_eff': (geo_config.get_face_centers(), zeff),
     }
     torax_config_ne_ratios_zeff = config.ToraxConfig.from_dict(
         config_dict_ne_ratios_zeff
@@ -870,7 +873,7 @@ class IonCompositionTest(parameterized.TestCase):
         },
         'numerics': {},
         'time_step_calculator': {'t_final': 0.1},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},

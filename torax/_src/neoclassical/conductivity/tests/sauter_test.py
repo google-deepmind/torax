@@ -31,9 +31,11 @@ class SauterTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self.n_rho = 10
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=self.n_rho
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=self.n_rho)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     base = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
         base,

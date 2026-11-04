@@ -27,7 +27,7 @@ from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
+
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
@@ -51,7 +51,6 @@ def sawtooth_step(
     runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.SimState,
@@ -74,7 +73,6 @@ def sawtooth_step(
     runtime_params_t: Runtime params at time t.
     runtime_params_provider: Provider for runtime params.
     geo_t: Geometry at time t.
-    geometry_provider: Provider for geometry.
     explicit_model_outputs: Explicit model outputs evaluated at time t.
     edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
@@ -89,14 +87,18 @@ def sawtooth_step(
   # Asserts needed for linter.
   assert runtime_params_t.mhd.sawtooth is not None
   dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
-  runtime_params_t_plus_crash_dt, geo_t_plus_crash_dt = (
-      build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=input_state.t + dt_crash,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
-          core_profiles=input_state.core_profiles,
-          edge_outputs=edge_outputs,
-      )
+  (
+      runtime_params_t_plus_crash_dt,
+      geo_t_plus_crash_dt,
+      updated_geometry_state,
+  ) = build_runtime_params.step_consistent_runtime_params_and_geometry(
+      t=input_state.t + dt_crash,
+      dt=dt_crash,
+      geometry_state=model_state_t.geometry,
+      runtime_params_provider=runtime_params_provider,
+      geometry_model=sawtooth_solver.models.geometry_model,
+      core_profiles=input_state.core_profiles,
+      edge_outputs=edge_outputs,
   )
 
   # Prepare solver_state_t_plus_crash_dt with new boundary conditions
@@ -107,6 +109,11 @@ def sawtooth_step(
       runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
+  )
+
+  model_state = dataclasses.replace(
+      model_state_t,
+      geometry=updated_geometry_state,
   )
 
   (
@@ -122,7 +129,7 @@ def sawtooth_step(
       core_profiles_t=input_state.core_profiles,
       solver_state_t_plus_dt=solver_state_t_plus_crash_dt,
       explicit_model_outputs=explicit_model_outputs,
-      model_state=model_state_t,
+      model_state=model_state,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():
@@ -162,7 +169,7 @@ def sawtooth_step(
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
         time_step_calculator_state_t=time_step_calculator_state_t,
-        model_state_t=model_state_t,
+        model_state_t=model_state,
     )
 
   return jax.lax.cond(

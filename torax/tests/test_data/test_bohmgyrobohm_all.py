@@ -49,7 +49,7 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'circular',
+        'model_name': 'circular',
     },
     'neoclassical': {
         'bootstrap_current': {},

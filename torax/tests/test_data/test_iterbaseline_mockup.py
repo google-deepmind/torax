@@ -57,7 +57,7 @@ CONFIG = {
         'evolve_density': True,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters

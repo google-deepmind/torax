@@ -134,7 +134,7 @@ def _build_smoothing_matrix_for_n_rho(
 ) -> tuple[array_typing.Array, array_typing.Array]:
   """Returns the transport smoothing matrix and face grid for a circular geo."""
   config_dict = default_configs.get_default_config_dict()
-  config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
+  config_dict['geometry'] = {'model_name': 'circular', 'n_rho': n_rho}
   config_dict['transport'] = {
       'smoothing_width': 0.1,
       'core_transport_models': {
@@ -145,9 +145,9 @@ def _build_smoothing_matrix_for_n_rho(
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(t=torax_config.time_step_calculator.t_initial)
-  geo = torax_config.geometry.build_provider(
+  geo = torax_config.geometry.build_runtime_params(
       t=torax_config.time_step_calculator.t_initial
-  )
+  ).geometry
   matrix = transport_model._build_smoothing_matrix(
       runtime_params.transport,
       geo,
@@ -552,9 +552,9 @@ class TransportModelTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.time_step_calculator.t_initial)
-    geo = torax_config.geometry.build_provider(
+    geo = torax_config.geometry.build_runtime_params(
         t=torax_config.time_step_calculator.t_initial
-    )
+    ).geometry
     pedestal_output = _make_pedestal_output(
         rho_norm_top=0.8,
         confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
@@ -579,9 +579,9 @@ class TransportModelTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.time_step_calculator.t_initial)
-    geo = torax_config.geometry.build_provider(
+    geo = torax_config.geometry.build_runtime_params(
         t=torax_config.time_step_calculator.t_initial
-    )
+    ).geometry
     pedestal_output = _make_pedestal_output(rho_norm_top=0.8)
     matrix = transport_model._build_pedestal_smoothing_matrix(
         runtime_params.transport,
@@ -597,9 +597,9 @@ class TransportModelTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.time_step_calculator.t_initial)
-    geo = torax_config.geometry.build_provider(
+    geo = torax_config.geometry.build_runtime_params(
         t=torax_config.time_step_calculator.t_initial
-    )
+    ).geometry
     pedestal_output = _make_pedestal_output(rho_norm_top=0.8)
     matrix = transport_model._build_pedestal_smoothing_matrix(
         runtime_params.transport,
@@ -786,9 +786,9 @@ class TransportModelTest(parameterized.TestCase):
     config_dict['transport'] = transport_config
     torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
-    geo = torax_config.geometry.build_provider(
+    geo = torax_config.geometry.build_runtime_params(
         t=torax_config.time_step_calculator.t_initial
-    )
+    ).geometry
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(

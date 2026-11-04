@@ -44,6 +44,7 @@ from collections.abc import Callable
 import dataclasses
 from typing import ClassVar
 
+from torax._src import array_typing
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
@@ -315,6 +316,8 @@ class SourceUsingCoreProfiles(SourceBase):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
+      *,
+      phi_b_dot: array_typing.FloatScalar,
   ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Computes model-based source profile terms from full CoreProfiles.
 
@@ -326,6 +329,7 @@ class SourceUsingCoreProfiles(SourceBase):
       core_profiles: Full core plasma profiles including neoclassical
         conductivity and psidot.
       source_state: Dynamic model state carried from the previous timestep.
+      phi_b_dot: Time derivative of the boundary toroidal flux.
 
     Returns:
       A tuple of ``(output, updated_source_state)``, where ``output`` is a
@@ -340,6 +344,8 @@ class SourceUsingCoreProfiles(SourceBase):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
+      *,
+      phi_b_dot: array_typing.FloatScalar,
   ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Evaluates the source with runtime validation and mode dispatch.
 
@@ -352,6 +358,7 @@ class SourceUsingCoreProfiles(SourceBase):
       core_profiles: Full core plasma profiles including neoclassical
         conductivity and psidot.
       source_state: Current dynamic model state.
+      phi_b_dot: Time derivative of the boundary toroidal flux.
 
     Returns:
       A tuple of ``(output, updated_source_state)`` for this evaluation.
@@ -372,7 +379,11 @@ class SourceUsingCoreProfiles(SourceBase):
         geo,
         source_state,
         lambda: self._get_model_value(
-            runtime_params, geo, core_profiles, source_state
+            runtime_params,
+            geo,
+            core_profiles,
+            source_state,
+            phi_b_dot=phi_b_dot,
         ),
     )
     if output.fast_ions:

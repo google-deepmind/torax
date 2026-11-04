@@ -391,7 +391,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'evolve_density': True,
       },
       'geometry': {
-          'geometry_type': 'chease',
+          'model_name': 'chease',
           'geometry_file': 'iterhybrid.mat2cols',
           'R_major': 6.2,
           'a_minor': 2.0,

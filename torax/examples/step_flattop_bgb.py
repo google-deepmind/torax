@@ -94,7 +94,7 @@ CONFIG = {
         }
     ),
     "geometry": {
-        "geometry_type": "IMAS",
+        "model_name": "imas",
         "imas_filepath": "STEP_SPP_001_ECHD_ftop.nc",
         "n_rho": 100,
         # STEP is a low-aspect-ratio (spherical tokamak) scenario, where the

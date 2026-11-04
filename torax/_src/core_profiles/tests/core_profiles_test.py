@@ -88,7 +88,7 @@ class InitialStatesTest(parameterized.TestCase):
     assert not core_profiles.quasineutrality_satisfied()
 
   def test_core_profiles_negative_values_check(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     with self.subTest('no negative values'):
       self.assertFalse(core_profiles.negative_temperature_or_density())
@@ -158,7 +158,11 @@ class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=5)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.base_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
 
   @parameterized.named_parameters(
@@ -230,7 +234,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
             'T_e': {0: {0: 15.0, 1: 1.0}},
             'n_e': {0: {0: 1.2e20, 1: 0.8e20}},
         },
-        'geometry': {'geometry_type': 'circular'},
+        'geometry': {'model_name': 'circular'},
         'sources': {},
         'transport': {
             'core_transport_models': {
@@ -269,7 +273,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     for i, t in enumerate(state_history.times):
       fractions = state_history.core_profiles[i].ions.impurity_fractions
       impurity_config = torax_config.plasma_composition.impurity
-      geo = torax_config.geometry.build_provider(t)
+      geo = torax_config.geometry.build_runtime_params(t).geometry
       assert isinstance(impurity_config, impurity_fractions.ImpurityFractions)
       expected_fractions = {
           'Ar': jnp.full_like(
@@ -315,7 +319,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     for i, t in enumerate(state_history.times):
       fractions = state_history.core_profiles[i].ions.impurity_fractions
       impurity_config = torax_config.plasma_composition.impurity
-      geo = torax_config.geometry.build_provider(t)
+      geo = torax_config.geometry.build_runtime_params(t).geometry
       assert isinstance(
           impurity_config, electron_density_ratios.ElectronDensityRatios
       )
@@ -375,7 +379,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     solver_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
         solver_profiles,
@@ -432,7 +440,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     )
 
   def test_n_impurity_bundled_and_n_i_total_thermal_face(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     solver_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     # True impurity charge <Z> = 2 and bundled impurity charge <Z^2>/<Z> = 3,
     # so n_impurity_bundled is (2/3) of the true impurity particle density.
@@ -463,7 +475,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     )
 
   def test_thermal_densities_with_fast_ions(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     solver_profiles = core_profile_helpers.make_zero_core_profiles(geo)
 
     fast_ion_he3 = fast_ion_lib.FastIon(
@@ -534,7 +550,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       return core_profiles.pressure_thermal_e.value
 
     # Create two different CoreProfiles
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     profiles1 = core_profile_helpers.make_zero_core_profiles(geo)
     profiles1 = dataclasses.replace(
         profiles1,
@@ -569,7 +589,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
   def test_core_profiles_to_output_dict_keys_and_shapes(self):
     """Tests CoreProfiles.to_output_dict produces all keys with valid shapes."""
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     profiles_t0 = core_profile_helpers.make_zero_core_profiles(geo)
     profiles_t1 = dataclasses.replace(
         profiles_t0,
@@ -653,7 +677,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
   def test_core_profiles_to_output_dict_fast_ions(self):
     """Tests that fast ion profiles are correctly packed in output dict."""
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     fast_ion = fast_ion_lib.FastIon(
         source='nbi',
         species='D',
@@ -691,7 +719,11 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
   def test_core_profiles_to_output_dict_radial_a_impurity(self):
     """Tests non-constant A_impurity is packed as a spatial profile."""
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     # Set non-constant A_impurity across radius.
     core_profiles = dataclasses.replace(

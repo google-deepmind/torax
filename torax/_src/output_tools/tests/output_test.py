@@ -30,6 +30,7 @@ from torax._src.config import config_loader
 from torax._src.edge import base as edge_base
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry_state
 from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
 )
@@ -80,7 +81,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'species': {'Ne': 0.01},
             }
         },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
@@ -95,7 +96,7 @@ class StateHistoryTest(parameterized.TestCase):
     })
     models = self.torax_config.build_models()
     # Make some dummy source profiles that could have come from these sources.
-    self.geo = self.torax_config.geometry.build_provider(t=0.0)
+    self.geo = self.torax_config.geometry.build_runtime_params(t=0.0).geometry
     ones = jnp.ones_like(self.geo.rho)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
@@ -172,6 +173,7 @@ class StateHistoryTest(parameterized.TestCase):
         ),
         pedestal_output=pedestal_output,
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=models.transport_model.initial_state(runtime_params),
             sources=source_states,
@@ -708,7 +710,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'T': {0.0: 0.5, 1.0: 0.7},
             },
         },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
@@ -795,7 +797,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'T': {0.0: 0.5, 1.0: 0.7},
             },
         },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {

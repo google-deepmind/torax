@@ -505,7 +505,7 @@ def geometry_from_single_IMAS_slice(
   only one time slice and returns the intermediate geometry values for building
   a ``StandardGeometry``. This enables IMAS geometry to be used in the same
   way as other single-file geometry types (e.g. CHEASE, EQDSK), including as
-  entries in a time-dependent ``geometry_configs`` dict.
+  entries in a time-dependent multi-slice dictionary.
 
   If ``slice_time`` is provided, the IDS time slice whose time is closest to
   ``slice_time`` (in seconds) is selected; otherwise, the first time slice

@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src.geometry import base
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -55,7 +56,7 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(cell_from_np, cell_np)
 
   def test_none_z_magnetic_axis_raises_an_error(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     geo = dataclasses.replace(geo, _z_magnetic_axis=None)
 
     with self.subTest('non_jitted_function'):
@@ -74,22 +75,34 @@ class GeometryTest(parameterized.TestCase):
   def test_stack_geometries_circular_geometries(self):
     """Test stack_geometries for circular geometries."""
     # Create a few different geometries
-    geo0 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
-    ).build_geometry()
-    geo1 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
-    ).build_geometry()
-    geo2 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=2.0, B_0=3.0, n_rho=10
-    ).build_geometry()
+    geo0 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo1 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo2 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=2.0, B_0=3.0, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     # Stack them
     stacked_geo = geometry.stack_geometries([geo0, geo1, geo2])
 
     # Check that the stacked geometry has the correct type and mesh
     self.assertEqual(stacked_geo.geometry_type, geo0.geometry_type)
-    self.assertEqual(stacked_geo.torax_mesh, geo0.torax_mesh)
+    np.testing.assert_allclose(stacked_geo.rho_face_norm[0], geo0.rho_face_norm)
 
     # Check some specific stacked values
     np.testing.assert_allclose(stacked_geo.R_major, np.array([1.0, 1.5, 2.0]))
@@ -130,12 +143,20 @@ class GeometryTest(parameterized.TestCase):
 
   def test_stack_geometries_error_handling_different_mesh_sizes(self):
     """Test error handling for stack_geometries with different mesh sizes."""
-    geo0 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
-    ).build_geometry()
-    geo_diff_mesh = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=20
-    ).build_geometry()  # Different n_rho
+    geo0 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_diff_mesh = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=20
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )  # Different n_rho
     with self.assertRaisesRegex(
         ValueError, 'All geometries must have the same mesh.'
     ):
@@ -143,9 +164,13 @@ class GeometryTest(parameterized.TestCase):
 
   def test_stack_geometries_error_handling_different_geometry_types(self):
     """Test different geometry type error handling for stack_geometries."""
-    geo0 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
-    ).build_geometry()
+    geo0 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     geo_diff_geometry_type = dataclasses.replace(
         geo0, geometry_type=geometry.GeometryType(3)
     )
@@ -154,22 +179,13 @@ class GeometryTest(parameterized.TestCase):
     ):
       geometry.stack_geometries([geo0, geo_diff_geometry_type])
 
-  def test_update_phibdot(self):
-    """Test update_phibdot for circular geometries."""
-    geo = circular_geometry.CircularConfig().build_geometry()
-    geo0 = dataclasses.replace(geo, Phi_face=np.array([1.0]))
-    geo1 = dataclasses.replace(geo, Phi_face=np.array([2.0]))
-    geo0_updated, geo1_updated = geometry.update_geometries_with_Phibdot(
-        dt=0.1, geo_t=geo0, geo_t_plus_dt=geo1
-    )
-    np.testing.assert_allclose(geo0_updated.Phi_b_dot, 10.0)
-    np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.0)
-
   def test_dvpr_drho_norm_is_constant_for_linear_vpr(self):
     # With elongation_LCFS=1, circular geometry has vpr ~ rho_norm.
-    geo = circular_geometry.CircularConfig(
-        elongation_LCFS=1.0, n_rho=10
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(elongation_LCFS=1.0, n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     with self.subTest('single'):
       np.testing.assert_allclose(
           geo.dvpr_drho_norm,
@@ -185,8 +201,8 @@ class GeometryTest(parameterized.TestCase):
       )
 
   def test_geometry_eq(self):
-    geo1 = circular_geometry.CircularConfig().build_geometry()
-    geo2 = circular_geometry.CircularConfig().build_geometry()
+    geo1 = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
+    geo2 = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     with self.subTest('same_geometries_are_equal'):
       self.assertEqual(geo1, geo2)
 
@@ -228,12 +244,20 @@ class GeometryTest(parameterized.TestCase):
     )
 
   def test_to_output_dict(self):
-    geo0 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
-    ).build_geometry()
-    geo1 = circular_geometry.CircularConfig(
-        a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
-    ).build_geometry()
+    geo0 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo1 = (
+        circular_geometry.CircularConfig(
+            a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     stacked_geo = geometry.stack_geometries([geo0, geo1])
 
     times = np.array([0.0, 1.0])
@@ -296,7 +320,6 @@ class GeometryTest(parameterized.TestCase):
         output_keys.R_MAJOR,
         output_keys.A_MINOR,
         output_keys.B_0,
-        output_keys.PHI_B_DOT,
         output_keys.RHO_B,
         output_keys.PHI_B,
     ]
@@ -317,14 +340,57 @@ class GeometryTest(parameterized.TestCase):
     self.assertNotIn(output_keys.Z_MAGNETIC_AXIS, out_none_z)
 
   def test_n_rho(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.assertEqual(geo.n_rho, 10)
     self.assertLen(geo.rho_norm, geo.n_rho)
 
-  def test_torax_mesh_under_jit(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
-    cell_centers = jax.jit(lambda g: g.torax_mesh.cell_centers)(geo)
-    np.testing.assert_allclose(cell_centers, geo.rho_norm)
+  def test_interpolated_geometry(self):
+    geo0 = (
+        circular_geometry.CircularConfig(n_rho=4, B_0=5.0)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo1 = (
+        circular_geometry.CircularConfig(n_rho=4, B_0=10.0)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+
+    interp_geo = base.InterpolatedGeometry(
+        times=jnp.array([0.0, 10.0]),
+        stacked_geometry=geometry.stack_geometries([geo0, geo1]),
+    )
+
+    # 1. Interior interpolation
+    geo_mid = interp_geo.get_value(5.0)
+    np.testing.assert_allclose(geo_mid.B_0, 7.5)
+
+    # 2. Clamped bounds
+    geo_left = interp_geo.get_value(-2.0)
+    np.testing.assert_allclose(geo_left.B_0, 5.0)
+
+    geo_right = interp_geo.get_value(15.0)
+    np.testing.assert_allclose(geo_right.B_0, 10.0)
+
+    # 3. JIT-compiled evaluation
+    jitted_get_value = jax.jit(interp_geo.get_value)
+    geo_jit = jitted_get_value(2.5)
+    np.testing.assert_allclose(geo_jit.B_0, 6.25)
+
+    geo_jit_high = jitted_get_value(7.5)
+    np.testing.assert_allclose(geo_jit_high.B_0, 8.75)
+
+    # 4. Single-slice InterpolatedGeometry
+    single_interp = base.InterpolatedGeometry(
+        times=jnp.array([5.0]),
+        stacked_geometry=geometry.stack_geometries([geo0]),
+    )
+    geo_single = single_interp.get_value(10.0)
+    np.testing.assert_allclose(geo_single.B_0, 5.0)
 
 
 def _pint_face_to_cell(n_rho, face):

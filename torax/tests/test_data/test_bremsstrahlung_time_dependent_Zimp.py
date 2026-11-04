@@ -39,7 +39,7 @@ CONFIG = {
         'current_diffusion_time_reduction_factor': 100,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     },
     'neoclassical': {

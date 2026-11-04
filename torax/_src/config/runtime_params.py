@@ -47,6 +47,7 @@ from torax._src.core_profiles import runtime_params as core_profiles_params
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
+from torax._src.geometry import runtime_params as geometry_runtime_params
 from torax._src.geometry import standard_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.neoclassical import runtime_params as neoclassical_params
@@ -64,10 +65,10 @@ from torax._src.transport_model import runtime_params as transport_model_params
 class RuntimeParams:
   """A slice of the parameters at a specific time t.
 
-  This PyTree is a slice of the overall TORAX config at a specific time t
-  excluding the geometry, grouping the parameters for ease of passing into
-  various downstream functions. It includes both parameters which are
-  time-dependent and parameters which are not.
+  This PyTree is a slice of the overall TORAX config at a specific time t,
+  grouping the parameters for ease of passing into various downstream functions.
+  It includes both parameters which are time-dependent and parameters which are
+  not.
 
   The parameters which are not time-dependent are marked as static in their
   definition, this means that they are marked as static when input to JAX,
@@ -87,6 +88,7 @@ class RuntimeParams:
   sources: Mapping[str, sources_params.RuntimeParams]
   transport: transport_model_params.RuntimeParams
   time_step_calculator: time_step_calculator_params.RuntimeParams
+  geometry: geometry_runtime_params.RuntimeParams
 
 
 def make_I_p_consistent(
@@ -109,6 +111,17 @@ def make_I_p_consistent(
             j_toroidal_total=geo.j_toroidal_total * I_p_scale_factor,
             j_toroidal_total_face=geo.j_toroidal_total_face * I_p_scale_factor,
         )
+        if isinstance(
+            runtime_params.geometry,
+            geometry_runtime_params.PrescribedGeometryRuntimeParams,
+        ):
+          runtime_params = dataclasses.replace(
+              runtime_params,
+              geometry=dataclasses.replace(
+                  runtime_params.geometry,
+                  geometry=geo,
+              ),
+          )
       case core_profiles_params.IpSource.GEOMETRY:
         # If I_p is from the geometry, update the parameters to match.
         runtime_params = dataclasses.replace(

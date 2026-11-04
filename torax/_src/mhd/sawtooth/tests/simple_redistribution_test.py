@@ -54,7 +54,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
         'psi_source': 'j',
         'current_profile_nu': 3,
     }
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
     config_dict['mhd'] = {
         'sawtooth': {
             'trigger_model': {'model_name': 'simple'},
@@ -127,7 +127,7 @@ class MixingRadiusClampingTest(parameterized.TestCase):
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['evolve_current'] = True
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': n_rho}
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'initial_j_is_total_current': True,

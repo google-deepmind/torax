@@ -26,7 +26,11 @@ class TransportCoeffsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.times = np.array([0.0])
     self.context = output_grid_context.OutputGridContext(
         times=self.times,
@@ -228,7 +232,11 @@ class TransportCoeffsTest(parameterized.TestCase):
 class CoreTransportTest(parameterized.TestCase):
 
   def test_core_transport_to_output_dict(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     times = np.array([0.0, 1.0])
     context = output_grid_context.OutputGridContext(
         times=times,
@@ -305,7 +313,11 @@ class CoreTransportTest(parameterized.TestCase):
     )
 
   def test_core_transport_total_chi_max(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     core_transport = transport_coeffs.CoreTransport.zeros(geo)
     chi_max = core_transport.total.chi_max(geo)
     self.assertEqual(chi_max.shape, ())

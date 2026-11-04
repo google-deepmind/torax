@@ -32,7 +32,6 @@ from torax._src.sources import source as source_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
-from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 # Most of the checks and computations in TORAX require float64.
@@ -65,10 +64,8 @@ class SourceTestCase(parameterized.TestCase):
         dict(self.extra_source_config_kwargs)
     )
     self.assertIsInstance(source, self._source_config_class)
-    mesh = torax_pydantic.Grid1D(
-        face_centers=interpolated_param_2d.get_face_centers(nx=4)
-    )
-    torax_pydantic.set_grid(source, mesh)
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(4)
+    torax_pydantic.set_grid(source, grid)
     runtime_params = source.build_runtime_params(t=0.0)
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
 
@@ -84,9 +81,7 @@ class SourceTestCase(parameterized.TestCase):
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
     """Tests that the runtime params builds runtime params."""
-    mesh = torax_pydantic.Grid1D(
-        face_centers=interpolated_param_2d.get_face_centers(nx=4)
-    )
+    grid = torax_pydantic.Grid1D.uniform_from_n_rho(4)
     base_kwargs = {'mode': mode, 'is_explicit': is_explicit}
     if (
         mode == runtime_params_lib.Mode.MODEL_BASED
@@ -100,7 +95,7 @@ class SourceTestCase(parameterized.TestCase):
       # In ZEROS and PRESCRIBED modes, the runtime params should build without
       # extra arguments.
       source_config = self._source_config_class.from_dict(base_kwargs)
-      torax_pydantic.set_grid(source_config, mesh)
+      torax_pydantic.set_grid(source_config, grid)
       runtime_params = source_config.build_runtime_params(t=0.0)
       self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
       self.assertEqual(runtime_params.mode, mode)
@@ -110,7 +105,7 @@ class SourceTestCase(parameterized.TestCase):
       source_config = self._source_config_class.from_dict(
           {**base_kwargs, **self.extra_source_config_kwargs}
       )
-      torax_pydantic.set_grid(source_config, mesh)
+      torax_pydantic.set_grid(source_config, grid)
       runtime_params = source_config.build_runtime_params(t=0.0)
       self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
       self.assertEqual(runtime_params.mode, mode)
@@ -182,6 +177,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           geo=geo,
           core_profiles=core_profiles,
           source_state=source.initial_state(runtime_params),
+          phi_b_dot=jnp.zeros(()),
       )
     else:
       raise TypeError(f'Unsupported source type: {type(source)}')

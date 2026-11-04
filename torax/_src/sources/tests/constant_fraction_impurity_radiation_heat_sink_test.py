@@ -81,7 +81,7 @@ class ImpurityRadiationConstantFractionTest(
 
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource()
 
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     heat_source_output, _ = heat_source.get_value(
         runtime_params,
         geo,

@@ -117,7 +117,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     # reference profiles (i.e. out = constant * ref everywhere).
     out_ion = np.array(output.power_density_i)
     out_el = np.array(output.power_density_e)
-    rho_grid = np.array(geo.torax_mesh.cell_centers)
+    rho_grid = np.array(geo.rho_norm)
     ref_ion_interp = np.interp(rho_grid, rho, ion_profile)
     ref_el_interp = np.interp(rho_grid, rho, el_profile)
     # Check proportionality where profiles are non-negligible.
@@ -176,7 +176,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         (geo.R_major + rho_peak_ref * geo.a_minor) * B_ratio - geo.R_major
     ) / geo.a_minor
 
-    rho_grid = np.array(geo.torax_mesh.cell_centers)
+    rho_grid = np.array(geo.rho_norm)
     expected_index = int(np.argmin(np.abs(rho_grid - expected_rho)))
     actual_index = int(np.argmax(np.array(output.power_density_i)))
     self.assertEqual(actual_index, expected_index)

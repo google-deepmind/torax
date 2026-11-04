@@ -288,6 +288,7 @@ class SourceTest(parameterized.TestCase):
           geo=mock.ANY,
           core_profiles=mock.ANY,
           source_state=source_state_lib.SourceState(),
+          phi_b_dot=0.0,
       )
 
   def test_final_source_rejects_fast_ions_output(self):
@@ -331,7 +332,9 @@ class SourceTest(parameterized.TestCase):
       )
 
   def test_prescribed_fast_ions_populated_on_fast_ion_source(self):
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo_config = circular_geometry.CircularConfig()
+    geo = geo_config.build_runtime_params(0.0).geometry
+    grid = geo_config.get_grid()
     cfg = fusion_heat_source.FusionHeatSourceConfig.from_dict({
         "mode": "prescribed",
         "prescribed_values": {
@@ -345,7 +348,7 @@ class SourceTest(parameterized.TestCase):
             },
         },
     })
-    torax_pydantic.set_grid(cfg, geo.torax_mesh)
+    torax_pydantic.set_grid(cfg, grid)
     source = cfg.build_source()
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
@@ -374,7 +377,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_fast_ions_on_non_fast_ion_source_raises_error(self):
     source = generic_current_source.GenericCurrentSource()
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     fast_ion = fast_ion_lib.FastIon(
         species="D",
         source=source.SOURCE_ID,

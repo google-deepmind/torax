@@ -22,6 +22,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import runtime_params as core_profiles_params
 from torax._src.geometry import geometry
+from torax._src.geometry import runtime_params as geometry_runtime_params
 from torax._src.geometry import standard_geometry
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -75,7 +76,6 @@ class RuntimeParamsTest(parameterized.TestCase):
     self._torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh
 
   def test_runtime_params_can_be_input_to_jitted_function(self):
     """Tests that the params can be input to a jitted function."""
@@ -141,6 +141,36 @@ class RuntimeParamsTest(parameterized.TestCase):
     np.testing.assert_allclose(
         geo.I_p_profile_face[-1], raw_geo.I_p_profile_face[-1]
     )
+
+  @parameterized.parameters(True, False)
+  def test_make_i_p_consistent_preserves_calc_phi_b_dot(
+      self, calc_phi_b_dot: bool
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions']['I_p'] = 12e6
+    config_dict['profile_conditions']['I_p_source'] = 'profile_conditions'
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    raw_runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.time_step_calculator.t_initial)
+    raw_runtime_params = dataclasses.replace(
+        raw_runtime_params,
+        geometry=dataclasses.replace(
+            raw_runtime_params.geometry,
+            calc_Phi_b_dot=calc_phi_b_dot,
+        ),
+    )
+    raw_geo = _create_dummy_standard_geometry()
+    runtime_params, geo = runtime_params_lib.make_I_p_consistent(
+        raw_runtime_params, raw_geo
+    )
+    assert isinstance(geo, standard_geometry.StandardGeometry)
+    assert isinstance(
+        runtime_params.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
+    np.testing.assert_allclose(geo.I_p_profile_face[-1], 12e6)
+    self.assertEqual(runtime_params.geometry.calc_Phi_b_dot, calc_phi_b_dot)
 
 
 if __name__ == '__main__':

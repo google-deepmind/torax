@@ -273,7 +273,12 @@ def _calc_coeffs_full(
   # - Psi equation has no Phi_b_dot term.
   # - Convection in the heat equations is solely due to Phi_b_dot, with no
   #   contribution from TransportCoefficients.
-  phib_dot_factor = geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
+  phib_dot_factor = (
+      model_state.geometry.Phi_b_dot
+      / geo.Phi_b
+      * geo.rho_face_norm
+      * geo.vpr_face
+  )
   # Heat equations
   # The Phi_b_dot term for the heat equation is derived by splitting V'^(5/3) as
   # V'^(2/3) * V' and using the product derivative rule to split the total
@@ -367,7 +372,7 @@ def _calc_coeffs_full(
       * geo.rho_norm
       * core_profiles.kinetic.n_i.value
       * geo.dvpr_drho_norm
-      * geo.Phi_b_dot
+      * model_state.geometry.Phi_b_dot
       / geo.Phi_b
       * core_profiles.kinetic.T_i.value
       * consts.keV_to_J
@@ -377,7 +382,7 @@ def _calc_coeffs_full(
       * geo.rho_norm
       * core_profiles.kinetic.n_e.value
       * geo.dvpr_drho_norm
-      * geo.Phi_b_dot
+      * model_state.geometry.Phi_b_dot
       / geo.Phi_b
       * core_profiles.kinetic.T_e.value
       * consts.keV_to_J
@@ -388,7 +393,7 @@ def _calc_coeffs_full(
       8.0
       * jnp.pi**2
       * consts.mu_0
-      * geo.Phi_b_dot
+      * model_state.geometry.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
       * core_profiles.conductivity.sigma

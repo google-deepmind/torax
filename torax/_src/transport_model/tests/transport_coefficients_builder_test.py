@@ -39,7 +39,11 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
     self.enterContext(jax.disable_jit())
-    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.n_face = len(self.geo.rho_face_norm)
     self.core_profiles = mock.create_autospec(
         core_profiles_lib.CoreProfiles, instance=True

@@ -42,7 +42,12 @@ class GettersTest(parameterized.TestCase):
     jax_utils.enable_errors(True)
     # TODO(b/512741582): Remove cache clearing after finding underlying issue.
     jax.clear_caches()
-    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    self.grid = torax_pydantic.Grid1D.uniform_from_n_rho(4)
 
   def test_updated_ion_temperature(self):
     bound = np.array(42.0)
@@ -137,8 +142,8 @@ class GettersTest(parameterized.TestCase):
         },
     )
     numerics = numerics_lib.NumericsConfig.from_dict({})
-    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
-    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self.grid)
+    torax_pydantic.set_grid(numerics, self.grid)
     n_e = getters.get_updated_electron_density(
         profile_conditions.build_runtime_params(1.0),
         self.geo,
@@ -291,8 +296,8 @@ class GettersTest(parameterized.TestCase):
         'normalize_n_e': normalize_n_e,
     })
     numerics = numerics_lib.NumericsConfig.from_dict({})
-    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
-    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self.grid)
+    torax_pydantic.set_grid(numerics, self.grid)
     n_e = getters.get_updated_electron_density(
         profile_conditions.build_runtime_params(1.0),
         self.geo,
@@ -320,8 +325,8 @@ class GettersTest(parameterized.TestCase):
         'normalize_n_e': True,
         'n_e_right_bc': 0.5e20,
     })
-    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
-    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self.grid)
+    torax_pydantic.set_grid(numerics, self.grid)
     n_e_normalized = getters.get_updated_electron_density(
         profile_conditions.build_runtime_params(1.0),
         self.geo,
@@ -361,8 +366,8 @@ class GettersTest(parameterized.TestCase):
         'normalize_n_e': normalize_n_e,
         'n_e_right_bc': 0.5e20,
     })
-    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
-    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self.grid)
+    torax_pydantic.set_grid(numerics, self.grid)
     n_e_f_GW = getters.get_updated_electron_density(
         profile_conditions.build_runtime_params(1.0),
         self.geo,
@@ -378,7 +383,7 @@ class GettersTest(parameterized.TestCase):
     # is None. Cannot use public ToraxConfig.update_fields since
     # profile_conditions is not a ToraxConfig.
     torax_pydantic.set_grid(
-        profile_conditions, self.geo.torax_mesh, mode='relaxed'
+        profile_conditions, self.grid, mode='relaxed'
     )
 
     n_e = getters.get_updated_electron_density(
@@ -401,7 +406,8 @@ class GettersTest(parameterized.TestCase):
         'plasma_composition': {},
         'numerics': {'evolve_current': False},
         'geometry': {
-            'geometry_type': 'chease',
+            'model_name': 'chease',
+            'geometry_file': 'iterhybrid.mat2cols',
         },
         'sources': {},
         'solver': {},
@@ -446,7 +452,8 @@ class GettersTest(parameterized.TestCase):
         'plasma_composition': {},
         'numerics': {'evolve_current': True},
         'geometry': {
-            'geometry_type': 'chease',
+            'model_name': 'chease',
+            'geometry_file': 'iterhybrid.mat2cols',
         },
         'sources': {},
         'solver': {},
@@ -487,7 +494,7 @@ class GettersTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {'evolve_current': False},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -525,7 +532,7 @@ class GettersTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {'evolve_current': False},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},
@@ -566,7 +573,7 @@ class GettersTest(parameterized.TestCase):
         },
         'plasma_composition': {},
         'numerics': {'evolve_current': False},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {},
         'solver': {},
         'transport': {},

@@ -32,7 +32,6 @@ from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.fvm import enums
 from torax._src.geometry import config as geometry_config
-from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import config as ibc_config
 from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
@@ -92,6 +91,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     """Builds and returns the physics models from the configuration."""
     edge_model = self.edge.build_edge_model() if self.edge else None
     return models.Models(
+        geometry_model=self.geometry.build_geometry_model(),
         pedestal_model=self.pedestal.build_pedestal_model(),
         source_models=self.sources.build_models(),
         transport_model=self.transport.build_transport_model(),
@@ -239,7 +239,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     if (
         psi_source
         == core_profile_runtime_params_lib.PsiSource.GEOMETRY
-        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+        and self.geometry.model_name == 'circular'
     ):
       raise ValueError(
           "profile_conditions.psi_source='geometry' is not supported"
@@ -293,7 +293,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     i_p_source = self.profile_conditions.I_p_source
     if (
         i_p_source == core_profile_runtime_params_lib.IpSource.GEOMETRY
-        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+        and self.geometry.model_name == 'circular'
     ):
       raise ValueError(
           "profile_conditions.I_p_source='geometry' is not supported for"
@@ -334,7 +334,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     """Validates that edge models are not used with CircularGeometry."""
     if (
         self.edge is not None
-        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+        and self.geometry.model_name == 'circular'
     ):
       raise ValueError(
           'Edge models are not supported for use with CircularGeometry.'
@@ -366,7 +366,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     - For non-MEQ geometry: `diverted` MUST be set if edge model is used.
     """
     for el_config in self._get_extended_lengyel_configs():
-      is_meq = self.geometry.geometry_type == geometry.GeometryType.MEQ
+      is_meq = self.geometry.model_name == 'meq'
       diverted = el_config.diverted is not None
 
       if is_meq and diverted:

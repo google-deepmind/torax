@@ -326,6 +326,7 @@ class StateHistory:
         self._core_sources.to_output_dict(grid),
         self._stacked_post_processed_outputs.to_output_dict(grid),
         self._geometry.to_output_dict(grid),
+        self._stacked_model_state.geometry.to_output_dict(grid),
     ]
     all_vars: dict[str, output_grid_context.OutputVar] = {}
     for d in output_dicts:

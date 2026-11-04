@@ -101,7 +101,8 @@ class InitializationTest(parameterized.TestCase):
 
   def test_get_j_toroidal_total_hires_with_bootstrap_integrates_to_I_p(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry']['geometry_type'] = 'chease'
+    config_dict['geometry']['model_name'] = 'chease'
+    config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     config_dict['geometry']['n_rho'] = 100
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params, geo = (
@@ -112,7 +113,7 @@ class InitializationTest(parameterized.TestCase):
                     torax_config
                 )
             ),
-            geometry_provider=torax_config.geometry.build_provider,
+            geometry_model=torax_config.geometry.build_geometry_model(),
             is_initialization=True,
         )
     )
@@ -198,7 +199,8 @@ class InitializationTest(parameterized.TestCase):
 
   def test_initial_psi_from_geo(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry']['geometry_type'] = 'chease'
+    config_dict['geometry']['model_name'] = 'chease'
+    config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     config_dict['profile_conditions']['psi_source'] = 'geometry'
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
@@ -212,7 +214,8 @@ class InitializationTest(parameterized.TestCase):
 
   def test_initial_psi_from_config(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry']['geometry_type'] = 'chease'
+    config_dict['geometry']['model_name'] = 'chease'
+    config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     psi_profile = {0: {0: 42.0, 1: 43.0}}
     config_dict['profile_conditions'][
         'psi_source'
@@ -244,7 +247,9 @@ class InitializationTest(parameterized.TestCase):
     _TOL = 3e-2
 
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry']['geometry_type'] = geometry_name
+    config_dict['geometry']['model_name'] = geometry_name
+    if geometry_name == 'chease':
+      config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     config_dict['geometry']['n_rho'] = _NRHO
     config_dict['sources'] = {
         'generic_current': {
@@ -360,7 +365,8 @@ class InitializationTest(parameterized.TestCase):
     # better comparison, e.g. by integrating the j profile.
     _TOL = 4e-2
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry']['geometry_type'] = 'chease'
+    config_dict['geometry']['model_name'] = 'chease'
+    config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     config_dict['geometry']['n_rho'] = _NRHO
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
@@ -473,7 +479,7 @@ class InitializationTest(parameterized.TestCase):
                     torax_config
                 )
             ),
-            geometry_provider=torax_config.geometry.build_provider,
+            geometry_model=torax_config.geometry.build_geometry_model(),
             is_initialization=True,
         )
     )
@@ -589,7 +595,7 @@ class InitializationTest(parameterized.TestCase):
                     torax_config
                 )
             ),
-            geometry_provider=torax_config.geometry.build_provider,
+            geometry_model=torax_config.geometry.build_geometry_model(),
             is_initialization=True,
         )
     )
@@ -713,6 +719,7 @@ class InitializationTest(parameterized.TestCase):
         psi_sources=expected_psi_sources,
         geo=geo,
         evolve_current=runtime_params.numerics.evolve_current,
+        phi_b_dot=jnp.zeros((), dtype=jax_utils.get_dtype()),
         prescribed_psidot=runtime_params.profile_conditions.psidot,
         right_face_constraint=None,
         right_face_grad_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
@@ -742,7 +749,7 @@ class InitializationTest(parameterized.TestCase):
                     torax_config
                 )
             ),
-            geometry_provider=torax_config.geometry.build_provider,
+            geometry_model=torax_config.geometry.build_geometry_model(),
             is_initialization=True,
         )
     )
@@ -775,7 +782,8 @@ class InitializationTest(parameterized.TestCase):
       psi_source: core_profile_runtime_params.PsiSource,
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry']['geometry_type'] = 'chease'
+    config_dict['geometry']['model_name'] = 'chease'
+    config_dict['geometry']['geometry_file'] = 'iterhybrid.mat2cols'
     config_dict['profile_conditions'][
         'psi_source'
     ] = psi_source.value
@@ -794,7 +802,7 @@ class InitializationTest(parameterized.TestCase):
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.time_step_calculator.t_initial,
             runtime_params_provider=provider,
-            geometry_provider=torax_config.geometry.build_provider,
+            geometry_model=torax_config.geometry.build_geometry_model(),
             is_initialization=True,
         )
     )
@@ -827,7 +835,7 @@ class InitializationTest(parameterized.TestCase):
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.time_step_calculator.t_initial,
             runtime_params_provider=provider,
-            geometry_provider=torax_config.geometry.build_provider,
+            geometry_model=torax_config.build_models().geometry_model,
             is_initialization=True,
         )
     )

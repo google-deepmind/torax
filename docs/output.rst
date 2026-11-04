@@ -838,7 +838,8 @@ properties and characteristics, as well as scalar edge geometry quantities.
   Total toroidal magnetic flux [:math:`Wb`].
 
 ``Phi_b_dot`` (time)
-  Time derivative of the total toroidal magnetic flux [:math:`Wb/s`].
+  Time derivative of the total toroidal magnetic flux at the LCFS [:math:`Wb/s`],
+  carried in ``GeometryState`` as the backward interval secant across steps.
 
 ``q95`` (time)
   Safety factor at 95% of the normalized poloidal flux coordinate

@@ -21,7 +21,6 @@ from jax import numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import jax_utils
-from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import interpolated_param_2d
 import xarray as xr
@@ -429,7 +428,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     m2 = Test2(
         x=m1, y=interpolated_param_2d.TimeVaryingArray.model_validate(2.0), z=5
     )
-    grid = circular_geometry.CircularConfig().build_geometry().torax_mesh
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(25)
 
     with self.subTest('set_grid_success'):
       interpolated_param_2d.set_grid(m2, grid)
@@ -457,7 +456,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     array_1 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
     array_2 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
 
-    grid = circular_geometry.CircularConfig().build_geometry().torax_mesh
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(25)
     interpolated_param_2d.set_grid(array_1, grid)
     interpolated_param_2d.set_grid(array_2, grid)
 
@@ -487,8 +486,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -537,8 +535,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -647,8 +644,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     tva = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(tva, grid=grid)
 
     new_tva = tva.update(new_values)
@@ -672,8 +668,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     tva = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(tva, grid=grid)
 
     @jax.jit
@@ -722,8 +717,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
     data = {0.0: {0.9: 1.5, (0.5, 0.7): 3.0}}
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
     # Cell centers at 0.125, 0.375, 0.625, 0.875
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     # 0.9 is closest to 0.875 (idx 3).
@@ -735,8 +729,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
     data = {0.0: {(0.5, 0.7): {0.5: 1.0, 0.7: 2.0}}}
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
     # Cell centers at 0.125, 0.375, 0.625, 0.875
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     # (0.5, 0.7) covers 0.625 (idx 2).
@@ -750,8 +743,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
         1.0: {(0.5, 0.7): {0.5: 2.0, 0.7: 4.0}},
     }
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     expected_t0 = np.array([0.0, 0.0, 1.625, 0.0])
@@ -770,8 +762,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
         }
     }
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     @jax.jit
@@ -860,6 +851,27 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
               RHO_INTERPOLATION_MODE: rho_mode,
           },
       ))
+
+
+class Grid1DTest(parameterized.TestCase):
+
+  @parameterized.parameters(4, 10)
+  def test_uniform_from_n_rho_matches_get_face_centers(self, n_rho: int):
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(n_rho)
+    self.assertEqual(grid.nx, n_rho)
+    np.testing.assert_allclose(
+        grid.face_centers, interpolated_param_2d.get_face_centers(n_rho)
+    )
+
+  def test_uniform_from_n_rho_less_than_four_raises(self):
+    with self.assertRaises(pydantic.ValidationError):
+      interpolated_param_2d.Grid1D.uniform_from_n_rho(3)
+
+  def test_from_dict_does_not_mutate_caller_dict(self):
+    data = {'nx': 5}
+    grid = interpolated_param_2d.Grid1D.from_dict(data)
+    self.assertEqual(grid.nx, 5)
+    self.assertEqual(data, {'nx': 5})
 
 
 if __name__ == '__main__':

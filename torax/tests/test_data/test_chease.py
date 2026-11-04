@@ -31,7 +31,7 @@ CONFIG = {
     'numerics': {},
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     },
     'sources': {

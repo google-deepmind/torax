@@ -55,11 +55,22 @@ class Grid1D(config_base.ConfigBase):
     if not isinstance(data, dict):
       return data
     if 'nx' in data:
-      nx = data['nx']
-      face_centers = get_face_centers(nx)
-      data['face_centers'] = face_centers
-      del data['nx']
+      data = dict(data)
+      nx = data.pop('nx')
+      data['face_centers'] = get_face_centers(nx)
     return data
+
+  @classmethod
+  def uniform_from_n_rho(cls, n_rho: int) -> Self:
+    """Constructs a uniform `Grid1D` on [0, 1] with `n_rho` cells.
+
+    Args:
+      n_rho: Number of radial cells (must be >= 4).
+
+    Returns:
+      A `Grid1D` with `n_rho + 1` uniformly spaced `face_centers` in [0, 1].
+    """
+    return cls(face_centers=get_face_centers(n_rho))
 
   @pydantic.field_validator('face_centers')
   @classmethod
