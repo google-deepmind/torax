@@ -34,6 +34,8 @@ objects, including:
   ``auxiliary/turbulent_transport/core/<model_name>`` and
   ``auxiliary/turbulent_transport/pedestal/<model_name>`` for per-model
   turbulent transport coefficients and mode contributions.
+* ``model_state`` containing internal model state datasets used for file
+  restarts (present when any configured model exports state).
 
 Where sensible we have aimed to match names used by the IMAS standard.
 

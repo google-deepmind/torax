@@ -224,6 +224,11 @@ class StateHistoryTest(parameterized.TestCase):
       self.assertIn(output_keys.D_TURB_E, prescribed_ds.data_vars)
       self.assertIn(output_keys.V_TURB_E, prescribed_ds.data_vars)
 
+  def test_stateless_simulation_omits_model_state(self):
+    output_xr = self.history.simulation_output_to_xr()
+    self.assertNotIn(output_keys.MODEL_STATE, output_xr.children)
+    self.assertLen(self.history.model_states, 1)
+
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""
     # Construct a second state with a slightly different geometry.
@@ -1021,6 +1026,7 @@ class StateHistoryTest(parameterized.TestCase):
         'core_transport',
         'solver_numeric_outputs',
         'post_processed_outputs',
+        'model_states',
     ):
       self.assertNotIn(prop, history.__dict__)
 
@@ -1034,6 +1040,7 @@ class StateHistoryTest(parameterized.TestCase):
         'core_transport',
         'solver_numeric_outputs',
         'post_processed_outputs',
+        'model_states',
     ):
       self.assertNotIn(prop, history.__dict__)
 
@@ -1050,6 +1057,10 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIsInstance(core_profiles[0].kinetic.T_i.value, jax.Array)
     np.testing.assert_allclose(core_profiles[0].poloidal_flux.v_loop_lcfs, 5.0)
     np.testing.assert_allclose(core_profiles[1].poloidal_flux.v_loop_lcfs, 5.0)
+
+    self.assertNotIn(output_keys.MODEL_STATE, output_xr.children)
+    self.assertLen(history.model_states, 2)
+    self.assertIsInstance(history.model_states[0], model_state_lib.ModelState)
 
 
 if __name__ == '__main__':

@@ -180,6 +180,11 @@ CORE: Final[OutputKey] = OutputKey(
 PEDESTAL: Final[OutputKey] = OutputKey(
     "pedestal", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+MODEL_STATE: Final[OutputKey] = OutputKey(
+    "model_state",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.

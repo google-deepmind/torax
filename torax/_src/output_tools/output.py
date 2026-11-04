@@ -27,6 +27,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
@@ -191,6 +192,9 @@ class StateHistory:
         state_history.edge_outputs
     )
     self._geometry: geometry_lib.Geometry = state_history.geometry
+    self._stacked_model_state: model_state_lib.ModelState = (
+        state_history.model_state
+    )
 
     # The rho grid does not change in time so we can just take the first one.
     self._rho_cell_norm = state_history.geometry.rho_norm[0]
@@ -278,6 +282,11 @@ class StateHistory:
     if self._stacked_edge_outputs is None:
       return (None,) * len(self.times)
     return _unstack_pytree(self._stacked_edge_outputs)
+
+  @functools.cached_property
+  def model_states(self) -> Sequence[model_state_lib.ModelState]:
+    """Returns the model states for the simulation."""
+    return _unstack_pytree(self._stacked_model_state)
 
   def _build_top_level_dataset(self) -> xr.Dataset:
     """Builds the top-level xr.Dataset with coordinates and config metadata."""
@@ -413,6 +422,7 @@ class StateHistory:
         - edge: Contains data variables for the edge model, if one is active.
         - auxiliary: Contains auxiliary model outputs, such as turbulent
             transport component outputs, if any are present.
+        - model_state: Contains cross-timestep model states, if any are active.
     """
     profiles_dataset, scalars_dataset = (
         self._build_profiles_and_scalars_datasets()
@@ -432,6 +442,12 @@ class StateHistory:
     auxiliary_tree = self._build_auxiliary_datatree()
     if auxiliary_tree is not None:
       children[output_keys.AUXILIARY] = auxiliary_tree
+
+    model_state_tree = self._stacked_model_state.to_xr_datatree(
+        self._output_grid_context
+    )
+    if model_state_tree is not None:
+      children[output_keys.MODEL_STATE] = model_state_tree
 
     data_tree = xr.DataTree(
         children=children,

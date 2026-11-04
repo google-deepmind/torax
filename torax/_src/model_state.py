@@ -18,9 +18,11 @@ from collections.abc import Mapping
 import dataclasses
 import jax
 from torax._src.edge import edge_state
+from torax._src.output_tools import output_grid_context
 from torax._src.pedestal_model import pedestal_state
 from torax._src.sources import source_state
 from torax._src.transport_model import transport_state
+import xarray as xr
 
 
 @jax.tree_util.register_dataclass
@@ -32,3 +34,22 @@ class ModelState:
   transport: transport_state.TransportState
   sources: Mapping[str, source_state.SourceState]
   edge: edge_state.EdgeState | None = None
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of model state, or None.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree containing model states, or None if all models are
+      stateless.
+    """
+    del context
+    children: dict[str, xr.DataTree] = {}
+    if not children:
+      return None
+    return xr.DataTree(children=children)
