@@ -14,39 +14,110 @@
 """Base model for source pydantic configs."""
 
 import abc
-from typing import Annotated
+from typing import Annotated, Self
 
 import chex
+import jax.numpy as jnp
+import pydantic
+from torax._src import jax_utils
+from torax._src.fvm import cell_variable
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import core_sources
 from torax._src.sources import runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic
 
+# pylint: disable=invalid-name
+
+
+class FastIonPrescribedValues(torax_pydantic.ConfigBase):
+  """Prescribed density and temperature profiles for a single fast-ion species.
+
+  Attributes:
+    n: Prescribed fast ion density profile [m^-3].
+    T: Prescribed fast ion effective temperature profile [keV].
+  """
+
+  n: torax_pydantic.NonNegativeTimeVaryingArray
+  T: torax_pydantic.NonNegativeTimeVaryingArray
+
+  def build_fast_ion(
+      self,
+      t: chex.Numeric,
+      *,
+      species: str,
+      source_id: str,
+  ) -> fast_ion_lib.FastIon:
+    """Evaluates prescribed profiles at time `t` into a `FastIon`."""
+    if self.n.grid is None:
+      raise RuntimeError('grid must be set before calling build_fast_ion.')
+    face_centers = jnp.asarray(
+        self.n.grid.face_centers, dtype=jax_utils.get_dtype()
+    )
+    return fast_ion_lib.FastIon(
+        species=species,
+        source=source_id,
+        n=cell_variable.CellVariable(
+            value=self.n.get_value(t),
+            face_centers=face_centers,
+            right_face_grad_constraint=None,
+            right_face_constraint=self.n.get_value(t, grid_type='face_right'),
+        ),
+        T=cell_variable.CellVariable(
+            value=self.T.get_value(t),
+            face_centers=face_centers,
+            right_face_grad_constraint=None,
+            right_face_constraint=self.T.get_value(t, grid_type='face_right'),
+        ),
+    )
+
 
 class PrescribedValues(torax_pydantic.ConfigBase):
   """Prescribed profile values for a source in `Mode.PRESCRIBED`.
 
-  Each attribute corresponds to a profile field on `SourceOutput` on the cell
-  grid and is optional (`None` by default). Only the fields matching the
-  source's `POPULATED_SOURCE_OUTPUTS` should be set when
-  `mode == Mode.PRESCRIBED`.
+  Each attribute is optional (`None` by default). Only the profile fields
+  matching the source's `POPULATED_SOURCE_OUTPUTS` should be set when
+  `mode == Mode.PRESCRIBED`. Sources with `PRODUCES_FAST_IONS = True` may
+  additionally prescribe fast-ion species distributions via `fast_ions`.
 
   Attributes:
     power_density_i: Ion heating power density [W/m^3].
     power_density_e: Electron heating power density [W/m^3].
     j_parallel: Parallel current density `<j.B>/B_0` [A/m^2].
     particle_source_e: Electron particle source density [m^-3 s^-1].
+    fast_ions: Mapping from fast-ion species symbol (one of
+      `fast_ion.FAST_ION_SPECIES`) to prescribed `n` and `T` profiles.
   """
 
   power_density_i: torax_pydantic.TimeVaryingArray | None = None
   power_density_e: torax_pydantic.TimeVaryingArray | None = None
   j_parallel: torax_pydantic.TimeVaryingArray | None = None
   particle_source_e: torax_pydantic.TimeVaryingArray | None = None
+  fast_ions: dict[str, FastIonPrescribedValues] | None = None
+
+  @pydantic.field_validator('fast_ions')
+  @classmethod
+  def _validate_fast_ion_species(
+      cls, v: dict[str, FastIonPrescribedValues] | None
+  ) -> dict[str, FastIonPrescribedValues] | None:
+    if v is not None:
+      for species in v:
+        fast_ion_lib.validate_fast_ion_species(species, 'prescribed_values')
+    return v
 
   def build_source_output(
-      self, t: chex.Numeric
+      self,
+      t: chex.Numeric,
+      source_id: str = '',
   ) -> core_sources.SourceOutput:
     """Evaluates prescribed time-varying arrays at time `t`."""
+    if self.fast_ions:
+      fast_ions = tuple(
+          fast_ion.build_fast_ion(t, species=species, source_id=source_id)
+          for species, fast_ion in sorted(self.fast_ions.items())
+      )
+    else:
+      fast_ions = ()
     return core_sources.SourceOutput(
         power_density_i=(
             self.power_density_i.get_value(t)
@@ -68,6 +139,7 @@ class PrescribedValues(torax_pydantic.ConfigBase):
             if self.particle_source_e is not None
             else None
         ),
+        fast_ions=fast_ions,
     )
 
 
@@ -96,8 +168,9 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
       an error will be thrown when running the simulation.
     prescribed_values: Prescribed profile values for the source, keyed by output
       field name (`power_density_i`, `power_density_e`, `j_parallel`,
-      `particle_source_e`). Used only when the source is fully prescribed (i.e.
-      `source.mode == Mode.PRESCRIBED`).
+      `particle_source_e`, and optional `fast_ions` for fast-ion sources). Used
+      only when the source is fully prescribed (`source.mode ==
+      Mode.PRESCRIBED`).
   """
 
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
@@ -105,6 +178,17 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
   )
   is_explicit: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   prescribed_values: PrescribedValues = torax_pydantic.ValidatedDefault({})
+
+  @pydantic.model_validator(mode='after')
+  def _validate_prescribed_fast_ions(self) -> Self:
+    if self.prescribed_values.fast_ions:
+      source = self.build_source()
+      if not source.PRODUCES_FAST_IONS:
+        raise ValueError(
+            f'{type(source).__name__} does not support fast_ions in'
+            ' prescribed_values.'
+        )
+    return self
 
   @abc.abstractmethod
   def build_source(
@@ -116,8 +200,15 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
     """Builds the runtime parameters for the source at time `t`."""
+    source_id = (
+        self.build_source().SOURCE_ID
+        if self.prescribed_values.fast_ions
+        else ''
+    )
     return runtime_params.RuntimeParams(
-        prescribed_values=self.prescribed_values.build_source_output(t),
+        prescribed_values=self.prescribed_values.build_source_output(
+            t, source_id=source_id
+        ),
         mode=self.mode,
         is_explicit=self.is_explicit,
     )

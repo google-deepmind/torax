@@ -398,6 +398,150 @@ class SourcesConfigTest(parameterized.TestCase):
           {'generic_current': {'model_name': 'invalid_name'}}
       )
 
+  def test_prescribed_fast_ions_default_to_none_and_empty_tuple(self):
+    cfg = fusion_heat_source.FusionHeatSourceConfig.from_dict(
+        {'mode': 'prescribed'}
+    )
+    self.assertIsNone(cfg.prescribed_values.fast_ions)
+    params = cfg.build_runtime_params(t=0.0)
+    self.assertEqual(params.prescribed_values.fast_ions, ())
+
+    empty_dict_cfg = fusion_heat_source.FusionHeatSourceConfig.from_dict(
+        {'mode': 'prescribed', 'prescribed_values': {'fast_ions': {}}}
+    )
+    self.assertEqual(
+        empty_dict_cfg.build_runtime_params(t=0.0).prescribed_values.fast_ions,
+        (),
+    )
+
+  def test_prescribed_fast_ions_single_and_multiple_species_under_jit(self):
+    sm = sources_config.SourcesConfig.from_dict({
+        'fusion': {
+            'mode': 'prescribed',
+            'prescribed_values': {
+                'power_density_i': 1.0e6,
+                'power_density_e': 2.0e6,
+                'fast_ions': {
+                    'He4': {
+                        'n': {0.0: {0.0: 2.0e19, 1.0: 1.0e18}},
+                        'T': {0.0: {0.0: 80.0, 1.0: 5.0}},
+                    },
+                    'D': {
+                        'n': 5.0e18,
+                        'T': 40.0,
+                    },
+                },
+            },
+        },
+        'icrh': {
+            'mode': 'prescribed',
+            'prescribed_values': {
+                'power_density_i': 3.0e6,
+                'power_density_e': 4.0e6,
+                'fast_ions': {
+                    'He3': {
+                        'n': 1.0e19,
+                        'T': 100.0,
+                    },
+                },
+            },
+        },
+    })
+    geo = circular_geometry.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(sm, geo.torax_mesh)
+
+    @jax.jit
+    def f(sources: sources_config.SourcesConfig):
+      assert sources.fusion is not None
+      assert sources.icrh is not None
+      return (
+          sources.fusion.build_runtime_params(t=0.0),
+          sources.icrh.build_runtime_params(t=0.0),
+      )
+
+    fusion_params, icrh_params = f(sm)
+    self.assertLen(fusion_params.prescribed_values.fast_ions, 2)
+    by_species = {
+        fi.species: fi for fi in fusion_params.prescribed_values.fast_ions
+    }
+    self.assertEqual(set(by_species.keys()), {'D', 'He4'})
+    he4 = by_species['He4']
+    self.assertEqual(he4.source, 'fusion')
+    expected_n = np.interp(geo.rho_norm, [0.0, 1.0], [2.0e19, 1.0e18])
+    expected_t = np.interp(geo.rho_norm, [0.0, 1.0], [80.0, 5.0])
+    chex.assert_trees_all_close(he4.n.value, expected_n)
+    chex.assert_trees_all_close(he4.n.right_face_constraint, 1.0e18)
+    chex.assert_trees_all_close(he4.T.value, expected_t)
+    chex.assert_trees_all_close(he4.T.right_face_constraint, 5.0)
+    self.assertEqual(by_species['D'].source, 'fusion')
+    chex.assert_trees_all_close(
+        by_species['D'].n.value, np.full_like(geo.rho_norm, 5.0e18)
+    )
+    chex.assert_trees_all_close(
+        by_species['D'].T.value, np.full_like(geo.rho_norm, 40.0)
+    )
+
+    self.assertLen(icrh_params.prescribed_values.fast_ions, 1)
+    he3 = icrh_params.prescribed_values.fast_ions[0]
+    self.assertEqual(he3.species, 'He3')
+    self.assertEqual(he3.source, 'icrh')
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    sm._update_fields({
+        'fusion.prescribed_values.fast_ions.He4.n': {
+            0.0: {0.0: 3.0e19, 1.0: 2.0e18}
+        },
+        'fusion.prescribed_values.fast_ions.He4.T': {
+            0.0: {0.0: 60.0, 1.0: 3.0}
+        },
+    })
+    torax_pydantic.set_grid(sm, geo.torax_mesh, mode='relaxed')
+    updated_fusion_params, _ = f(sm)
+    updated_he4 = {
+        fi.species: fi
+        for fi in updated_fusion_params.prescribed_values.fast_ions
+    }['He4']
+    expected_updated_n = np.interp(geo.rho_norm, [0.0, 1.0], [3.0e19, 2.0e18])
+    expected_updated_t = np.interp(geo.rho_norm, [0.0, 1.0], [60.0, 3.0])
+    chex.assert_trees_all_close(updated_he4.n.value, expected_updated_n)
+    chex.assert_trees_all_close(updated_he4.n.right_face_constraint, 2.0e18)
+    chex.assert_trees_all_close(updated_he4.T.value, expected_updated_t)
+    chex.assert_trees_all_close(updated_he4.T.right_face_constraint, 3.0)
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='missing_T', entry={'n': 1.0e19}),
+      dict(testcase_name='missing_n', entry={'T': 50.0}),
+      dict(testcase_name='negative_n', entry={'n': -1.0, 'T': 50.0}),
+      dict(testcase_name='negative_T', entry={'n': 1.0e19, 'T': -5.0}),
+  )
+  def test_prescribed_fast_ions_invalid_entry_raises_error(self, entry):
+    with self.assertRaises(pydantic.ValidationError):
+      base.PrescribedValues.from_dict({'fast_ions': {'D': entry}})
+
+  def test_prescribed_fast_ions_invalid_species_raises_error(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'not a supported species'
+    ):
+      base.PrescribedValues.from_dict(
+          {'fast_ions': {'Xe': {'n': 1.0e19, 'T': 50.0}}}
+      )
+
+  def test_prescribed_fast_ions_on_non_fast_ion_source_raises_error(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        'ElectronCyclotronSource does not support fast_ions',
+    ):
+      sources_config.SourcesConfig.from_dict({
+          'ecrh': {
+              'mode': 'prescribed',
+              'prescribed_values': {
+                  'power_density_e': 1.0e6,
+                  'j_parallel': 1.0e5,
+                  'fast_ions': {'D': {'n': 1.0e19, 'T': 50.0}},
+              },
+          },
+      })
 
 if __name__ == '__main__':
   absltest.main()

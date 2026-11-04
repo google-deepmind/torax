@@ -41,6 +41,7 @@ class FusionHeatSource(source.Source):
       core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
       core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
+  PRODUCES_FAST_IONS: ClassVar[bool] = True
 
   def _get_model_value(
       self,

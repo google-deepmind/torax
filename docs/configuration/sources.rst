@@ -27,7 +27,8 @@ The configurable runtime parameters of each source are as follows:
 ``prescribed_values`` (**dict** [default = {}])
   Prescribed profile values for the source, keyed by output channel name
   (``power_density_i``, ``power_density_e``, ``j_parallel``,
-  ``particle_source_e``). Used if ``mode`` is ``'prescribed'``.
+  ``particle_source_e``), plus an optional ``fast_ions`` dictionary for sources
+  that produce fast ions. Used if ``mode`` is ``'prescribed'``.
 
 ``mode`` (str [default = 'zero'])
   Defines how the source values are computed. Currently the options are:
@@ -47,7 +48,10 @@ The configurable runtime parameters of each source are as follows:
     ``particle_source_e``) to :ref:`Time-varying arrays`. Note that each channel
     is evaluated independently at each time step.
     Only channels matching the source's ``POPULATED_SOURCE_OUTPUTS`` should be
-    specified.
+    specified. Sources that produce fast ions (``fusion``, ``icrh``) may also
+    include ``'fast_ions'`` mapping fast-ion species symbols (``'H'``, ``'D'``,
+    ``'T'``, ``'He3'``, ``'He4'``) to dictionaries with non-negative
+    :ref:`Time-varying arrays` ``'n'`` [:math:`m^{-3}`] and ``'T'`` [keV].
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity
 purposes, set:

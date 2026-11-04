@@ -50,6 +50,7 @@ class IonCyclotronSource(source.Source):
       core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
       core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
+  PRODUCES_FAST_IONS: ClassVar[bool] = True
 
 
 class IonCyclotronSourceConfig(source_base.SourceConfigBase):

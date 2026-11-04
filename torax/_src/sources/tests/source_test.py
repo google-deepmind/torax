@@ -19,14 +19,18 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.fvm import cell_variable
+from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import core_sources
 from torax._src.sources import electron_cyclotron_source
+from torax._src.sources import fusion_heat_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_state as source_state_lib
+from torax._src.torax_pydantic import torax_pydantic
 
 
 class SourceTest(parameterized.TestCase):
@@ -323,6 +327,93 @@ class SourceTest(parameterized.TestCase):
           geo=mock.ANY,
           core_profiles=mock.ANY,
           calculated_core_sources=mock.ANY,
+          source_state=source_state_lib.SourceState(),
+      )
+
+  def test_prescribed_fast_ions_populated_on_fast_ion_source(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    cfg = fusion_heat_source.FusionHeatSourceConfig.from_dict({
+        "mode": "prescribed",
+        "prescribed_values": {
+            "power_density_i": 1.0e6,
+            "power_density_e": 2.0e6,
+            "fast_ions": {
+                "He4": {
+                    "n": {0.0: {0.0: 2.0e19, 1.0: 1.0e18}},
+                    "T": {0.0: {0.0: 80.0, 1.0: 5.0}},
+                },
+            },
+        },
+    })
+    torax_pydantic.set_grid(cfg, geo.torax_mesh)
+    source = cfg.build_source()
+    dynamic_slice = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        sources={source.SOURCE_ID: cfg.build_runtime_params(t=0.0)},
+    )
+    output, _ = source.get_value(
+        runtime_params=dynamic_slice,
+        geo=geo,
+        solver_profiles=mock.ANY,
+        source_state=source_state_lib.SourceState(),
+    )
+    self.assertLen(output.fast_ions, 1)
+    fast_ion = output.fast_ions[0]
+    self.assertEqual(fast_ion.species, "He4")
+    self.assertEqual(fast_ion.source, "fusion")
+    expected_n = np.interp(geo.rho_norm, [0.0, 1.0], [2.0e19, 1.0e18])
+    expected_t = np.interp(geo.rho_norm, [0.0, 1.0], [80.0, 5.0])
+    np.testing.assert_allclose(fast_ion.n.value, expected_n)
+    np.testing.assert_allclose(fast_ion.T.value, expected_t)
+    self.assertIsNone(fast_ion.n.right_face_grad_constraint)
+    self.assertIsNone(fast_ion.T.right_face_grad_constraint)
+    assert fast_ion.n.right_face_constraint is not None
+    assert fast_ion.T.right_face_constraint is not None
+    np.testing.assert_allclose(fast_ion.n.right_face_constraint, 1.0e18)
+    np.testing.assert_allclose(fast_ion.T.right_face_constraint, 5.0)
+
+  def test_fast_ions_on_non_fast_ion_source_raises_error(self):
+    source = generic_current_source.GenericCurrentSource()
+    geo = circular_geometry.CircularConfig().build_geometry()
+    fast_ion = fast_ion_lib.FastIon(
+        species="D",
+        source=source.SOURCE_ID,
+        n=cell_variable.CellVariable(
+            value=np.zeros_like(geo.rho_norm),
+            face_centers=geo.rho_face_norm,
+            right_face_grad_constraint=None,
+            right_face_constraint=np.asarray(0.0),
+        ),
+        T=cell_variable.CellVariable(
+            value=np.zeros_like(geo.rho_norm),
+            face_centers=geo.rho_face_norm,
+            right_face_grad_constraint=None,
+            right_face_constraint=np.asarray(0.0),
+        ),
+    )
+    dynamic_source_params = {
+        source.SOURCE_ID: sources_runtime_params_lib.RuntimeParams(
+            prescribed_values=core_sources.SourceOutput(
+                j_parallel=np.zeros_like(geo.rho_norm),
+                fast_ions=(fast_ion,),
+            ),
+            mode=sources_runtime_params_lib.Mode.PRESCRIBED,
+            is_explicit=False,
+        )
+    }
+    dynamic_slice = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        sources=dynamic_source_params,
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        "GenericCurrentSource provided fast_ions, but PRODUCES_FAST_IONS is"
+        " False",
+    ):
+      source.get_value(
+          runtime_params=dynamic_slice,
+          geo=geo,
+          solver_profiles=mock.ANY,
           source_state=source_state_lib.SourceState(),
       )
 

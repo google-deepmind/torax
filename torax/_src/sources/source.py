@@ -70,12 +70,16 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
     POPULATED_SOURCE_OUTPUTS: Tuple of
       :class:`~torax.sources.PopulatedSourceOutput` enum members defining which
       fields on :class:`~torax.sources.SourceOutput` this source populates.
+    PRODUCES_FAST_IONS: Whether this source may populate
+      ``SourceOutput.fast_ions`` (either from a physics model or via
+      ``prescribed_values.fast_ions``).
   """
 
   SOURCE_ID: ClassVar[str]
   POPULATED_SOURCE_OUTPUTS: ClassVar[
       tuple[core_sources.PopulatedSourceOutput, ...]
   ]
+  PRODUCES_FAST_IONS: ClassVar[bool] = False
 
   def __post_init__(self):
     super().__post_init__()
@@ -238,7 +242,7 @@ class Source(SourceBase):
     Returns:
       A tuple of ``(output, updated_source_state)`` for this evaluation.
     """
-    return self._evaluate(
+    output, source_state = self._evaluate(
         runtime_params,
         geo,
         source_state,
@@ -246,6 +250,12 @@ class Source(SourceBase):
             runtime_params, geo, solver_profiles, source_state
         ),
     )
+    if output.fast_ions and not self.PRODUCES_FAST_IONS:
+      raise ValueError(
+          f'{type(self).__name__} provided fast_ions, but'
+          ' PRODUCES_FAST_IONS is False.'
+      )
+    return output, source_state
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
