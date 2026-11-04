@@ -17,6 +17,7 @@
 import abc
 import copy
 import dataclasses
+import math
 from typing import Annotated, Any, Literal, Self, TypeAlias
 import chex
 import pydantic
@@ -547,10 +548,10 @@ class PedestalConfig(torax_pydantic.ConfigBase):
       in `'adaptive_transport'` mode.
     chi_max: Maximum effective thermal diffusion coefficient from the core
       transport model allowed in the pedestal region (before applying
-      `'adaptive_transport'`) [m^2/s].
+      `'adaptive_transport'`) [m^2/s]. Defaults to inf (no clipping).
     D_e_max: Maximum effective particle diffusion coefficient from the core
       transport model allowed in the pedestal region (before applying
-      `'adaptive_transport'`) [m^2/s].
+      `'adaptive_transport'`) [m^2/s]. Defaults to inf (no clipping).
     V_e_max: Maximum effective particle pinch velocity from the core transport
       model allowed in the pedestal region (before applying
       `'adaptive_transport'`) [m/s].
@@ -583,12 +584,8 @@ class PedestalConfig(torax_pydantic.ConfigBase):
   )
   # TODO(b/491895183): Do a sweep across different cases to find good default
   # values for these parameters.
-  chi_max: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  D_e_max: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
+  chi_max: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  D_e_max: torax_pydantic.PositiveTimeVaryingScalar | None = None
   V_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1.0
   )
@@ -686,8 +683,12 @@ class PedestalConfig(torax_pydantic.ConfigBase):
         structure=self.structure_model.build_runtime_params(t),
         formation=formation_params,
         saturation=self.saturation_model.build_runtime_params(t),
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
+        chi_max=(
+            self.chi_max.get_value(t) if self.chi_max is not None else math.inf
+        ),
+        D_e_max=(
+            self.D_e_max.get_value(t) if self.D_e_max is not None else math.inf
+        ),
         V_e_max=self.V_e_max.get_value(t),
         V_e_min=self.V_e_min.get_value(t),
         pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(

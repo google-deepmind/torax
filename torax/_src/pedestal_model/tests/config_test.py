@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 from unittest import mock
 
 from absl.testing import absltest
@@ -357,6 +358,18 @@ class PedestalConfigTest(parameterized.TestCase):
         ped_adaptive.build_pedestal_model(),
         pedestal_model_lib.AdaptiveTransportPedestalModel,
     )
+
+  def test_chi_max_and_d_e_max_default_to_inf(self):
+    pedestal = config.PedestalConfig.from_dict({
+        "structure_model": {"model_name": "set_T_top_n_top"},
+        "mode": "adaptive_transport",
+        "formation_model": {"model_name": "martin_scaling"},
+    })
+    params = pedestal.build_runtime_params(t=0.0)
+    self.assertTrue(math.isinf(float(params.chi_max)))
+    self.assertGreater(float(params.chi_max), 0.0)
+    self.assertTrue(math.isinf(float(params.D_e_max)))
+    self.assertGreater(float(params.D_e_max), 0.0)
 
 
 if __name__ == "__main__":
