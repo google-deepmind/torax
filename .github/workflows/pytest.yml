@@ -8,15 +8,17 @@ on:
       - main
     types: [opened, synchronize, reopened]
   push:
+    branches:
+      - main
   schedule:
     # Trigger tests every day at 02:00 UTC.
     - cron: '0 2 * * *'
 
 # Concurrency config borrowed from tensorflow_datasets.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.ref != 'refs/heads/master' || github.run_number }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.ref != 'refs/heads/main' || github.run_number }}
   # Cancel only PR intermediate builds
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
