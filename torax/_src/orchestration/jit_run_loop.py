@@ -281,6 +281,50 @@ def _get_max_steps(
   return tsc_config.default_max_steps
 
 
+@jax.jit(static_argnames=('allow_backtracking',))
+def _check_final_step_error(
+    states_history: sim_state.SimState,
+    post_processed_outputs_history: post_processing.PostProcessedOutputs,
+    final_i: Counter,
+    t_min_ev: float,
+    allow_backtracking: bool,
+) -> tuple[jax.Array, jax.Array]:
+  """Fuses final-step indexing, error detection, and final time extraction."""
+  final_state, final_post_processed_outputs = jax.tree.map(
+      lambda x: x[final_i],
+      (states_history, post_processed_outputs_history),
+  )
+  has_error = step_function.has_any_step_error(
+      final_state,
+      final_post_processed_outputs,
+      t_min_ev,
+      allow_backtracking,
+  )
+  return has_error, final_state.t
+
+
+def _slice_history(
+    states_history: sim_state.SimState,
+    post_processed_outputs_history: post_processing.PostProcessedOutputs,
+    index_or_slice: int | slice,
+) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
+  """Indexes or slices history leaves via host buffers without XLA compilation."""
+  leaves, treedef = jax.tree.flatten(
+      (states_history, post_processed_outputs_history)
+  )
+  if not leaves:
+    return states_history, post_processed_outputs_history
+  first_leaf = leaves[0]
+  target_device = (
+      next(iter(first_leaf.devices())) if first_leaf.committed else None
+  )
+  sliced_leaves = [x[index_or_slice] for x in jax.device_get(leaves)]
+  return jax.tree.unflatten(
+      treedef,
+      jax.device_put(sliced_leaves, device=target_device, may_alias=False),
+  )
+
+
 def run_loop(
     step_fn: step_function.SimulationStepFn,
     runtime_params_overrides: (
@@ -365,16 +409,15 @@ def run_loop(
     else:
       bar_ref = 0
 
-    int_dtype = jax_utils.get_int_dtype()
     try:
       states_history, post_processed_outputs_history, final_i = run_loop_jit(
           step_fn,
           max_steps,
           runtime_params_overrides=runtime_params_overrides,
           logging_info=LoggingInfo(
-              progress_bar_ref=jnp.asarray(bar_ref, dtype=int_dtype),
-              log_n_steps=jnp.asarray(log_n_steps, dtype=int_dtype),
-              step=jnp.asarray(0, dtype=int_dtype),
+              progress_bar_ref=bar_ref,
+              log_n_steps=int(log_n_steps),
+              step=0,
               progress_bar=progress_bar,
               log_timestep_info=log_timestep_info,
           ),
@@ -394,16 +437,32 @@ def run_loop(
   # starting at `final_i + 1`. Index `final_i` is therefore the last state
   # evaluated by `_cond_fun` (not NaN padding), and `check_for_errors` recovers
   # the specific `SimError` that stopped the loop.
-  final_i = int(final_i)
-  num_states = final_i + 1
-  final_state, final_post_processed_outputs = jax.tree.map(
-      lambda x: x[final_i],
-      (states_history, post_processed_outputs_history),
+  runtime_params = step_fn.runtime_params_provider
+  has_error, final_t = _check_final_step_error(
+      states_history,
+      post_processed_outputs_history,
+      final_i,
+      runtime_params.numerics.T_min_eV,
+      bool(runtime_params.time_step_calculator.allow_backtracking),
   )
-  sim_error = step_fn.check_for_errors(
-      final_state,
-      final_post_processed_outputs,
+  final_i_host, has_error_host, final_t_host = jax.device_get(
+      (final_i, has_error, final_t)
   )
+  final_i_int = int(final_i_host)
+  num_states = final_i_int + 1
+  if bool(has_error_host):
+    final_state, final_post_processed_outputs = _slice_history(
+        states_history,
+        post_processed_outputs_history,
+        final_i_int,
+    )
+    sim_error = step_fn.check_for_errors(
+        final_state,
+        final_post_processed_outputs,
+    )
+  else:
+    sim_error = sim_error_lib.SimError.NO_ERROR
+
   if sim_error != sim_error_lib.SimError.NO_ERROR:
     # `while_loop_bounded` records the step output before `_cond_fun` checks
     # `has_any_step_error` on the next iteration, so drop the invalid final
@@ -412,14 +471,16 @@ def run_loop(
     sim_error.log_error()
     if num_states > 1:
       num_states -= 1
-  elif not step_fn.is_done(final_state.t):
+  elif not step_fn.is_done(final_t_host):
     sim_error = sim_error_lib.SimError.DID_NOT_REACH_T_FINAL
 
   # Slice out the unexecuted (NaN-padded) steps from the bounded while_loop.
-  states_history, post_processed_outputs_history = jax.tree.map(
-      lambda x: x[:num_states],
-      (states_history, post_processed_outputs_history),
-  )
+  if num_states < max_steps + 1:
+    states_history, post_processed_outputs_history = _slice_history(
+        states_history,
+        post_processed_outputs_history,
+        slice(num_states),
+    )
   return (
       states_history,
       post_processed_outputs_history,
