@@ -19,6 +19,7 @@ from __future__ import annotations
 import abc
 from typing import Self
 
+import chex
 import jax.numpy as jnp
 import pydantic
 from torax._src.core_profiles import core_profiles as core_profiles_lib
@@ -140,7 +141,10 @@ class NeoclassicalTransportModelConfig(torax_pydantic.ConfigBase):
       raise ValueError('V_e_min must be less than V_e_max.')
     return self
 
-  def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> transport_runtime_params.RuntimeParams:
+    del t
     return transport_runtime_params.RuntimeParams(
         chi_min=self.chi_min,
         chi_max=self.chi_max,

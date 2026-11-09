@@ -20,6 +20,7 @@ import abc
 import dataclasses
 from typing import Self
 
+import chex
 import jax
 import jax.numpy as jnp
 import pydantic
@@ -159,8 +160,11 @@ class BootstrapCurrentModelConfig(torax_pydantic.ConfigBase):
 
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 
-  def build_runtime_params(self) -> bootstrap_runtime_params.RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> bootstrap_runtime_params.RuntimeParams:
     """Builds runtime params."""
+    del t
     return bootstrap_runtime_params.RuntimeParams(
         bootstrap_multiplier=self.bootstrap_multiplier
     )

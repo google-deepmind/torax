@@ -112,7 +112,7 @@ class AngioniSauterTest(absltest.TestCase):
 
     params_no_shaing = angioni_sauter.AngioniSauterModelConfig(
         use_shaing_ion_correction=False
-    ).build_runtime_params()
+    ).build_runtime_params(t=0.0)
     res_no_shaing = angioni_sauter.AngioniSauterModel()._call_implementation(
         params_no_shaing, geo, core_profiles, neoclassical_intermediates
     )
@@ -126,7 +126,7 @@ class AngioniSauterTest(absltest.TestCase):
 
     params_shaing = angioni_sauter.AngioniSauterModelConfig(
         use_shaing_ion_correction=True
-    ).build_runtime_params()
+    ).build_runtime_params(t=0.0)
     res_shaing = angioni_sauter.AngioniSauterModel()._call_implementation(
         params_shaing, geo, core_profiles, neoclassical_intermediates
     )
