@@ -92,7 +92,6 @@ class CollisionsTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(result, expected, rtol=1e-6)
 
-  # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
       dict(
           A_impurity=20.0,

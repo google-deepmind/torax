@@ -58,7 +58,6 @@ from torax._src.physics import psi_calculations
 # pylint: disable=invalid-name
 
 
-# TODO(b/377225415): generalize to arbitrary number of ions.
 def calculate_main_ion_dilution_factor(
     Z_i: array_typing.FloatScalar,
     Z_impurity_bundled: array_typing.FloatVector,

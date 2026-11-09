@@ -389,9 +389,6 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   @pydantic.model_validator(mode='after')
   def _validate_edge_core_impurity_consistency(self) -> Self:
     """Validates consistency between plasma composition and edge impurities."""
-    # TODO(b/557540194): Generalize this validation to other edge models once
-    # `EdgeModelConfig` exposes an instance-level hook to declare its
-    # configured impurity species.
     for el_config in self._get_extended_lengyel_configs():
       core_species = set(self.plasma_composition.impurity.species.keys())
       edge_fixed = set(el_config.fixed_impurity_concentrations.keys())
@@ -441,11 +438,6 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     species, and raises an error if any time slice has a zero value at
     rho_norm=1.
     """
-    # TODO(b/557540194): Generalize this validation to all edge models that
-    # update impurities (`supported_boundary_conditions.n_impurities=True`).
-    # Because `supported_boundary_conditions` is a ClassVar, doing so requires
-    # an instance-level hook on `EdgeModelConfig` to declare which impurity
-    # species it populates in `impurity_right_bc`.
     el_configs = self._get_extended_lengyel_configs()
     if not el_configs:
       return self
