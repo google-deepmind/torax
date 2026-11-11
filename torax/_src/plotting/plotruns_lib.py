@@ -87,19 +87,25 @@ _OPTIONAL_PROFILE_ATTRS: Final[Mapping[str, _GridType]] = (
     immutabledict.immutabledict({
         'j_toroidal_ecrh': _GridType.CELL,
         'j_toroidal_generic_current': _GridType.CELL,
+        'j_toroidal_nbi': _GridType.CELL,
         'p_icrh_i': _GridType.CELL,
         'p_icrh_e': _GridType.CELL,
+        'p_nbi_i': _GridType.CELL,
+        'p_nbi_e': _GridType.CELL,
         'p_generic_heat_i': _GridType.CELL,
         'p_generic_heat_e': _GridType.CELL,
         'p_ecrh_e': _GridType.CELL,
         'p_alpha_i': _GridType.CELL,
         'p_alpha_e': _GridType.CELL,
         'p_ohmic_e': _GridType.CELL,
+        'p_ei_exchange_i': _GridType.CELL,
+        'p_ei_exchange_e': _GridType.CELL,
         'p_bremsstrahlung_e': _GridType.CELL,
         'p_cyclotron_radiation_e': _GridType.CELL,
         'p_impurity_radiation_e': _GridType.CELL,
         's_gas_puff': _GridType.CELL,
         's_generic_particle': _GridType.CELL,
+        's_nbi': _GridType.CELL,
         's_pellet': _GridType.CELL,
     })
 )
@@ -243,8 +249,8 @@ class PlotData:
     """
     return (
         self._scalars_dataset['P_bremsstrahlung_e'].to_numpy()
-        + self._scalars_dataset['P_radiation_e'].to_numpy()
-        + self._scalars_dataset['P_cyclotron_e'].to_numpy()
+        + self._scalars_dataset['P_impurity_radiation_e'].to_numpy()
+        + self._scalars_dataset['P_cyclotron_radiation_e'].to_numpy()
     )
 
   @property
@@ -346,8 +352,11 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
       output_keys.I_P_PROFILE: 1e6,  # A to MA
       output_keys.I_P: 1e6,  # A to MA
       output_keys.J_TOROIDAL_ECRH: 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_NBI: 1e6,  # A/m^2 to MA/m^2
       'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
       'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
+      'p_nbi_i': 1e6,  # W/m^3 to MW/m^3
+      'p_nbi_e': 1e6,  # W/m^3 to MW/m^3
       'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
       'p_generic_heat_e': 1e6,  # W/m^3 to MW/m^3
       'p_ecrh_e': 1e6,  # W/m^3 to MW/m^3
@@ -357,20 +366,26 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
       'p_bremsstrahlung_e': 1e6,  # W/m^3 to MW/m^3
       'p_cyclotron_radiation_e': 1e6,  # W/m^3 to MW/m^3
       'p_impurity_radiation_e': 1e6,  # W/m^3 to MW/m^3
-      'ei_exchange': 1e6,  # W/m^3 to MW/m^3
+      'p_ei_exchange_i': 1e6,  # W/m^3 to MW/m^3
+      'p_ei_exchange_e': 1e6,  # W/m^3 to MW/m^3
       'P_ohmic_e': 1e6,  # W to MW
       'P_aux_total': 1e6,  # W to MW
       'P_alpha_total': 1e6,  # W to MW
       'P_bremsstrahlung_e': 1e6,  # W to MW
-      'P_cyclotron_e': 1e6,  # W to MW
-      'P_ecrh': 1e6,  # W to MW
-      'P_radiation_e': 1e6,  # W to MW
+      'P_cyclotron_radiation_e': 1e6,  # W to MW
+      'P_ecrh_e': 1e6,  # W to MW
+      output_keys.P_NBI_I: 1e6,  # W to MW
+      output_keys.P_NBI_E: 1e6,  # W to MW
+      output_keys.P_NBI_TOTAL: 1e6,  # W to MW
+      'P_impurity_radiation_e': 1e6,  # W to MW
       'I_ecrh': 1e6,  # A to MA
-      'I_aux_generic': 1e6,  # A to MA
+      'I_generic_current': 1e6,  # A to MA
+      output_keys.I_NBI: 1e6,  # A to MA
       'W_thermal_total': 1e6,  # J to MJ
       output_keys.N_E: 1e20,  # m^-3 to 10^{20} m^-3
       output_keys.N_I: 1e20,  # m^-3 to 10^{20} m^-3
-      output_keys.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_IMPURITY_TOTAL: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_IMPURITY_BUNDLED: 1e20,  # m^-3 to 10^{20} m^-3
   }
 
   for var_name, scale in transformations.items():

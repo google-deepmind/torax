@@ -25,27 +25,29 @@ from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.edge import base as edge_base
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry_state
 from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
 )
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.solver import solver_numeric_outputs
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
 # pylint: disable=invalid-name
@@ -67,7 +69,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
             'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
@@ -79,7 +81,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'species': {'Ne': 0.01},
             }
         },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
@@ -94,52 +96,53 @@ class StateHistoryTest(parameterized.TestCase):
     })
     models = self.torax_config.build_models()
     # Make some dummy source profiles that could have come from these sources.
-    self.geo = self.torax_config.geometry.build_provider(t=0.0)
+    self.geo = self.torax_config.geometry.build_runtime_params(t=0.0).geometry
     ones = jnp.ones_like(self.geo.rho)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
     )(t=0.0)
-    self.source_profiles = source_profiles_lib.SourceProfiles(
+    self.source_profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        T_i={
-            'fusion': ones,
-            'generic_heat': 2 * ones,
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
+        sources={
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=ones,
+                power_density_e=ones,
+            ),
+            'generic_heat': core_sources_lib.SourceOutput(
+                power_density_i=2 * ones,
+                power_density_e=3 * ones,
+            ),
+            'bremsstrahlung': core_sources_lib.SourceOutput(
+                power_density_e=-ones,
+            ),
+            'ohmic': core_sources_lib.SourceOutput(
+                power_density_e=ones * 5,
+            ),
+            'ecrh': core_sources_lib.SourceOutput(
+                power_density_e=7 * ones,
+            ),
         },
-        T_e={
-            'bremsstrahlung': -ones,
-            'ohmic': ones * 5,
-            'fusion': ones,
-            'generic_heat': 3 * ones,
-            'ecrh': 7 * ones,
-        },
-        n_e={},
-        psi={},
     )
     source_states = models.source_models.initial_state(runtime_params)
     self.core_profiles, _, _ = core_profile_helpers.make_initial_inputs(
         self.torax_config
     )
-    self.core_transport = state.CoreTransport(
-        total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
-        turbulent=transport_coeffs_lib.TurbulentTransport(
-            core=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
-            pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+    self.core_transport = transport_coeffs.CoreTransport(
+        total=transport_coeffs.TransportCoeffs.zeros(self.geo),
+        turbulent=transport_coeffs.TurbulentTransport(
+            core=transport_coeffs.TransportCoeffs.zeros(self.geo),
+            pedestal=transport_coeffs.TransportCoeffs.zeros(self.geo),
             core_components={
-                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
-                    self.geo
-                )
+                'prescribed': transport_coeffs.TransportCoeffs.zeros(self.geo)
             },
             pedestal_components={
-                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
-                    self.geo
-                )
+                'prescribed': transport_coeffs.TransportCoeffs.zeros(self.geo)
             },
         ),
-        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo),
-        pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(self.geo),
+        neoclassical=transport_coeffs.NeoclassicalTransport.zeros(self.geo),
     )
     self.source_models = models.source_models
     pedestal_output, pedestal_state = models.pedestal_model.initialize(
@@ -157,7 +160,7 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,
@@ -170,12 +173,13 @@ class StateHistoryTest(parameterized.TestCase):
         ),
         pedestal_output=pedestal_output,
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=models.transport_model.initial_state(runtime_params),
             sources=source_states,
         ),
     )
-    sim_error = state.SimError.NO_ERROR
+    sim_error = sim_error_lib.SimError.NO_ERROR
     previous_post_processed_outputs = (
         post_processing.PostProcessedOutputs.zeros(self.geo)
     )
@@ -219,6 +223,13 @@ class StateHistoryTest(parameterized.TestCase):
       self.assertIn(output_keys.D_TURB_E, prescribed_ds.data_vars)
       self.assertIn(output_keys.V_TURB_E, prescribed_ds.data_vars)
 
+  def test_pedestal_model_state_is_saved(self):
+    output_xr = self.history.simulation_output_to_xr()
+    self.assertIn(output_keys.MODEL_STATE, output_xr.children)
+    model_state_tree = output_xr.children[output_keys.MODEL_STATE]
+    self.assertIn(output_keys.PEDESTAL, model_state_tree.children)
+    self.assertLen(self.history.model_states, 1)
+
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""
     # Construct a second state with a slightly different geometry.
@@ -229,7 +240,7 @@ class StateHistoryTest(parameterized.TestCase):
         ),
     )
     state_history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(self.sim_state, self.sim_state_t2),
         post_processed_outputs_history=_stack_pytrees(
             self._output_state,
@@ -268,9 +279,11 @@ class StateHistoryTest(parameterized.TestCase):
         volume_values,
         (1, len(self.geo.rho_norm) + 2),
     )
-    np.testing.assert_equal(volume_values[0, 0], self.geo.volume_face[0])
-    np.testing.assert_equal(volume_values[0, -1], self.geo.volume_face[-1])
-    np.testing.assert_equal(volume_values[0, 1:-1], self.geo.volume)
+    np.testing.assert_array_equal(volume_values[0, 0], self.geo.volume_face[0])
+    np.testing.assert_array_equal(
+        volume_values[0, -1], self.geo.volume_face[-1]
+    )
+    np.testing.assert_array_equal(volume_values[0, 1:-1], self.geo.volume)
 
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
@@ -278,13 +291,16 @@ class StateHistoryTest(parameterized.TestCase):
     profiles_dataset = output_xr.children[output_keys.PROFILES].dataset
     self.assertIn('p_alpha_i', profiles_dataset.data_vars)
     self.assertIn('p_alpha_e', profiles_dataset.data_vars)
+    fusion_output = self.source_profiles.sources['fusion']
+    self.assertIsNotNone(fusion_output.power_density_i)
+    self.assertIsNotNone(fusion_output.power_density_e)
     np.testing.assert_allclose(
         profiles_dataset.data_vars['p_alpha_i'].values[0, ...],
-        self.source_profiles.T_i['fusion'],
+        fusion_output.power_density_i,
     )
     np.testing.assert_allclose(
         profiles_dataset.data_vars['p_alpha_e'].values[0, ...],
-        self.source_profiles.T_e['fusion'],
+        fusion_output.power_density_e,
     )
 
   def test_state_history_to_xr(self):
@@ -408,21 +424,21 @@ class StateHistoryTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
     # pylint: disable=invalid-name
-    Z_impurity = jnp.ones_like(self.geo.rho) * 2
-    Z_impurity_face = jnp.ones_like(self.geo.rho_face) * 3
+    Z_impurity_average = jnp.ones_like(self.geo.rho) * 2
+    Z_impurity_average_face = jnp.ones_like(self.geo.rho_face) * 3
     # pylint: enable=invalid-name
     core_profiles = core_profile_helpers.make_zero_core_profiles(
         self.geo,
         T_e=T_e,
-        Z_impurity=Z_impurity,
-        Z_impurity_face=Z_impurity_face,
+        Z_impurity_average=Z_impurity_average,
+        Z_impurity_average_face=Z_impurity_average_face,
     )
     torax_state = dataclasses.replace(torax_state, core_profiles=core_profiles)
     post_processed_outputs = post_processing.PostProcessedOutputs.zeros(
         self.geo
     )
     state_history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(torax_state, torax_state),
         post_processed_outputs_history=_stack_pytrees(
             post_processed_outputs,
@@ -433,7 +449,7 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = state_history.simulation_output_to_xr()
     np.testing.assert_equal(
         output_xr.children[output_keys.PROFILES]
-        .dataset.data_vars[output_keys.Z_IMPURITY]
+        .dataset.data_vars[output_keys.Z_IMPURITY_AVERAGE]
         .values,
         np.array([[3, 2, 2, 2, 2, 3], [3, 2, 2, 2, 2, 3]]),
     )
@@ -573,6 +589,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(str(output_keys.T_I_RIGHT_BC), out_dict)
     self.assertIn(str(output_keys.N_E_RIGHT_BC), out_dict)
     self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.VALID_FOR_CORE_UPDATE), out_dict)
 
     # Test to_xr_datatree directly on base.EdgeModelOutputs
     dt = outputs.to_xr_datatree(self.history._output_grid_context)
@@ -606,7 +623,7 @@ class StateHistoryTest(parameterized.TestCase):
         edge_outputs=single_step_outputs,
     )
     history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(sim_state_with_edge),
         post_processed_outputs_history=_stack_pytrees(self._output_state),
         torax_config=self.torax_config,
@@ -618,6 +635,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(output_keys.T_I_RIGHT_BC, edge_dataset.data_vars)
     self.assertIn(output_keys.N_E_RIGHT_BC, edge_dataset.data_vars)
     self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.VALID_FOR_CORE_UPDATE, edge_dataset.data_vars)
 
   def test_pack_impurity_mapping(self):
     context = self.history._output_grid_context
@@ -651,34 +669,25 @@ class StateHistoryTest(parameterized.TestCase):
         ['Ar'],
     )
 
-  def test_status_attribute_completed(self):
-    """Test that status attribute is set to 'completed' for successful runs."""
+  def test_sim_error_no_error_in_output(self):
     output_xr = self.history.simulation_output_to_xr()
-    self.assertIn('sim_status', output_xr.numerics)
-    self.assertEqual(
-        output_xr.numerics.sim_status, state.SimStatus.COMPLETED.value
-    )
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
-        output_xr.numerics.sim_error, state.SimError.NO_ERROR.value
+        output_xr.numerics.sim_error, sim_error_lib.SimError.NO_ERROR.value
     )
     self.assertIn(output_keys.SOLVER_ERROR_STATE, output_xr.numerics)
 
-  def test_status_attribute_error(self):
-    """Test that status attribute is set to 'error' when sim has errors."""
-    # Create a history with an error state
+  def test_sim_error_attribute_in_output(self):
     history_with_error = output.StateHistory(
         state_history=_stack_pytrees(self.sim_state),
         post_processed_outputs_history=_stack_pytrees(self._output_state),
-        sim_error=state.SimError.NAN_DETECTED,
+        sim_error=sim_error_lib.SimError.NAN_DETECTED,
         torax_config=self.torax_config,
     )
     output_xr = history_with_error.simulation_output_to_xr()
-    self.assertIn('sim_status', output_xr.numerics)
-    self.assertEqual(output_xr.numerics.sim_status, state.SimStatus.ERROR.value)
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
-        output_xr.numerics.sim_error, state.SimError.NAN_DETECTED.value
+        output_xr.numerics.sim_error, sim_error_lib.SimError.NAN_DETECTED.value
     )
 
   def test_main_ion_fractions_output_matches_config(self):
@@ -692,7 +701,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
         },
@@ -703,7 +712,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'T': {0.0: 0.5, 1.0: 0.7},
             },
         },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
@@ -724,36 +733,36 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Verify the fractions in core_profiles match the config at t=0
     np.testing.assert_allclose(
-        core_profiles_t0.main_ion_fractions['D'],
+        core_profiles_t0.ions.main_ion_fractions['D'],
         0.5,
         err_msg='D fraction at t=0 should be 0.5',
     )
     np.testing.assert_allclose(
-        core_profiles_t0.main_ion_fractions['T'],
+        core_profiles_t0.ions.main_ion_fractions['T'],
         0.5,
         err_msg='T fraction at t=0 should be 0.5',
     )
 
     # Verify the fractions in core_profiles match the config at t=1
     np.testing.assert_allclose(
-        core_profiles_t1.main_ion_fractions['D'],
+        core_profiles_t1.ions.main_ion_fractions['D'],
         0.3,
         err_msg='D fraction at t=1 should be 0.3',
     )
     np.testing.assert_allclose(
-        core_profiles_t1.main_ion_fractions['T'],
+        core_profiles_t1.ions.main_ion_fractions['T'],
         0.7,
         err_msg='T fraction at t=1 should be 0.7',
     )
 
     # Verify fractions sum to 1 at both times
     sum_t0 = (
-        core_profiles_t0.main_ion_fractions['D']
-        + core_profiles_t0.main_ion_fractions['T']
+        core_profiles_t0.ions.main_ion_fractions['D']
+        + core_profiles_t0.ions.main_ion_fractions['T']
     )
     sum_t1 = (
-        core_profiles_t1.main_ion_fractions['D']
-        + core_profiles_t1.main_ion_fractions['T']
+        core_profiles_t1.ions.main_ion_fractions['D']
+        + core_profiles_t1.ions.main_ion_fractions['T']
     )
     np.testing.assert_allclose(
         sum_t0, 1.0, err_msg='Fractions at t=0 should sum to 1'
@@ -763,10 +772,10 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     # Verify that both D and T species are present in the dict
-    self.assertIn('D', core_profiles_t0.main_ion_fractions)
-    self.assertIn('T', core_profiles_t0.main_ion_fractions)
-    self.assertIn('D', core_profiles_t1.main_ion_fractions)
-    self.assertIn('T', core_profiles_t1.main_ion_fractions)
+    self.assertIn('D', core_profiles_t0.ions.main_ion_fractions)
+    self.assertIn('T', core_profiles_t0.ions.main_ion_fractions)
+    self.assertIn('D', core_profiles_t1.ions.main_ion_fractions)
+    self.assertIn('T', core_profiles_t1.ions.main_ion_fractions)
 
   def test_main_ion_fractions_xr_output_matches_config(self):
     """Tests that main_ion_fractions in core_profiles matches config expectations.
@@ -779,7 +788,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
         },
@@ -790,7 +799,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'T': {0.0: 0.5, 1.0: 0.7},
             },
         },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
@@ -824,7 +833,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(sim_state_t0, sim_state_t1),
         post_processed_outputs_history=_stack_pytrees(
             self._output_state, self._output_state
@@ -903,7 +912,6 @@ class StateHistoryTest(parameterized.TestCase):
     # Variables that intentionally have no units.
     _UNITLESS_VARIABLES = frozenset({
         # Numerics / solver status codes.
-        output_keys.SIM_STATUS,
         output_keys.SIM_ERROR,
         output_keys.OUTER_SOLVER_ITERATIONS,
         output_keys.INNER_SOLVER_ITERATIONS,
@@ -919,6 +927,8 @@ class StateHistoryTest(parameterized.TestCase):
         extended_lengyel_standalone.N_ROOTS,
         # Edge model status.
         extended_lengyel_standalone.MULTIPLE_ROOTS_FOUND,
+        # Pedestal model status.
+        output_keys.CONFINEMENT_MODE,
     })
 
     output_xr = self.history.simulation_output_to_xr()
@@ -979,7 +989,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertTrue(output_keys.Units.DIMENSIONLESS)
 
     # OutputKey with units=NOT_APPLICABLE should not produce units in attrs.
-    self.assertEqual(output_keys.get_units(output_keys.SIM_STATUS), {})
+    self.assertEqual(output_keys.get_units(output_keys.SIM_ERROR), {})
 
     # OutputKey with units=DIMENSIONLESS should produce units in attrs.
     self.assertEqual(
@@ -995,13 +1005,9 @@ class StateHistoryTest(parameterized.TestCase):
     sim_state_t1 = dataclasses.replace(
         self.sim_state,
         t=jnp.array(0.1),
-        core_profiles=dataclasses.replace(
-            self.sim_state.core_profiles,
-            v_loop_lcfs=jnp.array(5.0),
-        ),
     )
     history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
+        sim_error=sim_error_lib.SimError.NO_ERROR,
         state_history=_stack_pytrees(self.sim_state, sim_state_t1),
         post_processed_outputs_history=_stack_pytrees(
             self._output_state, self._output_state
@@ -1012,14 +1018,15 @@ class StateHistoryTest(parameterized.TestCase):
     # In __init__, stacked JAX arrays are kept as-is and unstacked properties
     # are not yet evaluated.
     self.assertIsInstance(history.times, jax.Array)
-    self.assertIsInstance(history._core_profiles.T_i.value, jax.Array)
+    self.assertIsInstance(history._core_profiles.kinetic.T_i.value, jax.Array)
     for prop in (
         'geometries',
         'core_profiles',
-        'source_profiles',
+        'core_sources',
         'core_transport',
         'solver_numeric_outputs',
         'post_processed_outputs',
+        'model_states',
     ):
       self.assertNotIn(prop, history.__dict__)
 
@@ -1029,10 +1036,11 @@ class StateHistoryTest(parameterized.TestCase):
     for prop in (
         'geometries',
         'core_profiles',
-        'source_profiles',
+        'core_sources',
         'core_transport',
         'solver_numeric_outputs',
         'post_processed_outputs',
+        'model_states',
     ):
       self.assertNotIn(prop, history.__dict__)
 
@@ -1046,9 +1054,15 @@ class StateHistoryTest(parameterized.TestCase):
       mock_unstack.assert_called_once()
     self.assertLen(core_profiles, 2)
     self.assertIn('core_profiles', history.__dict__)
-    self.assertIsInstance(core_profiles[0].T_i.value, jax.Array)
-    np.testing.assert_allclose(core_profiles[0].v_loop_lcfs, 5.0)
-    np.testing.assert_allclose(core_profiles[1].v_loop_lcfs, 5.0)
+    self.assertIsInstance(core_profiles[0].kinetic.T_i.value, jax.Array)
+
+    self.assertIn(output_keys.MODEL_STATE, output_xr.children)
+    self.assertIn(
+        output_keys.PEDESTAL,
+        output_xr.children[output_keys.MODEL_STATE].children,
+    )
+    self.assertLen(history.model_states, 2)
+    self.assertIsInstance(history.model_states[0], model_state_lib.ModelState)
 
 
 if __name__ == '__main__':

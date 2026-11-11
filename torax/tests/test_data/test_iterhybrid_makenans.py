@@ -24,4 +24,9 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG['time_step_calculator'] = {'calculator_type': 'fixed'}
-CONFIG['sources']['gas_puff']['S_total'] = -1.5e23
+CONFIG['sources']['gas_puff'] = {
+    'mode': 'prescribed',
+    'prescribed_values': {
+        'particle_source_e': {0.0: {0.0: -1.5e23, 1.0: -1.5e23}},
+    },
+}

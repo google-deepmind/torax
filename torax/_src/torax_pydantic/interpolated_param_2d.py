@@ -55,11 +55,22 @@ class Grid1D(config_base.ConfigBase):
     if not isinstance(data, dict):
       return data
     if 'nx' in data:
-      nx = data['nx']
-      face_centers = get_face_centers(nx)
-      data['face_centers'] = face_centers
-      del data['nx']
+      data = dict(data)
+      nx = data.pop('nx')
+      data['face_centers'] = get_face_centers(nx)
     return data
+
+  @classmethod
+  def uniform_from_n_rho(cls, n_rho: int) -> Self:
+    """Constructs a uniform `Grid1D` on [0, 1] with `n_rho` cells.
+
+    Args:
+      n_rho: Number of radial cells (must be >= 4).
+
+    Returns:
+      A `Grid1D` with `n_rho + 1` uniformly spaced `face_centers` in [0, 1].
+    """
+    return cls(face_centers=get_face_centers(n_rho))
 
   @pydantic.field_validator('face_centers')
   @classmethod
@@ -164,6 +175,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   grid: Grid1D | None = None
 
   def tree_flatten(self):
+    """Flattens the TimeVaryingArray for JAX PyTree registration."""
     children = (
         self.value,
         # Save out the cached interpolated params.
@@ -180,6 +192,7 @@ class TimeVaryingArray(config_base.ConfigBase):
 
   @classmethod
   def tree_unflatten(cls, aux_data, children):
+    """Unflattens a TimeVaryingArray from JAX auxiliary data and children."""
     # Avoid calling model_validate as validation should be done already.
     obj = cls.model_construct(
         value=children[0],
@@ -203,131 +216,6 @@ class TimeVaryingArray(config_base.ConfigBase):
       if 1.0 not in rho_norm:
         return False
     return True
-
-  def _linear_nonpositive_subintervals(
-      self,
-      t_i: float,
-      t_next: float,
-  ) -> list[tuple[float, float]]:
-    """Computes nonpositive sub-intervals within [t_i, t_next] for linear interp.
-
-    Interpolates both time keys onto a common rho grid, then finds
-    zero-crossing times per spatial point.
-
-    Args:
-      t_i: Start time of the interval.
-      t_next: End time of the interval.
-
-    Returns:
-      A list of (start, end) sub-intervals where any spatial point is
-      nonpositive.
-    """
-    rho_i, v_i = self.value[t_i]
-    rho_next, v_next = self.value[t_next]
-    if not np.array_equal(rho_i, rho_next):
-      common_rho = np.union1d(rho_i, rho_next)
-      v_i = np.interp(common_rho, rho_i, v_i)
-      v_next = np.interp(common_rho, rho_next, v_next)
-
-    # If any spatial point is nonpositive at both endpoints, the full
-    # interval is nonpositive (no crossing needed).
-    if np.any((v_i <= 0) & (v_next <= 0)):
-      return [(t_i, t_next)]
-
-    subintervals = []
-    dt = t_next - t_i
-
-    # Each spatial point j interpolates linearly in time:
-    #   v_j(t) = v_i[j] + (v_next[j] - v_i[j]) * (t - t_i) / dt
-    # Setting v_j(t) = 0 and solving:
-    #   t_cross = t_i + dt * (-v_i[j]) / (v_next[j] - v_i[j])
-    left_nonpositive = v_i <= 0
-    right_nonpositive = v_next <= 0
-    sign_change = left_nonpositive != right_nonpositive
-
-    if not np.any(sign_change):
-      return subintervals
-
-    t_cross = t_i + dt * (-v_i[sign_change]) / (
-        v_next[sign_change] - v_i[sign_change]
-    )
-
-    # Points nonpositive at t_i are nonpositive on [t_i, t_cross].
-    # These intervals share start t_i, so their union is
-    # [t_i, max(t_cross)].
-    left_crosses = t_cross[left_nonpositive[sign_change]]
-    if left_crosses.size > 0:
-      subintervals.append((t_i, float(np.max(left_crosses))))
-
-    # Points nonpositive at t_next are nonpositive on [t_cross, t_next].
-    # These intervals share end t_next, so their union is
-    # [min(t_cross), t_next].
-    right_crosses = t_cross[right_nonpositive[sign_change]]
-    if right_crosses.size > 0:
-      subintervals.append((float(np.min(right_crosses)), t_next))
-
-    return subintervals
-
-  def nonpositive_intervals(self) -> list[tuple[float, float]]:
-    """Returns time intervals where any value in the profile is <= 0.
-
-    For piecewise-linear time interpolation, each spatial point's value
-    varies linearly between adjacent time keys, so zero-crossing times are
-    computed analytically per spatial point. The returned intervals represent
-    all times at which at least one spatial point has a nonpositive value.
-    When adjacent time keys have different rho grids, values are
-    interpolated onto the union of both grids before computing crossings.
-
-    For step interpolation, a nonpositive value at time t_k flags
-    [t_k, t_{k+1}).
-
-    Constant extrapolation outside the defined time range is also handled.
-
-    Returns:
-      A sorted, merged list of (start, end) tuples representing intervals
-      where any spatial value is zero or negative.
-    """
-    profile_times = list(self.value.keys())
-    is_step = (
-        self.time_interpolation_mode
-        == interpolated_param.InterpolationMode.STEP
-    )
-
-    has_nonpositive = [
-        bool(np.any(self.value[t][1] <= 0)) for t in profile_times
-    ]
-
-    intervals: list[tuple[float, float]] = []
-
-    # Constant extrapolation before the first time point.
-    if has_nonpositive[0]:
-      intervals.append((float('-inf'), profile_times[0]))
-
-    for i in range(len(profile_times) - 1):
-      t_i, t_next = profile_times[i], profile_times[i + 1]
-
-      if is_step:
-        if has_nonpositive[i]:
-          intervals.append((t_i, t_next))
-      elif has_nonpositive[i] or has_nonpositive[i + 1]:
-        intervals.extend(
-            self._linear_nonpositive_subintervals(t_i, t_next)
-        )
-
-    # Constant extrapolation after the last time point.
-    if has_nonpositive[-1]:
-      intervals.append((profile_times[-1], float('inf')))
-
-    # Merge overlapping or contiguous intervals.
-    if not intervals:
-      return intervals
-    merged = [intervals[0]]
-    for start, end in intervals[1:]:
-      if start <= merged[-1][1]:
-        merged[-1] = (merged[-1][0], end)
-      else:
-        merged.append((start, end))
-    return merged
 
   def get_value(
       self,
@@ -360,7 +248,15 @@ class TimeVaryingArray(config_base.ConfigBase):
   def update(
       self, replace_value: TimeVaryingArrayUpdate
   ) -> Self:
-    """This method can be used under `jax.jit`."""
+    """Updates the TimeVaryingArray under `jax.jit`.
+
+    Args:
+      replace_value: A `TimeVaryingArrayUpdate` specifying replacement `time`,
+        `rho_norm`, and/or `value` arrays.
+
+    Returns:
+      A new `TimeVaryingArray` with updated cached interpolation parameters.
+    """
     assert self.grid is not None, 'grid must be set to update.'
 
     time = (
@@ -487,12 +383,12 @@ class TimeVaryingArray(config_base.ConfigBase):
 
     if isinstance(data, tuple):
       if len(data) == 2 and isinstance(data[1], dict):
-        time_interpolation_mode = interpolated_param.InterpolationMode[
-            data[1]['time_interpolation_mode'].upper()
-        ]
-        rho_interpolation_mode = interpolated_param.InterpolationMode[
-            data[1]['rho_interpolation_mode'].upper()
-        ]
+        time_interpolation_mode = interpolated_param.InterpolationMode(
+            data[1]['time_interpolation_mode']
+        )
+        rho_interpolation_mode = interpolated_param.InterpolationMode(
+            data[1]['rho_interpolation_mode']
+        )
         # First element in tuple assumed to be the input.
         data = data[0]
 
@@ -530,6 +426,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   def get_cached_interpolated_param_cell(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
+    """Interpolated parameter cached on the cell grid."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
 
@@ -544,6 +441,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   def get_cached_interpolated_param_face(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
+    """Interpolated parameter cached on the face grid."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
 
@@ -558,6 +456,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   def get_cached_interpolated_param_face_right(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
+    """Interpolated parameter cached on the rightmost face grid point."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
 
@@ -743,7 +642,22 @@ def array_bounds_validator(
     lt: float | None = None,
     le: float | None = None,
 ) -> pydantic.AfterValidator:
-  """Returns an AfterValidator that validates array bounds."""
+  """Returns an AfterValidator that validates array bounds.
+
+  Args:
+    gt: Exclusive lower bound (`value > gt`), if specified.
+    ge: Inclusive lower bound (`value >= ge`), if specified.
+    lt: Exclusive upper bound (`value < lt`), if specified.
+    le: Inclusive upper bound (`value <= le`), if specified.
+
+  Returns:
+    A `pydantic.AfterValidator` that checks the specified bounds on a
+    `TimeVaryingArray`.
+
+  Raises:
+    ValueError: If both `gt` and `ge` are provided, or if both `lt` and `le` are
+      provided.
+  """
   if gt is not None and ge is not None:
     raise ValueError('At most one of `gt` and `ge` can be provided.')
   if lt is not None and le is not None:

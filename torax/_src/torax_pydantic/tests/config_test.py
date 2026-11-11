@@ -107,7 +107,7 @@ class ConfigTest(parameterized.TestCase):
       )
 
     with self.subTest("geometry_grid_set"):
-      mesh = torax_config.geometry.build_provider.torax_mesh
+      grid = torax_config.geometry.get_grid()
       time_varying_arrays = [
           m
           for m in torax_config.submodels
@@ -115,8 +115,8 @@ class ConfigTest(parameterized.TestCase):
       ]
       assert time_varying_arrays  # Should be non-empty.
       for m in time_varying_arrays:
-        chex.assert_trees_all_equal(mesh.face_centers, m.grid.face_centers)  # pyrefly: ignore[missing-attribute]
-        chex.assert_trees_all_equal(mesh.cell_centers, m.grid.cell_centers)  # pyrefly: ignore[missing-attribute]
+        chex.assert_trees_all_equal(grid.face_centers, m.grid.face_centers)  # pyrefly: ignore[missing-attribute]
+        chex.assert_trees_all_equal(grid.cell_centers, m.grid.cell_centers)  # pyrefly: ignore[missing-attribute]
 
   def test_geometry_direct_nrho_hires_factor_update(self):
 
@@ -125,26 +125,25 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
-    assert not isinstance(torax_config.geometry.geometry_configs, dict)
-    assert torax_config.geometry.geometry_configs.n_rho is not None
-    new_n_rho = torax_config.geometry.geometry_configs.n_rho * 2
-    new_hires_factor = torax_config.geometry.geometry_configs.hires_factor * 2
+    assert torax_config.geometry.n_rho is not None
+    new_n_rho = torax_config.geometry.n_rho * 2
+    new_hires_factor = torax_config.geometry.hires_factor * 2
 
     # Check that the caches are invalidated.
     torax_config.plasma_composition.Z_eff.get_value(t=0.2, grid_type="cell")
     torax_config.plasma_composition.Z_eff.get_value(t=0.2, grid_type="face")
 
     torax_config.update_fields({
-        "geometry.geometry_configs.n_rho": new_n_rho,
-        "geometry.geometry_configs.hires_factor": new_hires_factor,
+        "geometry.n_rho": new_n_rho,
+        "geometry.hires_factor": new_hires_factor,
     })
 
     self.assertEqual(
-        torax_config.geometry.geometry_configs.n_rho,
+        torax_config.geometry.n_rho,
         new_n_rho,
     )
     self.assertEqual(
-        torax_config.geometry.geometry_configs.hires_factor,
+        torax_config.geometry.hires_factor,
         new_hires_factor,
     )
 
@@ -165,20 +164,19 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
-    assert not isinstance(torax_config.geometry.geometry_configs, dict)
-    assert torax_config.geometry.geometry_configs.n_rho is not None
-    new_n_rho = torax_config.geometry.geometry_configs.n_rho * 2
+    assert torax_config.geometry.n_rho is not None
+    new_n_rho = torax_config.geometry.n_rho * 2
 
     torax_config.update_fields({
         "geometry": {
             "n_rho": new_n_rho,
-            "geometry_type": "circular",
+            "model_name": "circular",
         },
-        "profile_conditions.initial_psi_source": "j",
+        "profile_conditions.psi_source": "j",
     })
 
     self.assertEqual(
-        torax_config.geometry.geometry_configs.n_rho,
+        torax_config.geometry.n_rho,
         new_n_rho,
     )
 
@@ -187,6 +185,22 @@ class ConfigTest(parameterized.TestCase):
           t=0.2, grid_type="cell"
       )
       self.assertLen(v1_cell, new_n_rho)
+
+  def test_geometry_cache_invalidation_on_update_fields(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {"model_name": "circular", "n_rho": 4}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    geo_0 = torax_config.geometry.build_runtime_params(0.0).geometry
+    self.assertEqual(geo_0.n_rho, 4)
+    self.assertEqual(float(geo_0.R_major), 6.2)
+
+    torax_config.update_fields({"geometry.R_major": 7.0})
+    geo_updated_r = torax_config.geometry.build_runtime_params(0.0).geometry
+    self.assertEqual(float(geo_updated_r.R_major), 7.0)
+
+    torax_config.update_fields({"geometry.n_rho": 50})
+    geo_updated_n = torax_config.geometry.build_runtime_params(0.0).geometry
+    self.assertEqual(geo_updated_n.n_rho, 50)
 
   @parameterized.named_parameters(
       ("const_lin_no_per", "constant", "linear", None, False, False),
@@ -282,45 +296,45 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="vloop_true_evolve_false_raises",
-          use_v_loop_bc=True,
+          psi_bc_source="v_loop",
           evolve_current=False,
           expect_error=True,
       ),
       dict(
           testcase_name="vloop_true_evolve_true_passes",
-          use_v_loop_bc=True,
+          psi_bc_source="v_loop",
           evolve_current=True,
           expect_error=False,
       ),
       dict(
           testcase_name="vloop_false_evolve_false_passes",
-          use_v_loop_bc=False,
+          psi_bc_source="I_p",
           evolve_current=False,
           expect_error=False,
       ),
   )
   def test_v_loop_bc_with_evolve_current_false_raises_error(
-      self, use_v_loop_bc, evolve_current, expect_error
+      self, psi_bc_source, evolve_current, expect_error
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict["profile_conditions"]["use_v_loop_lcfs_boundary_condition"] = (
-        use_v_loop_bc
-    )
+    config_dict["profile_conditions"]["psi_bc_source"] = psi_bc_source
+    if psi_bc_source == "v_loop":
+      config_dict["profile_conditions"]["v_loop_lcfs"] = 0.0
     config_dict["numerics"]["evolve_current"] = evolve_current
     if expect_error:
       with self.assertRaisesRegex(
           ValueError,
-          "profile_conditions.use_v_loop_lcfs_boundary_condition cannot be"
-          " True when numerics.evolve_current is False.",
+          'profile_conditions.psi_bc_source cannot be "v_loop" when'
+          " numerics.evolve_current is False.",
       ):
         config.ToraxConfig.from_dict(config_dict)
     else:
       config.ToraxConfig.from_dict(config_dict)
 
-  def test_missing_initial_psi_source_raises_error(self):
+  def test_missing_psi_source_raises_error(self):
     config_dict = default_configs.get_default_config_dict()
-    del config_dict["profile_conditions"]["initial_psi_source"]
-    with self.assertRaisesRegex(pydantic.ValidationError, "initial_psi_source"):
+    del config_dict["profile_conditions"]["psi_source"]
+    with self.assertRaisesRegex(pydantic.ValidationError, "psi_source"):
       config.ToraxConfig.from_dict(config_dict)
 
   @parameterized.named_parameters(
@@ -349,12 +363,12 @@ class ConfigTest(parameterized.TestCase):
           expect_error=False,
       ),
   )
-  def test_initial_psi_source_profile_conditions_requires_psi_unless_restarting(
+  def test_psi_source_profile_conditions_requires_psi_unless_restarting(
       self, psi, do_restart, expect_error
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict["profile_conditions"][
-        "initial_psi_source"
+        "psi_source"
     ] = "profile_conditions"
     config_dict["profile_conditions"]["psi"] = psi
     if do_restart is not None:
@@ -370,7 +384,7 @@ class ConfigTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError,
           "profile_conditions.psi must be provided when"
-          " profile_conditions.initial_psi_source is 'profile_conditions'",
+          " profile_conditions.psi_source is 'profile_conditions'",
       ):
         config.ToraxConfig.from_dict(config_dict)
     else:
@@ -379,26 +393,26 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="circular_geometry_raises",
-          geometry={"geometry_type": "circular", "n_rho": 4},
+          geometry={"model_name": "circular", "n_rho": 4},
           expect_error=True,
       ),
       dict(
           testcase_name="chease_geometry_passes",
           geometry={
-              "geometry_type": "chease",
+              "model_name": "chease",
               "geometry_file": "iterhybrid.mat2cols",
           },
           expect_error=False,
       ),
   )
-  def test_initial_psi_source_geometry_validation(self, geometry, expect_error):
+  def test_psi_source_geometry_validation(self, geometry, expect_error):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = geometry
-    config_dict["profile_conditions"]["initial_psi_source"] = "geometry"
+    config_dict["profile_conditions"]["psi_source"] = "geometry"
     if expect_error:
       with self.assertRaisesRegex(
           ValueError,
-          "profile_conditions.initial_psi_source='geometry' is not supported"
+          "profile_conditions.psi_source='geometry' is not supported"
           " for CircularGeometry.",
       ):
         config.ToraxConfig.from_dict(config_dict)
@@ -408,72 +422,164 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="psi_set_source_j_evolve_current_true",
-          initial_psi_source="j",
+          psi_source="j",
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
-          expect_warning=True,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_geometry_evolve_current_true",
-          initial_psi_source="geometry",
+          psi_source="geometry",
           geometry_type="chease",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
-          expect_warning=True,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_j_evolve_current_false",
-          initial_psi_source="j",
+          psi_source="j",
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=False,
-          expect_warning=False,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_geometry_evolve_current_false",
-          initial_psi_source="geometry",
+          psi_source="geometry",
           geometry_type="chease",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=False,
-          expect_warning=False,
+          expect_error=True,
       ),
       dict(
           testcase_name="psi_set_source_profile_conditions_evolve_current_true",
-          initial_psi_source="profile_conditions",
+          psi_source="profile_conditions",
           geometry_type="circular",
           psi={0: {0: 0.0, 1: 1.0}},
           evolve_current=True,
-          expect_warning=False,
+          expect_error=False,
       ),
       dict(
           testcase_name="psi_none_source_j_evolve_current_true",
-          initial_psi_source="j",
+          psi_source="j",
           geometry_type="circular",
           psi=None,
           evolve_current=True,
-          expect_warning=False,
+          expect_error=False,
       ),
   )
-  def test_psi_ignored_warning(
+  def test_psi_with_non_profile_conditions_source_raises_error(
       self,
-      initial_psi_source,
+      psi_source,
       geometry_type,
       psi,
       evolve_current,
-      expect_warning,
+      expect_error,
   ):
     config_dict = default_configs.get_default_config_dict()
     if geometry_type == "chease":
       config_dict["geometry"] = {
-          "geometry_type": "chease",
+          "model_name": "chease",
           "geometry_file": "iterhybrid.mat2cols",
       }
-    config_dict["profile_conditions"]["initial_psi_source"] = initial_psi_source
+    config_dict["profile_conditions"]["psi_source"] = psi_source
     config_dict["profile_conditions"]["psi"] = psi
     config_dict["numerics"]["evolve_current"] = evolve_current
 
-    warning_snippet = "profile_conditions.psi is provided but will be ignored"
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.psi cannot be provided when"
+          f" profile_conditions.psi_source is '{psi_source}'",
+      ):
+        config.ToraxConfig.from_dict(config_dict)
+    else:
+      config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="evolve_false_j_total_false",
+          evolve_current=False,
+          initial_j_is_total_current=False,
+      ),
+      dict(
+          testcase_name="evolve_false_j_total_true",
+          evolve_current=False,
+          initial_j_is_total_current=True,
+      ),
+      dict(
+          testcase_name="evolve_true_j_total_false",
+          evolve_current=True,
+          initial_j_is_total_current=False,
+      ),
+  )
+  def test_initial_j_is_total_current_with_psi_source_j_is_valid(
+      self,
+      evolve_current,
+      initial_j_is_total_current,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["profile_conditions"]["psi_source"] = "j"
+    config_dict["profile_conditions"]["initial_j_is_total_current"] = (
+        initial_j_is_total_current
+    )
+    config_dict["numerics"]["evolve_current"] = evolve_current
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    self.assertEqual(
+        torax_config.profile_conditions.initial_j_is_total_current,
+        initial_j_is_total_current,
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="source_j_evolve_current_false",
+          psi_source="j",
+          evolve_current=False,
+          expect_warning=True,
+      ),
+      dict(
+          testcase_name="source_j_evolve_current_true",
+          psi_source="j",
+          evolve_current=True,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="source_geometry_evolve_current_false",
+          psi_source="geometry",
+          evolve_current=False,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="source_profile_conditions_evolve_current_false",
+          psi_source="profile_conditions",
+          evolve_current=False,
+          expect_warning=False,
+      ),
+  )
+  def test_psi_source_j_evolve_current_false_warning(
+      self,
+      psi_source,
+      evolve_current,
+      expect_warning,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    if psi_source == "geometry":
+      config_dict["geometry"] = {
+          "model_name": "chease",
+          "geometry_file": "iterhybrid.mat2cols",
+      }
+    elif psi_source == "profile_conditions":
+      config_dict["profile_conditions"]["psi"] = {0: {0: 0.0, 1: 1.0}}
+    config_dict["profile_conditions"]["psi_source"] = (
+        psi_source
+    )
+    config_dict["numerics"]["evolve_current"] = evolve_current
+
+    warning_snippet = (
+        "profile_conditions.psi_source='j' does not update psi for"
+        " t > t_initial when numerics.evolve_current is False"
+    )
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
 
   def test_I_p_and_I_p_source_defaults(self):
@@ -498,13 +604,13 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="circular_geometry_raises",
-          geometry={"geometry_type": "circular", "n_rho": 4},
+          geometry={"model_name": "circular", "n_rho": 4},
           expect_error=True,
       ),
       dict(
           testcase_name="chease_geometry_passes",
           geometry={
-              "geometry_type": "chease",
+              "model_name": "chease",
               "geometry_file": "iterhybrid.mat2cols",
           },
           expect_error=False,
@@ -555,7 +661,7 @@ class ConfigTest(parameterized.TestCase):
   def test_I_p_ignored_warning(self, I_p, I_p_source, expect_warning):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     config_dict["profile_conditions"]["I_p_source"] = I_p_source
@@ -584,7 +690,7 @@ class ConfigTest(parameterized.TestCase):
       )
     if use_pedestal:
       config_dict["pedestal"] = {
-          "structure_model": {"model_name": "set_T_ped_n_ped"}
+          "structure_model": {"model_name": "set_T_top_n_top"}
       }
     else:
       config_dict["pedestal"] = {
@@ -612,7 +718,7 @@ class ConfigTest(parameterized.TestCase):
   def test_edge_model_with_circular_geometry_raises_error(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "circular",
+        "model_name": "circular",
         "n_rho": 33,
     }
     config_dict["edge"] = {
@@ -639,7 +745,7 @@ class ConfigTest(parameterized.TestCase):
     L, LY = get_example_L_LY_data.get_example_L_LY_data(10, 1)
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "meq",
+        "model_name": "meq",
         "L_object": L,
         "LY_object": LY,
     }
@@ -674,7 +780,7 @@ class ConfigTest(parameterized.TestCase):
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     config_dict["edge"] = {
@@ -698,7 +804,7 @@ class ConfigTest(parameterized.TestCase):
     """Tests that overlapping fixed and seeded impurities raise an error."""
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     # Inverse mode logic checks that fixed and seed sets are disjoint.
@@ -728,7 +834,7 @@ class ConfigTest(parameterized.TestCase):
     """Tests that mismatched core and edge species raise an error."""
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
     config_dict["edge"] = {
@@ -763,6 +869,7 @@ class ConfigTest(parameterized.TestCase):
         "icrh": {
             "model_name": "scaled_profile",
             "minority_species": minority_species,
+            "P_total": 10e6,
         }
     }
 
@@ -815,7 +922,7 @@ class ConfigTest(parameterized.TestCase):
 
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "eqdsk",
+        "model_name": "eqdsk",
         "cocos": 11,
         "eqdsk_object": eqdsk_obj,
     }
@@ -823,21 +930,15 @@ class ConfigTest(parameterized.TestCase):
     dumped_config_dict = torax_config.model_dump()
 
     torax_config_restored = config.ToraxConfig.from_dict(dumped_config_dict)
+    self.assertIsInstance(torax_config_restored.geometry, eqdsk.EQDSKConfig)
+    assert isinstance(torax_config_restored.geometry, eqdsk.EQDSKConfig)
+    assert torax_config_restored.geometry.eqdsk_data is not None
     self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs, eqdsk.EQDSKConfig
+        torax_config_restored.geometry.eqdsk_data,
+        eqdsk.EQDSKData,
     )
-    assert isinstance(
-        torax_config_restored.geometry.geometry_configs, eqdsk.EQDSKConfig
-    )
-    assert (
-        torax_config_restored.geometry.geometry_configs.eqdsk_object is not None
-    )
-    self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs.eqdsk_object,
-        eqdsk_lib.EQDSKInterface,
-    )
-    provider = torax_config_restored.geometry.build_provider
-    self.assertIsNotNone(provider(0.0))
+    geo = torax_config_restored.geometry.build_runtime_params(0.0).geometry
+    self.assertIsNotNone(geo)
 
 
 class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
@@ -847,7 +948,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     super().setUp()
     self.config_dict = default_configs.get_default_config_dict()
     self.config_dict["geometry"] = {
-        "geometry_type": "chease",
+        "model_name": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
 
@@ -1120,7 +1221,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     }
@@ -1138,7 +1239,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     }

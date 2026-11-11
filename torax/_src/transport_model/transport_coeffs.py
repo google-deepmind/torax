@@ -46,7 +46,7 @@ class TransportCoeffs:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a TransportCoeffs with all zeros."""
+    """Returns a `TransportCoeffs` instance initialized with zeros."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
         chi_face_ion=zeros,
@@ -82,7 +82,18 @@ class TransportCoeffs:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts the 4 standard channels to an OutputVar mapping."""
+    """Packs time-stacked transport coefficients into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from turbulent transport channel names (`chi_turb_i`,
+      `chi_turb_e`, `d_turb_e`, `v_turb_e`) to `(dims, data, attrs)`
+      `OutputVar` tuples on `('time', 'rho_face_norm')` with shape
+      `(n_time, n_rho_face)`.
+    """
     return {
         output_keys.CHI_TURB_I: context.pack(
             output_keys.CHI_TURB_I, self.chi_face_ion
@@ -149,6 +160,7 @@ class TurbulentTransport:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
+    """Returns a `TurbulentTransport` instance initialized with zeros."""
     return cls(
         core=TransportCoeffs.zeros(geo),
         pedestal=TransportCoeffs.zeros(geo),
@@ -160,7 +172,18 @@ class TurbulentTransport:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts turbulent transport outputs to an OutputVar mapping."""
+    """Packs time-stacked turbulent transport into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from combined (`core + pedestal`) turbulent transport channel
+      names (`chi_turb_i`, `chi_turb_e`, `d_turb_e`, `v_turb_e`) to
+      `(dims, data, attrs)` `OutputVar` tuples on `('time', 'rho_face_norm')`
+      with shape `(n_time, n_rho_face)`.
+    """
     return self.total.to_output_dict(context)
 
   def to_xr_datatree(
@@ -206,7 +229,7 @@ class NeoclassicalTransport(TransportCoeffs):
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a NeoclassicalTransport with zero transport coefficients."""
+    """Returns a `NeoclassicalTransport` instance initialized with zeros."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
         chi_face_ion=zeros,
@@ -220,7 +243,18 @@ class NeoclassicalTransport(TransportCoeffs):
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts neoclassical transport outputs to an OutputVar mapping."""
+    """Packs time-stacked neoclassical transport into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from neoclassical transport channel names (`chi_neo_i`,
+      `chi_neo_e`, `d_neo_e`, `v_neo_e`, `v_neo_ware_e`) to
+      `(dims, data, attrs)` `OutputVar` tuples on `('time', 'rho_face_norm')`
+      with shape `(n_time, n_rho_face)`.
+    """
     return {
         output_keys.CHI_NEO_I: context.pack(
             output_keys.CHI_NEO_I, self.chi_face_ion
@@ -252,16 +286,61 @@ class PereverzevTransport(TransportCoeffs):
 
   full_v_heat_face_ion: array_typing.FloatVectorFace
   full_v_heat_face_el: array_typing.FloatVectorFace
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> Self:
+    """Raises an error; PereverzevTransport should not be zero-initialized."""
+    raise NotImplementedError(
+        'PereverzevTransport does not support zeros(); use None when'
+        ' Pereverzev transport is disabled.'
+    )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class CoreTransport:
+  """Composite coefficients for plasma transport.
+
+  Attributes:
+    total: Combined 4-channel net transport coefficients (turbulent +
+      neoclassical + pereverzev).
+    turbulent: Turbulent transport output containing total and per-model
+      outputs.
+    neoclassical: Neoclassical transport output.
+    pereverzev: Pereverzev-Corrigan transport output.
+  """
+
+  total: TransportCoeffs
+  turbulent: TurbulentTransport
+  neoclassical: NeoclassicalTransport
+  pereverzev: PereverzevTransport | None = None
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a PereverzevTransport with zero transport coefficients."""
-    zeros = jnp.zeros_like(geo.rho_face_norm)
+    """Returns a CoreTransport with all zeros, used for initializing."""
     return cls(
-        chi_face_ion=zeros,
-        chi_face_el=zeros,
-        d_face_el=zeros,
-        v_face_el=zeros,
-        full_v_heat_face_ion=zeros,
-        full_v_heat_face_el=zeros,
+        total=TransportCoeffs.zeros(geo),
+        turbulent=TurbulentTransport.zeros(geo),
+        neoclassical=NeoclassicalTransport.zeros(geo),
+        pereverzev=None,
     )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Packs time-stacked core transport outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from turbulent and neoclassical transport channel names
+      (`chi_turb_*`, `d_turb_e`, `v_turb_e`, `chi_neo_*`, `d_neo_e`,
+      `v_neo_e`, `v_neo_ware_e`) to `(dims, data, attrs)` `OutputVar` tuples
+      on `('time', 'rho_face_norm')` with shape `(n_time, n_rho_face)`.
+    """
+    return {
+        **self.turbulent.to_output_dict(context),
+        **self.neoclassical.to_output_dict(context),
+    }

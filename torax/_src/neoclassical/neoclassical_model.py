@@ -17,9 +17,10 @@
 
 import abc
 import dataclasses
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
@@ -28,6 +29,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
 from torax._src.neoclassical.transport import base as transport_base
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
@@ -49,24 +51,45 @@ class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> tuple[
-      conductivity_base.Conductivity,
+      core_profiles_lib.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
       poloidal_velocity_base.PoloidalVelocity,
       neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ]:
-    """Calculates current, poloidal velocity, and intermediates."""
+    """Calculates current, poloidal velocity, and intermediates.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+
+    Returns:
+      Tuple of (`Conductivity`, `BootstrapCurrent`, `PoloidalVelocity`,
+      `NeoclassicalIntermediates`).
+    """
 
   @abc.abstractmethod
   def calculate_transport(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
-    """Calculates neoclassical transport coefficients."""
+    """Calculates neoclassical transport coefficients.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+      intermediates: Precomputed neoclassical intermediate quantities.
+
+    Returns:
+      Computed `NeoclassicalTransport` coefficients.
+    """
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -87,9 +110,10 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> tuple[
-      conductivity_base.Conductivity,
+      core_profiles_lib.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
       poloidal_velocity_base.PoloidalVelocity,
       formulas.AnalyticalNeoclassicalIntermediates,
@@ -101,24 +125,25 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
     )
     analytical_params = runtime_params.neoclassical
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+        geo, solver_profiles, fast_ions=fast_ions
     )
     conductivity = self.conductivity.calculate_conductivity(
         analytical_params.conductivity,
         geo,
-        core_profiles,
+        solver_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
     bootstrap_current = self.bootstrap_current.calculate_bootstrap_current(
         analytical_params.bootstrap_current,
         geo,
-        core_profiles,
+        solver_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
+        fast_ions=fast_ions,
     )
     poloidal_velocity = self.poloidal_velocity.calculate_poloidal_velocity(
         analytical_params.poloidal_velocity,
         geo,
-        core_profiles,
+        solver_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
     return (
@@ -132,7 +157,7 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       intermediates: neoclassical_intermediates_lib.NeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients."""

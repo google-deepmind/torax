@@ -21,6 +21,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax._src.output_tools import output_grid_context
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
@@ -30,9 +31,9 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import source_helpers
 from torax._src.torax_pydantic import config as torax_pydantic_config
 
 # pylint: disable=invalid-name,protected-access
@@ -57,11 +58,11 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         },
         'transition_time_width': _TRANSITION_WIDTH,
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 4.5,
-            'T_e_ped': 4.5,
-            'n_e_ped': 0.62e20,
-            'rho_norm_ped_top': 0.9,
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 4.5,
+            'T_e_top': 4.5,
+            'n_e_top': 0.62e20,
+            'rho_norm_top': 0.9,
         },
     }
     config['sources'] = {
@@ -88,14 +89,11 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(self.runtime_params)
-    self.source_profiles, _ = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     self.formation_state = (
         self.pedestal_model.formation_model.initial_state(
@@ -112,20 +110,20 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       self,
       confinement_mode: ConfinementMode,
       transition_start_time: float = -jnp.inf,
-      T_i_ped_L_mode: float = 0.5,
-      T_e_ped_L_mode: float = 0.4,
-      n_e_ped_L_mode: float = 0.5e19,
-      rho_norm_ped_top: float = 0.9,
+      T_i_top_L_mode: float = 0.5,
+      T_e_top_L_mode: float = 0.4,
+      n_e_top_L_mode: float = 0.5e19,
+      rho_norm_top: float = 0.9,
   ) -> pedestal_state_lib.IBCPedestalState:
     return pedestal_state_lib.IBCPedestalState(
         structure=self.structure_state,
         formation=self.formation_state,
         confinement_mode=jnp.array(confinement_mode),
         transition_start_time=jnp.array(transition_start_time),
-        T_i_ped_L_mode=jnp.array(T_i_ped_L_mode),
-        T_e_ped_L_mode=jnp.array(T_e_ped_L_mode),
-        n_e_ped_L_mode=jnp.array(n_e_ped_L_mode),
-        rho_norm_ped_top=jnp.array(rho_norm_ped_top),
+        T_i_top_L_mode=jnp.array(T_i_top_L_mode),
+        T_e_top_L_mode=jnp.array(T_e_top_L_mode),
+        n_e_top_L_mode=jnp.array(n_e_top_L_mode),
+        rho_norm_top=jnp.array(rho_norm_top),
     )
 
   def _call_pre_step(
@@ -163,8 +161,8 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       )
 
   def test_initialize_structure_state_threading(self):
-    ped_top_idx = -3
-    rho_norm_ped_top = self.geo.rho_norm[ped_top_idx]
+    top_idx = -3
+    rho_norm_top = self.geo.rho_norm[top_idx]
     init_struct_state = pedestal_state_lib.StructureState()
     updated_struct_state = pedestal_state_lib.StructureState()
     structure_cls = type(self.pedestal_model.structure_model)
@@ -179,10 +177,10 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         autospec=True,
         return_value=(
             pedestal_structure.PedestalStructure(
-                rho_norm_ped_top=rho_norm_ped_top,
-                T_i_ped=6.0,
-                T_e_ped=6.0,
-                n_e_ped=jnp.array(0.7e20),
+                rho_norm_top=rho_norm_top,
+                T_i_top=6.0,
+                T_e_top=6.0,
+                n_e_top=jnp.array(0.7e20),
             ),
             updated_struct_state,
         ),
@@ -201,11 +199,11 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         init_struct_state,
     )
     self.assertIs(init_state.structure, updated_struct_state)
-    np.testing.assert_allclose(init_output.rho_norm_ped_top, rho_norm_ped_top)
-    np.testing.assert_allclose(init_state.rho_norm_ped_top, rho_norm_ped_top)
+    np.testing.assert_allclose(init_output.rho_norm_top, rho_norm_top)
+    np.testing.assert_allclose(init_state.rho_norm_top, rho_norm_top)
     np.testing.assert_allclose(
-        init_output.structure.T_i_ped,
-        self.core_profiles.T_i.value[ped_top_idx],
+        init_output.structure.T_i_top,
+        self.core_profiles.kinetic.T_i.value[top_idx],
     )
 
   @parameterized.named_parameters(
@@ -266,20 +264,20 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.assertEqual(init_output.confinement_mode, expected_confinement_mode)
     self.assertEqual(init_state.confinement_mode, expected_confinement_mode)
     if use_profile_values:
-      ped_top_idx = jnp.argmin(
-          jnp.abs(self.geo.rho_norm - init_output.rho_norm_ped_top)
+      top_idx = jnp.argmin(
+          jnp.abs(self.geo.rho_norm - init_output.rho_norm_top)
       )
-      expected_T_i = self.core_profiles.T_i.value[ped_top_idx]
-      expected_T_e = self.core_profiles.T_e.value[ped_top_idx]
-      expected_n_e = self.core_profiles.n_e.value[ped_top_idx]
+      expected_T_i = self.core_profiles.kinetic.T_i.value[top_idx]
+      expected_T_e = self.core_profiles.kinetic.T_e.value[top_idx]
+      expected_n_e = self.core_profiles.kinetic.n_e.value[top_idx]
     else:
       mult = 2.0 if custom_bc_multiplier is None else custom_bc_multiplier
-      expected_T_i = mult * self.core_profiles.T_i.face_value()[-1]
-      expected_T_e = mult * self.core_profiles.T_e.face_value()[-1]
-      expected_n_e = mult * self.core_profiles.n_e.face_value()[-1]
-    np.testing.assert_allclose(init_state.T_i_ped_L_mode, expected_T_i)
-    np.testing.assert_allclose(init_state.T_e_ped_L_mode, expected_T_e)
-    np.testing.assert_allclose(init_state.n_e_ped_L_mode, expected_n_e)
+      expected_T_i = mult * self.core_profiles.kinetic.T_i.right_face_value[0]
+      expected_T_e = mult * self.core_profiles.kinetic.T_e.right_face_value[0]
+      expected_n_e = mult * self.core_profiles.kinetic.n_e.right_face_value[0]
+    np.testing.assert_allclose(init_state.T_i_top_L_mode, expected_T_i)
+    np.testing.assert_allclose(init_state.T_e_top_L_mode, expected_T_e)
+    np.testing.assert_allclose(init_state.n_e_top_L_mode, expected_n_e)
 
   @parameterized.named_parameters(
       dict(
@@ -469,27 +467,27 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     )
 
   def test_L_to_H_captures_L_mode_values(self):
-    ped_top_idx = -2
-    rho_norm_ped_top = float(self.geo.rho_norm[ped_top_idx])
+    top_idx = -2
+    rho_norm_top = float(self.geo.rho_norm[top_idx])
     state = self._make_ibc_state(
         ConfinementMode.L_MODE,
-        T_i_ped_L_mode=0.0,
-        T_e_ped_L_mode=0.0,
-        n_e_ped_L_mode=0.0,
-        rho_norm_ped_top=rho_norm_ped_top,
+        T_i_top_L_mode=0.0,
+        T_e_top_L_mode=0.0,
+        n_e_top_L_mode=0.0,
+        rho_norm_top=rho_norm_top,
     )
     new_state, _ = self._call_pre_step(state, P_SOL=_P_LH * 1.5)
     np.testing.assert_allclose(
-        new_state.T_i_ped_L_mode,
-        self.core_profiles.T_i.value[ped_top_idx],
+        new_state.T_i_top_L_mode,
+        self.core_profiles.kinetic.T_i.value[top_idx],
     )
     np.testing.assert_allclose(
-        new_state.T_e_ped_L_mode,
-        self.core_profiles.T_e.value[ped_top_idx],
+        new_state.T_e_top_L_mode,
+        self.core_profiles.kinetic.T_e.value[top_idx],
     )
     np.testing.assert_allclose(
-        new_state.n_e_ped_L_mode,
-        self.core_profiles.n_e.value[ped_top_idx],
+        new_state.n_e_top_L_mode,
+        self.core_profiles.kinetic.n_e.value[top_idx],
     )
 
   def test_non_L_to_H_preserves_L_mode_values(self):
@@ -499,20 +497,20 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     original_n_e = 0.5e19
     state = self._make_ibc_state(
         ConfinementMode.H_MODE,
-        T_i_ped_L_mode=original_T_i,
-        T_e_ped_L_mode=original_T_e,
-        n_e_ped_L_mode=original_n_e,
+        T_i_top_L_mode=original_T_i,
+        T_e_top_L_mode=original_T_e,
+        n_e_top_L_mode=original_n_e,
     )
     new_state, _ = self._call_pre_step(
         state, P_SOL=_P_LH * _HYSTERESIS * 0.5
     )
-    np.testing.assert_allclose(new_state.T_i_ped_L_mode, original_T_i)
-    np.testing.assert_allclose(new_state.T_e_ped_L_mode, original_T_e)
-    np.testing.assert_allclose(new_state.n_e_ped_L_mode, original_n_e)
+    np.testing.assert_allclose(new_state.T_i_top_L_mode, original_T_i)
+    np.testing.assert_allclose(new_state.T_e_top_L_mode, original_T_e)
+    np.testing.assert_allclose(new_state.n_e_top_L_mode, original_n_e)
 
   def test_zero_transition_time_width_steps_directly(self):
-    ped_top_idx = -2
-    rho_norm_ped_top = float(self.geo.rho_norm[ped_top_idx])
+    top_idx = -2
+    rho_norm_top = float(self.geo.rho_norm[top_idx])
     zero_width_pedestal = dataclasses.replace(
         self.runtime_params.pedestal, transition_time_width=jnp.array(0.0)
     )
@@ -521,10 +519,10 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     )
     state = self._make_ibc_state(
         ConfinementMode.L_MODE,
-        T_i_ped_L_mode=0.0,
-        T_e_ped_L_mode=0.0,
-        n_e_ped_L_mode=0.0,
-        rho_norm_ped_top=rho_norm_ped_top,
+        T_i_top_L_mode=0.0,
+        T_e_top_L_mode=0.0,
+        n_e_top_L_mode=0.0,
+        rho_norm_top=rho_norm_top,
     )
     with mock.patch.object(
         power_scaling_formation_model,
@@ -544,8 +542,8 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       )
     self.assertEqual(h_state.confinement_mode, ConfinementMode.H_MODE)
     np.testing.assert_allclose(
-        h_state.T_i_ped_L_mode,
-        self.core_profiles.T_i.value[ped_top_idx],
+        h_state.T_i_top_L_mode,
+        self.core_profiles.kinetic.T_i.value[top_idx],
     )
 
   @parameterized.named_parameters(
@@ -607,16 +605,16 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.assertIsInstance(
         explicit, pedestal_structure.PedestalStructure
     )
-    np.testing.assert_allclose(explicit.T_i_ped, 4.5)
+    np.testing.assert_allclose(explicit.T_i_top, 4.5)
     self.assertEqual(new_state.structure, state.structure)
 
   def test_call_skips_structure_model_when_explicit_provided(self):
     state = self._make_ibc_state(ConfinementMode.H_MODE)
     explicit_struct = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=jnp.array(0.88),
-        T_i_ped=jnp.array(5.5),
-        T_e_ped=jnp.array(5.5),
-        n_e_ped=jnp.array(0.8e20),
+        rho_norm_top=jnp.array(0.88),
+        T_i_top=jnp.array(5.5),
+        T_e_top=jnp.array(5.5),
+        n_e_top=jnp.array(0.8e20),
     )
     structure_cls = type(self.pedestal_model.structure_model)
     with mock.patch.object(
@@ -631,17 +629,17 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
           explicit_pedestal_structure=explicit_struct,
       )
       self.assertEqual(mock_struct_call.call_count, 0)
-    np.testing.assert_allclose(out.structure.T_i_ped, 5.5)
+    np.testing.assert_allclose(out.structure.T_i_top, 5.5)
     self.assertEqual(updated_state.structure, state.structure)
-    np.testing.assert_allclose(updated_state.rho_norm_ped_top, 0.88)
+    np.testing.assert_allclose(updated_state.rho_norm_top, 0.88)
 
   def test_call_without_explicit_pedestal(self):
     state = self._make_ibc_state(
         ConfinementMode.TRANSITIONING_TO_H_MODE,
         transition_start_time=1.0,
-        T_i_ped_L_mode=0.5,
-        T_e_ped_L_mode=0.4,
-        n_e_ped_L_mode=0.5e19,
+        T_i_top_L_mode=0.5,
+        T_e_top_L_mode=0.4,
+        n_e_top_L_mode=0.5e19,
     )
     t = 1.0 + 0.5 * _TRANSITION_WIDTH
     runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(t))
@@ -674,12 +672,12 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.assertEqual(
         out.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
     )
-    np.testing.assert_allclose(out.rho_norm_ped_top, 0.9)
-    np.testing.assert_allclose(updated_state.rho_norm_ped_top, 0.9)
-    np.testing.assert_allclose(out.structure.T_i_ped, 0.5 + 0.5 * (4.5 - 0.5))
-    np.testing.assert_allclose(out.structure.T_e_ped, 0.4 + 0.5 * (4.5 - 0.4))
+    np.testing.assert_allclose(out.rho_norm_top, 0.9)
+    np.testing.assert_allclose(updated_state.rho_norm_top, 0.9)
+    np.testing.assert_allclose(out.structure.T_i_top, 0.5 + 0.5 * (4.5 - 0.5))
+    np.testing.assert_allclose(out.structure.T_e_top, 0.4 + 0.5 * (4.5 - 0.4))
     np.testing.assert_allclose(
-        out.structure.n_e_ped, 0.5e19 + 0.5 * (0.62e20 - 0.5e19)
+        out.structure.n_e_top, 0.5e19 + 0.5 * (0.62e20 - 0.5e19)
     )
     assert isinstance(
         updated_state.formation,
@@ -687,6 +685,71 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     )
     assert updated_state.formation.t is not None
     np.testing.assert_allclose(updated_state.formation.t, t)
+
+  def test_ibc_pedestal_state_round_trip(self):
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=self.geo.rho_face_norm,
+        rho_cell_norm=self.geo.rho_norm,
+        rho_cell_plus_boundaries_norm=self.geo.rho_norm,
+    )
+    _, initial_ibc_state = self.pedestal_model.initialize(
+        self.runtime_params, self.geo, self.core_profiles, self.source_profiles
+    )
+    tree = initial_ibc_state.to_xr_datatree(context)
+    assert tree is not None
+    slice_tree = tree.sel(time=0.0, method='nearest')
+    restored = self.pedestal_model.initial_state_from_datatree(
+        slice_tree,
+        self.runtime_params,
+    )
+    self.assertEqual(
+        restored.confinement_mode, initial_ibc_state.confinement_mode
+    )
+    self.assertTrue(jnp.isneginf(restored.transition_start_time))
+    np.testing.assert_allclose(
+        restored.rho_norm_top, initial_ibc_state.rho_norm_top
+    )
+    np.testing.assert_allclose(
+        restored.T_i_top_L_mode, initial_ibc_state.T_i_top_L_mode
+    )
+    np.testing.assert_allclose(
+        restored.T_e_top_L_mode, initial_ibc_state.T_e_top_L_mode
+    )
+    np.testing.assert_allclose(
+        restored.n_e_top_L_mode, initial_ibc_state.n_e_top_L_mode
+    )
+
+    mid_state = self._make_ibc_state(
+        confinement_mode=ConfinementMode.TRANSITIONING_TO_H_MODE,
+        transition_start_time=1.5,
+        T_i_top_L_mode=1.2,
+        T_e_top_L_mode=1.1,
+        n_e_top_L_mode=2.5e19,
+        rho_norm_top=0.92,
+    )
+    tree_mid = mid_state.to_xr_datatree(context)
+    assert tree_mid is not None
+    slice_mid = tree_mid.sel(time=0.0, method='nearest')
+    restored_mid = self.pedestal_model.initial_state_from_datatree(
+        slice_mid,
+        self.runtime_params,
+    )
+    self.assertEqual(
+        restored_mid.confinement_mode,
+        ConfinementMode.TRANSITIONING_TO_H_MODE,
+    )
+    np.testing.assert_allclose(restored_mid.transition_start_time, 1.5)
+    np.testing.assert_allclose(restored_mid.T_i_top_L_mode, 1.2)
+    np.testing.assert_allclose(restored_mid.T_e_top_L_mode, 1.1)
+    np.testing.assert_allclose(restored_mid.n_e_top_L_mode, 2.5e19)
+    np.testing.assert_allclose(restored_mid.rho_norm_top, 0.92)
+
+  def test_ibc_pedestal_state_none_datatree_raises(self):
+    with self.assertRaises(ValueError):
+      self.pedestal_model.initial_state_from_datatree(
+          None, self.runtime_params
+      )
 
 
 class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
@@ -696,7 +759,7 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
+        'structure_model': {'model_name': 'set_T_top_n_top'},
         'mode': 'adaptive_transport',
         'formation_model': {
             'model_name': 'martin_scaling',
@@ -728,14 +791,11 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(self.runtime_params)
-    self.source_profiles, _ = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     self.formation_state = (
         self.pedestal_model.formation_model.initial_state(
@@ -880,10 +940,10 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
   def test_call_with_explicit_pedestal(self):
     state = self._make_adaptive_state(ConfinementMode.H_MODE)
     explicit_struct = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=jnp.array(0.9),
-        T_i_ped=jnp.array(5.0),
-        T_e_ped=jnp.array(5.0),
-        n_e_ped=jnp.array(0.7e20),
+        rho_norm_top=jnp.array(0.9),
+        T_i_top=jnp.array(5.0),
+        T_e_top=jnp.array(5.0),
+        n_e_top=jnp.array(0.7e20),
     )
     structure_cls = type(self.pedestal_model.structure_model)
     with mock.patch.object(
@@ -899,7 +959,7 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
       )
       self.assertEqual(mock_struct_call.call_count, 0)
     self.assertEqual(call_out.confinement_mode, ConfinementMode.H_MODE)
-    np.testing.assert_allclose(call_out.structure.T_i_ped, 5.0)
+    np.testing.assert_allclose(call_out.structure.T_i_top, 5.0)
     self.assertEqual(call_state.structure, state.structure)
 
   def test_call_without_explicit_pedestal(self):
@@ -947,6 +1007,31 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     np.testing.assert_allclose(
         state_implicit.formation.t, self.runtime_params.t
     )
+
+  def test_adaptive_transport_pedestal_state_round_trip(self):
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=self.geo.rho_face_norm,
+        rho_cell_norm=self.geo.rho_norm,
+        rho_cell_plus_boundaries_norm=self.geo.rho_norm,
+    )
+    adaptive_state = self._make_adaptive_state(
+        confinement_mode=ConfinementMode.H_MODE
+    )
+    tree = adaptive_state.to_xr_datatree(context)
+    assert tree is not None
+    slice_tree = tree.sel(time=0.0, method='nearest')
+    restored = self.pedestal_model.initial_state_from_datatree(
+        slice_tree,
+        self.runtime_params,
+    )
+    self.assertEqual(restored.confinement_mode, ConfinementMode.H_MODE)
+
+  def test_adaptive_transport_pedestal_state_none_datatree_raises(self):
+    with self.assertRaises(ValueError):
+      self.pedestal_model.initial_state_from_datatree(
+          None, self.runtime_params
+      )
 
 
 if __name__ == '__main__':

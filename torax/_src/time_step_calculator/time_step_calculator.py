@@ -30,15 +30,15 @@ class TimeStepCalculator(abc.ABC):
 
   Usage follows this pattern:
 
-  .. code-block: python
-
-    ts = <TimeStepCalculator subclass constructor>
-    ts_state = ts.initial_state()
-    t = 0.
-    while not ts.is_done(t):
-      dt, ts_state = ts.next_dt(geo, time_step_calculator_state)
-      t += dt
-      sim_state = <update sim_state with step of size dt>
+  ```
+  ts = <TimeStepCalculator subclass constructor>
+  ts_state = ts.initial_state()
+  t = 0.
+  while not ts.is_done(t):
+    dt, ts_state = ts.next_dt(geo, time_step_calculator_state)
+    t += dt
+    sim_state = <update sim_state with step of size dt>
+  ```
   """
 
   def initial_state(

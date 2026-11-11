@@ -22,9 +22,10 @@ import scipy
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import model_state as model_state_lib
-from torax._src import state
+from torax._src.geometry import geometry_state
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
@@ -32,12 +33,14 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.solver import solver_numeric_outputs
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import config
+from torax._src.transport_model import transport_coeffs
 
 # pylint: disable=invalid-name
 
@@ -55,31 +58,44 @@ class PostProcessingTest(parameterized.TestCase):
     )
     # Make some dummy source profiles.
     ones = np.ones_like(self.geo.rho)
-    self.source_profiles = source_profiles_lib.SourceProfiles(
+    self.source_profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        T_i={
-            'fusion': ones,  # pyrefly: ignore[bad-assignment]
-            'generic_heat': 2 * ones,  # pyrefly: ignore[bad-assignment]
-            'icrh': 3 * ones,  # pyrefly: ignore[bad-assignment]
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
+        sources={
+            'fusion': core_sources_lib.SourceOutput(
+                power_density_i=ones,
+                power_density_e=ones,
+            ),
+            'generic_heat': core_sources_lib.SourceOutput(
+                power_density_i=2 * ones,
+                power_density_e=3 * ones,
+            ),
+            'icrh': core_sources_lib.SourceOutput(
+                power_density_i=3 * ones,
+                power_density_e=1.5 * ones,
+            ),
+            'bremsstrahlung': core_sources_lib.SourceOutput(
+                power_density_e=-ones,
+            ),
+            'cyclotron_radiation': core_sources_lib.SourceOutput(
+                power_density_e=-2 * ones,
+            ),
+            'impurity_radiation': core_sources_lib.SourceOutput(
+                power_density_e=-3 * ones,
+            ),
+            'ohmic': core_sources_lib.SourceOutput(
+                power_density_e=5 * ones,
+            ),
+            'ecrh': core_sources_lib.SourceOutput(
+                power_density_e=7 * ones,
+                j_parallel=2 * ones,
+            ),
+            'generic_current': core_sources_lib.SourceOutput(
+                j_parallel=2 * ones,
+            ),
         },
-        T_e={
-            'bremsstrahlung': -ones,  # pyrefly: ignore[bad-assignment]
-            'cyclotron_radiation': -2 * ones,  # pyrefly: ignore[bad-assignment]
-            'impurity_radiation': -3 * ones,  # pyrefly: ignore[bad-assignment]
-            'ohmic': 5 * ones,  # pyrefly: ignore[bad-assignment]
-            'fusion': ones,  # pyrefly: ignore[bad-assignment]
-            'generic_heat': 3 * ones,  # pyrefly: ignore[bad-assignment]
-            'ecrh': 7 * ones,  # pyrefly: ignore[bad-assignment]
-            'icrh': 1.5 * ones,  # pyrefly: ignore[bad-assignment]
-        },
-        psi={
-            'generic_current': 2 * ones,  # pyrefly: ignore[bad-assignment]
-            'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
-        },
-        n_e={},
     )
 
   def test_calculate_integrated_sources(self):
@@ -95,9 +111,9 @@ class PostProcessingTest(parameterized.TestCase):
     expected_keys = {
         'P_ei_exchange_i',
         'P_ei_exchange_e',
-        'P_aux_generic_i',
-        'P_aux_generic_e',
-        'P_aux_generic_total',
+        'P_generic_heat_i',
+        'P_generic_heat_e',
+        'P_generic_heat_total',
         'P_alpha_i',
         'P_alpha_e',
         'P_alpha_total',
@@ -109,8 +125,11 @@ class PostProcessingTest(parameterized.TestCase):
         'P_icrh_i',
         'P_icrh_e',
         'P_icrh_total',
-        'P_radiation_e',
-        'P_cyclotron_e',
+        'P_nbi_i',
+        'P_nbi_e',
+        'P_nbi_total',
+        'P_impurity_radiation_e',
+        'P_cyclotron_radiation_e',
         'P_heat_i',
         'P_heat_e',
         'P_heat_total',
@@ -119,10 +138,12 @@ class PostProcessingTest(parameterized.TestCase):
         'P_aux_total',
         'P_external_injected',
         'I_ecrh',
-        'I_aux_generic',
+        'I_generic_current',
+        'I_nbi',
         'S_gas_puff',
         'S_pellet',
         'S_generic_particle',
+        'S_nbi',
         'S_total',
     }
 
@@ -133,7 +154,7 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check sums of electron and ion heating.
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_i']
+        integrated_sources['P_generic_heat_i']
         + integrated_sources['P_icrh_i']
         + integrated_sources['P_alpha_i']
         + integrated_sources['P_ei_exchange_i'],
@@ -141,11 +162,11 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_e']
+        integrated_sources['P_generic_heat_e']
         + integrated_sources['P_ohmic_e']
         + integrated_sources['P_bremsstrahlung_e']
-        + integrated_sources['P_cyclotron_e']
-        + integrated_sources['P_radiation_e']
+        + integrated_sources['P_cyclotron_radiation_e']
+        + integrated_sources['P_impurity_radiation_e']
         + integrated_sources['P_ecrh_e']
         + integrated_sources['P_icrh_e']
         + integrated_sources['P_alpha_e']
@@ -166,8 +187,8 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         integrated_sources['P_aux_total']
         + integrated_sources['P_bremsstrahlung_e']
-        + integrated_sources['P_cyclotron_e']
-        + integrated_sources['P_radiation_e']
+        + integrated_sources['P_cyclotron_radiation_e']
+        + integrated_sources['P_impurity_radiation_e']
         + integrated_sources['P_ohmic_e']
         + integrated_sources['P_alpha_total'],
         integrated_sources['P_heat_total'],
@@ -175,13 +196,13 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check expected values.
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_i'], 2 * volume
+        integrated_sources['P_generic_heat_i'], 2 * volume
     )
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_e'], 3 * volume
+        integrated_sources['P_generic_heat_e'], 3 * volume
     )
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_total'], 5 * volume
+        integrated_sources['P_generic_heat_total'], 5 * volume
     )
     np.testing.assert_allclose(
         integrated_sources['P_alpha_i'],
@@ -201,11 +222,11 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
   def test_zero_sources_do_not_make_nans(self):
-    source_profiles = source_profiles_lib.SourceProfiles(
+    source_profiles = core_sources_lib.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
     )
     _, pedestal_state = self.models.pedestal_model.initialize(
         self.runtime_params,
@@ -217,10 +238,10 @@ class PostProcessingTest(parameterized.TestCase):
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
         core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
+        core_transport=transport_coeffs.CoreTransport.zeros(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=np.array(0, jax_utils.get_int_dtype()),
             outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
@@ -234,6 +255,7 @@ class PostProcessingTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
@@ -251,7 +273,7 @@ class PostProcessingTest(parameterized.TestCase):
         ),
     )
     self.assertEqual(
-        post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR
+        post_processed_outputs.check_for_errors(), sim_error.SimError.NO_ERROR
     )
 
   def test_current_outputs(self):
@@ -282,10 +304,10 @@ class PostProcessingTest(parameterized.TestCase):
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
         core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
+        core_transport=transport_coeffs.CoreTransport.zeros(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=np.array(0, jax_utils.get_int_dtype()),
             outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
@@ -299,6 +321,7 @@ class PostProcessingTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
             pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
@@ -344,8 +367,8 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check fraction
     # f_non_inductive = I_non_inductive / I_p
-    # I_p comes from core_profiles.I_p_profile_face[-1]
-    I_p = self.core_profiles.I_p_profile_face[-1]
+    # I_p comes from core_profiles.poloidal_flux.I_p_profile_face[-1]
+    I_p = self.core_profiles.poloidal_flux.I_p_profile_face[-1]
     # Code uses eps=1e-7 for division guard
     np.testing.assert_allclose(
         outputs.f_non_inductive,
@@ -362,6 +385,79 @@ class PostProcessingTest(parameterized.TestCase):
         math_utils.safe_divide(num=outputs.I_bootstrap, denom=I_p, eps=1e-7),
         rtol=1e-5,
     )
+
+  def test_nbi_outputs(self):
+    """Checks calculation of NBI heat, current, and particle outputs."""
+    ones = np.ones_like(self.geo.rho)
+    source_profiles = core_sources_lib.CoreSources(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
+            self.geo
+        ),
+        qei=core_sources_lib.QeiInfo.zeros(self.geo),
+        sources={
+            'nbi': core_sources_lib.SourceOutput(
+                power_density_i=2.0 * ones,
+                power_density_e=3.0 * ones,
+                j_parallel=4.0 * ones,
+                particle_source_e=5.0 * ones,
+            )
+        },
+    )
+    _, pedestal_state = self.models.pedestal_model.initialize(
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        source_profiles,
+    )
+    input_state = sim_state.SimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=transport_coeffs.CoreTransport.zeros(self.geo),
+        core_sources=source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
+        pedestal_output=(
+            pedestal_model_output_lib.IBCPedestalModelOutput.empty()
+        ),
+        model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
+            pedestal=pedestal_state,
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
+    )
+    outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
+    )
+    volume = np.sum(self.geo.vpr * self.geo.drho_norm)
+    np.testing.assert_allclose(outputs.P_nbi_i, 2.0 * volume)
+    np.testing.assert_allclose(outputs.P_nbi_e, 3.0 * volume)
+    np.testing.assert_allclose(outputs.P_nbi_total, 5.0 * volume)
+    np.testing.assert_allclose(outputs.P_aux_total, 5.0 * volume)
+    np.testing.assert_allclose(outputs.S_nbi, 5.0 * volume)
+    np.testing.assert_allclose(outputs.S_total, 5.0 * volume)
+    np.testing.assert_allclose(
+        outputs.j_toroidal_nbi, outputs.j_toroidal_external
+    )
+    np.testing.assert_allclose(outputs.I_nbi, outputs.I_external)
 
   def test_to_output_dict(self):
     """Tests that to_output_dict produces the expected OutputVar mappings."""

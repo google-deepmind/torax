@@ -16,6 +16,7 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -26,10 +27,11 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import circular_geometry
+from torax._src.geometry import runtime_params as geometry_runtime_params
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import config as pedestal_config
 from torax._src.pedestal_model.formation import prescribed_formation_model
-from torax._src.pedestal_model.structure import set_tped_nped
+from torax._src.pedestal_model.structure import set_ttop_ntop
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_1d
@@ -41,9 +43,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._torax_mesh = torax_pydantic.Grid1D(
-        face_centers=interpolated_param_2d.get_face_centers(nx=4),
-    )
+    self._grid = torax_pydantic.Grid1D.uniform_from_n_rho(4)
 
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params provider is time dependent."""
@@ -51,7 +51,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'T_i_right_bc': {0.0: 2.0, 4.0: 4.0},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -74,12 +74,12 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         T_i_right_bc={0.0: 2.0, 4.0: 4.0},
         T_e_right_bc=4.5,  # not time-dependent.
         n_e_right_bc=({5.0: 6.0e20, 7.0: 8.0e20}, 'step'),
     )
-    torax_pydantic.set_grid(profile_conditions, self._torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self._grid)
     np.testing.assert_allclose(
         profile_conditions.build_runtime_params(
             t=2.0,
@@ -104,11 +104,11 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     pedestal = pedestal_config.PedestalConfig.from_dict(
         dict(
             structure_model=dict(
-                model_name='set_T_ped_n_ped',
-                T_i_ped={0.0: 0.5, 1.0: 1.0},
-                T_e_ped={0.0: 1.0, 1.0: 2.0},
-                n_e_ped={0.0: 2.0e20, 1.0: 3.0e20},
-                rho_norm_ped_top={0.0: 0.85, 1.0: 0.95},
+                model_name='set_T_top_n_top',
+                T_i_top={0.0: 0.5, 1.0: 1.0},
+                T_e_top={0.0: 1.0, 1.0: 2.0},
+                n_e_top={0.0: 2.0e20, 1.0: 3.0e20},
+                rho_norm_top={0.0: 0.85, 1.0: 0.95},
             ),
             formation_model=dict(
                 model_name='prescribed',
@@ -119,31 +119,31 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     # Check at time 0.
 
     pedestal_params = pedestal.build_runtime_params(t=0.0)
-    assert isinstance(pedestal_params.structure, set_tped_nped.RuntimeParams)
+    assert isinstance(pedestal_params.structure, set_ttop_ntop.RuntimeParams)
     assert isinstance(
         pedestal_params.formation,
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     )
     np.testing.assert_allclose(pedestal_params.formation.pedestal_active, True)
-    np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 0.5)
-    np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 1.0)
-    np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 2.0e20)
+    np.testing.assert_allclose(pedestal_params.structure.T_i_top, 0.5)
+    np.testing.assert_allclose(pedestal_params.structure.T_e_top, 1.0)
+    np.testing.assert_allclose(pedestal_params.structure.n_e_top, 2.0e20)
     np.testing.assert_allclose(
-        pedestal_params.structure.rho_norm_ped_top, 0.85
+        pedestal_params.structure.rho_norm_top, 0.85
     )
     # And check after the time limit.
     pedestal_params = pedestal.build_runtime_params(t=1.5)
-    assert isinstance(pedestal_params.structure, set_tped_nped.RuntimeParams)
+    assert isinstance(pedestal_params.structure, set_ttop_ntop.RuntimeParams)
     assert isinstance(
         pedestal_params.formation,
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     )
     np.testing.assert_allclose(pedestal_params.formation.pedestal_active, False)
-    np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 1.0)
-    np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 2.0)
-    np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 3.0e20)
+    np.testing.assert_allclose(pedestal_params.structure.T_i_top, 1.0)
+    np.testing.assert_allclose(pedestal_params.structure.T_e_top, 2.0)
+    np.testing.assert_allclose(pedestal_params.structure.n_e_top, 3.0e20)
     np.testing.assert_allclose(
-        pedestal_params.structure.rho_norm_ped_top, 0.95
+        pedestal_params.structure.rho_norm_top, 0.95
     )
 
   @parameterized.parameters(
@@ -204,15 +204,14 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     temperatures = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         var_name: var,
         boundary_var_name: var_boundary_condition,
     }
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         temperatures
     )
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
-    torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
+    torax_pydantic.set_grid(profile_conditions, self._grid)
     profile_condition_params = profile_conditions.build_runtime_params(t=0.0)
 
     np.testing.assert_allclose(
@@ -228,11 +227,11 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
           None,
           1.0,
       ],
-      n_e_right_bc_is_fGW=[
+      n_e_right_bc_is_f_GW=[
           True,
           False,
       ],
-      n_e_nbar_is_fGW=[
+      n_e_bar_is_f_GW=[
           True,
           False,
       ],
@@ -240,8 +239,8 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
   def test_profile_conditions_set_electron_density_and_boundary_condition(
       self,
       n_e_right_bc,
-      n_e_right_bc_is_fGW,  # pylint: disable=invalid-name
-      n_e_nbar_is_fGW,  # pylint: disable=invalid-name
+      n_e_right_bc_is_f_GW,  # pylint: disable=invalid-name
+      n_e_bar_is_f_GW,  # pylint: disable=invalid-name
   ):
     """Tests that the profile conditions can set the electron density."""
 
@@ -249,11 +248,11 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
     # Set correct order of magnitudes to pass Pydantic validation.
     if n_e_right_bc is not None:
-      n_e_right_bc = 1.0 if n_e_right_bc_is_fGW else 1.0e20
-    nbar = 1.0 if n_e_nbar_is_fGW else 1.0e20
+      n_e_right_bc = 1.0 if n_e_right_bc_is_f_GW else 1.0e20
+    n_e_bar = 1.0 if n_e_bar_is_f_GW else 1.0e20
     n_e = (
         {0.0: {0.0: 1.5, 1.0: 1.0}}
-        if n_e_nbar_is_fGW
+        if n_e_bar_is_f_GW
         else {0.0: {0.0: 1.5e20, 1.0: 1.0e20}}
     )
 
@@ -261,11 +260,11 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e_right_bc': n_e_right_bc,
-        'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
-        'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
-        'nbar': nbar,
+        'n_e_right_bc_is_f_GW': n_e_right_bc_is_f_GW,
+        'n_e_bar_is_f_GW': n_e_bar_is_f_GW,
+        'n_e_bar': n_e_bar,
         'n_e': n_e,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -276,17 +275,17 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     )
 
     if n_e_right_bc is None:
-      # If the boundary condition was not set, it should inherit the fGW flag.
+      # If the boundary condition was not set, it should inherit the f_GW flag.
       self.assertEqual(
-          profile_condition_params.n_e_right_bc_is_fGW,
-          n_e_nbar_is_fGW,
+          profile_condition_params.n_e_right_bc_is_f_GW,
+          n_e_bar_is_f_GW,
       )
       # If the boundary condition was set check it is not absolute.
       self.assertFalse(profile_condition_params.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
-          profile_condition_params.n_e_right_bc_is_fGW,
-          n_e_right_bc_is_fGW,
+          profile_condition_params.n_e_right_bc_is_f_GW,
+          n_e_right_bc_is_f_GW,
       )
       self.assertTrue(profile_condition_params.n_e_right_bc_is_absolute)
 
@@ -441,7 +440,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       params_provider.update_provider(
           # Attempt to change a bool field.
-          lambda x: (x.profile_conditions.n_e_nbar_is_fGW,),
+          lambda x: (x.profile_conditions.n_e_bar_is_f_GW,),
           (True,),
       )
 
@@ -566,10 +565,10 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': {0: {0.0: 1.5e20, 1.0: 1.0e20}},
-        'n_e_nbar_is_fGW': False,
-        'normalize_n_e_to_nbar': False,
+        'n_e_bar_is_f_GW': False,
+        'normalize_n_e': False,
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
@@ -578,15 +577,15 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    geo_provider = torax_config.geometry.build_provider
-    geo = geo_provider(0.0)
+    geo_model = torax_config.geometry.build_geometry_model()
+    geo = torax_config.geometry.build_runtime_params(0.0).geometry
 
     # Call without core_profiles → fallback to prescribed n_e.
     runtime_params, _ = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0.0,
             runtime_params_provider=dcs_provider,
-            geometry_provider=geo_provider,
+            geometry_model=geo_model,
             is_initialization=True,
         )
     )
@@ -605,7 +604,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         rtol=1e-6,
     )
     self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
-    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_f_GW)
 
   def test_ne_bc_density_fraction_from_core_profiles(self):
     """Tests density_fraction mode with a mock CoreProfiles."""
@@ -613,7 +612,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
@@ -622,21 +621,21 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    geo_provider = torax_config.geometry.build_provider
-    geo = geo_provider(0.0)
+    geo_model = torax_config.geometry.build_geometry_model()
+    geo = torax_config.geometry.build_runtime_params(0.0).geometry
 
     # Create a mock CoreProfiles with known n_e face values.
     n_e_face_profile = jax.numpy.linspace(
         2.0e20, 1.0e20, geo.rho_face_norm.shape[0]
     )
     mock_core_profiles = mock.MagicMock()
-    mock_core_profiles.n_e.face_value.return_value = n_e_face_profile
+    mock_core_profiles.kinetic.n_e.face_value.return_value = n_e_face_profile
 
     runtime_params, _ = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0.0,
             runtime_params_provider=dcs_provider,
-            geometry_provider=geo_provider,
+            geometry_model=geo_model,
             core_profiles=mock_core_profiles,
         )
     )
@@ -652,21 +651,21 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         rtol=1e-6,
     )
     self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
-    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_f_GW)
 
   def test_get_consistent_runtime_params_and_geometry_with_I_p_none(self):
     """Tests that I_p is populated from geometry before density_fraction BC."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     }
     del config_dict['profile_conditions']['I_p']
     config_dict['profile_conditions']['I_p_source'] = 'geometry'
     config_dict['profile_conditions']['n_e'] = {0.0: {0.0: 1.5, 1.0: 1.0}}
-    config_dict['profile_conditions']['nbar'] = 1.0
-    config_dict['profile_conditions']['n_e_nbar_is_fGW'] = True
-    config_dict['profile_conditions']['normalize_n_e_to_nbar'] = True
+    config_dict['profile_conditions']['n_e_bar'] = 1.0
+    config_dict['profile_conditions']['n_e_bar_is_f_GW'] = True
+    config_dict['profile_conditions']['normalize_n_e'] = True
     config_dict['profile_conditions']['n_e_right_bc_mode'] = 'density_fraction'
     config_dict['profile_conditions']['n_e_right_bc_reference_rho'] = 0.5
     config_dict['profile_conditions']['n_e_right_bc_multiplier'] = 0.8
@@ -676,14 +675,14 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    geo_provider = torax_config.geometry.build_provider
-    geo = geo_provider(0.0)
+    geo_model = torax_config.geometry.build_geometry_model()
+    geo = torax_config.geometry.build_runtime_params(0.0).geometry
 
     runtime_params, _ = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0.0,
             runtime_params_provider=dcs_provider,
-            geometry_provider=geo_provider,
+            geometry_model=geo_model,
             is_initialization=True,
         )
     )
@@ -692,6 +691,57 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         geo.I_p_profile_face[-1],  # pyrefly: ignore[missing-attribute]
     )
     self.assertGreater(runtime_params.profile_conditions.n_e_right_bc, 0.0)
+
+  def test_runtime_params_provider_geometry(self):
+    """Tests geometry in RuntimeParamsProvider and updating it under jit."""
+    config_dict = default_configs.get_default_config_dict()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    t = jnp.array(0.0)
+    runtime_params = provider(t)
+    self.assertIsInstance(
+        runtime_params.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
+    model = torax_config.geometry.build_geometry_model()
+    geo, _ = model.initialize(runtime_params)
+    chex.assert_trees_all_close(
+        geo.R_major,
+        torax_config.geometry.build_runtime_params(0.0).geometry.R_major,
+    )
+
+    # Test update_provider under jit with new GeometryConfigBase
+    new_geo_config = circular_geometry.CircularConfig(
+        B_0=6.0, n_rho=torax_config.geometry.n_rho
+    )
+
+    @jax.jit
+    def _jit_update(p, new_g):
+      return p.update_provider(
+          get_nodes_to_replace=lambda p: (p.geometry,),
+          replacement_values=(new_g,),
+      )
+
+    updated_provider = _jit_update(provider, new_geo_config)
+    updated_params = updated_provider(t)
+    self.assertIsInstance(
+        updated_params.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
+
+    # Test update_provider_from_mapping under jit
+    @jax.jit
+    def _jit_update_mapping(p, new_g):
+      return p.update_provider_from_mapping({'geometry': new_g})
+
+    updated_provider_mapping = _jit_update_mapping(provider, new_geo_config)
+    updated_params_mapping = updated_provider_mapping(t)
+    self.assertIsInstance(
+        updated_params_mapping.geometry,
+        geometry_runtime_params.PrescribedGeometryRuntimeParams,
+    )
 
 
 if __name__ == '__main__':

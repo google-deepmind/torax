@@ -13,11 +13,11 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import numpy as np
 from torax._src.fvm import cell_variable
 from torax._src.geometry import base
 from torax._src.geometry import chease
-from torax._src.geometry import config
 from torax._src.geometry import eqdsk
 from torax._src.geometry import imas
 from torax._src.geometry import standard_geometry
@@ -31,63 +31,71 @@ class IMASGeometryTest(parameterized.TestCase):
 
   def test_build_standard_geometry_from_IMAS(self):
     """Test that the default IMAS geometry can be built."""
-    imas_config = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'
-    )
-    imas_config.build_geometry()
+    imas_config = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+    })
+    _ = imas_config.build_runtime_params(0.0).geometry
 
   def test_build_single_slice_geometry_from_IMAS(self):
     """Test that a single-slice IMAS geometry can be built."""
-    imas_config = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        slice_time=0.0,
-    )
-    geo = imas_config.build_geometry()
+    imas_config = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+        'slice_time': 0.0,
+    })
+    geo = imas_config.build_runtime_params(0.0).geometry
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
 
   def test_single_slice_consistent_with_provider(self):
     """Test that single-slice geometry matches the all-slices provider at t=0."""
-    single_slice_config = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        slice_time=0.0,
-    )
-    single_geo = single_slice_config.build_geometry()
+    single_slice_config = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+        'slice_time': 0.0,
+    })
+    single_geo = single_slice_config.build_runtime_params(0.0).geometry
 
-    provider_config = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-    )
-    provider = provider_config.build_geometry_provider(calc_Phi_b_dot=False)
-    provider_geo = provider(0.0)
+    provider_config = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+    })
+    provider_geo = provider_config.build_runtime_params(0.0).geometry
 
     np.testing.assert_allclose(single_geo.gm4, provider_geo.gm4, rtol=1e-5)
     np.testing.assert_allclose(single_geo.gm5, provider_geo.gm5, rtol=1e-5)
 
-  def test_geometry_build_provider_loads_all_slices_when_slice_time_is_none(
+  def test_geometry_build_runtime_params_loads_all_slices(
       self,
   ):
-    geo_provider = config.GeometryConfig.from_dict({
-        'geometry_type': 'imas',
+    cfg = imas.IMASConfig.from_dict({
         'imas_filepath': 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc',
-    }).build_provider
-    self.assertIsInstance(
-        geo_provider, standard_geometry.StandardGeometryProvider
-    )
-    self.assertLen(geo_provider.psi.xs, 11)
+    })
+    geo = cfg.build_runtime_params(0.0).geometry
+    self.assertIsInstance(geo, standard_geometry.StandardGeometry)
 
   def test_gm4_gm5_terms(self):
     """Test that gm4 and gm5 are correctly computed."""
-    eqdsk_geo = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos02.eqdsk',
-        cocos=2,
-    ).build_geometry()
+    eqdsk_geo = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos02.eqdsk',
+            'cocos': 2,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
-    imas_geo = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'
-    ).build_geometry()
+    imas_geo = (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
-    chease_geo = chease.CheaseConfig(
-        geometry_file='iterhybrid.mat2cols'
-    ).build_geometry()
+    chease_geo = (
+        chease.CheaseConfig.from_dict({
+            'geometry_file': 'iterhybrid.mat2cols',
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     np.testing.assert_allclose(eqdsk_geo.gm4, chease_geo.gm4, rtol=0.01)
     np.testing.assert_allclose(imas_geo.gm4, chease_geo.gm4, rtol=0.01)
@@ -96,10 +104,14 @@ class IMASGeometryTest(parameterized.TestCase):
 
   def test_trapped_fraction_is_loaded_from_file(self):
     """Tests that the exact trapped particle fraction is loaded from IMAS."""
-    geo = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        trapped_fraction_source=base.TrappedFractionSource.FILE,
-    ).build_geometry()
+    geo = (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+            'trapped_fraction_source': base.TrappedFractionSource.FILE,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     trapped_fraction = geo.trapped_fraction_face
     self.assertIsNotNone(trapped_fraction)
 
@@ -111,10 +123,14 @@ class IMASGeometryTest(parameterized.TestCase):
     equilibrium_object.time_slice[0].profiles_1d.trapped_fraction = []
 
     with self.assertRaisesRegex(ValueError, 'trapped_fraction_source=file'):
-      imas.IMASConfig(
-          equilibrium_object=equilibrium_object,
-          trapped_fraction_source=base.TrappedFractionSource.FILE,
-      ).build_geometry()
+      _ = (
+          imas.IMASConfig.from_dict({
+              'equilibrium_object': equilibrium_object,
+              'trapped_fraction_source': base.TrappedFractionSource.FILE,
+          })
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   @parameterized.named_parameters(
       dict(testcase_name='not_provided_by_equilibrium_code', strip=True),
@@ -133,10 +149,14 @@ class IMASGeometryTest(parameterized.TestCase):
     if strip:
       equilibrium_object.time_slice[0].profiles_1d.trapped_fraction = []
 
-    geo = imas.IMASConfig(
-        equilibrium_object=equilibrium_object,
-        trapped_fraction_source=base.TrappedFractionSource.EXACT,
-    ).build_geometry()
+    geo = (
+        imas.IMASConfig.from_dict({
+            'equilibrium_object': equilibrium_object,
+            'trapped_fraction_source': base.TrappedFractionSource.EXACT,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     trapped_fraction = geo.trapped_fraction_face
     with self.subTest('range_zero_to_one'):
       self.assertTrue(np.all(trapped_fraction >= 0.0))
@@ -149,14 +169,22 @@ class IMASGeometryTest(parameterized.TestCase):
 
   def test_trapped_fraction_file_and_exact_agree(self):
     """Tests that the FILE and EXACT calculations agree for an IDS with both."""
-    geo_file = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        trapped_fraction_source=base.TrappedFractionSource.FILE,
-    ).build_geometry()
-    geo_exact = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        trapped_fraction_source=base.TrappedFractionSource.EXACT,
-    ).build_geometry()
+    geo_file = (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+            'trapped_fraction_source': base.TrappedFractionSource.FILE,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_exact = (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+            'trapped_fraction_source': base.TrappedFractionSource.EXACT,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     self.assertIsNotNone(geo_file.trapped_fraction_face)
     self.assertIsNotNone(geo_exact.trapped_fraction_face)
@@ -170,10 +198,14 @@ class IMASGeometryTest(parameterized.TestCase):
   def test_exact_trapped_fraction_warns_for_bad_values(self):
     """Tests that EXACT trapped fraction warns when bad values are overwritten."""
     with self.assertLogs(level='WARNING') as cm:
-      imas.IMASConfig(
-          imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-          trapped_fraction_source=base.TrappedFractionSource.EXACT,
-      ).build_geometry()
+      _ = (
+          imas.IMASConfig.from_dict({
+              'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+              'trapped_fraction_source': base.TrappedFractionSource.EXACT,
+          })
+          .build_runtime_params(0.0)
+          .geometry
+      )
     self.assertTrue(
         any('Overwriting' in msg and 'EXACT' in msg for msg in cm.output)
     )
@@ -192,14 +224,22 @@ class IMASGeometryTest(parameterized.TestCase):
       self, trapped_fraction_source: base.TrappedFractionSource
   ):
     """Tests that the exact and Sauter trapped fractions roughly agree."""
-    geo_sauter = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        trapped_fraction_source=base.TrappedFractionSource.SAUTER,
-    ).build_geometry()
-    geo_geometry = imas.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        trapped_fraction_source=trapped_fraction_source,
-    ).build_geometry()
+    geo_sauter = (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+            'trapped_fraction_source': base.TrappedFractionSource.SAUTER,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_geometry = (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+            'trapped_fraction_source': trapped_fraction_source,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     # Moderately coarse tolerance: Sauter is only an analytic approximation,
     # so it need not match the exact integral closely, but a large deviation
@@ -209,6 +249,34 @@ class IMASGeometryTest(parameterized.TestCase):
         geo_sauter.trapped_fraction_face,
         atol=0.05,
         rtol=0.15,
+    )
+
+  def test_imas_json_round_trip(self):
+    """Tests JSON serialization and deserialization for IMASConfig."""
+    imas_config = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+    })
+    json_str = imas_config.model_dump_json()
+    restored = imas.IMASConfig.model_validate_json(json_str)
+    self.assertIsInstance(imas_config.imas_data, imas.IMASSliceData)
+    assert isinstance(imas_config.imas_data, imas.IMASSliceData)
+    self.assertIsInstance(restored.imas_data, imas.IMASSliceData)
+    assert isinstance(restored.imas_data, imas.IMASSliceData)
+    np.testing.assert_allclose(
+        restored.imas_data.psi, imas_config.imas_data.psi
+    )
+
+  def test_imas_build_runtime_params(self):
+    """Tests runtime params creation."""
+    imas_config = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+    })
+    runtime_params = imas_config.build_runtime_params(t=0.0)
+    self.assertIsInstance(
+        runtime_params.geometry, standard_geometry.StandardGeometry
+    )
+    chex.assert_trees_all_close(
+        runtime_params.geometry.rho_face_norm, imas_config.get_face_centers()
     )
 
 
@@ -234,9 +302,14 @@ class OffAxisGridIMASGeometryTest(parameterized.TestCase):
     cls.j_phi_ids = np.abs(np.asarray(profiles_1d.j_phi))
 
   def _build_geometry(self, n_rho):
-    return imas.IMASConfig(
-        imas_filepath=self._IMAS_FILEPATH, n_rho=n_rho
-    ).build_geometry()
+    return (
+        imas.IMASConfig.from_dict({
+            'imas_filepath': self._IMAS_FILEPATH,
+            'n_rho': n_rho,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def _assert_near_axis_matches_ids(self, geo, j_toroidal_total):
     near_axis = geo.rho_norm < 0.05

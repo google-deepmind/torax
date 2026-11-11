@@ -17,20 +17,24 @@
 import dataclasses
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base
 from torax._src.physics import formulas
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from typing_extensions import override
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -69,10 +73,34 @@ class PowerScalingFormationState(pedestal_state_lib.FormationState):
   dW_thermal_dt_smoothed: array_typing.FloatScalar | None = None
   t: array_typing.FloatScalar | None = None
 
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of power scaling formation state, or None."""
+    if self.W_thermal_total is None:
+      return None
+    assert self.dW_thermal_dt_smoothed is not None and self.t is not None
+    data_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.W_THERMAL_TOTAL: context.pack(
+            output_keys.W_THERMAL_TOTAL,
+            np.atleast_1d(np.asarray(self.W_thermal_total)),
+        ),
+        output_keys.DW_THERMAL_DT_SMOOTHED: context.pack(
+            output_keys.DW_THERMAL_DT_SMOOTHED,
+            np.atleast_1d(np.asarray(self.dW_thermal_dt_smoothed)),
+        ),
+        output_keys.FORMATION_TIME: context.pack(
+            output_keys.FORMATION_TIME,
+            np.atleast_1d(np.asarray(self.t)),
+        ),
+    }
+    return xr.DataTree(dataset=context.build_dataset(data_vars))
+
 
 @jax.jit
 def calculate_P_SOL_total(
-    core_sources: source_profiles_lib.SourceProfiles,
+    core_sources: core_sources_lib.CoreSources,
     geo: geometry.Geometry,
     dW_thermal_dt_smoothed: array_typing.FloatScalar | None = None,
 ) -> jax.Array:
@@ -88,15 +116,13 @@ def calculate_P_SOL_total(
   Returns:
     P_SOL or P_heat total [W].
   """
-  P_heat_e = sum(
-      math_utils.volume_integration(source, geo)
-      for source in core_sources.T_e.values()
+  P_heat_total = jnp.asarray(
+      math_utils.cell_integration(
+          core_sources.total_sources('power_density_e', geo)
+          + core_sources.total_sources('power_density_i', geo),
+          geo,
+      )
   )
-  P_heat_i = sum(
-      math_utils.volume_integration(source, geo)
-      for source in core_sources.T_i.values()
-  )
-  P_heat_total = jnp.asarray(P_heat_e + P_heat_i)
   if dW_thermal_dt_smoothed is None:
     return P_heat_total
   return P_heat_total - dW_thermal_dt_smoothed
@@ -122,7 +148,7 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
   ) -> PowerScalingFormationState:
     """Returns the initial PowerScalingFormationState for this model."""
     assert isinstance(
@@ -143,11 +169,65 @@ class PowerScalingFormationModel(base.FormationModel):
     )
 
   @override
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> PowerScalingFormationState:
+    """Reconstructs PowerScalingFormationState from a DataTree.
+
+    Args:
+      datatree: DataTree containing power scaling formation state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed PowerScalingFormationState.
+
+    Raises:
+      ValueError: If include_dW_dt_in_P_SOL is True but datatree is None or
+        missing required variables.
+    """
+    assert isinstance(
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
+    )
+    if not runtime_params.pedestal.formation.include_dW_dt_in_P_SOL:
+      return PowerScalingFormationState()
+    if datatree is None:
+      raise ValueError(
+          'PowerScalingFormationModel with include_dW_dt_in_P_SOL=True '
+          'requires a non-None formation DataTree.'
+      )
+    required_keys = (
+        output_keys.W_THERMAL_TOTAL,
+        output_keys.DW_THERMAL_DT_SMOOTHED,
+        output_keys.FORMATION_TIME,
+    )
+    missing = [k for k in required_keys if k not in datatree.dataset.data_vars]
+    if missing:
+      raise ValueError(
+          f'Missing required variables in formation DataTree: {missing}'
+      )
+    ds = datatree.dataset
+    dtype = jax_utils.get_dtype()
+    return PowerScalingFormationState(
+        W_thermal_total=jnp.asarray(
+            np.squeeze(ds[output_keys.W_THERMAL_TOTAL].values), dtype=dtype
+        ),
+        dW_thermal_dt_smoothed=jnp.asarray(
+            np.squeeze(ds[output_keys.DW_THERMAL_DT_SMOOTHED].values),
+            dtype=dtype,
+        ),
+        t=jnp.asarray(
+            np.squeeze(ds[output_keys.FORMATION_TIME].values), dtype=dtype
+        ),
+    )
+
+  @override
   def update_state(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       formation_state: pedestal_state_lib.FormationState,
   ) -> PowerScalingFormationState:
     """Updates PowerScalingFormationState for the current timestep."""
@@ -203,8 +283,8 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      core_sources: core_sources_lib.CoreSources,
       formation_state: PowerScalingFormationState,
   ) -> tuple[jax.Array, jax.Array]:
     """Calculates P_SOL and rescaled P_LH."""
@@ -230,8 +310,8 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       formation_state: pedestal_state_lib.FormationState,
   ) -> tuple[
       array_typing.BoolScalar,
@@ -265,8 +345,8 @@ class PowerScalingFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),

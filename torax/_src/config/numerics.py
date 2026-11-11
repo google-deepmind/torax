@@ -66,21 +66,32 @@ class NumericsConfig(torax_pydantic.ConfigBase):
 
   Attributes:
     evolve_ion_heat: Solve the ion heat equation (ion temperature evolves over
-      time).
+      time) in the time-dependent PDE.
     evolve_electron_heat: Solve the electron heat equation (electron temperature
-      evolves over time)
-    evolve_current: Solve the current equation (current evolves over time).
-    evolve_density: Solve the density equation (n evolves over time).
-    current_diffusion_time_reduction_factor: Factor that divides the transient
-      term in the poloidal flux (psi) PDE to shorten the current diffusion
-      timescale without modifying physical conductivity, loop voltage, or
-      heating.
+      evolves over time) in the time-dependent PDE.
+    evolve_current: Solve the current diffusion equation (evolving $psi$) in the
+      time-dependent PDE.
+    evolve_density: Solve the electron density equation (electron density
+      evolves over time) in the time-dependent PDE.
+    enable_fast_ions: Enables the tracking and computation of fast ion density
+      and temperature profiles. Required to be `True` to use
+      `profile_conditions.fast_ions`, `transport.fast_ion_stabilization`, and to
+      allow sources to provide fast ion profiles to the simulation.
+    current_diffusion_time_reduction_factor: Factor dividing the transient term
+      in the poloidal flux ($psi$) PDE to reduce the current diffusion timescale
+      toward the energy confinement timescale, for testing purposes. Does not
+      modify physical conductivity, loop voltage, or Ohmic heating.
     dW_dt_smoothing_time_scale: Time scale [s] for the exponential moving
       average smoothing of dW/dt terms used in P_SOL and confinement time
       calculations. If 0.0, no smoothing is applied and raw dW/dt is used.
     min_rho_norm: Minimum rho_norm value below which current profile values are
       extrapolated to the axis in psi calculations, to avoid numerical artifacts
       near rho=0.
+    T_min_eV: Minimum temperature threshold [eV]. If the ion or electron
+      temperature drops below this value anywhere in the domain, the simulation
+      will stop with a `LOW_TEMPERATURE_COLLAPSE` error (error code 5). This is
+      to catch radiative collapse or other unphysical low-temperature states
+      early.
   """
 
   evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True

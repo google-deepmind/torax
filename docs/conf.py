@@ -38,7 +38,7 @@ copyright = '2024, The TORAX authors'
 author = 'The TORAX authors'
 
 # The short X.Y version
-version = 'v1.4.3'
+version = 'v2.0.0'
 # The full version, including alpha/beta/rc tags
 release = ''
 github_base_url = f'https://github.com/google-deepmind/torax/tree/{version}'
@@ -66,6 +66,7 @@ extensions = [
     'sphinx_remove_toctrees',
     'sphinx_copybutton',
     'sphinx_design',
+    'torax_config_autodoc',
 ]
 
 intersphinx_mapping = {
@@ -104,6 +105,7 @@ exclude_patterns = [
     # Sometimes sphinx reads its own outputs as inputs!
     'build/html',
     'README.md',
+    'links.rst',
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -132,6 +134,8 @@ html_theme_options = {
     'repository_url': 'https://github.com/google-deepmind/torax',
     'use_repository_button': True,
     'navigation_with_keys': False,
+    'pygments_light_style': 'xcode',
+    'pygments_dark_style': 'monokai',
 }
 
 enable_logo = True
@@ -296,11 +300,13 @@ rst_epilog = f"""
 .. |PedestalModel| replace:: `PedestalModel <PedestalModel_target_>`__
 .. _PedestalModel_target: {github_base_url}/torax/_src/pedestal_model/pedestal_model.py
 
-.. |state| replace:: `state <torax_src_state_target_>`__
-.. _torax_src_state_target: {github_base_url}/torax/_src/state.py
+.. |core_profiles| replace:: `core_profiles <core_profiles_package_target_>`__
+.. _core_profiles_package_target: {github_base_url}/torax/_src/core_profiles/
 
-.. |ToraxSimState| replace:: `ToraxSimState <torax_src_state_ToraxSimState_target_>`__
-.. _torax_src_state_ToraxSimState_target: {github_base_url}/torax/_src/state.py
+.. |orchestration.sim_state.py| replace:: `sim_state.py <orchestration_sim_state_target_>`__
+.. _orchestration_sim_state_target: {github_base_url}/torax/_src/orchestration/sim_state.py
+
+.. |SimState| replace:: `SimState <orchestration_sim_state_target_>`__
 
 .. |geometry| replace:: `geometry <geometry_package_target_>`__
 .. _geometry_package_target: {github_base_url}/torax/_src/geometry/
@@ -308,11 +314,6 @@ rst_epilog = f"""
 .. |torax.Geometry| replace:: `torax.Geometry <Geometry_target_>`__
 .. _Geometry_target: {github_base_url}/torax/_src/geometry/geometry.py
 
-.. |GeometryProvider| replace:: `GeometryProvider <GeometryProvider_target_>`__
-.. _GeometryProvider_target: {github_base_url}/torax/_src/geometry/geometry_provider.py
-
-.. |StandardGeometryProvider| replace:: `StandardGeometryProvider <StandardGeometryProvider_target_>`__
-.. _StandardGeometryProvider_target: {github_base_url}/torax/_src/geometry/standard_geometry.py
 
 .. |config.runtime_params_slice| replace:: `config.runtime_params_slice <torax_src_config_runtime_params_slice_target_>`__
 .. _torax_src_config_runtime_params_slice_target: {github_base_url}/torax/_src/config/runtime_params_slice.py
@@ -372,3 +373,9 @@ rst_epilog = f"""
 .. |imas_loader| replace:: `imas_tools/input/loader <torax_src_imas_loader_target_>`__
 .. _torax_src_imas_loader_target: {github_base_url}/torax/_src/imas_tools/input/loader.py
 """
+
+_docs_dir = globals().get('_ORIG_DOCS_DIR') or os.path.dirname(
+    os.path.abspath(__file__)
+)
+with open(os.path.join(_docs_dir, 'links.rst'), encoding='utf-8') as _links_f:
+  rst_epilog += '\n' + _links_f.read()

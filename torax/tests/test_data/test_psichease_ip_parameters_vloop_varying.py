@@ -34,13 +34,13 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
-        'use_v_loop_lcfs_boundary_condition': True,
+        'psi_bc_source': 'v_loop',
         'v_loop_lcfs': (times, v_loop),
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {
@@ -51,14 +51,20 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     },
     'sources': {
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,
+            'P_total': 120e6,
+            'gaussian_location': 0.0,
         },
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
     },
     'pedestal': {},
     'transport': {

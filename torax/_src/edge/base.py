@@ -17,20 +17,22 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any, ClassVar, Self
+from typing import Annotated, Any, ClassVar, Self, override
 import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
-from torax._src import state
+from torax._src import jax_utils
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
+from torax._src.edge import edge_state as edge_state_lib
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -108,7 +110,21 @@ class EdgeModelOutputs:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Returns a dictionary of standard edge output variable tuples."""
+    """Packs time-stacked edge model outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time coordinates for shape validation and
+        `(dims, data, attrs)` packing. Mutated in-place to register the
+        `impurity` coordinate when `impurity_right_bc` is non-empty.
+
+    Returns:
+      Mapping from boundary condition variable names to `(dims, data, attrs)`
+      `OutputVar` tuples (omitting unset or empty fields):
+        - `T_e_right_bc`, `T_i_right_bc`, `n_e_right_bc`: `('time',)` with shape
+          `(n_time,)`.
+        - `impurity_right_bc`: `('impurity', 'time')` with shape
+          `(n_impurities, n_time)`.
+    """
     out_dict: dict[str, output_grid_context.OutputVar] = {}
     if self.T_e_right_bc is not None:
       out_dict[output_keys.T_E_RIGHT_BC] = context.pack(
@@ -130,6 +146,12 @@ class EdgeModelOutputs:
             dim_name=output_keys.IMPURITY,
         )
     )
+    valid = np.asarray(self.valid_for_core_update)
+    if valid.ndim == 0:
+      valid = np.broadcast_to(valid, (len(context.times),))
+    out_dict[output_keys.VALID_FOR_CORE_UPDATE] = context.pack(
+        output_keys.VALID_FOR_CORE_UPDATE, valid
+    )
     return out_dict
 
   def to_xr_datatree(
@@ -138,6 +160,142 @@ class EdgeModelOutputs:
     """Builds an xr.DataTree of the edge model outputs."""
     return xr.DataTree(
         dataset=context.build_dataset(self.to_output_dict(context))
+    )
+
+  @classmethod
+  def from_datatree(cls, datatree: xr.DataTree) -> Self:
+    """Extracts boundary conditions from a time-sliced /edge DataTree.
+
+    Args:
+      datatree: Time-sliced DataTree containing edge outputs.
+
+    Returns:
+      Reconstructed EdgeModelOutputs with extracted boundary conditions.
+
+    Raises:
+      ValueError: If datatree is None or if IMPURITY_RIGHT_BC is present but
+        IMPURITY coordinate is missing.
+    """
+    if datatree is None:
+      raise ValueError('EdgeModelOutputs requires a non-None DataTree.')
+    ds = datatree.dataset
+    dtype = jax_utils.get_dtype()
+
+    T_e_right_bc = None
+    if output_keys.T_E_RIGHT_BC in ds.data_vars:
+      T_e_right_bc = jnp.asarray(
+          np.squeeze(ds[output_keys.T_E_RIGHT_BC].values), dtype=dtype
+      )
+
+    T_i_right_bc = None
+    if output_keys.T_I_RIGHT_BC in ds.data_vars:
+      T_i_right_bc = jnp.asarray(
+          np.squeeze(ds[output_keys.T_I_RIGHT_BC].values), dtype=dtype
+      )
+
+    n_e_right_bc = None
+    if output_keys.N_E_RIGHT_BC in ds.data_vars:
+      n_e_right_bc = jnp.asarray(
+          np.squeeze(ds[output_keys.N_E_RIGHT_BC].values), dtype=dtype
+      )
+
+    impurity_right_bc: dict[str, jax.Array] = {}
+    if output_keys.IMPURITY_RIGHT_BC in ds.data_vars:
+      if output_keys.IMPURITY not in ds.coords:
+        raise ValueError(
+            'Missing IMPURITY coordinate in DataTree with IMPURITY_RIGHT_BC.'
+        )
+      impurities = np.atleast_1d(
+          ds.coords[output_keys.IMPURITY].values
+      ).tolist()
+      for sp in impurities:
+        impurity_right_bc[sp] = jnp.asarray(
+            np.squeeze(
+                ds[output_keys.IMPURITY_RIGHT_BC]
+                .sel({output_keys.IMPURITY: sp})
+                .values
+            ),
+            dtype=dtype,
+        )
+
+    if output_keys.VALID_FOR_CORE_UPDATE in ds:
+      valid_for_core_update = jnp.asarray(
+          np.squeeze(ds[output_keys.VALID_FOR_CORE_UPDATE].values),
+          dtype=jnp.bool_,
+      )
+    else:
+      extracted_scalars = [
+          val
+          for val in (T_e_right_bc, T_i_right_bc, n_e_right_bc)
+          if val is not None
+      ] + list(impurity_right_bc.values())
+      has_nan = any(bool(jnp.isnan(v).any()) for v in extracted_scalars)
+      valid_for_core_update = jnp.array(not has_nan, dtype=jnp.bool_)
+
+    return cls(
+        T_e_right_bc=T_e_right_bc,
+        T_i_right_bc=T_i_right_bc,
+        n_e_right_bc=n_e_right_bc,
+        impurity_right_bc=impurity_right_bc,
+        valid_for_core_update=valid_for_core_update,
+    )
+
+  def replace_bcs_from_datatree(
+      self,
+      datatree: xr.DataTree,
+  ) -> Self:
+    """Replaces boundary condition fields from a time-sliced /edge DataTree.
+
+    Args:
+      datatree: Time-sliced `/edge` DataTree.
+
+    Returns:
+      Updated EdgeModelOutputs with restored boundary condition values.
+
+    Raises:
+      ValueError: If expected boundary conditions are missing from the
+        DataTree.
+    """
+    parsed = EdgeModelOutputs.from_datatree(datatree)
+    for attr, key in (
+        ('T_e_right_bc', output_keys.T_E_RIGHT_BC),
+        ('T_i_right_bc', output_keys.T_I_RIGHT_BC),
+        ('n_e_right_bc', output_keys.N_E_RIGHT_BC),
+    ):
+      if getattr(self, attr) is not None and getattr(parsed, attr) is None:
+        raise ValueError(
+            f'Missing expected boundary condition {key!r} in /edge DataTree.'
+        )
+    if self.impurity_right_bc:
+      missing_impurity_bcs = [
+          sp
+          for sp in self.impurity_right_bc
+          if sp not in parsed.impurity_right_bc
+      ]
+      if missing_impurity_bcs:
+        raise ValueError(
+            'Missing expected impurity boundary conditions '
+            f'{missing_impurity_bcs} in /edge DataTree.'
+        )
+      impurity_right_bc = {
+          sp: parsed.impurity_right_bc[sp] for sp in self.impurity_right_bc
+      }
+    else:
+      impurity_right_bc = {}
+
+    return dataclasses.replace(
+        self,
+        T_e_right_bc=(
+            parsed.T_e_right_bc if self.T_e_right_bc is not None else None
+        ),
+        T_i_right_bc=(
+            parsed.T_i_right_bc if self.T_i_right_bc is not None else None
+        ),
+        n_e_right_bc=(
+            parsed.n_e_right_bc if self.n_e_right_bc is not None else None
+        ),
+        impurity_right_bc=impurity_right_bc,
+        valid_for_core_update=parsed.valid_for_core_update,
     )
 
 
@@ -157,7 +315,7 @@ class CombinedEdgeOutputs(EdgeModelOutputs):
   def to_xr_datatree(
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
-    """Builds an xr.DataTree of the combined edge model and sub-model outputs."""
+    """Builds an xr.DataTree of combined edge model and sub-model outputs."""
     base_tree = super().to_xr_datatree(context)
     children = {
         name: sub_out.to_xr_datatree(context)
@@ -168,10 +326,72 @@ class CombinedEdgeOutputs(EdgeModelOutputs):
         children=children,
     )
 
+  @override
+  def replace_bcs_from_datatree(
+      self,
+      datatree: xr.DataTree,
+  ) -> Self:
+    """Replaces boundary condition fields from a time-sliced /edge DataTree."""
+    updated = super().replace_bcs_from_datatree(datatree)
+    for name in self.sub_models:
+      if name not in datatree.children:
+        raise ValueError(
+            f'Missing expected sub-model {name!r} in /edge DataTree.'
+        )
+    updated_subs = {
+        name: sub.replace_bcs_from_datatree(datatree.children[name])
+        for name, sub in self.sub_models.items()
+    }
+    return dataclasses.replace(updated, sub_models=updated_subs)
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for edge models."""
+
+  def initial_state(
+      self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.EdgeState:
+    """Returns the initial cross-timestep EdgeState for this model.
+
+    Stateless edge models inherit this default returning an empty EdgeState(),
+    while stateful subclasses override it with their initial state.
+
+    Args:
+      edge_runtime_params: Runtime parameters for the edge model.
+
+    Returns:
+      Initial EdgeState.
+    """
+    del edge_runtime_params
+    return edge_state_lib.EdgeState()
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.EdgeState:
+    """Reconstructs EdgeState at restart time from a single-time-slice DataTree.
+
+    During simulation restart from file, this method reconstructs the initial
+    `EdgeState` at the restart time from an xr.DataTree with the `time`
+    dimension already selected (e.g. via `.sel(time=...)`), or `None` if no
+    edge state was saved in the file.
+
+    Stateless edge models inherit this default implementation returning an empty
+    `EdgeState()`. Stateful subclasses (e.g. `ExtendedLengyelModel`,
+    `CombinedEdgeModel`) override this method to deserialize their state.
+
+    Args:
+      datatree: Single-time-slice DataTree containing edge state, or None.
+      edge_runtime_params: Runtime parameters for the edge model.
+
+    Returns:
+      Reconstructed EdgeState at restart time.
+    """
+    del datatree, edge_runtime_params
+    return edge_state_lib.EdgeState()
 
   @abc.abstractmethod
   def __call__(
@@ -179,11 +399,23 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
-      previous_edge_outputs: EdgeModelOutputs | None = None,
-  ) -> EdgeModelOutputs:
-    """Evaluates the edge model at the given time."""
+      core_profiles: core_profiles_lib.CoreProfiles,
+      core_sources: core_sources_lib.CoreSources,
+      edge_state: edge_state_lib.EdgeState,
+  ) -> tuple[EdgeModelOutputs, edge_state_lib.EdgeState]:
+    """Evaluates the edge model at the given time.
+
+    Args:
+      edge_runtime_params: Runtime parameters for the edge model.
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+      core_sources: Core plasma sources.
+      edge_state: Cross-timestep state for the edge model.
+
+    Returns:
+      A tuple of (EdgeModelOutputs, updated_edge_state).
+    """
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -200,15 +432,65 @@ class CombinedEdgeModel(EdgeModel):
   n_e_sub_model: str | None = None
   n_impurities_sub_model: str | None = None
 
+  def initial_state(
+      self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.CombinedEdgeState:
+    """Returns the initial cross-timestep CombinedEdgeState."""
+    assert isinstance(
+        edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
+    )
+    return edge_state_lib.CombinedEdgeState(
+        sub_models={
+            name: sub_model.initial_state(
+                edge_runtime_params.sub_models[name],
+            )
+            for name, sub_model in self.sub_models.items()
+        }
+    )
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+  ) -> edge_state_lib.CombinedEdgeState:
+    """Reconstructs CombinedEdgeState from a single-time-slice DataTree.
+
+    During simulation restart from file, this method reconstructs the initial
+    `CombinedEdgeState` at the restart time by delegating reconstruction of each
+    sub-model's state to that sub-model's `initial_state_from_datatree` method
+    using child nodes of the single-time-slice `datatree`.
+
+    Args:
+      datatree: Single-time-slice DataTree containing edge state, or None.
+      edge_runtime_params: Runtime parameters for the combined edge model.
+
+    Returns:
+      Reconstructed CombinedEdgeState at restart time.
+    """
+    assert isinstance(
+        edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
+    )
+    children = datatree.children if datatree is not None else {}
+    return edge_state_lib.CombinedEdgeState(
+        sub_models={
+            name: sub_model.initial_state_from_datatree(
+                children.get(name),
+                edge_runtime_params.sub_models[name],
+            )
+            for name, sub_model in self.sub_models.items()
+        }
+    )
+
   def __call__(
       self,
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
-      previous_edge_outputs: EdgeModelOutputs | None = None,
-  ) -> CombinedEdgeOutputs:
+      core_profiles: core_profiles_lib.CoreProfiles,
+      core_sources: core_sources_lib.CoreSources,
+      edge_state: edge_state_lib.EdgeState,
+  ) -> tuple[CombinedEdgeOutputs, edge_state_lib.CombinedEdgeState]:
     """Evaluates the edge sub-models and merges their BCs."""
     assert isinstance(
         edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
@@ -216,24 +498,22 @@ class CombinedEdgeModel(EdgeModel):
     edge_params: edge_runtime_params_lib.CombinedRuntimeParams = (
         edge_runtime_params
     )
-    prev_sub_outputs: Mapping[str, EdgeModelOutputs] = (
-        previous_edge_outputs.sub_models
-        if isinstance(previous_edge_outputs, CombinedEdgeOutputs)
-        else {}
-    )
-    sub_outputs = {
-        name: sub_model(
-            edge_params.sub_models[name],
-            runtime_params,
-            geo,
-            core_profiles,
-            core_sources,
-            previous_edge_outputs=prev_sub_outputs.get(name),
-        )
-        for name, sub_model in self.sub_models.items()
-    }
+    assert isinstance(edge_state, edge_state_lib.CombinedEdgeState)
+    sub_outputs = {}
+    new_sub_states = {}
+    for name, sub_model in self.sub_models.items():
+      out, sub_state = sub_model(
+          edge_params.sub_models[name],
+          runtime_params,
+          geo,
+          core_profiles,
+          core_sources,
+          edge_state=edge_state.sub_models[name],
+      )
+      sub_outputs[name] = out
+      new_sub_states[name] = sub_state
 
-    return CombinedEdgeOutputs(
+    outputs = CombinedEdgeOutputs(
         T_e_right_bc=(
             sub_outputs[self.T_e_sub_model].T_e_right_bc
             if self.T_e_sub_model is not None
@@ -256,6 +536,7 @@ class CombinedEdgeModel(EdgeModel):
         ),
         sub_models=sub_outputs,
     )
+    return outputs, edge_state_lib.CombinedEdgeState(sub_models=new_sub_states)
 
 
 class EdgeModelConfig(torax_pydantic.ConfigBase):
@@ -265,25 +546,26 @@ class EdgeModelConfig(torax_pydantic.ConfigBase):
   with a `Literal` to serve as a discriminator in polymorphic unions.
 
   Attributes:
-    model_name: Discriminator field for Pydantic. Subclasses must override with
-      a `Literal` value.
+    model_name: The edge model discriminator tag. Set to `'extended_lengyel'`
+      for the built-in extended Lengyel model, `'combined'` when combining
+      multiple edge sub-models under `sub_models`, or the registered model name
+      for a custom edge model.
     supported_boundary_conditions: Class-level `SupportedBoundaryConditions`
       instance whose fields (`T_e`, `T_i`, `n_e`, `n_impurities`) declare which
       boundary conditions the subclass can compute and set the defaults for the
       corresponding `update_*` flags below.
-    update_T_e: Whether to update electron temperature boundary condition.
-      Defaults to the `T_e` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.T_e`), and may only be True if supported.
-    update_T_i: Whether to update ion temperature boundary condition. Defaults
-      to the `T_i` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.T_i`), and may only be True if supported.
-    update_n_e: Whether to update electron density boundary condition. Defaults
-      to the `n_e` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.n_e`), and may only be True if supported.
-    update_n_impurities: Whether to update impurity concentrations in the core.
-      Defaults to the `n_impurities` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.n_impurities`), and may only be True if
-      supported.
+    update_T_e: If `True`, update core electron temperature boundary condition
+      based on edge model results. Defaults to
+      `supported_boundary_conditions.T_e`, and may only be `True` if supported.
+    update_T_i: If `True`, update core ion temperature boundary condition based
+      on edge model results. Defaults to `supported_boundary_conditions.T_i`,
+      and may only be `True` if supported.
+    update_n_e: If `True`, update core electron density boundary condition based
+      on edge model results. Defaults to `supported_boundary_conditions.n_e`,
+      and may only be `True` if supported.
+    update_n_impurities: If `True`, update core impurity profiles based on edge
+      model results. Defaults to `supported_boundary_conditions.n_impurities`,
+      and may only be `True` if supported.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC]
@@ -326,7 +608,7 @@ class EdgeModelConfig(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> edge_runtime_params_lib.RuntimeParams:
-    """Builds the runtime parameters for the edge model at time t."""
+    """Builds the runtime parameters for the edge model at time `t`."""
     return edge_runtime_params_lib.RuntimeParams(
         update_T_e=self.update_T_e.get_value(t),
         update_T_i=self.update_T_i.get_value(t),

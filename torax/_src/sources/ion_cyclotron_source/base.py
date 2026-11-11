@@ -14,12 +14,14 @@
 """Base infrastructure for ion-cyclotron resonance heating (ICRH) sources."""
 
 import dataclasses
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src.sources import base as source_base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.torax_pydantic import torax_pydantic
@@ -32,7 +34,7 @@ from torax._src.torax_pydantic import torax_pydantic
 class RuntimeParams(source_runtime_params_lib.RuntimeParams):
   """Base runtime parameters for ICRH models."""
 
-  P_total: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar | None
   absorption_fraction: array_typing.FloatScalar
   minority_species: str = jax.tree.static()
 
@@ -42,39 +44,47 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source."""
 
   SOURCE_ID: ClassVar[str] = 'icrh'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_ION,
-      source.AffectedCoreProfile.TEMP_EL,
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
+  PRODUCES_FAST_IONS: ClassVar[bool] = True
 
 
 class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   """Base configuration for IonCyclotronSource.
 
   This base class contains fields common to all ICRH model implementations.
-  Subclasses implement the specific model logic,and must override `model_name`
-  with a `Literal` to serve as discriminator.
+  Subclasses implement the specific model logic and override `model_name` with
+  a `Literal` value to serve as discriminator.
 
   Attributes:
-    model_name: Discriminator field for Pydantic. Subclasses must override with
-      a `Literal` value.
-    P_total: Total heating power [W].
-    absorption_fraction: Fraction of absorbed power.
-    minority_species: Symbol of the minority species (e.g., 'He3'). The
-      minority concentration is extracted from plasma_composition. The species
-      can be either a main ion or an impurity.
-    mode: Defines how the source values are computed.
+    model_name: Selects the ICRH model implementation (e.g.
+      `'scaled_profile'`).
+    P_total: Total injected ICRH heating power [W].
+    absorption_fraction: Fraction of `P_total` absorbed by the plasma.
+    minority_species: Symbol of the minority species (e.g. `'He3'`). The
+      minority concentration is automatically extracted from
+      `plasma_composition`. The species can be either a main ion or an impurity.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
-  # TODO(b/434175938): Remove default source amplitudes in V2.
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      10e6
-  )
+  P_total: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
   minority_species: Annotated[str, torax_pydantic.JAX_STATIC] = 'He3'
+
+  @pydantic.model_validator(mode='after')
+  def _check_base_fields(self) -> Self:
+    if (
+        self.mode == source_runtime_params_lib.Mode.MODEL_BASED
+        and self.P_total is None
+    ):
+      raise ValueError("P_total must be provided when mode is 'model_based'.")
+    return self
 
   def build_runtime_params(
       self,
@@ -83,7 +93,7 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        P_total=self.P_total.get_value(t),
+        P_total=(None if self.P_total is None else self.P_total.get_value(t)),
         absorption_fraction=self.absorption_fraction.get_value(t),
         minority_species=self.minority_species,
     )

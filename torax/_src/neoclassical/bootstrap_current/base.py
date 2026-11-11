@@ -18,18 +18,20 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+from typing import Self
 
 import jax
 import jax.numpy as jnp
 import pydantic
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -44,7 +46,7 @@ class BootstrapCurrent:
   j_parallel_bootstrap_face: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
+  def zeros(cls, geometry: geometry_lib.Geometry) -> Self:
     """Returns a BootstrapCurrent with all values set to zero."""
     return cls(
         j_parallel_bootstrap=jnp.zeros_like(geometry.rho_norm),
@@ -55,7 +57,17 @@ class BootstrapCurrent:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts bootstrap current profiles into an OutputVar mapping."""
+    """Packs time-stacked bootstrap current into an xarray-ready variable.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from `j_parallel_bootstrap` to a `(dims, data, attrs)`
+      `OutputVar` tuple on `('time', 'rho_norm')` with shape
+      `(n_time, n_rho_cell + 2)`.
+    """
     j_parallel_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
         self.j_parallel_bootstrap,
         self.j_parallel_bootstrap_face,
@@ -130,14 +142,20 @@ class BootstrapCurrentModel(abc.ABC):
       self,
       runtime_params: bootstrap_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> BootstrapCurrent:
     """Calculates bootstrap current."""
 
 
 class BootstrapCurrentModelConfig(torax_pydantic.ConfigBase):
-  """Base class for bootstrap current model configs."""
+  """Base class for bootstrap current model configs.
+
+  Attributes:
+    bootstrap_multiplier: Multiplier for the bootstrap current (used by the
+      `'sauter'` and `'redl'` models).
+  """
 
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 

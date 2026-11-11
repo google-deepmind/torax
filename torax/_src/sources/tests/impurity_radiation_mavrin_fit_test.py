@@ -25,7 +25,6 @@ from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_m
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import config
-from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -47,16 +46,15 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     source_models = torax_config.sources.build_models()
     source_states = source_models.initial_state(runtime_params)
     source = source_models.standard_sources[self._source_name]
+    assert isinstance(source, source_lib.Source)
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+        solver_profiles=core_profiles,
         source_state=source_states[self._source_name],
     )
-    (res,) = output.profiles
-    return res
+    assert output.power_density_e is not None
+    return output.power_density_e
 
   def test_correct_dynamic_params_built(self):
     # Source models
@@ -65,10 +63,9 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
-    face_centers = interpolated_param_2d.get_face_centers(4)
     torax_pydantic.set_grid(
         sources,
-        torax_pydantic.Grid1D(face_centers=face_centers),
+        torax_pydantic.Grid1D.uniform_from_n_rho(4),
     )
     runtime_params = getattr(sources, self._source_name).build_runtime_params(
         t=0.0
@@ -325,7 +322,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_true,
             'T_e': t_e_keV,
             'T_i': t_e_keV,
@@ -342,7 +339,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             'Z_eff': zeff_true.item(),  # pyrefly: ignore[missing-attribute]
         },
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {self._source_name: {'model_name': self._model_name}},
         'solver': {},
         'transport': {},
@@ -401,7 +398,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
             'T_i': t_e_keV,
@@ -411,7 +408,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         },
         'plasma_composition': {},  # to be filled
         'numerics': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'geometry': {'model_name': 'circular', 'n_rho': 4},
         'sources': {self._source_name: {'model_name': self._model_name}},
         'solver': {},
         'transport': {},

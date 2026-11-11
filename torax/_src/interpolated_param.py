@@ -67,9 +67,7 @@ class InterpolationMode(enum.Enum):
   STEP = 'step'
 
 
-InterpolationModeLiteral: TypeAlias = Literal[
-    'step', 'STEP', 'piecewise_linear', 'PIECEWISE_LINEAR'
-]
+InterpolationModeLiteral: TypeAlias = Literal['step', 'piecewise_linear']
 
 
 _ArrayOrListOfFloats: TypeAlias = array_typing.Array | list[float]
@@ -306,7 +304,7 @@ def convert_input_to_xs_ys(
           f'interpolated. Given: {interp_input}.'
       )
     if isinstance(interp_input[1], str):
-      interpolation_mode = InterpolationMode[interp_input[1].upper()]
+      interpolation_mode = InterpolationMode(interp_input[1])
       interp_input = interp_input[0]
 
   if _is_bool(interp_input):

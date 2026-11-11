@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['geometry'] = {
-    'geometry_type': 'eqdsk',
+    'model_name': 'eqdsk',
     'geometry_file': 'iterhybrid_cocos11.eqdsk',
     'last_surface_factor': 0.99,
     'n_surfaces': 100,

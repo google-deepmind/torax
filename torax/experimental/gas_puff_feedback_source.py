@@ -12,42 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Gas puff feedback source for the electron density (n_e) equation.
+"""Deprecated gas puff feedback source; use `generic_particle` feedback instead.
 
-This module implements an experimental particle source for electron density that
-combines a feedforward gas puff term with a proportional feedback control loop.
-The feedback loop adjusts the total particle fueling rate to track a prescribed
-line-averaged or volume-averaged electron density target.
-
-To use this source, you must register it with TORAX:
-```python
-import torax
-from torax.experimental import gas_puff_feedback_source
-from torax._src.sources import register_model
-
-register_model.register_source_config(
-    gas_puff_feedback_source.GasPuffFeedbackSourceConfig
-)
-```
+This module is retained for backward compatibility with downstream callers. New
+configurations should configure `sources['generic_particle']` with
+`model_name='feedback'`
+(`torax._src.sources.particle_feedback_source.ParticleFeedbackSourceConfig`).
 """
 
 import dataclasses
 import enum
 from typing import Annotated, Literal
+import warnings
+
 import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import gas_puff_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -77,13 +67,10 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[
-      source_profiles.SourceOutput,
+      core_sources.SourceOutput,
       source_state_lib.SourceState,
   ]:
     """Calculates gas puff source with feedback control.
@@ -93,27 +80,26 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the particle_source_e profile populated.
+        - SourceState for this source.
     """
-    del calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
 
     match source_params.average_type:
       case AverageType.LINE:
-        current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
+        current_avg_n_e = math_utils.line_average(
+            solver_profiles.kinetic.n_e.value, geo
+        )
       case AverageType.VOLUME:
         current_avg_n_e = math_utils.volume_average(
-            core_profiles.n_e.value, geo
+            solver_profiles.kinetic.n_e.value, geo
         )
       case _ as unknown:
         raise ValueError(f'Unknown average type: {unknown}')
@@ -130,16 +116,18 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         total=S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(profiles=(profile,)), source_state
+    return core_sources.SourceOutput(particle_source_e=profile), source_state
 
 
+# TODO(b/323504363): Remove gas_puff_feedback_source after migrating callers to
+# generic_particle feedback.
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
-  """Config for the gas puff electron density source with feedback control.
+  """Configuration for the gas puff electron density source with feedback.
 
   The total particle injection rate is computed using a proportional feedback
   control loop added to a baseline feedforward rate:
 
-    S_total = max(0, S_feedforward + feedback_gain * (target_avg_n_e -
+    S_total = max(0, S_feedforward + feedback_gain * (target_average_n_e -
     current_avg_n_e))
 
   where `current_avg_n_e` is the instantaneous line- or volume-averaged electron
@@ -147,19 +135,20 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
   transients, the total source is clipped to be non-negative (>= 0).
 
   The resulting total particle flux [particles/s] is deposited radially using an
-  exponential profile decaying inwards from the outer edge boundary (r/a = 1.0)
-  with a characteristic width set by `puff_decay_length`.
+  exponential profile decaying inwards from the outer edge boundary
+  ($rho_norm = 1$) with a characteristic width set by `puff_decay_length`.
 
   Attributes:
-    puff_decay_length: Exponential decay length of gas puff ionization from the
-      edge boundary inwards [normalized radial coordinate r/a].
+    model_name: Name of the experimental feedback gas puff model (`'feedback'`).
+    puff_decay_length: Exponential decay length of gas puff ionization inwards
+      from the edge boundary [$rho_norm$].
     S_feedforward: Baseline feedforward particle injection rate [particles/s].
-    average_type: Method for spatial electron density averaging ('line' or
-      'volume') used to calculate the feedback error.
-    feedback_gain: Proportional feedback gain [m^3 / s] mapping density error to
+    average_type: Method for spatial electron density averaging (`'line'` or
+      `'volume'`) used to calculate the feedback error.
+    feedback_gain: Proportional feedback gain [m^3/s] mapping density error to
       an incremental particle fueling rate.
     mode: Defines whether source values are computed from a model, prescribed,
-      or loaded from a file (defaults to MODEL_BASED).
+      or zeroed.
     target_average_n_e: Desired target average electron density [m^-3] for
       feedback regulation.
   """
@@ -187,6 +176,7 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    """Builds the runtime parameters for the gas puff source at time `t`."""
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
@@ -198,4 +188,11 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
     )
 
   def build_source(self) -> GasPuffFeedbackSource:
+    """Builds a `GasPuffFeedbackSource` from the config."""
+    warnings.warn(
+        'GasPuffFeedbackSourceConfig is deprecated; configure'
+        " generic_particle with model_name='feedback' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return GasPuffFeedbackSource()

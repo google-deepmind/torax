@@ -17,14 +17,17 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import ion_composition
+from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import poloidal_flux_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.orchestration import state_evaluation
 from torax._src.output_tools import output_keys
-from torax._src.physics import charge_states
 from torax._src.torax_pydantic import config
 
 
@@ -32,7 +35,7 @@ def make_initial_inputs(
     torax_config: config.ToraxConfig,
     t_override: float | None = None,
 ) -> tuple[
-    state.CoreProfiles,
+    core_profiles_lib.CoreProfiles,
     runtime_params_lib.RuntimeParams,
     geometry.Geometry,
 ]:
@@ -59,29 +62,38 @@ def make_initial_inputs(
                   torax_config
               )
           ),
-          geometry_provider=torax_config.geometry.build_provider,
+          geometry_model=models.geometry_model,
           is_initialization=True,
       )
   )
-  core_profiles = initialization.initial_core_profiles(
-      runtime_params,
-      geo,
+  solver_state = initialization.initial_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
       source_states=models.source_models.initial_state(runtime_params),
   )
-  return core_profiles, runtime_params, geo
+  evaluated_state, _ = state_evaluation.evaluate_initial_state(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_state=solver_state,
+      models=models,
+  )
+  return evaluated_state.core_profiles, runtime_params, geo
 
 
 # pylint: disable=invalid-name
 def make_zero_core_profiles(
     geo: geometry.Geometry,
     T_e: cell_variable.CellVariable | None = None,
-    Z_impurity: jax.Array | None = None,
-    Z_impurity_face: jax.Array | None = None,
+    Z_impurity_average: jax.Array | None = None,
+    Z_impurity_average_face: jax.Array | None = None,
+    Z_impurity_bundled: jax.Array | None = None,
+    Z_impurity_bundled_face: jax.Array | None = None,
+    n_impurity_total: cell_variable.CellVariable | None = None,
     impurity_names: tuple[str, ...] = ("dummy_impurity",),
     main_ion_names: tuple[str, ...] = ("dummy_main_ion",),
-) -> state.CoreProfiles:
+) -> core_profiles_lib.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho),
@@ -93,54 +105,77 @@ def make_zero_core_profiles(
       name: jnp.zeros_like(geo.rho) for name in impurity_names
   }
   main_ion_fractions_dict = {name: jnp.array(0.0) for name in main_ion_names}
-  zero_charge_state_info = charge_states.ChargeStateInfo(
-      Z_avg=jnp.zeros_like(geo.rho),
-      Z2_avg=jnp.zeros_like(geo.rho),
-      Z_per_species={name: jnp.zeros_like(geo.rho) for name in impurity_names},
-  )
-  zero_charge_state_info_face = charge_states.ChargeStateInfo(
-      Z_avg=jnp.zeros_like(geo.rho_face),
-      Z2_avg=jnp.zeros_like(geo.rho_face),
-      Z_per_species={
-          name: jnp.zeros_like(geo.rho_face) for name in impurity_names
-      },
-  )
-  return state.CoreProfiles(
+  Z_impurity_per_species = {
+      name: jnp.zeros_like(geo.rho) for name in impurity_names
+  }
+  Z_impurity_per_species_face = {
+      name: jnp.zeros_like(geo.rho_face) for name in impurity_names
+  }
+  kinetic = kinetic_profiles.KineticProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
-      psi=zero_cell_variable,
-      psidot=zero_cell_variable,
       n_e=zero_cell_variable,
       n_i=zero_cell_variable,
-      n_impurity=zero_cell_variable,
+      n_impurity_total=(
+          n_impurity_total
+          if n_impurity_total is not None
+          else zero_cell_variable
+      ),
+      toroidal_angular_velocity=zero_cell_variable,
+  )
+  ions = ion_composition.IonComposition(
       impurity_fractions=impurity_fractions_dict,
       main_ion_fractions=main_ion_fractions_dict,
-      q_face=jnp.zeros_like(geo.rho_face),
-      s_face=jnp.zeros_like(geo.rho_face),
-      v_loop_lcfs=jnp.array(0.0),
       Z_i=jnp.zeros_like(geo.rho),
       Z_i_face=jnp.zeros_like(geo.rho_face),
+      Z_impurity_average=(
+          Z_impurity_average
+          if Z_impurity_average is not None
+          else jnp.zeros_like(geo.rho)
+      ),
+      Z_impurity_average_face=(
+          Z_impurity_average_face
+          if Z_impurity_average_face is not None
+          else jnp.zeros_like(geo.rho_face)
+      ),
+      Z_impurity_bundled=(
+          Z_impurity_bundled
+          if Z_impurity_bundled is not None
+          else jnp.zeros_like(geo.rho)
+      ),
+      Z_impurity_bundled_face=(
+          Z_impurity_bundled_face
+          if Z_impurity_bundled_face is not None
+          else jnp.zeros_like(geo.rho_face)
+      ),
+      Z_impurity_per_species=Z_impurity_per_species,
+      Z_impurity_per_species_face=Z_impurity_per_species_face,
       A_i=jnp.zeros(()),
-      Z_impurity=Z_impurity
-      if Z_impurity is not None
-      else jnp.zeros_like(geo.rho),
-      Z_impurity_face=Z_impurity_face
-      if Z_impurity_face is not None
-      else jnp.zeros_like(geo.rho_face),
       A_impurity=jnp.zeros_like(geo.rho),
       A_impurity_face=jnp.zeros_like(geo.rho_face),
       Z_eff=jnp.zeros_like(geo.rho),
       Z_eff_face=jnp.zeros_like(geo.rho_face),
-      sigma=jnp.zeros_like(geo.rho),
-      sigma_face=jnp.zeros_like(geo.rho_face),
+  )
+  poloidal_flux = poloidal_flux_profiles.PoloidalFluxProfiles(
+      psi=zero_cell_variable,
+      q_face=jnp.zeros_like(geo.rho_face),
+      s_face=jnp.zeros_like(geo.rho_face),
       j_toroidal_total=jnp.zeros_like(geo.rho),
       j_toroidal_total_face=jnp.zeros_like(geo.rho_face),
       I_p_profile_face=jnp.zeros_like(geo.rho_face),
-      toroidal_angular_velocity=zero_cell_variable,
-      poloidal_velocity=zero_cell_variable,
-      charge_state_info=zero_charge_state_info,
-      charge_state_info_face=zero_charge_state_info_face,
+  )
+  conductivity = core_profiles_lib.Conductivity(
+      sigma=jnp.zeros_like(geo.rho),
+      sigma_face=jnp.zeros_like(geo.rho_face),
+  )
+  return core_profiles_lib.CoreProfiles(
+      kinetic=kinetic,
+      ions=ions,
+      poloidal_flux=poloidal_flux,
       fast_ions=(),
+      conductivity=conductivity,
+      poloidal_velocity=zero_cell_variable,
+      psidot=zero_cell_variable,
   )
 
 
@@ -161,72 +196,72 @@ def make_constant_core_profile(
 def verify_core_profiles(
     ref_profiles: dict[str, array_typing.Array],
     index: int,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ):
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
-      core_profiles.T_e.value,
+      core_profiles.kinetic.T_e.value,
       ref_profiles[output_keys.T_E][index, 1:-1],
       err_msg=(
-          f"Mismatch for T_e.value. Core profile: {core_profiles.T_e.value},"
-          f" Ref profile ({output_keys.T_E}):"
-          f" {ref_profiles[output_keys.T_E][index, 1:-1]}"
+          "Mismatch for T_e.value. Core profile:"
+          f" {core_profiles.kinetic.T_e.value}, Ref profile"
+          f" ({output_keys.T_E}): {ref_profiles[output_keys.T_E][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.T_i.value,
+      core_profiles.kinetic.T_i.value,
       ref_profiles[output_keys.T_I][index, 1:-1],
       err_msg=(
-          f"Mismatch for T_i.value. Core profile: {core_profiles.T_i.value},"
-          f" Ref profile ({output_keys.T_I}):"
-          f" {ref_profiles[output_keys.T_I][index, 1:-1]}"
+          "Mismatch for T_i.value. Core profile:"
+          f" {core_profiles.kinetic.T_i.value}, Ref profile"
+          f" ({output_keys.T_I}): {ref_profiles[output_keys.T_I][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.n_e.value,
+      core_profiles.kinetic.n_e.value,
       ref_profiles[output_keys.N_E][index, 1:-1],
       err_msg=(
-          f"Mismatch for n_e.value. Core profile: {core_profiles.n_e.value},"
-          f" Ref profile ({output_keys.N_E}):"
-          f" {ref_profiles[output_keys.N_E][index, 1:-1]}"
+          "Mismatch for n_e.value. Core profile:"
+          f" {core_profiles.kinetic.n_e.value}, Ref profile"
+          f" ({output_keys.N_E}): {ref_profiles[output_keys.N_E][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-      core_profiles.n_e.right_face_constraint,
+      core_profiles.kinetic.n_e.right_face_constraint,
       ref_profiles[output_keys.N_E][index, -1],
       err_msg=(
           "Mismatch for n_e.right_face_constraint. Core profile:"
-          f" {core_profiles.n_e.right_face_constraint}, Ref profile"
+          f" {core_profiles.kinetic.n_e.right_face_constraint}, Ref profile"
           f" ({output_keys.N_E} end val):"
           f" {ref_profiles[output_keys.N_E][index, -1]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.n_i.value,
+      core_profiles.kinetic.n_i.value,
       ref_profiles[output_keys.N_I][index, 1:-1],
       err_msg=(
-          f"Mismatch for n_i.value. Core profile: {core_profiles.n_i.value},"
-          f" Ref profile ({output_keys.N_I}):"
-          f" {ref_profiles[output_keys.N_I][index, 1:-1]}"
+          "Mismatch for n_i.value. Core profile:"
+          f" {core_profiles.kinetic.n_i.value}, Ref profile"
+          f" ({output_keys.N_I}): {ref_profiles[output_keys.N_I][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-      core_profiles.n_i.right_face_constraint,
+      core_profiles.kinetic.n_i.right_face_constraint,
       ref_profiles[output_keys.N_I][index, -1],
       err_msg=(
           "Mismatch for n_i.right_face_constraint. Core profile:"
-          f" {core_profiles.n_i.right_face_constraint}, Ref profile"
+          f" {core_profiles.kinetic.n_i.right_face_constraint}, Ref profile"
           f" ({output_keys.N_I} end val):"
           f" {ref_profiles[output_keys.N_I][index, -1]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.psi.value,
+      core_profiles.poloidal_flux.psi.value,
       ref_profiles[output_keys.PSI][index, 1:-1],
       err_msg=(
-          f"Mismatch for psi.value. Core profile: {core_profiles.psi.value},"
-          f" Ref profile ({output_keys.PSI}):"
-          f" {ref_profiles[output_keys.PSI][index, 1:-1]}"
+          "Mismatch for psi.value. Core profile:"
+          f" {core_profiles.poloidal_flux.psi.value}, Ref profile"
+          f" ({output_keys.PSI}): {ref_profiles[output_keys.PSI][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(
@@ -240,48 +275,50 @@ def verify_core_profiles(
   )
 
   np.testing.assert_allclose(
-      core_profiles.q_face,
+      core_profiles.poloidal_flux.q_face,
       ref_profiles[output_keys.Q][index, :],
       err_msg=(
-          f"Mismatch for q_face. Core profile: {core_profiles.q_face}, Ref"
-          f" profile ({output_keys.Q}): {ref_profiles[output_keys.Q][index, :]}"
+          "Mismatch for q_face. Core profile:"
+          f" {core_profiles.poloidal_flux.q_face}, Ref profile"
+          f" ({output_keys.Q}): {ref_profiles[output_keys.Q][index, :]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.s_face,
+      core_profiles.poloidal_flux.s_face,
       ref_profiles[output_keys.MAGNETIC_SHEAR][index, :],
       err_msg=(
-          f"Mismatch for s_face. Core profile: {core_profiles.s_face},"
-          f" Ref profile ({output_keys.MAGNETIC_SHEAR}):"
+          "Mismatch for s_face. Core profile:"
+          f" {core_profiles.poloidal_flux.s_face}, Ref profile"
+          f" ({output_keys.MAGNETIC_SHEAR}):"
           f" {ref_profiles[output_keys.MAGNETIC_SHEAR][index, :]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.j_toroidal_total_face[0],
+      core_profiles.poloidal_flux.j_toroidal_total_face[0],
       ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, 0],
       err_msg=(
-          "Mismatch for j_toroidal_total_face[0]. Core profile:"
-          f" {core_profiles.j_toroidal_total_face[0]}, Ref profile"
-          f" ({output_keys.J_TOROIDAL_TOTAL} start val):"
+          "Mismatch for j_toroidal_total_face[0]. Core profile: "
+          f"{core_profiles.poloidal_flux.j_toroidal_total_face[0]}, Ref"
+          f" profile ({output_keys.J_TOROIDAL_TOTAL} start val):"
           f" {ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, 0]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.j_toroidal_total_face[-1],
+      core_profiles.poloidal_flux.j_toroidal_total_face[-1],
       ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, -1],
       err_msg=(
-          "Mismatch for j_toroidal_total_face[-1]. Core profile:"
-          f" {core_profiles.j_toroidal_total_face[-1]}, Ref profile"
-          f" ({output_keys.J_TOROIDAL_TOTAL} end val):"
+          "Mismatch for j_toroidal_total_face[-1]. Core profile: "
+          f"{core_profiles.poloidal_flux.j_toroidal_total_face[-1]}, Ref"
+          f" profile ({output_keys.J_TOROIDAL_TOTAL} end val):"
           f" {ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, -1]}"
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.I_p_profile_face,
+      core_profiles.poloidal_flux.I_p_profile_face,
       ref_profiles[output_keys.I_P_PROFILE][index, :],
       err_msg=(
           "Mismatch for I_p_profile_face. Core profile:"
-          f" {core_profiles.I_p_profile_face}, Ref profile"
+          f" {core_profiles.poloidal_flux.I_p_profile_face}, Ref profile"
           f" ({output_keys.I_P_PROFILE}):"
           f" {ref_profiles[output_keys.I_P_PROFILE][index, :]}"
       ),

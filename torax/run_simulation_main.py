@@ -31,6 +31,7 @@ from absl import flags
 from absl import logging
 import jax
 import torax
+from torax._src import jax_utils
 from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
@@ -362,8 +363,8 @@ def _post_run_plotting(
 
 
 def main(_):
-  torax.set_jax_precision()
-  torax.log_jax_backend()
+  jax_utils.set_jax_precision()
+  jax_utils.log_jax_backend()
 
   if _CONFIG_PATH.value is None:
     raise ValueError(f'--{_CONFIG_PATH.name} must be specified.')

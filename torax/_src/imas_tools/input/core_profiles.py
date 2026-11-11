@@ -104,22 +104,22 @@ def profile_conditions_from_IMAS(
   if ids.global_quantities.v_loop:
     v_loop_lcfs = (time_array, ids.global_quantities.v_loop)
   else:
-    v_loop_lcfs = 0.0
+    v_loop_lcfs = None
 
   return {
       "I_p": I_p,
       "I_p_source": "profile_conditions",
-      "initial_psi_source": "profile_conditions",
+      "psi_source": "profile_conditions",
       "psi": psi,
       "T_i": T_i,
       "T_i_right_bc": None,
       "T_e": T_e,
       "T_e_right_bc": None,
-      "n_e_right_bc_is_fGW": False,
+      "n_e_right_bc_is_f_GW": False,
       "n_e_right_bc": None,
-      "n_e_nbar_is_fGW": False,
+      "n_e_bar_is_f_GW": False,
       "n_e": n_e,
-      "normalize_n_e_to_nbar": False,
+      "normalize_n_e": False,
       "v_loop_lcfs": v_loop_lcfs,
   }
 

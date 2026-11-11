@@ -14,27 +14,22 @@
 
 """Calculates Block1DCoeffs for a time step."""
 
-import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import constants
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import profile_conditions
-from torax._src.core_profiles import updaters
+from torax._src.core_profiles import ion_composition
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import builder as ibc_builder
 from torax._src.orchestration import (
     explicit_model_outputs as explicit_model_outputs_lib,
 )
-from torax._src.physics import psi_calculations
-from torax._src.sources import source_profile_builders
-from torax._src.transport_model import transport_coefficients_builder
+from torax._src.orchestration import state_evaluation
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
@@ -68,7 +63,7 @@ class CoeffsCallback:
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_state: solver_state_lib.SolverState,
       x: tuple[cell_variable.CellVariable, ...],
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
@@ -87,7 +82,7 @@ class CoeffsCallback:
         potentially time-dependent and should correspond to the time step of the
         state x.
       geo: The geometry of the system at this time step.
-      core_profiles: The core profiles of the system at this time step.
+      solver_state: The primary profiles of the system at this time step.
       x: The state with cell-grid values of the evolving variables.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       model_state: State of models across timesteps.
@@ -106,13 +101,11 @@ class CoeffsCallback:
       coeffs: The diffusion, convection, etc. coefficients for this state.
     """
 
-    # Update core_profiles with the subset of new values of evolving variables
-    core_profiles = updaters.update_core_profiles_during_step(
+    # Update solver_state with new values of evolving variables.
+    updated_solver_state = convertors.solver_x_tuple_to_solver_state(
         x,
-        runtime_params,
-        geo,
-        core_profiles=core_profiles,
-        evolving_names=self.evolving_names,
+        self.evolving_names,
+        solver_state,
     )
     if allow_pereverzev:
       use_pereverzev = runtime_params.solver.use_pereverzev
@@ -122,7 +115,7 @@ class CoeffsCallback:
     return calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
+        solver_state=updated_solver_state,
         explicit_model_outputs=explicit_model_outputs,
         models=self.models,
         evolving_names=self.evolving_names,
@@ -135,7 +128,7 @@ class CoeffsCallback:
 def calc_coeffs(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    solver_state: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
@@ -143,15 +136,15 @@ def calc_coeffs(
     use_pereverzev: bool = False,
     explicit_call: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
-  """Calculates Block1DCoeffs for the time step described by `core_profiles`.
+  """Calculates Block1DCoeffs for the given `solver_state`.
 
   Args:
     runtime_params: General input parameters that can change from time step to
       time step or simulation run to run, and do so without triggering a
       recompile.
     geo: Geometry describing the torus.
-    core_profiles: Core plasma profiles for this time step during this iteration
-      of the solver. Depending on the type of solver being used, this may or may
+    solver_state: Primary profiles for this time step during this iteration of
+      the solver. Depending on the type of solver being used, this may or may
       not be equal to the original plasma profiles at the beginning of the time
       step.
     explicit_model_outputs: Explicit model outputs evaluated at time t.
@@ -159,7 +152,7 @@ def calc_coeffs(
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     model_state: Model state carried over from the previous timestep.
-    use_pereverzev: Toggle whether to calculate Pereverzev terms
+    use_pereverzev: Toggle whether to calculate Pereverzev terms.
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
       theta_implicit=1. This saves computation for the default fully implicit
@@ -173,15 +166,16 @@ def calc_coeffs(
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
   if explicit_call and runtime_params.solver.theta_implicit == 1.0:
     return _calc_coeffs_reduced(
-        geo,
-        core_profiles,
-        evolving_names,
+        runtime_params=runtime_params,
+        geo=geo,
+        solver_state=solver_state,
+        evolving_names=evolving_names,
     )
   else:
     return _calc_coeffs_full(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
+        solver_state=solver_state,
         explicit_model_outputs=explicit_model_outputs,
         models=models,
         evolving_names=evolving_names,
@@ -200,7 +194,7 @@ def calc_coeffs(
 def _calc_coeffs_full(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    solver_state: solver_state_lib.SolverState,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
@@ -208,98 +202,32 @@ def _calc_coeffs_full(
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
-  explicit_source_profiles = explicit_model_outputs.sources
-
-  consts = constants.CONSTANTS
-
-  # Evaluate basic sources (fast ions and non-inductive psi sources). Fast
-  # ions are applied to core_profiles before neoclassical calculations so that
-  # bootstrap current and downstream models observe the updated fast ion
-  # population.
-  partial_source_profiles, updated_source_states = (
-      source_profile_builders.build_basic_sources(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          source_models=models.source_models,
-          source_states=model_state.sources,
-          explicit=False,
-          explicit_source_profiles=explicit_source_profiles,
-      )
-  )
-  if runtime_params.numerics.enable_fast_ions:
-    fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        sum(partial_source_profiles.fast_ions.values(), ()),
-        runtime_params.profile_conditions.prescribed_fast_ions,
-        geo.rho_face_norm,
-    )
-  else:
-    fast_ions = ()
-  core_profiles = dataclasses.replace(core_profiles, fast_ions=fast_ions)
-  (
-      conductivity,
-      bootstrap_current,
-      poloidal_velocity,
-      neoclassical_intermediates,
-  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, core_profiles
-  )
-  v_loop_lcfs = (
-      runtime_params.profile_conditions.v_loop_lcfs
-      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else None
-  )
-  psidot = psi_calculations.calculate_psidot(
-      psi=core_profiles.psi,
-      sigma=conductivity.sigma,
-      psi_sources=dataclasses.replace(
-          partial_source_profiles, bootstrap_current=bootstrap_current
-      ).total_psi_sources(geo),
-      geo=geo,
-      evolve_current=runtime_params.numerics.evolve_current,
-      prescribed_psidot=runtime_params.profile_conditions.psidot,
-      v_loop_lcfs=v_loop_lcfs,
-  )
-  # Update sigma, sigma_face, poloidal_velocity, and psidot on core_profiles
-  # for the current solver iterate. Used by neoclassical transport (Ware pinch
-  # and Onsager heat fluxes) and turbulent transport (ExB shear).
-  core_profiles = dataclasses.replace(
-      core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
-      poloidal_velocity=poloidal_velocity.v_pol,
-      psidot=psidot,
-  )
-  neoclassical_transport = models.neoclassical_model.calculate_transport(
-      runtime_params, geo, core_profiles, neoclassical_intermediates
-  )
-
-  # Calculate the remaining implicit source profiles and combine them with the
-  # explicit source profiles. These are needed for the pedestal model, so are
-  # computed here rather than in the source terms section.
-  merged_source_profiles, _ = source_profile_builders.build_remaining_sources(
+  evaluated_state, _ = state_evaluation.evaluate_state(
       runtime_params=runtime_params,
       geo=geo,
-      core_profiles=core_profiles,
-      source_models=models.source_models,
-      source_states=updated_source_states,
-      partial_source_profiles=partial_source_profiles,
-      explicit=False,
-      conductivity=conductivity,
-      bootstrap_current=bootstrap_current,
+      solver_state=solver_state,
+      models=models,
+      explicit_model_outputs=explicit_model_outputs,
+      model_state=model_state,
+      use_pereverzev=use_pereverzev,
   )
+  core_profiles = evaluated_state.core_profiles
+  core_sources = evaluated_state.core_sources
+  transport_coefficients = evaluated_state.core_transport
+  internal_boundary_conditions = evaluated_state.internal_boundary_conditions
+  consts = constants.CONSTANTS
 
   # --- Transient term coefficients --- #
   # These have radial dependence through r, n
   toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
-  tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_i = core_profiles.kinetic.n_i.value * geo.vpr ** (5.0 / 3.0)
   toc_T_e = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
-  tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_e = core_profiles.kinetic.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
       / runtime_params.numerics.current_diffusion_time_reduction_factor
       * geo.rho_norm
-      * conductivity.sigma
+      * core_profiles.conductivity.sigma
       * consts.mu_0
       * 16
       * jnp.pi**2
@@ -309,47 +237,6 @@ def _calc_coeffs_full(
   tic_psi = jnp.ones_like(toc_psi)
   toc_dens_el = jnp.ones_like(geo.vpr)
   tic_dens_el = geo.vpr
-
-  # --- Diffusion and convection term coefficients --- #
-  # Cross-step pedestal state is updated at the end of the timestep in
-  # finalize_outputs.
-  pedestal_output, _ = models.pedestal_model(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_profiles=merged_source_profiles,
-      pedestal_state=model_state.pedestal,
-      explicit_pedestal_structure=explicit_model_outputs.pedestal,
-  )
-  internal_boundary_conditions = ibc_builder.build_internal_boundary_conditions(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      pedestal_model_output=pedestal_output,
-      internal_boundary_condition_model=(
-          models.internal_boundary_condition_model
-      ),
-      source_profiles=merged_source_profiles,
-  )
-
-  # Compute transport coefficients. We purposefully do not update
-  # transport_state here, as cross-step model state should only be updated at
-  # the end of the timestep in finalize_outputs.
-  transport_coefficients, _ = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_model_output=pedestal_output,
-          transport_state=model_state.transport,
-          neoclassical_transport=neoclassical_transport,
-          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
-              geo
-          ),
-          use_pereverzev=use_pereverzev,
-      )
-  )
 
   # Transport coefficients for the psi equation don't come from models
   d_face_psi = geo.g2g3_over_rhon_face
@@ -366,13 +253,13 @@ def _calc_coeffs_full(
   # Heat equations
   full_chi_face_ion = (
       geo.g1_over_vpr_face
-      * core_profiles.n_i.face_value()
+      * core_profiles.kinetic.n_i.face_value()
       * consts.keV_to_J
       * physical_transport.chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
-      * core_profiles.n_e.face_value()
+      * core_profiles.kinetic.n_e.face_value()
       * consts.keV_to_J
       * physical_transport.chi_face_el
   )
@@ -386,17 +273,28 @@ def _calc_coeffs_full(
   # - Psi equation has no Phi_b_dot term.
   # - Convection in the heat equations is solely due to Phi_b_dot, with no
   #   contribution from TransportCoefficients.
-  phib_dot_factor = geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
+  phib_dot_factor = (
+      model_state.geometry.Phi_b_dot
+      / geo.Phi_b
+      * geo.rho_face_norm
+      * geo.vpr_face
+  )
   # Heat equations
   # The Phi_b_dot term for the heat equation is derived by splitting V'^(5/3) as
   # V'^(2/3) * V' and using the product derivative rule to split the total
   # Phi_b_dot proportional term into a convective term and an effective source
   # term.
   full_v_heat_face_ion = (
-      -0.75 * phib_dot_factor * core_profiles.n_i.face_value() * consts.keV_to_J
+      -0.75
+      * phib_dot_factor
+      * core_profiles.kinetic.n_i.face_value()
+      * consts.keV_to_J
   )
   full_v_heat_face_el = (
-      -0.75 * phib_dot_factor * core_profiles.n_e.face_value() * consts.keV_to_J
+      -0.75
+      * phib_dot_factor
+      * core_profiles.kinetic.n_e.face_value()
+      * consts.keV_to_J
   )
   # Particle equations. No effective source term will be needed for particles.
   full_v_face_el -= 0.5 * phib_dot_factor
@@ -408,13 +306,13 @@ def _calc_coeffs_full(
   if per is not None:
     d_per_ion_heat = (
         geo.g1_over_vpr_face
-        * core_profiles.n_i.face_value()
+        * core_profiles.kinetic.n_i.face_value()
         * consts.keV_to_J
         * per.chi_face_ion
     )
     d_per_el_heat = (
         geo.g1_over_vpr_face
-        * core_profiles.n_e.face_value()
+        * core_profiles.kinetic.n_e.face_value()
         * consts.keV_to_J
         * per.chi_face_el
     )
@@ -445,10 +343,10 @@ def _calc_coeffs_full(
 
   # --- Source terms --- #
   # Construct the source vectors
-  source_i = merged_source_profiles.total_sources('T_i', geo)
-  source_e = merged_source_profiles.total_sources('T_e', geo)
-  source_n_e = merged_source_profiles.total_sources('n_e', geo)
-  source_psi = merged_source_profiles.total_psi_sources(geo)
+  source_i = core_sources.total_sources('power_density_i', geo)
+  source_e = core_sources.total_sources('power_density_e', geo)
+  source_n_e = core_sources.total_sources('particle_source_e', geo)
+  source_psi = core_sources.total_psi_sources(geo)
 
   # Initialize source matrices to zero
   # We don't initialize heat source matrices because they are populated by the
@@ -457,7 +355,7 @@ def _calc_coeffs_full(
   source_mat_psi = jnp.zeros_like(geo.rho)
 
   # Add Qei effects to the heat sources.
-  qei = merged_source_profiles.qei
+  qei = core_sources.qei
   source_mat_ii = qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
   source_mat_ee = qei.implicit_ee * geo.vpr
@@ -472,21 +370,21 @@ def _calc_coeffs_full(
   source_i += (
       0.5
       * geo.rho_norm
-      * core_profiles.n_i.value
+      * core_profiles.kinetic.n_i.value
       * geo.dvpr_drho_norm
-      * geo.Phi_b_dot
+      * model_state.geometry.Phi_b_dot
       / geo.Phi_b
-      * core_profiles.T_i.value
+      * core_profiles.kinetic.T_i.value
       * consts.keV_to_J
   )
   source_e += (
       0.5
       * geo.rho_norm
-      * core_profiles.n_e.value
+      * core_profiles.kinetic.n_e.value
       * geo.dvpr_drho_norm
-      * geo.Phi_b_dot
+      * model_state.geometry.Phi_b_dot
       / geo.Phi_b
-      * core_profiles.T_e.value
+      * core_profiles.kinetic.T_e.value
       * consts.keV_to_J
   )
 
@@ -495,13 +393,13 @@ def _calc_coeffs_full(
       8.0
       * jnp.pi**2
       * consts.mu_0
-      * geo.Phi_b_dot
+      * model_state.geometry.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
-      * conductivity.sigma
+      * core_profiles.conductivity.sigma
       / runtime_params.numerics.current_diffusion_time_reduction_factor
       / geo.F**2
-      * core_profiles.psi.grad()
+      * core_profiles.poloidal_flux.psi.grad()
   )
 
   # --- Build arguments to solver  --- #
@@ -567,7 +465,7 @@ def _calc_coeffs_full(
   internal_boundary_condition_mask, internal_boundary_condition_target_vec = (
       internal_boundary_conditions.to_solver_coeffs(
           evolving_names=evolving_names,
-          nx=geo.torax_mesh.nx,
+          nx=geo.n_rho,
       )
   )
 
@@ -595,27 +493,37 @@ def _calc_coeffs_full(
     ],
 )
 def _calc_coeffs_reduced(
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    solver_state: solver_state_lib.SolverState,
     evolving_names: tuple[str, ...],
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates only the transient_in_cell terms in Block1DCoeffs."""
+  # Only transient_in_cell is used for explicit terms if theta_implicit=1.
+  # Because evolving_names is static under @jax.jit, dispatching per channel
+  # avoids tracing unused channels (such as ion composition for T_i).
+  transient_in_cell = []
+  for var in evolving_names:
+    match var:
+      case 'T_i':
+        _, n_i, _ = ion_composition.get_ion_composition_and_density(
+            runtime_params.plasma_composition,
+            geo,
+            solver_state.n_e,
+            solver_state.T_e,
+        )
+        transient_in_cell.append(n_i.value * geo.vpr ** (5.0 / 3.0))
+      case 'T_e':
+        transient_in_cell.append(
+            solver_state.n_e.value * geo.vpr ** (5.0 / 3.0)
+        )
+      case 'psi':
+        transient_in_cell.append(jnp.ones_like(geo.vpr))
+      case 'n_e':
+        transient_in_cell.append(geo.vpr)
+      case _:
+        raise ValueError(f'Unknown evolving variable: {var}')
 
-  # Only transient_in_cell is used for explicit terms if theta_implicit=1
-  tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
-  tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
-  tic_psi = jnp.ones_like(geo.vpr)
-  tic_dens_el = geo.vpr
-
-  var_to_tic = {
-      'T_i': tic_T_i,
-      'T_e': tic_T_e,
-      'psi': tic_psi,
-      'n_e': tic_dens_el,
-  }
-  transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
-
-  coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_in_cell=transient_in_cell,
+  return block_1d_coeffs.Block1DCoeffs(
+      transient_in_cell=tuple(transient_in_cell),
   )
-  return coeffs

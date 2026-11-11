@@ -21,11 +21,10 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
@@ -51,12 +50,9 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Compute ICRH heating from prescribed profiles with B-field shift.
 
     The model performs two operations on the reference profiles:
@@ -64,25 +60,28 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
        R_res ∝ B₀. When B₀ differs from the reference field, the resonance
        moves, and the heating profile shifts accordingly in normalised radius.
     2. **Power normalisation**: The shifted profiles are rescaled so the
-       volume-integrated total heating equals ``P_total * absorption_fraction``.
+       volume-integrated total heating equals `P_total * absorption_fraction`.
 
     Args:
       runtime_params: Full simulation runtime parameters.
       geo: Magnetic geometry.
-      core_profiles: Core plasma profiles (unused by this model).
-      calculated_source_profiles: Unused.
-      conductivity: Unused.
+      solver_profiles: Core plasma profiles (unused by this model).
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_i and power_density_e profiles
+          populated.
+        - SourceState for this source.
     """
-    del core_profiles, calculated_source_profiles, conductivity, psidot
+    del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.P_total is None:
+      raise ValueError(
+          'ScaledProfileIonCyclotronSource requires `P_total` to be set.'
+      )
 
     ref_ion = source_params.heat_profile_ion
     ref_el = source_params.heat_profile_electron
@@ -98,7 +97,7 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
     # This is monotonically increasing with ρ, unlike the flux-surface-averaged
     # R_major_profile which can be constant (e.g. circular geometry).
     R_out = geo.R_out
-    rho = geo.torax_mesh.cell_centers
+    rho = geo.rho_norm
 
     # Shifted major radius for each grid point.
     R_shifted = R_out / B_ratio
@@ -125,33 +124,36 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
 
     # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
     return (
-        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        core_sources.SourceOutput(
+            power_density_i=source_ion, power_density_e=source_el
+        ),
         source_state,
     )
 
 
 class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
-  """Configuration for ICRH with prescribed, B-field-shiftable profiles.
+  """Prescribed-profile ICRH model with magnetic-field resonance shifting.
 
-  This model takes reference ion and electron heating profiles and:
+  Takes reference ion and electron heating profiles and:
+
   1. Shifts them radially based on the ratio of the actual vacuum toroidal
-     magnetic field to a reference field (``B₀ / reference_B0``).
+     magnetic field to a reference field (`B₀ / reference_B0`).
   2. Rescales the amplitude so that the volume-integrated total heating
-     equals ``P_total * absorption_fraction``.
+     equals `P_total * absorption_fraction`.
 
   This is useful when computed reference heating profiles are available at a
   specific magnetic field, and you need to approximate them to different
   operating points without re-running the full RF solver.
 
   Attributes:
-    model_name: Discriminator literal for Pydantic.
-    heat_profile_ion: Reference ion heating power density shape [W/m³],
-      provided on a normalised toroidal coordinate grid as a TimeVaryingArray.
+    model_name: Name of the scaled-profile ICRH model (`'scaled_profile'`).
+    heat_profile_ion: Reference ion heating power density shape [W/m^3],
+      provided on the normalized radius grid $rho_norm$. Rescaled during
+      normalization so only the relative profile shape matters.
     heat_profile_electron: Reference electron heating power density shape
-      [W/m³], provided on a normalised toroidal coordinate grid as a
-      TimeVaryingArray.
-    reference_B0: Vacuum toroidal magnetic field at which the reference
-      profiles were computed [T].
+      [W/m^3], provided on the normalized radius grid $rho_norm$.
+    reference_B0: Vacuum toroidal magnetic field at which the reference profiles
+      were computed [T].
   """
 
   model_name: Annotated[

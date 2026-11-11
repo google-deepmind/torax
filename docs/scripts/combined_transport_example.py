@@ -30,20 +30,20 @@ def main(argv: Sequence[str]) -> None:
       'profile_conditions': {
           'I_p': 15e6,
           'I_p_source': 'profile_conditions',
-          'initial_psi_source': 'j',
+          'psi_source': 'j',
       },
       'numerics': {},
       'plasma_composition': {},
       'geometry': {
-          'geometry_type': 'circular',
+          'model_name': 'circular',
           'n_rho': 30,  # for higher resolution plotting
       },
       'pedestal': {
           'structure_model': {
-              'model_name': 'set_T_ped_n_ped',
-              'rho_norm_ped_top': 0.9,
-              'n_e_ped': 0.8,
-              'n_e_ped_is_fGW': True,
+              'model_name': 'set_T_top_n_top',
+              'rho_norm_top': 0.9,
+              'n_e_top': 0.8,
+              'n_e_top_is_f_GW': True,
           },
       },
       'neoclassical': {},

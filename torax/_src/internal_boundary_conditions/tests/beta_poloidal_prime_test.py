@@ -29,7 +29,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import beta_poloidal_prime
 from torax._src.internal_boundary_conditions import config as ibc_config_lib
 from torax._src.orchestration import run_simulation
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -45,9 +45,9 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         rho_norm_edge=0.85,
         n_e_edge=2.0e19,
         beta_poloidal_prime=1.5,
-        Ti_Te_ratio=1.0,
+        T_i_T_e_ratio=1.0,
     )
-    self.assertFalse(ibc_config.n_e_is_fGW)
+    self.assertFalse(ibc_config.n_e_is_f_GW)
     self.assertIsNone(ibc_config.n_e_edge_multiplier)
     self.assertEqual(ibc_config.mode, beta_poloidal_prime.Mode.CONSTANT)
     self.assertIsNone(ibc_config.P_SOL_scaling)
@@ -65,7 +65,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       ibc_config_lib.BetaPoloidalPrimeIBCConfig(
           rho_norm_edge=0.85,
           beta_poloidal_prime=1.5,
-          Ti_Te_ratio=1.0,
+          T_i_T_e_ratio=1.0,
       )
 
   def test_both_n_e_edge_and_multiplier_raises(self):
@@ -78,7 +78,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
           n_e_edge=2.0e19,
           n_e_edge_multiplier=1.5,
           beta_poloidal_prime=1.5,
-          Ti_Te_ratio=1.0,
+          T_i_T_e_ratio=1.0,
       )
 
   def test_power_dependent_without_p_sol_scaling_raises(self):
@@ -90,7 +90,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
           rho_norm_edge=0.85,
           n_e_edge=2.0e19,
           beta_poloidal_prime=1.5,
-          Ti_Te_ratio=1.0,
+          T_i_T_e_ratio=1.0,
       )
 
   def _setup_model_and_profiles(
@@ -99,23 +99,33 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       n_e_edge: float | None = 2.5e19,
       n_e_edge_multiplier: float | None = None,
       beta_poloidal_prime_val: float = 1.5,
-      ti_te_ratio: float = 1.2,
-      n_e_is_fGW: bool = False,
+      T_i_T_e_ratio: float = 1.2,
+      n_e_is_f_GW: bool = False,
       I_p: float = 5e6,
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
       beta_poloidal_prime_min: float = 0.2,
       P_SOL_scaling: float | None = None,
-      source_profiles: source_profiles_lib.SourceProfiles | None = None,
+      source_profiles: core_sources_lib.CoreSources | None = None,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        I_p_profile_face=jnp.linspace(0.0, I_p, geo.rho_face.shape[0]),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+            n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        ),
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux,
+            I_p_profile_face=jnp.linspace(0.0, I_p, geo.rho_face.shape[0]),
+        ),
     )
 
     ibc_config = ibc_config_lib.BetaPoloidalPrimeIBCConfig(
@@ -126,10 +136,12 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         beta_poloidal_prime=beta_poloidal_prime_val,
         beta_poloidal_prime_min=beta_poloidal_prime_min,
         P_SOL_scaling=P_SOL_scaling,
-        Ti_Te_ratio=ti_te_ratio,
-        n_e_is_fGW=n_e_is_fGW,
+        T_i_T_e_ratio=T_i_T_e_ratio,
+        n_e_is_f_GW=n_e_is_f_GW,
     )
-    torax_pydantic.set_grid(ibc_config, geo.torax_mesh)
+    torax_pydantic.set_grid(
+        ibc_config, torax_pydantic.Grid1D.uniform_from_n_rho(geo.n_rho)
+    )
     ibc_rp = ibc_config.build_runtime_params(t=0.0)
 
     class _MockProfileConditions:
@@ -144,11 +156,10 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams, _MockRuntimeParams()
     )
     if source_profiles is None:
-      source_profiles = mock.create_autospec(
-          source_profiles_lib.SourceProfiles,
-          instance=True,
-          T_e={},
-          T_i={},
+      source_profiles = core_sources_lib.CoreSources(
+          bootstrap_current=mock.ANY,
+          qei=mock.ANY,
+          sources={},
       )
     model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
     ibc_out = model(
@@ -174,10 +185,12 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
   ):
     def _build_ibc_from_config(ibc_dict: dict[str, typing.Any]):
       config_dict = default_configs.get_default_config_dict()
-      config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 25}
+      config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 25}
       config_dict['sources'] = {
           'generic_heat': {
               'P_total': P_total,
+              'gaussian_width': 0.25,
+              'gaussian_location': 0.0,
           }
       }
       config_dict['profile_conditions'][
@@ -204,7 +217,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'beta_poloidal_prime': beta_poloidal_prime_max,
         'beta_poloidal_prime_min': beta_poloidal_prime_min,
         'P_SOL_scaling': P_SOL_scaling,
-        'Ti_Te_ratio': 1.2,
+        'T_i_T_e_ratio': 1.2,
     })
 
     expected_beta_poloidal_prime = float(
@@ -221,7 +234,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'rho_norm_edge': 0.7,
         'n_e_edge': 2.5e19,
         'beta_poloidal_prime': expected_beta_poloidal_prime,
-        'Ti_Te_ratio': 1.2,
+        'T_i_T_e_ratio': 1.2,
     })
 
     np.testing.assert_allclose(ibc_power_dep.T_e, ibc_constant_equiv.T_e)
@@ -229,12 +242,19 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     np.testing.assert_allclose(ibc_power_dep.n_e, ibc_constant_equiv.n_e)
 
   def test_negative_p_sol_clamps_to_min(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    negative_sources = mock.create_autospec(
-        source_profiles_lib.SourceProfiles,
-        instance=True,
-        T_e={'radiation': jnp.full_like(geo.rho_norm, -1.0e6)},
-        T_i={},
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    negative_sources = core_sources_lib.CoreSources(
+        bootstrap_current=mock.ANY,
+        qei=mock.ANY,
+        sources={
+            'radiation': core_sources_lib.SourceOutput(
+                power_density_e=jnp.full_like(geo.rho_norm, -1.0e6)
+            )
+        },
     )
     _, _, ibc_power_dep = self._setup_model_and_profiles(
         mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
@@ -252,15 +272,25 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   @parameterized.parameters(-1.0e6, 0.0, 1.0e-20, 1.0, 1.0e6)
   def test_power_dependent_gradients_finite(self, q_val: float):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
-        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        I_p_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+            n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+            n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        ),
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux,
+            I_p_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+        ),
     )
     model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
 
@@ -268,10 +298,10 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       ibc_rp = beta_poloidal_prime.RuntimeParams(
           rho_norm_edge=jnp.asarray(0.7),
           beta_poloidal_prime=jnp.asarray(1.8),
-          Ti_Te_ratio=jnp.asarray(1.2),
+          T_i_T_e_ratio=jnp.asarray(1.2),
           n_e_edge=jnp.asarray(2.5e19),
           n_e_edge_multiplier=None,
-          n_e_is_fGW=False,
+          n_e_is_f_GW=False,
           mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
           beta_poloidal_prime_min=jnp.asarray(0.2),
           P_SOL_scaling=p_sol_scaling,
@@ -287,11 +317,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       mock_rp = typing.cast(
           runtime_params_lib.RuntimeParams, _MockRuntimeParams()
       )
-      sources = mock.create_autospec(
-          source_profiles_lib.SourceProfiles,
-          instance=True,
-          T_e={'radiation': jnp.full_like(geo.rho_norm, q_density)},
-          T_i={},
+      sources = core_sources_lib.CoreSources(
+          bootstrap_current=mock.ANY,
+          qei=mock.ANY,
+          sources={
+              'radiation': core_sources_lib.SourceOutput(
+                  power_density_e=jnp.full_like(geo.rho_norm, q_density)
+              )
+          },
       )
       out = model(mock_rp, geo, core_profiles, source_profiles=sources)
       return jnp.sum(out.T_e)
@@ -317,7 +350,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   def test_enforces_temperature_ratio(self):
     geo, _, ibc_out = self._setup_model_and_profiles(
-        rho_norm_edge=0.7, ti_te_ratio=1.2
+        rho_norm_edge=0.7, T_i_T_e_ratio=1.2
     )
     edge_cells = geo.rho_norm >= 0.7
     np.testing.assert_allclose(
@@ -331,24 +364,24 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     self.assertFalse(mask[0])
 
   def test_greenwald_density_conversion(self):
-    fgw = 0.4
+    f_GW = 0.4
     I_p = 5e6
-    geo, _, ibc_out_fgw = self._setup_model_and_profiles(
+    geo, _, ibc_out_f_GW = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
-        n_e_edge=fgw,
-        n_e_is_fGW=True,
+        n_e_edge=f_GW,
+        n_e_is_f_GW=True,
         I_p=I_p,
     )
     nGW = (I_p / 1e6) / (np.pi * geo.a_minor**2) * 1e20
     _, _, ibc_out_abs = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
-        n_e_edge=fgw * nGW,
-        n_e_is_fGW=False,
+        n_e_edge=f_GW * nGW,
+        n_e_is_f_GW=False,
         I_p=I_p,
     )
-    np.testing.assert_allclose(ibc_out_fgw.n_e, ibc_out_abs.n_e)
-    np.testing.assert_allclose(ibc_out_fgw.T_e, ibc_out_abs.T_e)
-    np.testing.assert_allclose(ibc_out_fgw.T_i, ibc_out_abs.T_i)
+    np.testing.assert_allclose(ibc_out_f_GW.n_e, ibc_out_abs.n_e)
+    np.testing.assert_allclose(ibc_out_f_GW.T_e, ibc_out_abs.T_e)
+    np.testing.assert_allclose(ibc_out_f_GW.T_i, ibc_out_abs.T_i)
 
   def test_n_e_edge_multiplier_matches_equivalent_n_e_edge(self):
     multiplier = 1.5
@@ -357,7 +390,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         n_e_edge=None,
         n_e_edge_multiplier=multiplier,
     )
-    n_e_sep = core_profiles.n_e.right_face_value.item()
+    n_e_sep = core_profiles.kinetic.n_e.right_face_value.item()
     _, _, ibc_out_val = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
         n_e_edge=multiplier * n_e_sep,
@@ -368,15 +401,15 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     np.testing.assert_allclose(ibc_out_mult.T_i, ibc_out_val.T_i)
 
   @parameterized.named_parameters(
-      ('value_m3', {'n_e_edge': 2.0e19, 'n_e_is_fGW': False}),
-      ('value_fgw', {'n_e_edge': 0.3, 'n_e_is_fGW': True}),
+      ('value_m3', {'n_e_edge': 2.0e19, 'n_e_is_f_GW': False}),
+      ('value_f_GW', {'n_e_edge': 0.3, 'n_e_is_f_GW': True}),
       ('multiplier', {'n_e_edge_multiplier': 1.5}),
   )
   def test_solver_step_reconstructs_beta_poloidal_prime(
       self, n_e_edge_kwargs: dict[str, typing.Any]
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 25}
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 25}
     config_dict['numerics']['evolve_density'] = True
     rho_norm_edge = 0.8
     target_beta_pol_prime = 1.5
@@ -384,7 +417,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'model_name': 'beta_poloidal_prime',
         'rho_norm_edge': rho_norm_edge,
         'beta_poloidal_prime': target_beta_pol_prime,
-        'Ti_Te_ratio': 1.0,
+        'T_i_T_e_ratio': 1.0,
         **n_e_edge_kwargs,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)

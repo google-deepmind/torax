@@ -14,32 +14,32 @@
 """Code for getting the initial state for a simulation."""
 
 import dataclasses
+import json
 
 from absl import logging
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
-from torax._src.core_profiles import profile_conditions
-from torax._src.core_profiles import runtime_params as core_profile_runtime_params
-from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.internal_boundary_conditions import (
-    builder as internal_boundary_conditions_builder,
+from torax._src.core_profiles import (
+    runtime_params as core_profile_runtime_params,
 )
+from torax._src.core_profiles import solver_state as solver_state_lib
+from torax._src.edge import base as edge_base
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
+from torax._src.geometry import geometry_state
 from torax._src.orchestration import sim_state
+from torax._src.orchestration import state_evaluation
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model.formation import power_scaling_formation_model
-from torax._src.sources import source_profile_builders
+from torax._src.physics import psi_calculations
+from torax._src.solver import solver_numeric_outputs
 from torax._src.torax_pydantic import file_restart as file_restart_config
-from torax._src.transport_model import transport_coefficients_builder
 import xarray as xr
 
 
@@ -50,7 +50,6 @@ def get_initial_state_and_post_processed_outputs(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
-    geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs.
 
@@ -62,8 +61,6 @@ def get_initial_state_and_post_processed_outputs(
       chosen based on the values set in the numerics config.
     runtime_params_overrides: Optional runtime params provider to override the
       one set in the step function.
-    geometry_overrides: Optional geometry provider to override the one set in
-      the step function.
 
   Returns:
     A tuple of the initial state and post processed outputs.
@@ -71,7 +68,6 @@ def get_initial_state_and_post_processed_outputs(
   runtime_params_provider = (
       runtime_params_overrides or step_fn.runtime_params_provider
   )
-  geometry_provider = geometry_overrides or step_fn.geometry_provider
   t = (
       t
       if t is not None
@@ -82,7 +78,7 @@ def get_initial_state_and_post_processed_outputs(
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t,
           runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
+          geometry_model=step_fn.solver.models.geometry_model,
           is_initialization=True,
       )
   )
@@ -96,8 +92,8 @@ def get_initial_state_and_post_processed_outputs(
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=initial_state,
       runtime_params=runtime_params_for_init,
-      previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
-          geo_for_init
+      previous_post_processed_outputs=(
+          post_processing.PostProcessedOutputs.zeros(geo_for_init)
       ),
   )
   return initial_state, post_processed_outputs
@@ -110,122 +106,49 @@ def _get_initial_state(
 ) -> sim_state.SimState:
   """Returns the initial state to be used by run_simulation()."""
   models = step_fn.solver.models
-  initial_source_states = models.source_models.initial_state(runtime_params)
-  initial_core_profiles = initialization.initial_core_profiles(
-      runtime_params,
-      geo,
+  solver_state = initialization.initial_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
-      source_states=initial_source_states,
+      source_states=models.source_models.initial_state(runtime_params),
   )
-  (
-      conductivity,
-      bootstrap_current,
-      _,
-      neoclassical_intermediates,
-  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, initial_core_profiles
-  )
-  initial_core_sources, initial_source_states = (
-      source_profile_builders.get_all_source_profiles(
+  evaluated_state, initial_model_state = (
+      state_evaluation.evaluate_initial_state(
           runtime_params=runtime_params,
           geo=geo,
-          core_profiles=initial_core_profiles,
-          source_models=models.source_models,
-          conductivity=conductivity,
-          bootstrap_current=bootstrap_current,
-          source_states=initial_source_states,
+          solver_state=solver_state,
+          models=models,
       )
-  )
-
-  if runtime_params.numerics.enable_fast_ions:
-    fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        sum(initial_core_sources.fast_ions.values(), ()),
-        runtime_params.profile_conditions.prescribed_fast_ions,
-        geo.rho_face_norm,
-    )
-  else:
-    fast_ions = ()
-  initial_core_profiles = dataclasses.replace(
-      initial_core_profiles,
-      fast_ions=fast_ions,
   )
 
   if models.edge_model is not None:
-    # If `runtime_params.edge.use_enrichment_model` is True, then the
-    # `runtime_params.edge.enrichment_factor`
-    # in this initialization step was calculated with a guess for the divertor
-    # neutral pressure. This is only used to set edge fixed impurities if
-    # PlasmaComposition.impurity_source_of_truth == CORE. All subsequent
-    # calls to the edge model will use the divertor neutral pressure from a
-    # previous calculation.
     assert runtime_params.edge is not None
-    edge_outputs = models.edge_model(
+    seed_edge_state = models.edge_model.initial_state(runtime_params.edge)
+    edge_outputs, initial_edge_state = models.edge_model(
         runtime_params.edge,
         runtime_params,
         geo,
-        initial_core_profiles,
-        initial_core_sources,
-        previous_edge_outputs=None,
+        evaluated_state.core_profiles,
+        evaluated_state.core_sources,
+        edge_state=seed_edge_state,
+    )
+    initial_model_state = dataclasses.replace(
+        initial_model_state,
+        edge=initial_edge_state,
     )
   else:
     edge_outputs = None
-
-  initial_pedestal_output, initial_pedestal_state = (
-      models.pedestal_model.initialize(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=initial_core_profiles,
-          source_profiles=initial_core_sources,
-      )
-  )
-
-  internal_boundary_conditions = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=initial_core_profiles,
-          pedestal_model_output=initial_pedestal_output,
-          internal_boundary_condition_model=(
-              models.internal_boundary_condition_model
-          ),
-          source_profiles=initial_core_sources,
-      )
-  )
-  neoclassical_transport = models.neoclassical_model.calculate_transport(
-      runtime_params, geo, initial_core_profiles, neoclassical_intermediates
-  )
-  transport_coeffs, initial_transport_state = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=initial_core_profiles,
-          pedestal_model_output=initial_pedestal_output,
-          transport_state=models.transport_model.initial_state(runtime_params),
-          neoclassical_transport=neoclassical_transport,
-          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
-              geo
-          ),
-      )
-  )
-
-  initial_model_state = model_state_lib.ModelState(
-      pedestal=initial_pedestal_state,
-      transport=initial_transport_state,
-      sources=initial_source_states,
-  )
-
   return sim_state.SimState(
       t=jnp.array(
           runtime_params.time_step_calculator.t_initial,
           dtype=jax_utils.get_dtype(),
       ),
       dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
-      core_profiles=initial_core_profiles,
-      core_sources=initial_core_sources,
-      core_transport=transport_coeffs,
-      solver_numeric_outputs=state.SolverNumericOutputs(
+      core_profiles=evaluated_state.core_profiles,
+      core_sources=evaluated_state.core_sources,
+      core_transport=evaluated_state.core_transport,
+      solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
           solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
           inner_solver_iterations=jnp.zeros((), jax_utils.get_int_dtype()),
@@ -233,7 +156,7 @@ def _get_initial_state(
       ),
       geometry=geo,
       edge_outputs=edge_outputs,
-      pedestal_output=initial_pedestal_output,
+      pedestal_output=evaluated_state.pedestal_output,
       model_state=initial_model_state,
       time_step_calculator_state=step_fn.time_step_calculator.initial_state(
           runtime_params
@@ -241,14 +164,122 @@ def _get_initial_state(
   )
 
 
+def _cell_variable_from_profiles_dataset(
+    profiles_ds: xr.Dataset,
+    variable_name: str,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Builds a CellVariable from a profiles dataset variable."""
+  values = jnp.asarray(
+      profiles_ds.data_vars[variable_name]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+      .to_numpy(),
+      dtype=jax_utils.get_dtype(),
+  )
+  right_bc = jnp.asarray(
+      profiles_ds.data_vars[variable_name]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+      .to_numpy(),
+      dtype=jax_utils.get_dtype(),
+  )
+  return cell_variable.CellVariable(
+      value=values,
+      face_centers=geo.rho_face_norm,
+      right_face_constraint=right_bc,
+      right_face_grad_constraint=None,
+  )
+
+
+def _solver_state_from_profiles_dataset(
+    profiles_ds: xr.Dataset,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+) -> solver_state_lib.SolverState:
+  """Builds a SolverState from a profiles dataset."""
+  # pylint: disable=invalid-name
+  T_i = _cell_variable_from_profiles_dataset(profiles_ds, output_keys.T_I, geo)
+  T_e = _cell_variable_from_profiles_dataset(profiles_ds, output_keys.T_E, geo)
+  n_e = _cell_variable_from_profiles_dataset(profiles_ds, output_keys.N_E, geo)
+  toroidal_angular_velocity = _cell_variable_from_profiles_dataset(
+      profiles_ds, output_keys.TOROIDAL_ANGULAR_VELOCITY, geo
+  )
+
+  psi_values = jnp.asarray(
+      profiles_ds.data_vars[output_keys.PSI]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
+      .to_numpy(),
+      dtype=jax_utils.get_dtype(),
+  )
+  if (
+      runtime_params.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  ):
+    right_face_constraint = jnp.asarray(
+        profiles_ds.data_vars[output_keys.PSI]
+        .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+        .to_numpy(),
+        dtype=jax_utils.get_dtype(),
+    )
+    right_face_grad_constraint = None
+    psidot_right_face_grad_constraint = None
+  else:
+    right_face_constraint = None
+    if output_keys.I_P_PROFILE in profiles_ds.data_vars:
+      I_p = jnp.asarray(
+          profiles_ds.data_vars[output_keys.I_P_PROFILE].to_numpy()[-1],
+          dtype=jax_utils.get_dtype(),
+      )
+    else:
+      I_p = runtime_params.profile_conditions.I_p
+    right_face_grad_constraint = (
+        psi_calculations.calculate_psi_grad_constraint_from_I_p(I_p, geo)
+    )
+    if output_keys.V_LOOP in profiles_ds.data_vars:
+      v_loop_cell_last = jnp.asarray(
+          profiles_ds.data_vars[output_keys.V_LOOP]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM][-1])
+          .to_numpy(),
+          dtype=jax_utils.get_dtype(),
+      )
+      v_loop_face_right = jnp.asarray(
+          profiles_ds.data_vars[output_keys.V_LOOP]
+          .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
+          .to_numpy(),
+          dtype=jax_utils.get_dtype(),
+      )
+      psidot_right_face_grad_constraint = (
+          v_loop_face_right - v_loop_cell_last
+      ) / (0.5 * geo.drho_norm[-1])
+    else:
+      # TORAX state files always contain V_LOOP in profiles, but synthetic
+      # minimal warm-start checkpoints (e.g. MOSAIC's build_restart_checkpoint)
+      # omit profiles/v_loop; fall back to stationary 0.0 gradient constraint.
+      psidot_right_face_grad_constraint = jnp.zeros(
+          (), dtype=jax_utils.get_dtype()
+      )
+
+  psi = cell_variable.CellVariable(
+      value=psi_values,
+      face_centers=geo.rho_face_norm,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=right_face_grad_constraint,
+  )
+  return solver_state_lib.SolverState(
+      T_i=T_i,
+      T_e=T_e,
+      psi=psi,
+      n_e=n_e,
+      toroidal_angular_velocity=toroidal_angular_velocity,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
+  )
+
+
 def get_initial_state_and_post_processed_outputs_from_file(
     file_restart: file_restart_config.FileRestartConfig,
     step_fn: step_function.SimulationStepFn,
-    t: float | None = None,
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
-    geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs from a file.
 
@@ -257,12 +288,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
     step_fn: The step function to use for the simulation, this contains the
       physics models, default geometry provider and default runtime params
       provider to use.
-    t: The time to use for the simulation. If not provided, the time will be
-      chosen based on the values set in the numerics config.
     runtime_params_overrides: Optional runtime params provider to override the
       one set in the step function.
-    geometry_overrides: Optional geometry provider to override the one set in
-      the step function.
 
   Returns:
     A tuple of the initial state and post processed outputs.
@@ -270,16 +297,15 @@ def get_initial_state_and_post_processed_outputs_from_file(
   runtime_params_provider = (
       runtime_params_overrides or step_fn.runtime_params_provider
   )
-  geometry_provider = geometry_overrides or step_fn.geometry_provider
-  t = t or runtime_params_provider.time_step_calculator.t_initial
 
-  data_tree = output.load_state_file(file_restart.filename)  # pyrefly: ignore[bad-argument-type]
+  full_data_tree = output.load_state_file(str(file_restart.filename))
+  first_time_in_file = float(full_data_tree.time.values[0])
   # Find the closest time in the given dataset.
-  data_tree = data_tree.sel(time=file_restart.time, method='nearest')
+  data_tree = full_data_tree.sel(time=file_restart.time, method='nearest')
   t_restart = data_tree.time.item()
   profiles_dataset = data_tree.children[output_keys.PROFILES].dataset
   profiles_dataset = profiles_dataset.squeeze()
-  if t_restart != t:
+  if t_restart != file_restart.time:
     logging.warning(
         'Requested restart time %f not exactly available in state file %s.'
         ' Restarting from closest available time %f instead.',
@@ -288,37 +314,147 @@ def get_initial_state_and_post_processed_outputs_from_file(
         t_restart,
     )
 
-  # No need for edge_outputs since file will contain all needed overrides.
+  models = step_fn.solver.models
+  if models.edge_model is not None:
+    if output_keys.EDGE not in data_tree.children:
+      raise ValueError(
+          f'Missing expected {output_keys.EDGE!r} in restart DataTree.'
+      )
+    edge_datatree = data_tree.children[output_keys.EDGE]
+    source_is_unstitched_restart = False
+    raw_config = full_data_tree.attrs.get(output_keys.CONFIG)
+    if raw_config is None and hasattr(full_data_tree, 'dataset'):
+      raw_config = full_data_tree.dataset.attrs.get(output_keys.CONFIG)
+    if raw_config:
+      try:
+        config_dict = json.loads(raw_config)
+        restart_cfg = config_dict.get('restart')
+        if isinstance(restart_cfg, dict):
+          source_is_unstitched_restart = bool(
+              restart_cfg.get('do_restart', False)
+              and not restart_cfg.get('stitch', True)
+          )
+      except (ValueError, TypeError):
+        pass
+    skip_initial_edge_bcs = (
+        t_restart == first_time_in_file and not source_is_unstitched_restart
+    )
+    initial_edge_bcs = (
+        None
+        if skip_initial_edge_bcs
+        else edge_base.EdgeModelOutputs.from_datatree(edge_datatree)
+    )
+  else:
+    edge_datatree = None
+    initial_edge_bcs = None
+
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=t,
+          t=t_restart,
           runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
+          geometry_model=step_fn.solver.models.geometry_model,
+          edge_outputs=initial_edge_bcs,
           is_initialization=True,
       )
   )
-  runtime_params_for_init, geo_for_init = (
-      _override_initial_runtime_params_from_file(
-          runtime_params_for_init,
-          geo_for_init,
-          t_restart,
-          profiles_dataset,
-      )
+
+  solver_state = _solver_state_from_profiles_dataset(
+      profiles_dataset, runtime_params_for_init, geo_for_init
   )
-  initial_state = _get_initial_state(
+  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset.squeeze()
+  model_state = models.initial_state_from_datatree(
+      data_tree.children.get(output_keys.MODEL_STATE),
+      runtime_params_for_init,
+  )
+  if (
+      output_keys.PHI_B_DOT in scalars_dataset.data_vars
+      and runtime_params_for_init.geometry.calc_Phi_b_dot
+  ):
+    phi_b_dot = jnp.asarray(
+        scalars_dataset.data_vars[output_keys.PHI_B_DOT].to_numpy(),
+        dtype=jax_utils.get_dtype(),
+    )
+    model_state = dataclasses.replace(
+        model_state,
+        geometry=geometry_state.GeometryState.from_geometry(
+            geo_for_init, Phi_b_dot=phi_b_dot
+        ),
+    )
+  evaluated_state, _ = state_evaluation.evaluate_state(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
-      step_fn=step_fn,
+      solver_state=solver_state,
+      models=models,
+      explicit_model_outputs=None,
+      model_state=model_state,
+  )
+
+  if models.edge_model is not None:
+    assert runtime_params_for_init.edge is not None
+    assert model_state.edge is not None
+    assert edge_datatree is not None
+    # Evaluate edge_model to obtain the concrete EdgeModelOutputs PyTree
+    # structure (needed to stack initial_state with subsequent SimStates in
+    # jit_run_loop / StateHistory) and diagnostic fields at t_restart, then
+    # overwrite the boundary conditions with the exact values saved in /edge.
+    template_edge_outputs, _ = models.edge_model(
+        runtime_params_for_init.edge,
+        runtime_params_for_init,
+        geo_for_init,
+        evaluated_state.core_profiles,
+        evaluated_state.core_sources,
+        edge_state=model_state.edge,
+    )
+    edge_outputs = template_edge_outputs.replace_bcs_from_datatree(
+        edge_datatree
+    )
+  else:
+    edge_outputs = None
+
+  numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
+  numerics_dataset = numerics_dataset.squeeze()
+  sawtooth_crash = bool(numerics_dataset[output_keys.SAWTOOTH_CRASH])
+  outer_solver_iterations = int(
+      numerics_dataset[output_keys.OUTER_SOLVER_ITERATIONS]
+  )
+  inner_solver_iterations = int(
+      numerics_dataset[output_keys.INNER_SOLVER_ITERATIONS]
+  )
+
+  sim_state_instance = sim_state.SimState(
+      t=jnp.array(t_restart, dtype=jax_utils.get_dtype()),
+      dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
+      core_profiles=evaluated_state.core_profiles,
+      core_sources=evaluated_state.core_sources,
+      core_transport=evaluated_state.core_transport,
+      solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
+          sawtooth_crash=sawtooth_crash,
+          solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
+          outer_solver_iterations=jnp.asarray(
+              outer_solver_iterations, jax_utils.get_int_dtype()
+          ),
+          inner_solver_iterations=jnp.asarray(
+              inner_solver_iterations, jax_utils.get_int_dtype()
+          ),
+      ),
+      geometry=geo_for_init,
+      edge_outputs=edge_outputs,
+      pedestal_output=evaluated_state.pedestal_output,
+      model_state=model_state,
+      time_step_calculator_state=step_fn.time_step_calculator.initial_state(
+          runtime_params_for_init
+      ),
+  )
+
+  post_processed_outputs = post_processing.make_post_processed_outputs(
+      sim_state=sim_state_instance,
+      runtime_params=runtime_params_for_init,
+      previous_post_processed_outputs=(
+          post_processing.PostProcessedOutputs.zeros(geo_for_init)
+      ),
   )
   scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
   scalars_dataset = scalars_dataset.squeeze()
-  post_processed_outputs = post_processing.make_post_processed_outputs(
-      sim_state=initial_state,
-      runtime_params=runtime_params_for_init,
-      previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
-          geo_for_init
-      ),
-  )
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
       E_fusion=scalars_dataset.data_vars['E_fusion'].to_numpy(),
@@ -338,136 +474,4 @@ def get_initial_state_and_post_processed_outputs_from_file(
           'dW_thermal_e_dt_smoothed'
       ].to_numpy(),
   )
-  core_profiles = dataclasses.replace(
-      initial_state.core_profiles,
-      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
-  )
-  pedestal_state = initial_state.model_state.pedestal
-  # TODO(b/434175938): Have model states reconstruct themselves from restart
-  # outputs instead of special-casing specific state subclasses here.
-  if isinstance(
-      pedestal_state.formation,
-      power_scaling_formation_model.PowerScalingFormationState,
-  ):
-    if pedestal_state.formation.dW_thermal_dt_smoothed is not None:
-      dw_thermal_dt_smoothed = jnp.asarray(
-          scalars_dataset.data_vars['dW_thermal_dt_smoothed'].to_numpy(),
-          dtype=jax_utils.get_dtype(),
-      )
-    else:
-      dw_thermal_dt_smoothed = None
-    if pedestal_state.formation.t is not None:
-      t_formation = jnp.asarray(t_restart, dtype=jax_utils.get_dtype())
-    else:
-      t_formation = None
-    pedestal_state = dataclasses.replace(
-        pedestal_state,
-        formation=dataclasses.replace(
-            pedestal_state.formation,
-            dW_thermal_dt_smoothed=dw_thermal_dt_smoothed,
-            t=t_formation,
-        ),
-    )
-  model_state = dataclasses.replace(
-      initial_state.model_state,
-      pedestal=pedestal_state,
-  )
-  numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
-  numerics_dataset = numerics_dataset.squeeze()
-  sawtooth_crash = bool(numerics_dataset[output_keys.SAWTOOTH_CRASH])
-  outer_solver_iterations = int(
-      numerics_dataset[output_keys.OUTER_SOLVER_ITERATIONS]
-  )
-  inner_solver_iterations = int(
-      numerics_dataset[output_keys.INNER_SOLVER_ITERATIONS]
-  )
-  return (
-      dataclasses.replace(
-          initial_state,
-          core_profiles=core_profiles,
-          model_state=model_state,
-          solver_numeric_outputs=state.SolverNumericOutputs(
-              sawtooth_crash=sawtooth_crash,
-              solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
-              outer_solver_iterations=jnp.asarray(
-                  outer_solver_iterations, jax_utils.get_int_dtype()
-              ),
-              inner_solver_iterations=jnp.asarray(
-                  inner_solver_iterations, jax_utils.get_int_dtype()
-              ),
-          ),
-      ),
-      post_processed_outputs,
-  )
-
-
-def _override_initial_runtime_params_from_file(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    t_restart: float,
-    profiles_ds: xr.Dataset,
-) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
-  """Override parts of runtime params slice from state in a file."""
-  # pylint: disable=invalid-name
-
-  # TODO(b/446608829): Implement passing of impurity content needed when
-  # restarting with inverse model extended-lengyel.
-
-  runtime_params = dataclasses.replace(
-      runtime_params,
-      time_step_calculator=dataclasses.replace(
-          runtime_params.time_step_calculator,
-          t_initial=t_restart,
-      ),
-  )
-  runtime_params.profile_conditions.I_p = profiles_ds.data_vars[
-      output_keys.I_P_PROFILE
-  ].to_numpy()[-1]
-  runtime_params.profile_conditions.T_e = (
-      profiles_ds.data_vars[output_keys.T_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_e_right_bc = (
-      profiles_ds.data_vars[output_keys.T_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_i = (
-      profiles_ds.data_vars[output_keys.T_I]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.T_i_right_bc = (
-      profiles_ds.data_vars[output_keys.T_I]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  # Density in output is in m^-3.
-  runtime_params.profile_conditions.n_e = (
-      profiles_ds.data_vars[output_keys.N_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.n_e_right_bc = (
-      profiles_ds.data_vars[output_keys.N_E]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.psi = (
-      profiles_ds.data_vars[output_keys.PSI]
-      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
-      .to_numpy()
-  )
-  runtime_params.profile_conditions.initial_psi_source = (
-      core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
-  )
-  # When loading from file we want ne not to have transformations.
-  # Both ne and the boundary condition are given in absolute values (not fGW).
-  # Additionally we want to avoid normalizing to nbar.
-  runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
-  runtime_params.profile_conditions.n_e_nbar_is_fGW = False
-  runtime_params.profile_conditions.normalize_n_e_to_nbar = False
-  runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
-
-  return runtime_params, geo
+  return sim_state_instance, post_processed_outputs

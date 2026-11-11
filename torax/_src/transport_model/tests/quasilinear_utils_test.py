@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
@@ -19,8 +20,12 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants as constants_module
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
+from torax._src.geometry import circular_geometry
+from torax._src.geometry import geometry
+from torax._src.physics import fast_ion
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.transport_model import quasilinear_utils
@@ -34,17 +39,24 @@ class QuasilinearUtilsTest(parameterized.TestCase):
 
   # pylint: disable=invalid-name
 
-  def _make_face_cv(self, face_value: jax.Array) -> cell_variable.CellVariable:
-    rho_face = jnp.linspace(0.0, 1.0, len(face_value))
-    cv = cell_variable.CellVariable(
-        value=jnp.zeros(len(rho_face) - 1),
-        face_centers=rho_face,
-        right_face_grad_constraint=None,
-        right_face_constraint=jnp.array(0.0),
+  def _make_fast_ion_core_profiles(
+      self,
+      geo: geometry.Geometry,
+      n_e: float,
+      t_e: float,
+      fast_ions: tuple[fast_ion.FastIon, ...] = (),
+  ) -> core_profiles_lib.CoreProfiles:
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    kinetic = dataclasses.replace(
+        core_profiles.kinetic,
+        n_e=core_profile_helpers.make_constant_core_profile(geo, n_e),
+        T_e=core_profile_helpers.make_constant_core_profile(geo, t_e),
     )
-    cv = mock.create_autospec(cv, instance=True)
-    cv.face_value.return_value = face_value
-    return cv
+    return dataclasses.replace(
+        core_profiles,
+        kinetic=kinetic,
+        fast_ions=fast_ions,
+    )
 
   @parameterized.product(
       A_n_and_pfe=[
@@ -67,9 +79,9 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    geo = torax_config.geometry.build_provider(
+    geo = torax_config.geometry.build_runtime_params(
         torax_config.time_step_calculator.t_initial
-    )
+    ).geometry
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     L_ref = 3.0
     An_min = 0.05
@@ -120,10 +132,12 @@ class QuasilinearUtilsTest(parameterized.TestCase):
       self, pfe_value: float
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['geometry'] = {'geometry_type': 'chease'}
-    geo = config.ToraxConfig.from_dict(config_dict).geometry.build_provider(
-        t=0.0
-    )
+    config_dict['geometry'] = {
+        'model_name': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    geo = torax_config.geometry.build_runtime_params(t=0.0).geometry
     n_e = cell_variable.CellVariable(
         value=1.0e20 * (1.0 - 0.7 * geo.rho_norm**2),
         face_centers=geo.rho_face_norm,
@@ -236,42 +250,45 @@ class QuasilinearUtilsTest(parameterized.TestCase):
 
   def test_apply_fast_ion_stabilization_multiplier_scales_correction(self):
     n_rho = 5
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho - 1)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     smag = jnp.ones(n_rho)
     q = 1.5 * jnp.ones(n_rho)
-    n_e = 1e20 * jnp.ones(n_rho)
-    T_e = jnp.ones(n_rho)
-    T_fi = 15.0 * T_e
+    n_e = 1e20
+    t_e = 1.0
+    t_fi = 15.0 * t_e
     lref_over_lt_fi = 30.0 * jnp.ones(n_rho)
     lref_over_lti = 5.0 * jnp.ones(n_rho)
 
     key = 'icrh_He3'
-    fast_ion_zero = mock.MagicMock()
-    fast_ion_zero.species = 'He3'
-    fast_ion_zero.source = 'icrh'
-    fast_ion_zero.n = self._make_face_cv(jnp.zeros(n_rho))
-    fast_ion_zero.T = self._make_face_cv(T_fi)
+    fast_ion_zero = fast_ion.FastIon(
+        species='He3',
+        source='icrh',
+        n=core_profile_helpers.make_constant_core_profile(geo, 0.0),
+        T=core_profile_helpers.make_constant_core_profile(geo, t_fi),
+    )
+    fast_ion_nonzero = fast_ion.FastIon(
+        species='He3',
+        source='icrh',
+        n=core_profile_helpers.make_constant_core_profile(geo, 0.01 * n_e),
+        T=core_profile_helpers.make_constant_core_profile(geo, t_fi),
+    )
 
-    fast_ion_nonzero = mock.MagicMock()
-    fast_ion_nonzero.species = 'He3'
-    fast_ion_nonzero.source = 'icrh'
-    fast_ion_nonzero.n = self._make_face_cv(0.01 * n_e)
-    fast_ion_nonzero.T = self._make_face_cv(T_fi)
-
-    core_profiles_zero = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
+    core_profiles_zero = self._make_fast_ion_core_profiles(
+        geo=geo,
+        n_e=n_e,
+        t_e=t_e,
         fast_ions=(fast_ion_zero,),
     )
-    core_profiles_zero.n_e = self._make_face_cv(n_e)
-    core_profiles_zero.T_e = self._make_face_cv(T_e)
-
-    core_profiles_nonzero = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
+    core_profiles_nonzero = self._make_fast_ion_core_profiles(
+        geo=geo,
+        n_e=n_e,
+        t_e=t_e,
         fast_ions=(fast_ion_nonzero,),
     )
-    core_profiles_nonzero.n_e = self._make_face_cv(n_e)
-    core_profiles_nonzero.T_e = self._make_face_cv(T_e)
 
     gradients_base = quasilinear_utils.NormalizedLogarithmicGradients(
         lref_over_lti=lref_over_lti,
@@ -328,32 +345,37 @@ class QuasilinearUtilsTest(parameterized.TestCase):
   )
   def test_per_species_model_selection(self, mock_get_default, mock_load_model):
     n_rho = 5
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho - 1)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     smag = jnp.ones(n_rho)
     q = 1.5 * jnp.ones(n_rho)
-    n_e = 1e20 * jnp.ones(n_rho)
-    T_e = jnp.ones(n_rho)
-    T_fi = 15.0 * T_e
+    n_e = 1e20
+    t_e = 1.0
+    t_fi = 15.0 * t_e
     lref_over_lt_fi = 30.0 * jnp.ones(n_rho)
 
-    fast_ion_he3 = mock.MagicMock()
-    fast_ion_he3.species = 'He3'
-    fast_ion_he3.source = 'icrh'
-    fast_ion_he3.n = self._make_face_cv(0.01 * n_e)
-    fast_ion_he3.T = self._make_face_cv(T_fi)
+    fast_ion_he3 = fast_ion.FastIon(
+        species='He3',
+        source='icrh',
+        n=core_profile_helpers.make_constant_core_profile(geo, 0.01 * n_e),
+        T=core_profile_helpers.make_constant_core_profile(geo, t_fi),
+    )
+    fast_ion_h = fast_ion.FastIon(
+        species='H',
+        source='nbi',
+        n=core_profile_helpers.make_constant_core_profile(geo, 0.01 * n_e),
+        T=core_profile_helpers.make_constant_core_profile(geo, t_fi),
+    )
 
-    fast_ion_h = mock.MagicMock()
-    fast_ion_h.species = 'H'
-    fast_ion_h.source = 'nbi'
-    fast_ion_h.n = self._make_face_cv(0.01 * n_e)
-    fast_ion_h.T = self._make_face_cv(T_fi)
-
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
+    core_profiles = self._make_fast_ion_core_profiles(
+        geo=geo,
+        n_e=n_e,
+        t_e=t_e,
         fast_ions=(fast_ion_he3, fast_ion_h),
     )
-    core_profiles.n_e = self._make_face_cv(n_e)
-    core_profiles.T_e = self._make_face_cv(T_e)
 
     gradients = quasilinear_utils.NormalizedLogarithmicGradients(
         lref_over_lti=jnp.zeros(n_rho),
@@ -390,26 +412,31 @@ class QuasilinearUtilsTest(parameterized.TestCase):
   )
   def test_he4_maps_to_he3_default(self, mock_get_default):
     n_rho = 5
+    geo = (
+        circular_geometry.CircularConfig(n_rho=n_rho - 1)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     smag = jnp.ones(n_rho)
     q = 1.5 * jnp.ones(n_rho)
-    n_e = 1e20 * jnp.ones(n_rho)
-    T_e = jnp.ones(n_rho)
-    T_fi = 15.0 * T_e
+    n_e = 1e20
+    t_e = 1.0
+    t_fi = 15.0 * t_e
     lref_over_lt_fi = 30.0 * jnp.ones(n_rho)
 
-    fast_ion_he4 = mock.MagicMock()
-    fast_ion_he4.species = 'He4'
-    fast_ion_he4.source = 'icrh'
-    fast_ion_he4.n = self._make_face_cv(0.01 * n_e)
-    fast_ion_he4.T = self._make_face_cv(T_fi)
+    fast_ion_he4 = fast_ion.FastIon(
+        species='He4',
+        source='icrh',
+        n=core_profile_helpers.make_constant_core_profile(geo, 0.01 * n_e),
+        T=core_profile_helpers.make_constant_core_profile(geo, t_fi),
+    )
 
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
+    core_profiles = self._make_fast_ion_core_profiles(
+        geo=geo,
+        n_e=n_e,
+        t_e=t_e,
         fast_ions=(fast_ion_he4,),
     )
-    core_profiles.n_e = self._make_face_cv(n_e)
-    core_profiles.T_e = self._make_face_cv(T_e)
 
     gradients = quasilinear_utils.NormalizedLogarithmicGradients(
         lref_over_lti=jnp.zeros(n_rho),
@@ -439,6 +466,47 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     quasilinear_utils._get_default_fi_stabilization_model.cache_clear()
     with self.assertRaises(ValueError):
       quasilinear_utils._get_default_fi_stabilization_model('Ar')
+
+  def test_from_profiles_uses_bundled_impurity_density_for_lref_over_lni1(
+      self,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': {'He3': 0.75, 'W': 0.25},
+        },
+        'Z_eff': 2.0,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
+    )
+    gradients = quasilinear_utils.NormalizedLogarithmicGradients.from_profiles(
+        core_profiles=core_profiles,
+        radial_coordinate=geo.r_mid,
+        radial_face_coordinate=geo.r_mid_face,
+        reference_length=geo.R_major,
+    )
+    expected_lni1 = (
+        quasilinear_utils.calculate_normalized_logarithmic_gradient(
+            var=core_profiles.n_impurity_bundled_thermal,
+            radial_coordinate=geo.r_mid,
+            radial_face_coordinate=geo.r_mid_face,
+            reference_length=geo.R_major,
+        )
+    )
+    unscaled_lni1 = (
+        quasilinear_utils.calculate_normalized_logarithmic_gradient(
+            var=core_profiles.n_impurity_total_thermal,
+            radial_coordinate=geo.r_mid,
+            radial_face_coordinate=geo.r_mid_face,
+            reference_length=geo.R_major,
+        )
+    )
+    np.testing.assert_allclose(gradients.lref_over_lni1, expected_lni1)
+    self.assertFalse(np.allclose(gradients.lref_over_lni1, unscaled_lni1))
 
 
 if __name__ == '__main__':

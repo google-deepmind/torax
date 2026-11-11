@@ -17,13 +17,16 @@ from typing import Annotated, Literal
 
 import jax
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import sauter as sauter_formulas
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -34,20 +37,22 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
       self,
       runtime_params: bootstrap_current_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> bootstrap_current_base.BootstrapCurrent:
     """Calculates bootstrap current according to the Sauter model."""
+    p_i = solver_profiles.calculate_pressure_thermal_i(fast_ions)
     return _calculate_bootstrap_current(
         bootstrap_multiplier=runtime_params.bootstrap_multiplier,
-        Z_eff_face=core_profiles.Z_eff_face,
-        n_e=core_profiles.n_e,
-        n_i=core_profiles.n_i,
-        T_e=core_profiles.T_e,
-        T_i=core_profiles.T_i,
-        p_e=core_profiles.pressure_thermal_e,
-        p_i=core_profiles.pressure_thermal_i,
-        psi=core_profiles.psi,
+        Z_eff_face=solver_profiles.ions.Z_eff_face,
+        n_e=solver_profiles.kinetic.n_e,
+        n_i=solver_profiles.kinetic.n_i,
+        T_e=solver_profiles.kinetic.T_e,
+        T_i=solver_profiles.kinetic.T_i,
+        p_e=solver_profiles.pressure_thermal_e,
+        p_i=p_i,
+        psi=solver_profiles.poloidal_flux.psi,
         geo=geometry,
         f_trap=neoclassical_intermediates.f_trap,
         nu_e_star=neoclassical_intermediates.nu_e_star,
@@ -62,10 +67,11 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
 
 
 class SauterModelConfig(bootstrap_current_base.BootstrapCurrentModelConfig):
-  """Config for the Sauter model implementation of bootstrap current.
+  """Config for the Sauter |sauter99| model implementation of bootstrap current.
 
   Attributes:
-    bootstrap_multiplier: Multiplication factor for bootstrap current.
+    model_name: Selected bootstrap current model.
+    bootstrap_multiplier: Multiplier for the bootstrap current.
   """
 
   model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'

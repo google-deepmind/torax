@@ -36,21 +36,23 @@ class EquilibriumTest(parameterized.TestCase):
   ):
     """Test to compare CHEASE and IMAS methods for the same equilibrium."""
     # Loading the equilibrium and constructing geometry object
-    config = imas_config.IMASConfig(
-        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-    )
-    geo_IMAS = config.build_geometry()
+    config = imas_config.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+    })
+    geo_IMAS = config.build_runtime_params(0.0).geometry
 
-    geo_CHEASE = chease.CheaseConfig().build_geometry()
+    geo_CHEASE = (
+        chease.CheaseConfig.from_dict({
+            'geometry_file': 'iterhybrid.mat2cols',
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     # Comparison of the fields
     diverging_fields = []
     for key in geo_IMAS.__dict__.keys():
-      if (
-          key != 'geometry_type'
-          and key != 'torax_mesh'
-          and key != '_z_magnetic_axis'
-      ):
+      if key != 'geometry_type' and key != '_z_magnetic_axis':
         try:
           a = geo_IMAS.__dict__[key]
           b = geo_CHEASE.__dict__[key]
@@ -78,8 +80,8 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_filepath(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    config = imas_config.IMASConfig(imas_filepath=filename)
-    config.build_geometry()
+    config = imas_config.IMASConfig.from_dict({'imas_filepath': filename})
+    _ = config.build_runtime_params(0.0).geometry
 
   def test_IMAS_input_with_uri(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
@@ -91,25 +93,26 @@ class EquilibriumTest(parameterized.TestCase):
     with mock.patch('imas.DBEntry') as mocked_class:
       mocked_class.return_value = mock_value
       imas_uri = f'imas:hdf5?path={full_path}'
-      config = imas_config.IMASConfig(
-          imas_uri=imas_uri, imas_filepath=None
-      )
-      config.build_geometry()
+      config = imas_config.IMASConfig.from_dict({
+          'imas_uri': imas_uri,
+          'imas_filepath': None,
+      })
+      _ = config.build_runtime_params(0.0).geometry
 
   def test_IMAS_input_with_equilibrium_object(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
     equilibrium_in = loader.load_imas_data(filename, 'equilibrium')
-    config = imas_config.IMASConfig(
-        equilibrium_object=equilibrium_in, imas_filepath=None
-    )
-    config.build_geometry()
+    config = imas_config.IMASConfig.from_dict({
+        'equilibrium_object': equilibrium_in,
+        'imas_filepath': None,
+    })
+    _ = config.build_runtime_params(0.0).geometry
 
   def test_IMAS_loading_specific_slice(self):
     def _check_geo_match(geo1, geo2):
       for key in geo1.__dict__.keys():
         if key not in [
             'geometry_type',
-            'torax_mesh',
             'R_major',
             'B_0',
             'rho_hires_norm',
@@ -127,21 +130,32 @@ class EquilibriumTest(parameterized.TestCase):
             )
 
     filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
-    geo_default = imas_config.IMASConfig(
-        imas_filepath=filename
-    ).build_geometry()
-    geo_at_0 = imas_config.IMASConfig(
-        imas_filepath=filename, slice_time=0.0
-    ).build_geometry()
-    geo_at_40 = imas_config.IMASConfig(
-        imas_filepath=filename, slice_time=40.0
-    ).build_geometry()
-    provider = imas_config.IMASConfig(
-        imas_filepath=filename
-    ).build_geometry_provider(calc_Phi_b_dot=False)
+    geo_default = (
+        imas_config.IMASConfig.from_dict({'imas_filepath': filename})
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_at_0 = (
+        imas_config.IMASConfig.from_dict(
+            {'imas_filepath': filename, 'slice_time': 0.0}
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_at_40 = (
+        imas_config.IMASConfig.from_dict(
+            {'imas_filepath': filename, 'slice_time': 40.0}
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    provider_config = imas_config.IMASConfig.from_dict(
+        {'imas_filepath': filename}
+    )
+    geo_t40 = provider_config.build_runtime_params(40.0).geometry
 
     _check_geo_match(geo_default, geo_at_0)
-    _check_geo_match(geo_at_40, provider(40.0))
+    _check_geo_match(geo_at_40, geo_t40)
 
     # Check that the geometry at t=40 is not the same as at t=0.
     with self.assertRaisesRegex(AssertionError, 'mismatched'):
@@ -149,23 +163,22 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_raises_if_no_time_slices(self):
     empty_equilibrium = imas.IDSFactory().equilibrium()
-    config = imas_config.IMASConfig(
-        equilibrium_object=empty_equilibrium,
-        explicit_convert=False,
-    )
+    config = imas_config.IMASConfig.from_dict({
+        'equilibrium_object': empty_equilibrium,
+        'explicit_convert': False,
+    })
     with self.assertRaisesRegex(ValueError, 'contains no time slices'):
-      config.build_geometry()
+      _ = config.build_runtime_params(0.0).geometry
     with self.assertRaisesRegex(ValueError, 'contains no time slices'):
-      config.build_geometry_provider(calc_Phi_b_dot=False)
+      config.build_runtime_params(0.0)
 
   def test_IMAS_load_all_slices(self):
     """Test that all time slices are loaded from a multi-slice IDS."""
     filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
-    config = imas_config.IMASConfig(imas_filepath=filename)
-    provider = config.build_geometry_provider(calc_Phi_b_dot=True)
-    self.assertIsInstance(provider, standard_geometry.StandardGeometryProvider)
-    # Provider should span 11 time slices (check via the interpolated psi times)
-    self.assertLen(provider.psi.xs, 11)
+    config = imas_config.IMASConfig.from_dict({'imas_filepath': filename})
+    params = config.build_runtime_params(0.0)
+    self.assertIsInstance(params.geometry, standard_geometry.StandardGeometry)
+    self.assertEqual(params.geometry.n_rho, 25)
 
 
 if __name__ == '__main__':

@@ -13,17 +13,16 @@
 # limitations under the License.
 
 """Ion mixture model and impurity fractions model for plasma composition."""
+
 from collections.abc import Mapping
 import dataclasses
 from typing import Annotated, Any, Literal, TypeAlias
 
 import chex
 import jax
-from jax import numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import array_typing
-from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -101,7 +100,11 @@ def _impurity_after_validator(
 
 ImpurityMapping: TypeAlias = Annotated[
     Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray],
-    pydantic.BeforeValidator(_impurity_before_validator),
+    pydantic.BeforeValidator(
+        _impurity_before_validator,
+        json_schema_input_type=str
+        | Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray],
+    ),
     pydantic.AfterValidator(_impurity_after_validator),
 ]
 
@@ -118,23 +121,35 @@ class RuntimeParams:
   Attributes:
     fractions: Impurity fractions for a time slice.
     fractions_face: Impurity fractions for a time slice for the face grid.
-    A_avg: Average atomic mass of the mixture.
-    A_avg_face: Average atomic mass of the mixture for the face grid.
     Z_override: Typically, the average Z is calculated according to the
       temperature dependent charge-state-distribution, or for low-Z cases by the
       atomic numbers of the ions assuming full ionization. If Z_override is
       provided, it is used instead for the average Z.
+    A_override: Typically, the average A is calculated from the atomic masses of
+      the ions weighted by their fractional abundances. If A_override is
+      provided, it is used instead for the average A.
   """
 
   fractions: Mapping[str, array_typing.FloatVectorCell]
   fractions_face: Mapping[str, array_typing.FloatVectorFace]
-  A_avg: array_typing.FloatVectorCell
-  A_avg_face: array_typing.FloatVectorFace
   Z_override: array_typing.FloatScalar | None = None
+  A_override: array_typing.FloatScalar | None = None
 
 
 class ImpurityFractions(torax_pydantic.ConfigBase):
-  """Impurity content defined by fractional abundances."""
+  """Impurity content defined by fractional abundances.
+
+  Attributes:
+    impurity_mode: Impurity specification mode, set to `'fractions'`.
+    species: A single impurity symbol string (e.g., `'Ne'`) or a dict mapping
+      impurity symbols to their fractional abundances within the impurity mix
+      (e.g., `{'Ne': 0.8, 'Ar': 0.2}`). Time-varying array values must be
+      defined on the same grid and sum to `1` across all species.
+    Z_override: Optional override for the impurity mixture's average charge
+      ($Z$).
+    A_override: Optional override for the impurity mixture's average mass ($A$)
+      [amu].
+  """
 
   impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (
       'fractions'
@@ -151,33 +166,11 @@ class ImpurityFractions(torax_pydantic.ConfigBase):
         for ion, value in self.species.items()
     }
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
-
-    if not self.A_override:
-      A_avg = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions.items()
-          ]),
-          axis=0,
-      )
-      A_avg_face = jnp.sum(
-          jnp.array([
-              constants.ION_PROPERTIES_DICT[ion].A * fraction
-              for ion, fraction in fractions_face.items()
-          ]),
-          axis=0,
-      )
-    else:
-      ion_key = list(self.species.keys())[0]
-      A_avg = jnp.full_like(fractions[ion_key], self.A_override.get_value(t))
-      A_avg_face = jnp.full_like(
-          fractions_face[ion_key], self.A_override.get_value(t)
-      )
+    A_override = None if not self.A_override else self.A_override.get_value(t)
 
     return RuntimeParams(
         fractions=fractions,
         fractions_face=fractions_face,
-        A_avg=A_avg,
-        A_avg_face=A_avg_face,
         Z_override=Z_override,
+        A_override=A_override,
     )

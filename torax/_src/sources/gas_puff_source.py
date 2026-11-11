@@ -14,20 +14,20 @@
 
 """Gas puff source for the n_e equation."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -37,8 +37,8 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
-  puff_decay_length: array_typing.FloatScalar
-  S_total: array_typing.FloatScalar
+  puff_decay_length: array_typing.FloatScalar | None
+  S_total: array_typing.FloatScalar | None
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -46,20 +46,17 @@ class GasPuffSource(source.Source):
   """Gas puff source for the n_e equation."""
 
   SOURCE_ID: ClassVar[str] = 'gas_puff'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.NE,
-  )
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (core_sources.PopulatedSourceOutput.PARTICLE_SOURCE_E,)
 
   def _get_model_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates external source term for n from puffs.
 
     Does not modify source_state; returns it unchanged.
@@ -67,47 +64,57 @@ class GasPuffSource(source.Source):
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the particle_source_e profile populated.
+        - SourceState for this source.
     """
-    del core_profiles, calculated_source_profiles, conductivity, psidot
+    del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.puff_decay_length is None:
+      raise ValueError('GasPuffSource requires `puff_decay_length` to be set.')
+    if source_params.S_total is None:
+      raise ValueError('GasPuffSource requires `S_total` to be set.')
     profile = formulas.exponential_profile(
         decay_start=1.0,
         width=source_params.puff_decay_length,
         total=source_params.S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(profiles=(profile,)), source_state
+    return core_sources.SourceOutput(particle_source_e=profile), source_state
 
 
 class GasPuffSourceConfig(base.SourceConfigBase):
-  """Gas puff source for the n_e equation.
+  """Gas puff particle source for the electron density equation.
 
   Attributes:
-    puff_decay_length: exponential decay length of gas puff ionization
-      [normalized radial coord]
-    S_total: total gas puff particles/s
+    model_name: Name of the gas puff model (`'exponential'`).
+    puff_decay_length: Exponential decay length of gas puff ionization inwards
+      from the edge boundary [$rho_norm$].
+    S_total: Total gas puff particle injection rate [particles/s].
   """
 
   model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
       'exponential'
   )
-  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1e22
-  )
+  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  S_total: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.S_total is None:
+        raise ValueError("S_total must be provided when mode is 'model_based'.")
+      if self.puff_decay_length is None:
+        raise ValueError(
+            "puff_decay_length must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -116,8 +123,12 @@ class GasPuffSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        puff_decay_length=self.puff_decay_length.get_value(t),
-        S_total=self.S_total.get_value(t),
+        puff_decay_length=(
+            None
+            if self.puff_decay_length is None
+            else self.puff_decay_length.get_value(t)
+        ),
+        S_total=(None if self.S_total is None else self.S_total.get_value(t)),
     )
 
   def build_source(self) -> GasPuffSource:

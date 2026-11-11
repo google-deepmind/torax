@@ -105,11 +105,7 @@ T_E_TARGET = output_keys.OutputKey(
     units=output_keys.Units.EV,
     grid_type=output_keys.GridType.SCALAR,
 )
-PRESSURE_NEUTRAL_DIVERTOR = output_keys.OutputKey(
-    'pressure_neutral_divertor',
-    units=output_keys.Units.PASCAL,
-    grid_type=output_keys.GridType.SCALAR,
-)
+PRESSURE_NEUTRAL_DIVERTOR = output_keys.PRESSURE_NEUTRAL_DIVERTOR
 ALPHA_T = output_keys.OutputKey(
     'alpha_t',
     units=output_keys.Units.DIMENSIONLESS,
@@ -262,6 +258,20 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   calculated_enrichment: Mapping[str, jax.Array]
   roots: ExtendedLengyelOutputs | None = None
   multiple_roots_found: jax.Array | None = None
+
+  def build_initial_guess(
+      self,
+      computation_mode: extended_lengyel_enums.ComputationMode,
+  ) -> divertor_sol_1d_lib.ExtendedLengyelInitialGuess:
+    """Builds the solver initial-guess dataclass for `computation_mode`."""
+    return divertor_sol_1d_lib.build_initial_guess(
+        computation_mode,
+        alpha_t=self.alpha_t,
+        kappa_e=self.kappa_e,
+        T_e_separatrix=self.T_e_separatrix * 1e3,
+        T_e_target=self.T_e_target,
+        c_z_prefactor=self.c_z_prefactor,
+    )
 
   # TODO(b/323504363): b/446608829 - Simplify this function where viable.
   def get_unique_roots(self) -> ExtendedLengyelOutputs | None:

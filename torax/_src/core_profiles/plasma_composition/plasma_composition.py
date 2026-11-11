@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Plasma composition parameters used throughout TORAX simulations."""
+
 import dataclasses
 import functools
 import logging
@@ -39,9 +40,10 @@ _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class RuntimeParams:
   """Runtime parameters for the plasma composition."""
+
   main_ion_names: tuple[str, ...] = jax.tree.static()
   impurity_names: tuple[str, ...] = jax.tree.static()
   main_ion: ion_mixture.RuntimeParams
@@ -63,35 +65,32 @@ class PlasmaComposition(torax_pydantic.ConfigBase):
   https://torax.readthedocs.io/en/latest/configuration/plasma_composition.html.
 
   Attributes:
-    main_ion: Main ion species. Can be single ion or a mixture of ions (e.g. D
-      and T). Either a single ion, and constant mixture, or a time-dependent
-      mixture. For single ions the input is one of the allowed strings in
-      `ION_SYMBOLS`. For mixtures the input is an IonMixture object, constructed
-      from a dict mapping ion symbols to their fractional concentration in the
-      mixture.
-    impurity: Dictionary configuring plasma impurities with the following keys:
-      `impurity_mode`: Sets how the impurity species are defined. `species`: A
-      dictionary mapping ion symbols (e.g., 'Ne', 'W') to their respective
-      values. The interpretation of these values depends on the `impurity_mode`
-      as follows. * `'fractions'`: relative fractional abundances. *
-      `'n_e_ratios'`: ratios of impurity density to electron density. Z_eff is
-      ignored in this mode. * `'n_e_ratios_Z_eff'`: ratios of impurity density
-      to electron density. A single value must provided as None, and Z_eff is
-      used to then constrain this value dynamically during runtime.
-      `Z_override`: Optional. Overrides the calculated impurity average charge
-      `A_override`: Optional. Overrides the calculated average impurity mass
-    Z_eff: Constraint for impurity densities. If the impurity_mode is
-      `'n_e_ratios'`, and the input is not None, then any input value will be
-      ignored and a warning provided to the user.
-    Z_i_override: Optional arbitrary masses and charges which can be used to
-      override the data for the average Z and A of each IonMixture for main_ions
-      or impurities. Useful for testing or testing physical sensitivities,
-      outside the constraint of allowed impurity species.
-    A_i_override: Optional arbitrary masses and charges which can be used to
-      override the data for the average Z and A of each IonMixture for main_ions
-      or impurities. Useful for testing or testing physical sensitivities,
-      outside the constraint of allowed impurity species.
-  """
+    main_ion: Specifies the main ion species:
+
+      - If a string, it represents a single ion species (e.g., `'D'` for
+        deuterium, `'T'` for tritium, `'H'` for hydrogen).
+      - If a dict, it represents a mixture of ion species with given
+        fractional concentrations (e.g., `{'D': 0.5, 'T': 0.5}`), which must
+        sum to `1` within a tolerance of `1e-6`. The effective mass and charge
+        of the mixture are the weighted averages of the species masses and
+        charges. The fractions can be time-dependent (**time-varying-scalar**),
+        supporting time-varying isotope ratios.
+    impurity: Specifies the impurity species. How impurities are defined is set
+      by the `impurity_mode` field within this dictionary (`'fractions'`,
+      `'n_e_ratios'`, or `'n_e_ratios_Z_eff'`). Defaults to `{'impurity_mode':
+      'fractions', 'species': {'Ne': 1.0}}`.
+    Z_eff: Plasma effective charge, defined as $Z_eff = sum(n_i * Z_i^2, i) /
+      n_e$. Required input when using the `'fractions'` or
+      `'n_e_ratios_Z_eff'` impurity modes. When using the `'n_e_ratios'` mode,
+      `Z_eff` is an emergent calculated quantity, and any user-provided `Z_eff`
+      value is ignored (a warning is issued).
+    Z_i_override: Optional override for the main ion's charge ($Z$) or average
+      charge of an ion mixture. If provided, this value is used instead of the
+      $Z$ calculated from `main_ion`.
+    A_i_override: Optional override for the main ion's mass ($A$) [amu] or
+      average mass of an ion mixture. If provided, this value is used instead of
+      the $A$ calculated from `main_ion`.
+  """  # fmt: skip
 
   impurity: Annotated[
       impurity_fractions.ImpurityFractions

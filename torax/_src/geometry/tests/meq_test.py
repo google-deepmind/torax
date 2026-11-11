@@ -16,8 +16,10 @@ import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 import numpy as np
-from torax._src.geometry import config as geometry_config
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
@@ -41,8 +43,20 @@ class MEQGeometryTest(parameterized.TestCase):
       self, trapped_fraction_source: trapped_fraction.TrappedFractionSource
   ):
     """Tests that MEQ only supports SAUTER (no file or 2D equilibrium data)."""
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(
+        len_psinorm=20, len_times=1
+    )
     with self.assertRaisesRegex(ValueError, 'not supported for MEQConfig'):
-      meq.MEQConfig(trapped_fraction_source=trapped_fraction_source)
+      meq.MEQConfig(
+          L_object=L,
+          LY_object=LY,
+          trapped_fraction_source=trapped_fraction_source,
+      )
+
+  def test_meq_config_requires_l_and_ly(self):
+    """Tests that MEQConfig requires L and LY inputs."""
+    with self.assertRaises(ValueError):
+      meq.MEQConfig()
 
   @parameterized.parameters([
       trapped_fraction.TrappedFractionSource.FILE,
@@ -354,6 +368,59 @@ class MEQGeometryTest(parameterized.TestCase):
             'Some but not all optional edge model keys are present' in o
             for o in cm.output
         )
+    )
+
+  def test_typed_meql_data(self):
+    l_data = meq.MEQLData(pQ=np.linspace(0, 1, 10))
+    self.assertLen(l_data.pQ, 10)
+    with self.assertRaisesRegex(ValueError, "missing the 'pQ' key"):
+      meq.MEQLData.model_validate({})
+    with self.assertRaisesRegex(ValueError, "Incorrect shape for key 'pQ'"):
+      meq.MEQLData.model_validate({'pQ': np.zeros((10, 2))})
+
+  def test_typed_meqly_slice_and_bundle(self):
+    _, ly_dict = get_example_L_LY_data.get_example_L_LY_data(
+        len_psinorm=20, len_times=1
+    )
+    for k in ly_dict:
+      ly_dict[k] = np.squeeze(ly_dict[k])
+    slice_data = meq.MEQLYSlice.model_validate(ly_dict)
+    self.assertEqual(slice_data.aminor.shape, (20,))
+    self.assertIsInstance(slice_data.to_slice_dict(), dict)
+
+    _, ly_b = get_example_L_LY_data.get_example_L_LY_data(
+        len_psinorm=20, len_times=3
+    )
+    bundle_data = meq.MEQLYBundle.model_validate(ly_b)
+    self.assertEqual(bundle_data.aminor.shape, (20, 3))
+    s0 = bundle_data.get_slice_dict(0)
+    self.assertEqual(s0['aminor'].shape, (20,))
+    self.assertEqual(s0['t'], 0.0)
+
+  def test_meq_config_single_slice_prescribed_model(self):
+    l_dict, ly_dict = get_example_L_LY_data.get_example_L_LY_data(
+        len_psinorm=20, len_times=1
+    )
+    for k in ly_dict:
+      ly_dict[k] = np.squeeze(ly_dict[k])
+    cfg = meq.MEQConfig(L=l_dict, LY=ly_dict)
+
+    params = cfg.build_runtime_params(0.0)
+    geo = params.geometry
+    self.assertEqual(geo.geometry_type, geometry.GeometryType.MEQ)
+
+    @jax.jit
+    def jitted_eval(cfg_t):
+      return cfg_t.build_runtime_params(0.0).geometry.R_major
+
+    np.testing.assert_allclose(jitted_eval(cfg), geo.R_major)
+
+    json_str = cfg.model_dump_json()
+    cfg_restored = meq.MEQConfig.model_validate_json(json_str)
+    chex.assert_trees_all_equal(cfg.model_dump(), cfg_restored.model_dump())
+    self.assertEqual(
+        cfg_restored.build_runtime_params(0.0).geometry.geometry_type,
+        geometry.GeometryType.MEQ,
     )
 
 

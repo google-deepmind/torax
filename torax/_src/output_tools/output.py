@@ -15,7 +15,6 @@
 """Module containing functions for saving and loading simulation output."""
 
 from collections.abc import Sequence
-import dataclasses
 import functools
 from typing import Any
 
@@ -27,16 +26,22 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
-from torax._src import state
+from torax._src import model_state as model_state_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import file_restart as file_restart_config
+from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
 # Internal import.
@@ -138,44 +143,44 @@ class StateHistory:
       self,
       state_history: sim_state.SimState,
       post_processed_outputs_history: post_processing.PostProcessedOutputs,
-      sim_error: state.SimError,
+      sim_error: sim_error_lib.SimError,
       torax_config: config.ToraxConfig,
   ):
+    """Initializes StateHistory from simulation state and output histories.
+
+    Args:
+      state_history: Stacked simulation states across all time steps.
+      post_processed_outputs_history: Stacked post-processed outputs across all
+        time steps.
+      sim_error: Final simulation error status.
+      torax_config: ToraxConfig used to run the simulation.
+    """
     self._sim_error = sim_error
     self._torax_config = torax_config
     self._times = jnp.asarray(state_history.t)
     chex.assert_rank(self.times, 1)
-    core_profiles = state_history.core_profiles
-    if (
-        not torax_config.restart
-        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
-        and len(self._times) >= 2
-    ):
-      # For the I_p BC case, set v_loop_lcfs[0] to the same value as
-      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
-      # underconstrained.
-      v_loop_lcfs = jnp.asarray(core_profiles.v_loop_lcfs)
-      core_profiles = dataclasses.replace(
-          core_profiles,
-          v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
-      )
-    self._core_profiles: state.CoreProfiles = core_profiles
-    self._core_sources: source_profiles_lib.SourceProfiles = (
+    self._core_profiles: core_profiles_lib.CoreProfiles = (
+        state_history.core_profiles
+    )
+    self._core_sources: core_sources_lib.CoreSources = (
         state_history.core_sources
     )
-    self._stacked_core_transport: state.CoreTransport = (
+    self._stacked_core_transport: transport_coeffs.CoreTransport = (
         state_history.core_transport
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
     ) = post_processed_outputs_history
-    self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
-        state_history.solver_numeric_outputs
-    )
+    self._stacked_solver_numeric_outputs: (
+        solver_numeric_outputs_lib.SolverNumericOutputs
+    ) = state_history.solver_numeric_outputs
     self._stacked_edge_outputs: edge_base.EdgeModelOutputs | None = (
         state_history.edge_outputs
     )
     self._geometry: geometry_lib.Geometry = state_history.geometry
+    self._stacked_model_state: model_state_lib.ModelState = (
+        state_history.model_state
+    )
 
     # The rho grid does not change in time so we can just take the first one.
     self._rho_cell_norm = state_history.geometry.rho_norm[0]
@@ -201,7 +206,7 @@ class StateHistory:
     return self._torax_config
 
   @property
-  def sim_error(self) -> state.SimError:
+  def sim_error(self) -> sim_error_lib.SimError:
     """Returns the simulation error state."""
     return self._sim_error
 
@@ -231,22 +236,24 @@ class StateHistory:
     return _unstack_pytree(self._geometry)
 
   @functools.cached_property
-  def core_profiles(self) -> Sequence[state.CoreProfiles]:
+  def core_profiles(self) -> Sequence[core_profiles_lib.CoreProfiles]:
     """Returns the core profiles."""
     return _unstack_pytree(self._core_profiles)
 
   @functools.cached_property
-  def source_profiles(self) -> Sequence[source_profiles_lib.SourceProfiles]:
-    """Returns the source profiles for the simulation."""
+  def core_sources(self) -> Sequence[core_sources_lib.CoreSources]:
+    """Returns the core sources for the simulation."""
     return _unstack_pytree(self._core_sources)
 
   @functools.cached_property
-  def core_transport(self) -> Sequence[state.CoreTransport]:
+  def core_transport(self) -> Sequence[transport_coeffs.CoreTransport]:
     """Returns the core transport for the simulation."""
     return _unstack_pytree(self._stacked_core_transport)
 
   @functools.cached_property
-  def solver_numeric_outputs(self) -> Sequence[state.SolverNumericOutputs]:
+  def solver_numeric_outputs(
+      self,
+  ) -> Sequence[solver_numeric_outputs_lib.SolverNumericOutputs]:
     """Returns the solver numeric outputs."""
     return _unstack_pytree(self._stacked_solver_numeric_outputs)
 
@@ -263,6 +270,11 @@ class StateHistory:
     if self._stacked_edge_outputs is None:
       return (None,) * len(self.times)
     return _unstack_pytree(self._stacked_edge_outputs)
+
+  @functools.cached_property
+  def model_states(self) -> Sequence[model_state_lib.ModelState]:
+    """Returns the model states for the simulation."""
+    return _unstack_pytree(self._stacked_model_state)
 
   def _build_top_level_dataset(self) -> xr.Dataset:
     """Builds the top-level xr.Dataset with coordinates and config metadata."""
@@ -314,6 +326,7 @@ class StateHistory:
         self._core_sources.to_output_dict(grid),
         self._stacked_post_processed_outputs.to_output_dict(grid),
         self._geometry.to_output_dict(grid),
+        self._stacked_model_state.geometry.to_output_dict(grid),
     ]
     all_vars: dict[str, output_grid_context.OutputVar] = {}
     for d in output_dicts:
@@ -346,17 +359,7 @@ class StateHistory:
 
   def _build_numerics_dataset(self) -> xr.Dataset:
     """Builds the numerics xr.Dataset."""
-    sim_status = (
-        state.SimStatus.COMPLETED
-        if self.sim_error is state.SimError.NO_ERROR
-        else state.SimStatus.ERROR
-    )
     numerics_vars: dict[str, output_grid_context.OutputVar] = {
-        output_keys.SIM_STATUS: (
-            (),
-            np.asarray(sim_status.value),
-            output_keys.get_units(output_keys.SIM_STATUS),
-        ),
         output_keys.SIM_ERROR: (
             (),
             np.asarray(self.sim_error.value),
@@ -408,6 +411,7 @@ class StateHistory:
         - edge: Contains data variables for the edge model, if one is active.
         - auxiliary: Contains auxiliary model outputs, such as turbulent
             transport component outputs, if any are present.
+        - model_state: Contains cross-timestep model states, if any are active.
     """
     profiles_dataset, scalars_dataset = (
         self._build_profiles_and_scalars_datasets()
@@ -427,6 +431,12 @@ class StateHistory:
     auxiliary_tree = self._build_auxiliary_datatree()
     if auxiliary_tree is not None:
       children[output_keys.AUXILIARY] = auxiliary_tree
+
+    model_state_tree = self._stacked_model_state.to_xr_datatree(
+        self._output_grid_context
+    )
+    if model_state_tree is not None:
+      children[output_keys.MODEL_STATE] = model_state_tree
 
     data_tree = xr.DataTree(
         children=children,

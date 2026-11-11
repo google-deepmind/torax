@@ -29,7 +29,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,  # total plasma current in A
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.238}},
@@ -41,10 +41,10 @@ CONFIG = {
         'T_e_right_bc': 0.238,  # boundary condition electron temp at r=a_minor
         'n_e_right_bc': 0.437e20,  # boundary condition density for r=a_minor
         # set initial condition density according to Greenwald fraction.
-        # Otherwise from nbar
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.77,  # original simulation goes up to ~0.92
+        # Otherwise from n_e_bar
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.77,  # original simulation goes up to ~0.92
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },
     'numerics': {
@@ -57,7 +57,7 @@ CONFIG = {
         'evolve_density': True,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters
@@ -129,12 +129,12 @@ CONFIG = {
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 5,  # ion pedestal top temperature in keV for T_i and T_e
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 5,  # ion pedestal top temperature in keV for T_i and T_e
             # electron pedestal top temperature in keV for T_i and T_e
-            'T_e_ped': 5,
-            'n_e_ped': 0.68e20,  # pedestal top electron density in m^-3
-            'rho_norm_ped_top': 0.93,  # ped top location in normalized radius
+            'T_e_top': 5,
+            'n_e_top': 0.68e20,  # pedestal top electron density in m^-3
+            'rho_norm_top': 0.93,  # ped top location in normalized radius
         },
     },
     'transport': {

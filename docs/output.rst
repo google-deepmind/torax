@@ -20,7 +20,7 @@ disk at a specific path, use the ``to_netcdf()`` method:
 
 We currently support the below output structure for Torax V2.
 
-The output is an `[xarray DataTree] <https://docs.xarray.dev/en/latest/generated/xarray.DataTree.html>`_.
+The output is an |xarray_datatree|.
 
 The DataTree is a hierarchical structure containing ``xarray.DataSet``
 objects, including:
@@ -34,6 +34,8 @@ objects, including:
   ``auxiliary/turbulent_transport/core/<model_name>`` and
   ``auxiliary/turbulent_transport/pedestal/<model_name>`` for per-model
   turbulent transport coefficients and mode contributions.
+* ``model_state`` containing internal model state datasets used for file
+  restarts (present when any configured model exports state).
 
 Where sensible we have aimed to match names used by the IMAS standard.
 
@@ -130,13 +132,6 @@ The ``numerics`` dataset contains the following data variables.
   indicating whether the state at that timestep corresponds to a
   post-sawtooth-crash state.
 
-``sim_status`` ()
-  String indicating if the simulation completed successfully:
-
-  * "completed" if successful.
-
-  * "error" if in an error state.
-
 ``sim_error`` ()
   Integer providing further information on the simulation error state:
 
@@ -151,6 +146,8 @@ The ``numerics`` dataset contains the following data variables.
   * 4 if the minimum timestep, as set by ``time_step_calculator.min_dt`` is reached.
 
   * 5 if low temperature collapse is detected (T < T_min_eV).
+
+  * 6 if the simulation did not reach the final timestep ``t_final``.
 
 .. _output_profiles:
 
@@ -217,10 +214,6 @@ toroidal (``j_toroidal_*``) current densities:
 
 ``delta_upper`` (time, rho_face_norm)
   Upper triangularity of each flux surface [dimensionless].
-
-``ei_exchange`` (time, rho_cell_norm)
-  Ion-electron heat exchange power density profile [:math:`W/m^3`]. Positive
-  values mean heat source for ions, and heat sink for electrons.
 
 ``elongation`` (time, rho_norm)
   Elongation of each flux surface [dimensionless].
@@ -290,6 +283,10 @@ toroidal (``j_toroidal_*``) current densities:
   Parallel generic external non-inductive current density [:math:`A/m^2`]. Only
   output if ``generic_current`` source is active.
 
+``j_parallel_nbi`` (time, rho_cell_norm)
+  Parallel neutral beam injection current density [:math:`A/m^2`]. Only output
+  if ``nbi`` source is active.
+
 ``j_parallel_non_inductive`` (time, rho_cell_norm)
   Total parallel non-inductive current density (including bootstrap and external)
   [:math:`A/m^2`].
@@ -317,6 +314,9 @@ toroidal (``j_toroidal_*``) current densities:
   Toroidal generic external non-inductive current density [:math:`A/m^2`]. Only output if
   ``generic_current`` source is active.
 
+``j_toroidal_nbi`` (time, rho_cell_norm)
+  Toroidal neutral beam injection current density [:math:`A/m^2`].
+
 ``j_toroidal_non_inductive`` (time, rho_cell_norm)
   Total toroidal non-inductive current density (including bootstrap and external)
   [:math:`A/m^2`].
@@ -343,12 +343,14 @@ toroidal (``j_toroidal_*``) current densities:
 ``n_i`` (time, rho_norm)
   Main ion density [:math:`m^{-3}`].
 
-``n_impurity`` (time, rho_norm)
-  Impurity density for a single effective bundled impurity species
-  [:math:`m^{-3}`].
+``n_impurity_bundled`` (time, rho_norm)
+  Bundled impurity particle density for 2-ion transport models [:math:`m^{-3}`].
 
 ``n_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   True impurity density per species [:math:`m^{-3}`].
+
+``n_impurity_total`` (time, rho_norm)
+  Total impurity particle density [:math:`m^{-3}`].
 
 ``p_alpha_e`` (time, rho_cell_norm)
   Fusion alpha heating power density to electrons [:math:`W/m^3`]. Only output
@@ -370,6 +372,13 @@ toroidal (``j_toroidal_*``) current densities:
   Electron cyclotron heating power density (only relevant for electrons)
   [:math:`W/m^3`]. Only output if ``ecrh`` source is active.
 
+``p_ei_exchange_e`` (time, rho_cell_norm)
+  Ion-electron heat exchange power density profile to electrons
+  [:math:`W/m^3`]. Equal to ``-p_ei_exchange_i``.
+
+``p_ei_exchange_i`` (time, rho_cell_norm)
+  Ion-electron heat exchange power density profile to ions [:math:`W/m^3`].
+
 ``p_generic_heat_e`` (time, rho_cell_norm)
   Generic external heat source power density to electrons [:math:`W/m^3`]. Only
   output if ``generic_heat`` source is active.
@@ -389,6 +398,14 @@ toroidal (``j_toroidal_*``) current densities:
 ``p_impurity_radiation_e`` (time, rho_cell_norm)
   Impurity radiation heat sink density (only relevant for electrons)
   [:math:`W/m^3`]. Only output if ``impurity_radiation`` source is active.
+
+``p_nbi_e`` (time, rho_cell_norm)
+  Neutral beam injection heating power density to electrons [:math:`W/m^3`].
+  Only output if ``nbi`` source is active.
+
+``p_nbi_i`` (time, rho_cell_norm)
+  Neutral beam injection heating power density to ions [:math:`W/m^3`]. Only
+  output if ``nbi`` source is active.
 
 ``p_ohmic_e`` (time, rho_cell_norm)
   Ohmic heating power density [:math:`W/m^3`] (only relevant for electrons).
@@ -461,6 +478,10 @@ toroidal (``j_toroidal_*``) current densities:
   Generic particle source density [:math:`s^{-1} m^{-3}`]. Only output if
   ``generic_particle`` source is active.
 
+``s_nbi`` (time, rho_cell_norm)
+  Neutral beam injection particle source density [:math:`s^{-1} m^{-3}`]. Only
+  output if ``nbi`` source is active.
+
 ``s_pellet`` (time, rho_cell_norm)
   Pellet particle source density [:math:`s^{-1} m^{-3}`]. Only output if
   ``pellet`` source is active.
@@ -507,14 +528,18 @@ toroidal (``j_toroidal_*``) current densities:
 
 ``Z_eff`` (time, rho_norm)
   Effective charge profile defined as
-  :math:`(Z_i^2n_i + Z_{impurity}^2n_{impurity})/n_e` [dimensionless].
+  :math:`(Z_i^2 n_i + \sum_k Z_k^2 n_k) / n_e` [dimensionless].
 
 ``Z_i`` (time, rho_norm)
   Averaged main ion charge profile [dimensionless].
 
-``Z_impurity`` (time, rho_norm)
-  Averaged bundled impurity charge profile corresponding to <Z^2>/<Z> where
-  < > is a weighted average by fractional impurity abundance [dimensionless].
+``Z_impurity_average`` (time, rho_norm)
+  Mean impurity charge profile :math:`\langle Z \rangle = \sum_k f_k Z_k`,
+  weighted by fractional impurity abundance [dimensionless].
+
+``Z_impurity_bundled`` (time, rho_norm)
+  Bundled impurity charge profile :math:`\langle Z^2 \rangle / \langle Z \rangle`
+  [dimensionless].
 
 ``Z_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   True averaged impurity charge state per species [dimensionless].
@@ -624,10 +649,10 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``f_non_inductive`` (time)
   Fraction of the total plasma current that is non-inductive [dimensionless].
 
-``fgw_n_e_line_avg`` (time)
+``f_GW_n_e_line_avg`` (time)
   Greenwald fraction from line-averaged electron density [dimensionless].
 
-``fgw_n_e_volume_avg`` (time)
+``f_GW_n_e_volume_avg`` (time)
   Greenwald fraction from volume-averaged electron density [dimensionless].
 
 ``H20`` (time)
@@ -646,20 +671,23 @@ properties and characteristics, as well as scalar edge geometry quantities.
   H-mode confinement quality factor with respect to the ITER98y2 scaling law
   [dimensionless].
 
-``I_aux_generic`` (time)
-  Total generic auxiliary current [:math:`A`].
-
 ``I_bootstrap`` (time)
   Total bootstrap current [:math:`A`].
+
+``I_ecrh`` (time)
+  Total electron cyclotron source current [:math:`A`].
 
 ``I_external`` (time)
   Total external current [:math:`A`].
 
+``I_generic_current`` (time)
+  Total generic current source current [:math:`A`].
+
+``I_nbi`` (time)
+  Total neutral beam injection source current [:math:`A`].
+
 ``I_non_inductive`` (time)
   Total non-inductive current (including bootstrap and external) [:math:`A`].
-
-``I_ecrh`` (time)
-  Total electron cyclotron source current [:math:`A`].
 
 ``I_p`` (time)
   Plasma current [:math:`A`].
@@ -695,15 +723,6 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_aux_e`` (time)
   Total auxiliary electron heating power [:math:`W`].
 
-``P_aux_generic_e`` (time)
-  Total generic auxiliary heating power to electrons [:math:`W`].
-
-``P_aux_generic_i`` (time)
-  Total generic auxiliary heating power to ions [:math:`W`].
-
-``P_aux_generic_total`` (time)
-  Total generic auxiliary heating power [:math:`W`].
-
 ``P_aux_i`` (time)
   Total auxiliary ion heating power [:math:`W`].
 
@@ -714,7 +733,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_bremsstrahlung_e`` (time)
   Total Bremsstrahlung electron heat sink power [:math:`W`].
 
-``P_cyclotron_e`` (time)
+``P_cyclotron_radiation_e`` (time)
   Total cyclotron radiation heat sink power (only relevant for electrons)
   [:math:`W`].
 
@@ -739,6 +758,15 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_fusion`` (time)
   Total fusion power including neutrons (5*P_alpha_total) [:math:`W`].
 
+``P_generic_heat_e`` (time)
+  Total generic heat source power to electrons [:math:`W`].
+
+``P_generic_heat_i`` (time)
+  Total generic heat source power to ions [:math:`W`].
+
+``P_generic_heat_total`` (time)
+  Total generic heat source power [:math:`W`].
+
 ``P_heat_e`` (time)
   Total electron heating power: all sources - sinks. i.e. auxiliary heating +
   electron-ion heat exchange + Ohmic + fusion + (negative) radiation sinks
@@ -761,6 +789,10 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_icrh_total`` (time)
   Total ion cyclotron resonance heating power [:math:`W`].
 
+``P_impurity_radiation_e`` (time)
+  Total impurity radiation heat sink power (only relevant for electrons)
+  [:math:`W`].
+
 ``P_LH_martin`` (time)
   Calculated H-mode transition power, taken as the maximum of
   ``P_LH_martin_min`` and ``P_LH_martin_high_density``. This does not include an
@@ -778,12 +810,17 @@ properties and characteristics, as well as scalar edge geometry quantities.
   H-mode transition power at the density corresponding to the minimum transition
   power, from Ryter 2014. [:math:`W`].
 
+``P_nbi_e`` (time)
+  Total neutral beam injection heating power to electrons [:math:`W`].
+
+``P_nbi_i`` (time)
+  Total neutral beam injection heating power to ions [:math:`W`].
+
+``P_nbi_total`` (time)
+  Total neutral beam injection heating power [:math:`W`].
+
 ``P_ohmic_e`` (time)
   Total Ohmic heating power (only relevant for electrons) [:math:`W`].
-
-``P_radiation_e`` (time)
-  Total radiative heat sink power (including Bremsstrahlung, Cyclotron, and
-  other radiation). Only relevant for electrons [:math:`W`].
 
 ``P_SOL_e`` (time)
   Total electron heating power exiting the plasma across the LCFS [:math:`W`].
@@ -801,7 +838,8 @@ properties and characteristics, as well as scalar edge geometry quantities.
   Total toroidal magnetic flux [:math:`Wb`].
 
 ``Phi_b_dot`` (time)
-  Time derivative of the total toroidal magnetic flux [:math:`Wb/s`].
+  Time derivative of the total toroidal magnetic flux at the LCFS [:math:`Wb/s`],
+  carried in ``GeometryState`` as the backward interval secant across steps.
 
 ``q95`` (time)
   Safety factor at 95% of the normalized poloidal flux coordinate
@@ -860,6 +898,9 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``S_generic_particle`` (time)
   Integrated generic particle source rate [:math:`s^{-1}`].
+
+``S_nbi`` (time)
+  Integrated neutral beam injection particle source rate [:math:`s^{-1}`].
 
 ``S_pellet`` (time)
   Integrated pellet particle source rate [:math:`s^{-1}`].
@@ -960,6 +1001,10 @@ if one is active (e.g., :ref:`extended_lengyel <extended_lengyel>`).
   * 1: Solver did not converge.
 
   * 2: Solver not fully converged but is within coarse tolerance.
+
+``valid_for_core_update`` (time)
+  Boolean flag indicating whether the edge model outputs are valid to update
+  core boundary conditions [dimensionless].
 
 .. _output_examples:
 

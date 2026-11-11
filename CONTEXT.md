@@ -36,10 +36,11 @@ project.
 
 *   **Docstrings:** All public functions, methods, and classes **must** have
     docstrings. Docstrings should describe the purpose, the arguments
-    (including units and expected shapes where relevant), and the return
-    value. For private helpers, a docstring is still encouraged whenever the
-    intent or physics meaning is not immediately obvious from the name and
-    signature.
+    (specifying units in square brackets such as `[m]`, `[eV]`, or `[W/m^3]`
+    rather than `"in units of ..."`, along with expected shapes where
+    relevant), and the return value. For private helpers, a docstring is still
+    encouraged whenever the intent or physics meaning is not immediately
+    obvious from the name and signature.
 
 *   **License Preamble:** Every source file must include the Apache 2.0
     license preamble. Always add it to newly created files with the copyright
@@ -87,6 +88,50 @@ For build and test instructions, see
     to validate complex inter-dependencies between config fields (e.g., ensuring
     `enrichment_factor` matches `seed_impurity_weights`). Always return `self`
     (or `data`) from these validators.
+
+## Configuration Documentation
+
+User-facing Pydantic configuration reference pages under `docs/configuration/`
+are auto-generated from class docstrings via the custom Sphinx directive
+`.. torax_config::` (implemented in `docs/sphinxext/torax_config_autodoc.py`).
+When adding or updating a Pydantic config model:
+
+*   **Document every field in `Attributes:`:** Every field in `model_fields`
+    (or its base class) must have a matching `field_name: ...` entry under an
+    `Attributes:` section in the class docstring, and every entry under
+    `Attributes:` must match an actual field or `ClassVar` on the class.
+    `torax_config` emits a Sphinx warning (promoted to an error under `-W`)
+    on missing or unknown attributes.
+*   **Register new config classes in `docs/configuration/*.rst`:** Add
+    `.. torax_config:: torax._src.<module>.<ConfigClass>` to the appropriate
+    page in `docs/configuration/`.
+*   **Code formatting in docstrings:** Use single backticks (`` `param` ``) for
+    inline code/field names and triple-backtick fences (```` ``` ````) for code
+    blocks (parsed as Python by default unless another language is specified).
+*   **Units in square brackets:** Write physical units in square brackets
+    (e.g., `[s]`, `[m]`, `[eV]`, `[W/m^3]`, `[$rho_norm$]`) rather than prose
+    phrases like `"in units of ..."` or `"in seconds"`.
+*   **Citations and external links (`|...|`):** Define external URLs and
+    literature citations in `docs/links.rst` (automatically appended to
+    `rst_epilog` in `docs/conf.py`) and reference them via `|...|`
+    substitutions in config docstrings and `.rst` pages rather than inline
+    `<https://...>`_ links.
+*   **Code-math lookup table (`$...$` and `$$...$$`):** Write math in
+    Python-like code syntax (`^` for exponents, `=` for equality, Greek names
+    without backslashes, e.g., `$T_e$`, `$rho_norm$`,
+    `$chi propto (R_over_L_Ti - R_over_L_Ti_crit)^alpha$`) rather than raw
+    LaTeX backslashes. Every `$...$` and `$$...$$` expression is translated via
+    the explicit substitution table in
+    `docs/sphinxext/math_substitutions.toml` (with whitespace normalized).
+    When adding or modifying a math expression in a docstring, add or update
+    its entry in `docs/sphinxext/math_substitutions.toml`; unmapped expressions
+    and unmatched `$` delimiters fail loudly under Sphinx `-W` and in
+    `docs/tests/torax_config_autodoc_test.py`.
+*   **Verification:** Run `pytest docs/tests/torax_config_autodoc_test.py` and
+    `cd docs && make html SPHINXOPTS="-W"` to verify `math_substitutions.toml`
+    coverage, whole-codebase Pydantic config coverage/docstrings, and
+    warning-free Sphinx builds (ReadTheDocs builds also run with
+    `SPHINXOPTS="-W"`).
 
 *   **Module-Level Constants:** Avoid using magic numbers within functions.
     Define thresholds, tolerances, or algorithm parameters as UPPER_SNAKE_CASE

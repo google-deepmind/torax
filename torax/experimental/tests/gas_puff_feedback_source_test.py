@@ -14,7 +14,6 @@
 
 from absl.testing import absltest
 import chex
-from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.config import build_runtime_params
 from torax._src.sources import gas_puff_source
@@ -36,6 +35,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
 
   source_config_class = gas_puff_feedback_source.GasPuffFeedbackSourceConfig
   source_name = gas_puff_source.GasPuffSource.SOURCE_ID
+  model_name = 'feedback'
 
   def test_feedback_mode(self):
     """Tests calc_puff_feedback_source with real objects."""
@@ -54,7 +54,9 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     source_models = torax_config.sources.build_models()
 
-    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
+    initial_line_avg = math_utils.line_average(
+        core_profiles.kinetic.n_e.value, geo
+    )
 
     # Rebuild with specific requested value
     config_dict['sources']['gas_puff']['model_name'] = 'feedback'
@@ -76,18 +78,18 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     chex.assert_trees_all_close(gas_puff_params.feedback_gain, 10.0)
 
     source = source_models.standard_sources['gas_puff']
+    assert isinstance(source, gas_puff_feedback_source.GasPuffFeedbackSource)
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+        solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    (profile,) = output.profiles
-    assert isinstance(profile, array_typing.Array)
+    assert output.particle_source_e is not None
 
-    total_particles = math_utils.volume_integration(profile, geo)
+    total_particles = math_utils.volume_integration(
+        output.particle_source_e, geo
+    )
 
     # Expected error = (initial_line_avg + 1e19) - initial_line_avg = 1e19
     # Expected S_total = 10.0 * 1e19 = 1e20

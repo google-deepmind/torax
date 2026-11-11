@@ -43,7 +43,7 @@ class NeoclassicalConfigBase(torax_pydantic.ConfigBase):
 
   @abc.abstractmethod
   def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
-    """Builds runtime params for the neoclassical model."""
+    """Builds the runtime parameters for the neoclassical model."""
 
   @abc.abstractmethod
   def build_model(self) -> neoclassical_model.NeoclassicalModel:
@@ -54,18 +54,40 @@ class AnalyticalNeoclassicalConfig(NeoclassicalConfigBase):
   """Config for the composite analytical neoclassical model.
 
   Attributes:
-    model_name: The model name discriminator, set to `"analytical"`.
+    model_name: Selects the top-level neoclassical model. The built-in
+      `'analytical'` model combines four modular analytical sub-models
+      configured under `bootstrap_current`, `conductivity`, `transport`, and
+      `poloidal_velocity`. Custom top-level neoclassical models can also be
+      registered via `torax.experimental.neoclassical.register_neoclassical_model`
+      (see :ref:`model-integration`).
     bootstrap_current: Config for the bootstrap current model. Defaults to
-      `"zeros"` if omitted, or `"sauter"` if a dict is provided without
-      `model_name`.
+      `'zeros'` if omitted, or `'sauter'` if a dict is provided without
+      `model_name`. Available `model_name` options:
+
+      - `'sauter'`: Analytical model from |sauter99|.
+      - `'redl'`: Analytical model from |redl2021|.
+      - `'zeros'`: Sets bootstrap current to zero.
     conductivity: Config for the parallel conductivity model. Defaults to
-      `"sauter"` if omitted or if `model_name` is not provided.
+      `'sauter'` if omitted or if `model_name` is not provided. Available
+      `model_name` options:
+
+      - `'sauter'` (default): Analytical conductivity model from |sauter99|.
+      - `'redl'`: Analytical conductivity model from |redl2021|.
     transport: Config for the neoclassical transport model. Defaults to
-      `"zeros"` if omitted, or `"angioni_sauter"` if a dict is provided without
-      `model_name`.
+      `'zeros'` if omitted, or `'angioni_sauter'` if a dict is provided without
+      `model_name`. Available `model_name` options:
+
+      - `'zeros'`: Sets all neoclassical transport coefficients to zero.
+      - `'angioni_sauter'`: Analytical neoclassical transport model from
+        |angioni2000|, with an optional near-axis ion thermal conductivity
+        correction from |shaing1997|.
     poloidal_velocity: Config for the neoclassical poloidal velocity model.
-      Defaults to `"kim"` if omitted or if `model_name` is not provided.
-  """
+      Defaults to `'kim'` if omitted or if `model_name` is not provided.
+      Available `model_name` options:
+
+      - `'kim'` (default): Analytical poloidal velocity model from |kim1991|.
+      - `'zeros'`: Sets the neoclassical poloidal velocity to zero.
+  """  # fmt: skip
 
   model_name: Annotated[Literal["analytical"], torax_pydantic.JAX_STATIC] = (
       "analytical"

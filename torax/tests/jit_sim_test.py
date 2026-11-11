@@ -19,9 +19,9 @@ from typing import Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
@@ -185,8 +185,8 @@ class JitSimTest(sim_test_case.SimTestCase):
       ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
-          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
-          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped.py',
+          'test_iterhybrid_predictor_corrector_set_ptop_ttopratio_ntop',
+          'test_iterhybrid_predictor_corrector_set_ptop_ttopratio_ntop.py',
       ),
       # Predictor-corrector solver with cyclotron radiation heat sink
       (
@@ -216,6 +216,15 @@ class JitSimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
+      ),
+      # Similar to test_iterhybrid_rampup with multi-slice IMAS geometry and
+      # prescribed psi from geometry (evolve_current=False,
+      # psi_source='geometry').
+      (
+          'test_iterhybrid_rampup_imas_psi_from_geometry',
+          'test_iterhybrid_rampup_imas_psi_from_geometry.py',
+          _ALL_PROFILES,
+          1e-7,
       ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector
@@ -282,7 +291,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     )
 
     self.assertEqual(
-        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+        state_history.sim_error, sim_error.SimError.DID_NOT_REACH_T_FINAL
     )
 
   @parameterized.parameters('chi', 'from_previous_dt')

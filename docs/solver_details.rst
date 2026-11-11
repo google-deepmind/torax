@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 .. _solver_details:
 
 TORAX solver details
@@ -11,9 +9,9 @@ in further detail below.
 
 Spatial discretization scheme
 =============================
-The TORAX JAX 1D FVM library is significantly influenced by
-`FiPy <https://www.ctcms.nist.gov/fipy/>`_. See :ref:`fvm` for details on the
-library API. This section summarizes 1D FVM numerics in general.
+The TORAX JAX 1D FVM library is significantly influenced by |fipy|. See
+:ref:`fvm` for details on the library API. This section summarizes 1D FVM
+numerics in general.
 
 The 1D spatial domain, :math:`0 \leq \hat{\rho} \leq 1`, is divided into a
 grid of :math:`N` cells. TORAX supports both uniform grids (configured via
@@ -181,11 +179,11 @@ length of 75.
 (e.g. :math:`n_e` in the example above), and input parameters such as heating
 powers or locations.
 
-:math:`\mathbf{\tilde{T}}` is the transient term (following
-`FiPy <https://www.ctcms.nist.gov/fipy/>`_ nomenclature), where :math:`\odot`
-signifies element-wise multiplication. For example, for the :math:`T_e`
-equation, :math:`\mathbf{\tilde{T}}=\mathbf{n_e}`, which makes the system
-nonlinear if :math:`\mathbf{n_e}` itself is an evolving variable.
+:math:`\mathbf{\tilde{T}}` is the transient term (following |fipy|
+nomenclature), where :math:`\odot` signifies element-wise multiplication. For
+example, for the :math:`T_e` equation, :math:`\mathbf{\tilde{T}}=\mathbf{n_e}`,
+which makes the system nonlinear if :math:`\mathbf{n_e}` itself is an evolving
+variable.
 
 :math:`\mathbf{\bar{C}}(x_t, u_t)` and
 :math:`\mathbf{\bar{C}}(x_{t+\Delta t}, u_{t+\Delta t})` are the discretization
@@ -328,10 +326,9 @@ the predictor-corrector linear solver as a warm-start.
 Optimizer solver
 ^^^^^^^^^^^^^^^^
 
-An alternative nonlinear solver using the JAX-compatible
-`jaxopt library <https://github.com/google/jaxopt>`_ is also available. This
-method recasts the PDE residual as a loss function, which is minimized using an
-iterative optimization algorithm. Similar to the Newton-Raphson solver, adaptive
+An alternative nonlinear solver using the JAX-compatible |jaxopt| library is
+also available. This method recasts the PDE residual as a loss function, which
+is minimized using an iterative optimization algorithm. Similar to the Newton-Raphson solver, adaptive
 timestepping is implemented, where the timestep is reduced if the loss remains
 above a tolerance at exit. While offering flexibility with different
 optimization algorithms, this option is relatively untested for TORAX to date.

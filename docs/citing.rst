@@ -1,7 +1,7 @@
 Citing TORAX
 ############
 
-A TORAX paper is `available on arXiv <https://arxiv.org/abs/2406.06718>`_. Cite this paper to cite TORAX:
+A TORAX paper is |torax2024_arxiv|. Cite this paper to cite TORAX:
 
 .. code-block:: text
 

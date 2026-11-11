@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 .. _configuration:
 
 Simulation input configuration
@@ -7,6 +5,10 @@ Simulation input configuration
 
 Jump to :ref:`config_details` for an immediate overview of all configuration
 parameters.
+
+.. note::
+   Upgrading from TORAX v1? See :ref:`migration_guide` for a complete mapping
+   of renamed, moved, and restructured ``ToraxConfig`` fields.
 
 General notes
 =============
@@ -62,16 +64,17 @@ For various definitions, see :ref:`glossary`.
 
 Time-dependence and parameter interpolation
 ===========================================
-Some TORAX parameters are allowed to vary over time, and are labelled with
-:ref:`time-varying-scalar <time_varying_scalars>` and
-:ref:`time-varying-array <time_varying_arrays>` in :ref:`config_details`
-below.
+Some TORAX parameters are allowed to vary over time, and are typed as
+:ref:`TimeVaryingScalar <time_varying_scalars>` or
+:ref:`TimeVaryingArray <time_varying_arrays>` (including bounded variants such
+as ``PositiveTimeVaryingScalar`` and ``PositiveTimeVaryingArray``) in
+:ref:`config_details` below.
 
 .. _time_varying_scalars:
 
 Time-varying scalars
 --------------------
-The following inputs are valid for **time-varying-scalar** parameters:
+The following inputs are valid for ``TimeVaryingScalar`` parameters:
 
 * A scalar (integer, float, or boolean). The parameter is then not
   time-dependent.
@@ -92,15 +95,15 @@ interpolation methods
 ^^^^^^^^^^^^^^^^^^^^^
 Currently, two interpolation modes are supported:
 
-* ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
+* ``'piecewise_linear'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values at each time value in the time-series
+* ``'step'``: stepwise change in values at each time value in the time-series
   (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 The interpolation method can be specified by giving a tuple of the form
 ``(inputs, interpolation_mode)``, where ``inputs`` is one of the input
 specifications listed in the previous section. Specifying no interpolation mode
-is equivalent to ``(inputs, 'PIECEWISE_LINEAR')``.
+is equivalent to ``(inputs, 'piecewise_linear')``.
 
 Examples
 ^^^^^^^^
@@ -111,7 +114,7 @@ time value.
 
 .. code-block:: python
 
-  I_p = ({10: 2.0e6, 100: 15.0e6}, 'PIECEWISE_LINEAR')
+  I_p = ({10: 2.0e6, 100: 15.0e6}, 'piecewise_linear')
 
 or more simply, taking advantage of the default.
 
@@ -120,13 +123,13 @@ or more simply, taking advantage of the default.
     I_p = {10: 2.0e6, 100: 15.0e6}
 
 2. Define a time-dependent internal boundary condition for ion temperature,
-``T_i_ped``, with stepwise changes, starting at :math:`1~keV` at :math:`t=2s`,
+``T_i_top``, with stepwise changes, starting at :math:`1~keV` at :math:`t=2s`,
 transitioning to :math:`3~keV` at :math:`t=8s`, and back down to
 :math:`1~keV` at :math:`t=20s`:
 
 .. code-block:: python
 
-  T_i_ped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
+  T_i_top= ({2: 1.0, 8: 3.0, 20: 1.0}, 'step')
 
 
 .. _time_varying_arrays:
@@ -134,11 +137,11 @@ transitioning to :math:`3~keV` at :math:`t=8s`, and back down to
 
 Time-varying arrays
 -------------------
-Parameters marked as **time-varying-array** are interpolated on a grid
+Parameters typed as ``TimeVaryingArray`` are interpolated on a grid
 (:math:`t`, :math:`\hat{\rho}`). For each time point, an array of values is
 defined on the spatial :math:`\hat{\rho}` grid.
 
-**time-varying-array** parameters can be defined using either a nested
+``TimeVaryingArray`` parameters can be defined using either a nested
 dictionary, or in the form of arrays (represented as a ``xarray.DataArray``
 object or a ``tuple`` of arrays).
 
@@ -231,17 +234,17 @@ time and in :math:`\hat{\rho}`. To specify a different interpolation method:
 
 .. code-block:: python
 
-  (time_varying_array_value, {'time_interpolation_mode': 'STEP',
-  'rho_interpolation_mode': 'PIECEWISE_LINEAR'})
+  (time_varying_array_value, {'time_interpolation_mode': 'step',
+  'rho_interpolation_mode': 'piecewise_linear'})
 
 where ``time_varying_array_value`` is any of the above inputs
 (nested dictionary, arrays, etc.).
 
-Currently two interpolation modes are supported as for **time-varying-scalar**:
+Currently two interpolation modes are supported as for ``TimeVaryingScalar``:
 
-* ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
+* ``'piecewise_linear'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values at each time value in the time-series
+* ``'step'``: stepwise change in values at each time value in the time-series
   (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 
@@ -368,17 +371,17 @@ CHEASE geometry), is shown below. The configuration file is also available in
       'profile_conditions': {
           'I_p': {0: 3e6, 80: 10.5e6},
           'I_p_source': 'profile_conditions',
-          'initial_psi_source': 'geometry',
+          'psi_source': 'geometry',
           # initial condition ion temperature for r=0 and r=a_minor
           'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
           'T_i_right_bc': 0.1,  # boundary condition ion temp for r=a_minor
           # initial condition electron temperature between r=0 and r=a_minor
           'T_e': {0.0: {0.0: 6.0, 1.0: 0.1}},
           'T_e_right_bc': 0.1,  # boundary condition electron temp for r=a_minor
-          'n_e_right_bc_is_fGW': True,
+          'n_e_right_bc_is_f_GW': True,
           'n_e_right_bc': {0: 0.1, 80: 0.3},
-          'n_e_nbar_is_fGW': True,
-          'nbar': 1,
+          'n_e_bar_is_f_GW': True,
+          'n_e_bar': 1,
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
       },
       'numerics': {
@@ -388,7 +391,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'evolve_density': True,
       },
       'geometry': {
-          'geometry_type': 'chease',
+          'model_name': 'chease',
           'geometry_file': 'iterhybrid.mat2cols',
           'R_major': 6.2,
           'a_minor': 2.0,
@@ -436,12 +439,12 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'pedestal': {
           'structure_model': {
-              'model_name': 'set_T_ped_n_ped',
-              'T_i_ped': 1.0,
-              'T_e_ped': 1.0,
-              'n_e_ped': {0: 0.3, 80: 0.7},
-              'rho_norm_ped_top': 0.95,
-              'n_e_ped_is_fGW': True,
+              'model_name': 'set_T_top_n_top',
+              'T_i_top': 1.0,
+              'T_e_top': 1.0,
+              'n_e_top': {0: 0.3, 80: 0.7},
+              'rho_norm_top': 0.95,
+              'n_e_top_is_f_GW': True,
           },
       },
       'solver': {

@@ -22,6 +22,7 @@ from torax._src.edge.base import EdgeModel
 from torax._src.edge.base import EdgeModelConfig
 from torax._src.edge.base import EdgeModelOutputs
 from torax._src.edge.base import SupportedBoundaryConditions
+from torax._src.edge.edge_state import EdgeState
 from torax._src.edge.register_model import register_edge_model
 from torax._src.edge.runtime_params import RuntimeParams
 
@@ -29,6 +30,7 @@ __all__ = [
     'EdgeModel',
     'EdgeModelConfig',
     'EdgeModelOutputs',
+    'EdgeState',
     'RuntimeParams',
     'SupportedBoundaryConditions',
     'register_edge_model',

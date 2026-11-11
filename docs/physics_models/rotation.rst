@@ -1,5 +1,3 @@
-.. include:: ../links.rst
-
 .. _rotation_physics:
 
 Rotation Physics

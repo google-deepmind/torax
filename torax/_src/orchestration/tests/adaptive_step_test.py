@@ -75,10 +75,10 @@ class AdaptiveStepTest(parameterized.TestCase):
     loop_statistics = {
         'inner_solver_iterations': jnp.array(0, jax_utils.get_int_dtype()),
     }
-    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+    explicit_source_outputs, _ = source_profile_builders.evaluate_basic_sources(
         runtime_params=self.runtime_params,
         geo=self.geo,
-        core_profiles=self.sim_state.core_profiles,
+        solver_profiles=self.sim_state.core_profiles,
         source_models=self.step_fn.solver.models.source_models,
         source_states=self.step_fn.solver.models.source_models.initial_state(
             self.runtime_params
@@ -86,7 +86,7 @@ class AdaptiveStepTest(parameterized.TestCase):
         explicit=True,
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=explicit_source_profiles,
+        sources=explicit_source_outputs,
         pedestal=None,
     )
     adaptive_step_state, _ = adaptive_step.compute_state(
@@ -99,7 +99,6 @@ class AdaptiveStepTest(parameterized.TestCase):
         explicit_model_outputs=explicit_model_outputs,
         edge_outputs=None,
         runtime_params_provider=self.step_fn.runtime_params_provider,
-        geometry_provider=self.step_fn.geometry_provider,
         model_state_t=self.sim_state.model_state,
         solver=self.step_fn.solver,
         time_step_calculator=self.step_fn.time_step_calculator,
@@ -215,7 +214,6 @@ class AdaptiveStepTest(parameterized.TestCase):
             runtime_params,
             mock.ANY,
             sim_state,
-            mock.ANY,
             mock.ANY,
             mock.ANY,
             mock.ANY,

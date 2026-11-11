@@ -23,10 +23,10 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,  # initial density (Greenwald fraction units)
+        'psi_source': 'geometry',
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,  # initial density (Greenwald fraction units)
         'n_e_right_bc': 0.2e20,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
@@ -41,32 +41,43 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     },
     'sources': {
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,
+            'P_total': 120e6,
+            'gaussian_location': 0.0,
         },
         'ei_exchange': {},
         'generic_particle': {
             'S_total': 0.3e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
         },
         'gas_puff': {
             'S_total': 0.5e22,
+            'puff_decay_length': 0.05,
         },
         'pellet': {
             'S_total': 1.0e22,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
         },
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
     },
     'neoclassical': {
         'bootstrap_current': {},
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'n_e_ped': 1.0e20,
+            'model_name': 'set_T_top_n_top',
+            'n_e_top': 1.0e20,
         },
     },
     'transport': {

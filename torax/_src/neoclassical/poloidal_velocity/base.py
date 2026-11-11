@@ -17,11 +17,12 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+from typing import Self
 
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
@@ -34,18 +35,46 @@ from torax._src.torax_pydantic import torax_pydantic
 class PoloidalVelocity:
   """Values returned by a poloidal velocity model."""
 
-  v_pol: cell_variable.CellVariable
+  poloidal_velocity: cell_variable.CellVariable
 
   @classmethod
-  def zeros(cls, geometry: geometry_lib.Geometry) -> 'PoloidalVelocity':
-    """Returns a PoloidalVelocity with all values set to zero."""
-    v_pol = cell_variable.CellVariable(
-        value=jnp.zeros_like(geometry.rho_norm),
+  def from_arrays(
+      cls,
+      geometry: geometry_lib.Geometry,
+      poloidal_velocity: array_typing.FloatVectorCell,
+      right_face_constraint: array_typing.FloatScalar | None = None,
+  ) -> Self:
+    """Constructs a PoloidalVelocity object from arrays.
+
+    Args:
+      geometry: The magnetic geometry of the tokamak.
+      poloidal_velocity: Poloidal velocity profile on the cell grid [m/s].
+      right_face_constraint: Optional right boundary condition for poloidal
+        velocity [m/s]. Defaults to 0.0.
+
+    Returns:
+      A `PoloidalVelocity` instance with a `CellVariable` profile for
+      `poloidal_velocity`.
+    """
+    poloidal_velocity_cell_var = cell_variable.CellVariable(
+        value=poloidal_velocity,
         face_centers=geometry.rho_face_norm,
-        right_face_constraint=jnp.zeros(()),
+        right_face_constraint=(
+            right_face_constraint
+            if right_face_constraint is not None
+            else jnp.zeros(())
+        ),
         right_face_grad_constraint=None,
     )
-    return cls(v_pol=v_pol)
+    return cls(poloidal_velocity=poloidal_velocity_cell_var)
+
+  @classmethod
+  def zeros(cls, geometry: geometry_lib.Geometry) -> Self:
+    """Returns a PoloidalVelocity with all values set to zero."""
+    return cls.from_arrays(
+        geometry=geometry,
+        poloidal_velocity=jnp.zeros_like(geometry.rho_norm),
+    )
 
 
 class PoloidalVelocityModel(abc.ABC):
@@ -56,14 +85,19 @@ class PoloidalVelocityModel(abc.ABC):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> PoloidalVelocity:
     """Calculates neoclassical poloidal velocity."""
 
 
 class PoloidalVelocityModelConfig(torax_pydantic.ConfigBase):
-  """Base class for poloidal velocity model configs."""
+  """Base class for poloidal velocity model configs.
+
+  Attributes:
+    poloidal_velocity_multiplier: Multiplier applied to the neoclassical
+      poloidal velocity.
+  """
 
   poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0
 

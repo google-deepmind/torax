@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing a TokaMaker geometry."""
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal, Self
 
 import numpy as np
@@ -43,7 +44,7 @@ class TokaMakerEquilibrium(torax_pydantic.ConfigBase):
   """Flux surface averaged profiles extracted from a TokaMaker equilibrium.
 
   Constructed from the dict of profiles returned by
-  ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()``, whose keys are mapped
+  `OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()`, whose keys are mapped
   onto the attributes of this class by `_GET_FSA_KEY_MAP`.
 
   Attributes:
@@ -53,20 +54,20 @@ class TokaMakerEquilibrium(torax_pydantic.ConfigBase):
     flux_surf_avg_1_over_R: <1/R> [m^-1]
     flux_surf_avg_1_over_R2: <1/R^2> [m^-2]
     dV_dpsi: dV/dpsi [m^3 (Wb/rad)^-1]
-    flux_surf_avg_grad_psi: <|grad psi|> [Wb rad^-1 m^-1]
-    flux_surf_avg_grad_psi2: <|grad psi|^2> [Wb^2 rad^-2 m^-2]
+    flux_surf_avg_grad_psi: `<|grad psi|>` [Wb rad^-1 m^-1]
+    flux_surf_avg_grad_psi2: `<|grad psi|^2>` [Wb^2 rad^-2 m^-2]
     flux_surf_avg_Bp2: <Bp^2> [T^2]
     flux_surf_avg_1_over_B2: <1/B^2> [T^-2]
     R_min: Minimum major radius of each flux surface [m]
     R_max: Maximum major radius of each flux surface [m]
     Z_min: Minimum height of each flux surface [m]
     Z_max: Maximum height of each flux surface [m]
-    R_at_Zmin: Major radius at ``Z_min`` [m]
-    R_at_Zmax: Major radius at ``Z_max`` [m]
+    R_at_Zmin: Major radius at `Z_min` [m]
+    R_at_Zmax: Major radius at `Z_max` [m]
     psi_axis: Poloidal flux on the magnetic axis [Wb/rad]
     R_axis: Major radius of the magnetic axis [m]
     Z_axis: Height of the magnetic axis [m]
-    F_axis: ``F`` on the magnetic axis [m T]
+    F_axis: `F` on the magnetic axis [m T]
     F0: Vacuum toroidal field flux function [m T]
   """
 
@@ -126,7 +127,7 @@ class TokaMakerEquilibrium(torax_pydantic.ConfigBase):
       i = unwritten[0]
       raise ValueError(
           f'Flux surface {i} of {len(self.R_min)} (psi = {self.psi[i]} Wb/rad)'
-          f' has a non-positive major radius extremum (R_min ='
+          ' has a non-positive major radius extremum (R_min ='
           f' {self.R_min[i]}, R_max = {self.R_max[i]}); it did not trace.'
       )
     resolved = (self.R_max - self.R_min) > 0.0
@@ -146,24 +147,32 @@ class TokaMakerEquilibrium(torax_pydantic.ConfigBase):
 
 
 class TokaMakerConfig(base.GeometryConfigBase):
-  """Pydantic model for the TokaMaker geometry.
+  """Constructs geometry from in-memory `TokaMaker` flux-surface averages.
 
-  The flux surface grid is set by the ``get_fsa()`` call, not by this config.
-  The outermost sampled surface becomes rho_norm = 1, so ``psi_pad=0.01`` plays
-  the role of ``last_surface_factor=0.99`` in the EQDSK geometry. Sample
-  uniformly in sqrt(psi_norm) rather than psi_norm, since rho_norm scales as
-  sqrt(psi_norm) near the axis and a psi_norm-uniform grid is coarse there.
+  `TokaMaker` traces flux surfaces on the finite-element equilibrium mesh and
+  passes arrays of flux-surface-averaged quantities directly to TORAX without
+  saving and loading files. The flux surface grid is set by the `get_fsa()`
+  call, not by this config. The outermost sampled surface becomes
+  $rho_norm = 1$, so `psi_pad=0.01` plays the role of
+  `last_surface_factor=0.99` in the EQDSK geometry. Sample uniformly in
+  `sqrt(psi_norm)` rather than `psi_norm`, since $rho_norm$ scales as
+  `sqrt(psi_norm)` near the axis and a `psi_norm`-uniform grid is coarse there.
 
   Attributes:
-    geometry_type: Always set to 'tokamaker'.
-    fsa_profiles: Flux surface profiles, as returned by
-      ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()``.
+    model_name: Always set to `'tokamaker'`.
+    fsa_profiles: Dictionary containing flux surface averaged profiles matching
+      the format returned by `OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()`
+      (see the |tokamaker_docs|), or a mapping from time to profiles.
   """
 
-  geometry_type: Annotated[
-      Literal['tokamaker'], torax_pydantic.TIME_INVARIANT
+  model_name: Annotated[
+      Literal['tokamaker'],
+      torax_pydantic.TIME_INVARIANT,
+      torax_pydantic.JAX_STATIC,
   ] = 'tokamaker'
-  fsa_profiles: TokaMakerEquilibrium
+  fsa_profiles: (
+      TokaMakerEquilibrium | dict[torax_pydantic.Second, TokaMakerEquilibrium]
+  )
 
   @property
   def _supported_trapped_fraction_sources(
@@ -171,14 +180,29 @@ class TokaMakerConfig(base.GeometryConfigBase):
   ) -> frozenset[trapped_fraction.TrappedFractionSource]:
     return frozenset({trapped_fraction.TrappedFractionSource.SAUTER})
 
-  def build_geometry(self) -> standard_geometry.StandardGeometry:
+  def _build_slice_geometry(
+      self, equilibrium: TokaMakerEquilibrium
+  ) -> standard_geometry.StandardGeometry:
     intermediates = _construct_intermediates_from_tokamaker(
-        equilibrium=self.fsa_profiles,
+        equilibrium=equilibrium,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         trapped_fraction_source=self.trapped_fraction_source,
     )
     return standard_geometry.build_standard_geometry(intermediates)
+
+  def _build_geometry(
+      self,
+  ) -> (
+      standard_geometry.StandardGeometry
+      | Mapping[float, standard_geometry.StandardGeometry]
+  ):
+    if isinstance(self.fsa_profiles, TokaMakerEquilibrium):
+      return self._build_slice_geometry(self.fsa_profiles)
+    return {
+        float(t): self._build_slice_geometry(profiles)
+        for t, profiles in self.fsa_profiles.items()
+    }
 
 
 def _construct_intermediates_from_tokamaker(
@@ -198,7 +222,7 @@ def _construct_intermediates_from_tokamaker(
 
   Args:
     equilibrium: Flux surface profiles from
-      ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()``.
+      `OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()`.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.

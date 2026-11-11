@@ -21,7 +21,7 @@ from typing import Self
 
 import jax.numpy as jnp
 import pydantic
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
@@ -38,7 +38,7 @@ class NeoclassicalTransportModel(abc.ABC):
       self,
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Calculates neoclassical transport and applies clipping."""
@@ -93,7 +93,7 @@ class NeoclassicalTransportModel(abc.ABC):
       self,
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Computes raw neoclassical transport coefficients.
@@ -109,12 +109,18 @@ class NeoclassicalTransportModelConfig(torax_pydantic.ConfigBase):
   """Base class for neoclassical transport model configs.
 
   Attributes:
-   chi_min: Lower bound on heat conductivity.
-   chi_max: Upper bound on heat conductivity.
-   D_e_min: minimum electron density diffusivity.
-   D_e_max: maximum electron density diffusivity.
-   V_e_min: minimum electron density convection.
-   V_e_max: maximum electron density convection.
+    chi_min: Lower allowed bound for neoclassical heat conductivities
+      $chi_neo$ [m^2/s].
+    chi_max: Upper allowed bound for neoclassical heat conductivities
+      $chi_neo$ [m^2/s].
+    D_e_min: Lower allowed bound for neoclassical particle diffusivity
+      $D_neo$ [m^2/s].
+    D_e_max: Upper allowed bound for neoclassical particle diffusivity
+      $D_neo$ [m^2/s].
+    V_e_min: Lower allowed bound for neoclassical particle convection
+      $V_neo$ [m/s].
+    V_e_max: Upper allowed bound for neoclassical particle convection
+      $V_neo$ [m/s].
   """
 
   chi_min: torax_pydantic.MeterSquaredPerSecond = 0.0

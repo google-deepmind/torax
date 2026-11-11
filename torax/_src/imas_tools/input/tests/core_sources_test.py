@@ -19,7 +19,7 @@ import numpy as np
 import torax
 from torax._src.imas_tools.input import core_sources
 from torax._src.imas_tools.input import loader
-from torax._src.sources import source as source_module
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import config
 
@@ -38,28 +38,28 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     ec2_heat = np.array([[50.0, 50.0, 50.0], [50.0, 50.0, 50.0]])
     ec2_curr = np.array([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
 
-    ecrh_affected_profiles = (
-        source_module.AffectedCoreProfile.TEMP_EL,
-        source_module.AffectedCoreProfile.PSI,
+    ecrh_populated_outputs = (
+        core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E,
+        core_sources_lib.PopulatedSourceOutput.J_PARALLEL,
     )
     profiles1 = {
-        source_module.AffectedCoreProfile.TEMP_EL: ec1_heat,
-        source_module.AffectedCoreProfile.PSI: ec1_curr,
+        core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E: ec1_heat,
+        core_sources_lib.PopulatedSourceOutput.J_PARALLEL: ec1_curr,
     }
     profiles2 = {
-        source_module.AffectedCoreProfile.TEMP_EL: ec2_heat,
-        source_module.AffectedCoreProfile.PSI: ec2_curr,
+        core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E: ec2_heat,
+        core_sources_lib.PopulatedSourceOutput.J_PARALLEL: ec2_curr,
     }
     ec1 = core_sources._SourceProfiles(
         time=time,  # pyrefly: ignore[bad-argument-type]
         rho_norm=rho_norm,  # pyrefly: ignore[bad-argument-type]
-        affected_profiles=ecrh_affected_profiles,
+        populated_outputs=ecrh_populated_outputs,
         profiles=profiles1,  # pyrefly: ignore[bad-argument-type]
     )
     ec2 = core_sources._SourceProfiles(
         time=time,  # pyrefly: ignore[bad-argument-type]
         rho_norm=rho_norm,  # pyrefly: ignore[bad-argument-type]
-        affected_profiles=ecrh_affected_profiles,
+        populated_outputs=ecrh_populated_outputs,
         profiles=profiles2,  # pyrefly: ignore[bad-argument-type]
     )
     collection = core_sources._SourceCollection()
@@ -71,10 +71,10 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     result_dict = collection.to_dict()
     ecrh_data = result_dict["ecrh"]["prescribed_values"]
     assert len(ecrh_data) == 2
-    total_heat = ecrh_data[0][2]
+    total_heat = ecrh_data["power_density_e"][2]
     expected_heat = ec1_heat + ec2_heat
     np.testing.assert_allclose(total_heat, expected_heat)
-    total_current = ecrh_data[1][2]
+    total_current = ecrh_data["j_parallel"][2]
     expected_current = ec1_curr + ec2_curr
     np.testing.assert_allclose(total_current, expected_current)
 
@@ -91,10 +91,68 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     ids_name = "core_sources"
     ids_in = loader.load_imas_data(path, ids_name, directory=directory)
     sources = core_sources.sources_from_IMAS(ids_in, None, False)
+    self.assertIn("nbi", sources)
     config_dict["sources"] |= sources
     # Checks the config can be built properly with input sources.
     torax_config = config.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config, progress_bar=False)
+
+  def _make_nbi_ids(self, num_sources: int = 1):
+    ids = imas.IDSFactory().core_sources()
+    ids.source.resize(num_sources)
+    for i in range(num_sources):
+      src = ids.source[i]
+      src.identifier.name = "nbi"
+      src.profiles_1d.resize(1)
+      src.profiles_1d[0].time = 0.0
+      src.profiles_1d[0].grid.rho_tor_norm = [0.0, 0.5, 1.0]
+      src.profiles_1d[0].total_ion_energy = [1e5, 5e4, 0.0]
+      src.profiles_1d[0].electrons.energy = [5e4, 2.5e4, 0.0]
+      src.profiles_1d[0].j_parallel = [-1e4, -5e3, 0.0]
+      src.profiles_1d[0].electrons.particles = [1e19, 5e18, 0.0]
+    return ids
+
+  def test_nbi_source_profiles_and_external_filter(self):
+    ids = self._make_nbi_ids()
+    sources = core_sources.sources_from_IMAS(
+        ids, load_only_external_sources=True
+    )
+    self.assertEqual(sources["nbi"]["mode"], "prescribed")
+    prescribed = sources["nbi"]["prescribed_values"]
+    self.assertCountEqual(
+        prescribed.keys(),
+        [
+            "power_density_i",
+            "power_density_e",
+            "j_parallel",
+            "particle_source_e",
+        ],
+    )
+    np.testing.assert_allclose(
+        prescribed["power_density_i"][2][0], [1e5, 5e4, 0.0]
+    )
+    np.testing.assert_allclose(
+        prescribed["power_density_e"][2][0], [5e4, 2.5e4, 0.0]
+    )
+    np.testing.assert_allclose(prescribed["j_parallel"][2][0], [1e4, 5e3, 0.0])
+    np.testing.assert_allclose(
+        prescribed["particle_source_e"][2][0], [1e19, 5e18, 0.0]
+    )
+
+  def test_combine_multiple_nbi_sources(self):
+    ids = self._make_nbi_ids(num_sources=2)
+    sources = core_sources.sources_from_IMAS(ids)
+    prescribed = sources["nbi"]["prescribed_values"]
+    np.testing.assert_allclose(
+        prescribed["power_density_i"][2][0], [2e5, 1e5, 0.0]
+    )
+    np.testing.assert_allclose(
+        prescribed["power_density_e"][2][0], [1e5, 5e4, 0.0]
+    )
+    np.testing.assert_allclose(prescribed["j_parallel"][2][0], [2e4, 1e4, 0.0])
+    np.testing.assert_allclose(
+        prescribed["particle_source_e"][2][0], [2e19, 1e19, 0.0]
+    )
 
   def test_get_particle_profile(self):
     """Tests that particle profile is extracted correctly.

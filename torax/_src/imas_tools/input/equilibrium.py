@@ -30,6 +30,38 @@ from torax._src.imas_tools.input import loader
 # pylint: disable=invalid-name
 
 
+_IMAS_ZERO_ON_AXIS = frozenset({
+    "I_p_profile",
+    "Phi",
+    "flux_surf_avg_grad_psi",
+    "flux_surf_avg_grad_psi2",
+    "flux_surf_avg_grad_psi2_over_R2",
+    "delta_upper_face",
+    "delta_lower_face",
+    "vpr",
+    "trapped_fraction",
+})
+
+
+def _maybe_prepend_magnetic_axis(
+    inputs: Mapping[str, Any],
+) -> dict[str, Any]:
+  """Prepends the magnetic axis (rho_norm=0) to off-axis IMAS profiles."""
+  out = dict(inputs)
+  if abs(float(np.asarray(out["Phi"])[0])) == 0.0:
+    return out
+  r_axis = 0.5 * (np.asarray(out["R_in"])[0] + np.asarray(out["R_out"])[0])
+  axis_values = dict.fromkeys(_IMAS_ZERO_ON_AXIS, 0.0)
+  axis_values["R_in"] = r_axis
+  axis_values["R_out"] = r_axis
+  for name, profile in out.items():
+    if name == "face_centers" or np.ndim(profile) != 1:
+      continue
+    axis_value = axis_values.get(name, np.asarray(profile)[0])
+    out[name] = np.insert(profile, 0, axis_value)
+  return out
+
+
 def _load_equilibrium(
     geometry_directory: str | None = None,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
@@ -378,7 +410,7 @@ def _geometry_from_single_slice(
 
   # TODO(b/446608829): Add support for edge geometries from IMAS.
 
-  return {
+  return _maybe_prepend_magnetic_axis({
       "R_major": R_major,
       "a_minor": np.asarray(IMAS_data.boundary.minor_radius),
       "B_0": B_0,
@@ -412,7 +444,7 @@ def _geometry_from_single_slice(
       "R_target": None,
       "B_pol_OMP": None,
       "r0_vacuum": r0,
-  }
+  })
 
 
 # TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
@@ -506,7 +538,7 @@ def geometry_from_single_IMAS_slice(
   only one time slice and returns the intermediate geometry values for building
   a ``StandardGeometry``. This enables IMAS geometry to be used in the same
   way as other single-file geometry types (e.g. CHEASE, EQDSK), including as
-  entries in a time-dependent ``geometry_configs`` dict.
+  entries in a time-dependent multi-slice dictionary.
 
   If ``slice_time`` is provided, the IDS time slice whose time is closest to
   ``slice_time`` (in seconds) is selected; otherwise, the first time slice

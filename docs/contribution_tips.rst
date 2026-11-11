@@ -15,8 +15,7 @@ Code reviews
 ============
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-`[GitHub Help] <https://help.github.com/articles/about-pull-requests/>`_ for more
+use GitHub pull requests for this purpose. Consult |github_pr_help| for more
 information on using pull requests.
 
 Documentation
@@ -25,7 +24,7 @@ Documentation
 If appropriate for the change you are making, please update the documentation
 as part of your contribution.
 
-TORAX's documentation is written in `[reStructuredText] <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_.
+TORAX's documentation is written in |rst_docs|.
 
 All documentation is found in the torax/docs directory, in .rst files. Please either
 modify the existing files or create new files and links as appropriate.
@@ -55,7 +54,7 @@ automatically regenerated and published to TORAX's readthedocs server.
 Testing
 =======
 
-TORAX's tests are written in the `[pytest] <https://docs.pytest.org/en/stable/>`_ framework
+TORAX's tests are written in the |pytest| framework.
 
 While all tests are run automatically on GitHub when you push a pull request, it
 is a good idea to run them locally while you are developing your feature. Ensure

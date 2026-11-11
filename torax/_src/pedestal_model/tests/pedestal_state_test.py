@@ -93,25 +93,25 @@ class IBCPedestalStateTest(parameterized.TestCase):
             ConfinementMode.L_MODE, dtype=jax_utils.get_int_dtype()
         ),
         transition_start_time=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_i_ped_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
-        n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
+        T_i_top_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
+        T_e_top_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
+        n_e_top_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
     structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.9,
-        T_i_ped=5.0,
-        T_e_ped=6.0,
-        n_e_ped=7.0,
+        rho_norm_top=0.9,
+        T_i_top=5.0,
+        T_e_top=6.0,
+        n_e_top=7.0,
     )
     scaled = state.scale_structure(
         structure=structure,
         t=jnp.asarray(1.5, dtype=jax_utils.get_dtype()),
         transition_time_width=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
     )
-    np.testing.assert_allclose(scaled.T_i_ped, 1.0)
-    np.testing.assert_allclose(scaled.T_e_ped, 2.0)
-    np.testing.assert_allclose(scaled.n_e_ped, 3.0)
-    np.testing.assert_allclose(scaled.rho_norm_ped_top, 0.9)
+    np.testing.assert_allclose(scaled.T_i_top, 1.0)
+    np.testing.assert_allclose(scaled.T_e_top, 2.0)
+    np.testing.assert_allclose(scaled.n_e_top, 3.0)
+    np.testing.assert_allclose(scaled.rho_norm_top, 0.9)
 
   def test_scale_structure_h_mode(self):
     state = pedestal_state.IBCPedestalState(
@@ -119,25 +119,25 @@ class IBCPedestalStateTest(parameterized.TestCase):
             ConfinementMode.H_MODE, dtype=jax_utils.get_int_dtype()
         ),
         transition_start_time=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_i_ped_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
-        n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
+        T_i_top_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
+        T_e_top_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
+        n_e_top_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
     structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.9,
-        T_i_ped=5.0,
-        T_e_ped=6.0,
-        n_e_ped=7.0,
+        rho_norm_top=0.9,
+        T_i_top=5.0,
+        T_e_top=6.0,
+        n_e_top=7.0,
     )
     scaled = state.scale_structure(
         structure=structure,
         t=jnp.asarray(1.5, dtype=jax_utils.get_dtype()),
         transition_time_width=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
     )
-    np.testing.assert_allclose(scaled.T_i_ped, 5.0)
-    np.testing.assert_allclose(scaled.T_e_ped, 6.0)
-    np.testing.assert_allclose(scaled.n_e_ped, 7.0)
-    np.testing.assert_allclose(scaled.rho_norm_ped_top, 0.9)
+    np.testing.assert_allclose(scaled.T_i_top, 5.0)
+    np.testing.assert_allclose(scaled.T_e_top, 6.0)
+    np.testing.assert_allclose(scaled.n_e_top, 7.0)
+    np.testing.assert_allclose(scaled.rho_norm_top, 0.9)
 
   def test_scale_structure_transitioning_to_h_mode(self):
     state = pedestal_state.IBCPedestalState(
@@ -146,15 +146,15 @@ class IBCPedestalStateTest(parameterized.TestCase):
             dtype=jax_utils.get_int_dtype(),
         ),
         transition_start_time=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_i_ped_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
-        n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
+        T_i_top_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
+        T_e_top_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
+        n_e_top_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
     structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.85,
-        T_i_ped=5.0,
-        T_e_ped=6.0,
-        n_e_ped=7.0,
+        rho_norm_top=0.85,
+        T_i_top=5.0,
+        T_e_top=6.0,
+        n_e_top=7.0,
     )
     # Elapsed is 0.5 s with width 2.0 s -> ramp fraction is 0.25.
     # Scaled values: l + 0.25 * (h - l).
@@ -163,10 +163,10 @@ class IBCPedestalStateTest(parameterized.TestCase):
         t=jnp.asarray(1.5, dtype=jax_utils.get_dtype()),
         transition_time_width=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
     )
-    np.testing.assert_allclose(scaled.T_i_ped, 2.0)
-    np.testing.assert_allclose(scaled.T_e_ped, 3.0)
-    np.testing.assert_allclose(scaled.n_e_ped, 4.0)
-    np.testing.assert_allclose(scaled.rho_norm_ped_top, 0.85)
+    np.testing.assert_allclose(scaled.T_i_top, 2.0)
+    np.testing.assert_allclose(scaled.T_e_top, 3.0)
+    np.testing.assert_allclose(scaled.n_e_top, 4.0)
+    np.testing.assert_allclose(scaled.rho_norm_top, 0.85)
 
   def test_scale_structure_transitioning_to_l_mode(self):
     state = pedestal_state.IBCPedestalState(
@@ -175,15 +175,15 @@ class IBCPedestalStateTest(parameterized.TestCase):
             dtype=jax_utils.get_int_dtype(),
         ),
         transition_start_time=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_i_ped_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
-        T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
-        n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
+        T_i_top_L_mode=jnp.asarray(1.0, dtype=jax_utils.get_dtype()),
+        T_e_top_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
+        n_e_top_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
     structure = pedestal_structure.PedestalStructure(
-        rho_norm_ped_top=0.85,
-        T_i_ped=5.0,
-        T_e_ped=6.0,
-        n_e_ped=7.0,
+        rho_norm_top=0.85,
+        T_i_top=5.0,
+        T_e_top=6.0,
+        n_e_top=7.0,
     )
     # Elapsed is 0.5 s with width 2.0 s -> ramp fraction is 0.25.
     # Scaled values: h + 0.25 * (l - h).
@@ -192,10 +192,10 @@ class IBCPedestalStateTest(parameterized.TestCase):
         t=jnp.asarray(1.5, dtype=jax_utils.get_dtype()),
         transition_time_width=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
     )
-    np.testing.assert_allclose(scaled.T_i_ped, 4.0)
-    np.testing.assert_allclose(scaled.T_e_ped, 5.0)
-    np.testing.assert_allclose(scaled.n_e_ped, 6.0)
-    np.testing.assert_allclose(scaled.rho_norm_ped_top, 0.85)
+    np.testing.assert_allclose(scaled.T_i_top, 4.0)
+    np.testing.assert_allclose(scaled.T_e_top, 5.0)
+    np.testing.assert_allclose(scaled.n_e_top, 6.0)
+    np.testing.assert_allclose(scaled.rho_norm_top, 0.85)
 
 
 if __name__ == "__main__":

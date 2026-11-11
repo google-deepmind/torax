@@ -1,5 +1,3 @@
-.. include:: ../links.rst
-
 .. _physics_plasma_composition:
 
 Plasma composition, initial and prescribed conditions

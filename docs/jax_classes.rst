@@ -7,8 +7,7 @@ Designing JAX-compatible classes
 
 * In TORAX we often make use of custom classes that are inputs or outputs of a
   function that is decorated with ``jax.jit``. In order to allow this these
-  objects must either be registered as a
-  `pytree <https://jax.readthedocs.io/en/latest/pytrees.html>`_ or marked as static.
+  objects must either be registered as a |jax_pytrees| or marked as static.
 
 
 * The requirements for classes used as arguments to jitted functions has been an
@@ -28,9 +27,8 @@ Designing JAX-compatible classes
 
   * It's actually quite hard to find a statement of the JAX requirements on this
     subject.
-  * The `jax documentation <https://docs.jax.dev/en/latest/faq.html>`_ implies
-    that it is sufficient for a static argument to either be immutable (and
-    hash by id) *or* hash by value.
+  * The |jax_faq| implies that it is sufficient for a static argument to either
+    be immutable (and hash by id) *or* hash by value.
   * The JAX documentation does say that if your class is mutable then it 'is not
     really "static"' and should be made a pytree instead.
   * The JAX documentation does seem to imply that it's OK to have an immutable
@@ -55,9 +53,8 @@ Designing JAX-compatible classes
     The persistent cache is queried after tracing, using some kind of
     intermediate representation, where our custom classes are no longer part
     of the interface to the cache.
-    See more discussion in this
-    `commit <https://github.com/google-deepmind/torax/commit/d73192ed0ea52c30fbafb01cc6e0d421550b22a4>`_,
-    which removed a feature for hashing the code used to generate a trace.
+    See more discussion in |torax_commit_d73192e|, which removed a feature for
+    hashing the code used to generate a trace.
     The important takeaway is that hashes do not need to be stable across
     invocations of the Python interpreter, so it is fine for example to
     hash Python functions by ``id``.

@@ -109,7 +109,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     """Ensures ToraxConfig can parse the new edge field."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     }
     config_dict['edge'] = {
@@ -406,7 +406,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     """Tests failure when species sets do not match between core and edge."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     }
     config_dict['edge'] = {
@@ -431,7 +431,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     """Tests failure when seeded and fixed impurities overlap."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     }
     config_dict['edge'] = {

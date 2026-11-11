@@ -21,13 +21,14 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import pydantic
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.edge import base
+from torax._src.edge import edge_state as edge_state_lib
 from torax._src.edge import register_model
 from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
@@ -38,7 +39,7 @@ def _base_config_dict() -> dict[str, object]:
   # Non-circular geometry and n_e_ratios impurity mode are required when an
   # edge model is configured.
   config_dict["geometry"] = {
-      "geometry_type": "chease",
+      "model_name": "chease",
       "geometry_file": "iterhybrid.mat2cols",
   }
   config_dict["plasma_composition"] = {
@@ -243,17 +244,19 @@ class DummyEdgeModel(base.EdgeModel):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
-      previous_edge_outputs: base.EdgeModelOutputs | None = None,
-  ) -> base.EdgeModelOutputs:
+      core_profiles: core_profiles_lib.CoreProfiles,
+      core_sources: core_sources_lib.CoreSources,
+      edge_state: edge_state_lib.EdgeState,
+  ) -> tuple[base.EdgeModelOutputs, edge_state_lib.EdgeState]:
     del edge_runtime_params, runtime_params, geo, core_profiles, core_sources
-    del previous_edge_outputs
-    return base.EdgeModelOutputs(
-        T_i_right_bc=jnp.array(80.0),
-        T_e_right_bc=jnp.array(120.0),
-        n_e_right_bc=jnp.array(2.0e19),
-        impurity_right_bc={},
+    return (
+        base.EdgeModelOutputs(
+            T_i_right_bc=jnp.array(80.0),
+            T_e_right_bc=jnp.array(120.0),
+            n_e_right_bc=jnp.array(2.0e19),
+            impurity_right_bc={},
+        ),
+        edge_state,
     )
 
 

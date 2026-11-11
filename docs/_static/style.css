@@ -1,25 +1,27 @@
-/* Custom styles for TORAX documentation (sphinx-book-theme)
+/* Custom styles for TORAX documentation (sphinx-book-theme / pydata-sphinx-theme)
  *
  * Typographic & token system:
- * 1. Native OS font stacks (SF Pro / Roboto / Segoe UI + SF Mono / Menlo).
- * 2. Strict weight discipline: 400 (normal), 500 (medium for h3/h4 & UI chrome),
- *    and 600 (semibold for h1/h2 & bold prose). Never 700 bold.
- * 3. Compressed heading scale close to body size with stepped weights.
- * 4. Tonal hierarchy via color-mix() with light, elevated card/button surfaces.
- * 5. Unified 3px blue indicator mark across right TOC, left sidebar, and
- *    configuration parameter headers (<dt>) vs prose descriptions (<dd>).
+ * 1. Engineered font pairing: Inter (prose, UI, headings) + JetBrains Mono
+ *    (signatures, types, code blocks, dict/discriminator paths) with
+ *    font-variant-ligatures: none and tabular numerals for unambiguous code.
+ * 2. Logo-matched crimson-red accent palette (`#d1291f` on light surfaces;
+ *    `#de2e24` on `#373d3f` mid-grey dark surfaces).
+ * 3. Two-column hairline property grid (`minmax(15rem, 42%) minmax(0, 1fr)`)
+ *    for configuration and output parameters, with inline nested sub-dictionary
+ *    and discriminator rails.
+ * 4. Minimal underline tab strips (`.torax-variant-tab-set`) with zero box-nesting.
  */
 
 :root,
 html[data-theme="light"],
 html[data-theme="dark"] {
-  /* 1. Native system font stacks */
-  --pst-font-family-base: system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
-  --pst-font-family-heading: system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
-  --pst-font-family-monospace: ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+  /* 1. Scientific-reference font pairing */
+  --pst-font-family-base: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pst-font-family-heading: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pst-font-family-monospace: "JetBrains Mono", "IBM Plex Mono", ui-monospace,
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
   /* 2. Compressed typographic scale */
   --pst-font-size-base: 0.9375rem; /* 15px comfortable long-form prose */
@@ -61,6 +63,8 @@ html[data-theme="light"],
   --torax-secondary-fg: color-mix(in srgb, var(--torax-fg) 76%, var(--torax-bg));
   --torax-muted-fg: color-mix(in srgb, var(--torax-fg) 56%, var(--torax-bg));
   --torax-border: #e5e7eb;
+  --torax-code-bg: #f3f5f7;
+  --torax-code-border: #e2e6eb;
 
   --pst-color-background: var(--torax-bg) !important;
   --pst-color-on-background: var(--torax-card) !important;
@@ -68,27 +72,30 @@ html[data-theme="light"],
   --pst-color-on-surface: var(--torax-fg) !important;
   --pst-color-text-base: var(--torax-fg) !important;
   --pst-color-text-muted: var(--torax-muted-fg) !important;
-  --pst-color-primary: #e63e26 !important;
-  --pst-color-primary-highlight: #b52b14 !important;
-  --pst-color-secondary: #e63e26 !important;
-  --pst-color-secondary-highlight: #b52b14 !important;
-  --pst-color-accent: #e63e26 !important;
-  --pst-color-link: #d9381e !important;
-  --pst-color-link-hover: #b52b14 !important;
-  --pst-color-link-higher-contrast: #d9381e !important;
+  --pst-color-primary: #d1291f !important;
+  --pst-color-primary-highlight: #a81e16 !important;
+  --pst-color-secondary: #d1291f !important;
+  --pst-color-secondary-highlight: #a81e16 !important;
+  --pst-color-accent: #d1291f !important;
+  --pst-color-link: #d1291f !important;
+  --pst-color-link-hover: #a81e16 !important;
+  --pst-color-link-higher-contrast: #d1291f !important;
   --pst-color-border: var(--torax-border) !important;
   --pst-color-border-muted: #f3f4f6 !important;
   --pst-color-inline-code: var(--torax-fg) !important;
+  --pst-color-target: transparent !important;
+  --torax-target-flash: rgba(209, 41, 31, 0.16);
+  --torax-target-clear: rgba(209, 41, 31, 0);
 
-  --bs-primary: #e63e26 !important;
-  --bs-primary-rgb: 230, 62, 38 !important;
-  --bs-link-color: #d9381e !important;
-  --bs-link-color-rgb: 217, 56, 30 !important;
-  --bs-link-hover-color: #b52b14 !important;
-  --bs-link-hover-color-rgb: 181, 43, 20 !important;
+  --bs-primary: #d1291f !important;
+  --bs-primary-rgb: 209, 41, 31 !important;
+  --bs-link-color: #d1291f !important;
+  --bs-link-color-rgb: 209, 41, 31 !important;
+  --bs-link-hover-color: #a81e16 !important;
+  --bs-link-hover-color-rgb: 168, 30, 22 !important;
 
   --sd-color-primary: var(--pst-color-primary) !important;
-  --sd-color-primary-highlight: #b52b14 !important;
+  --sd-color-primary-highlight: #a81e16 !important;
   --sd-color-card-background: var(--torax-card);
   --sd-color-card-header: var(--torax-secondary);
   --sd-color-card-border: var(--torax-border);
@@ -106,6 +113,8 @@ html[data-theme="light"],
     --torax-secondary-fg: color-mix(in srgb, var(--torax-fg) 84%, var(--torax-bg));
     --torax-muted-fg: color-mix(in srgb, var(--torax-fg) 65%, var(--torax-bg));
     --torax-border: #4e5659;
+    --torax-code-bg: #41484b;
+    --torax-code-border: #525b5e;
 
     --pst-color-background: var(--torax-bg) !important;
     --pst-color-on-background: var(--torax-card) !important;
@@ -113,27 +122,30 @@ html[data-theme="light"],
     --pst-color-on-surface: var(--torax-fg) !important;
     --pst-color-text-base: var(--torax-fg) !important;
     --pst-color-text-muted: var(--torax-muted-fg) !important;
-    --pst-color-primary: #f26b3a !important;
-    --pst-color-primary-highlight: #ff9b70 !important;
-    --pst-color-secondary: #f26b3a !important;
-    --pst-color-secondary-highlight: #ff9b70 !important;
-    --pst-color-accent: #f26b3a !important;
-    --pst-color-link: #ff7a45 !important;
-    --pst-color-link-hover: #ff9b70 !important;
-    --pst-color-link-higher-contrast: #ff7a45 !important;
+    --pst-color-primary: #de2e24 !important;
+    --pst-color-primary-highlight: #ff5549 !important;
+    --pst-color-secondary: #de2e24 !important;
+    --pst-color-secondary-highlight: #ff5549 !important;
+    --pst-color-accent: #de2e24 !important;
+    --pst-color-link: #de2e24 !important;
+    --pst-color-link-hover: #ff5549 !important;
+    --pst-color-link-higher-contrast: #de2e24 !important;
     --pst-color-border: var(--torax-border) !important;
     --pst-color-border-muted: #41484a !important;
     --pst-color-inline-code: var(--torax-fg) !important;
+    --pst-color-target: transparent !important;
+    --torax-target-flash: rgba(222, 46, 36, 0.28);
+    --torax-target-clear: rgba(222, 46, 36, 0);
 
-    --bs-primary: #f26b3a !important;
-    --bs-primary-rgb: 242, 107, 58 !important;
-    --bs-link-color: #ff7a45 !important;
-    --bs-link-color-rgb: 255, 122, 69 !important;
-    --bs-link-hover-color: #ff9b70 !important;
-    --bs-link-hover-color-rgb: 255, 155, 112 !important;
+    --bs-primary: #de2e24 !important;
+    --bs-primary-rgb: 222, 46, 36 !important;
+    --bs-link-color: #de2e24 !important;
+    --bs-link-color-rgb: 222, 46, 36 !important;
+    --bs-link-hover-color: #ff5549 !important;
+    --bs-link-hover-color-rgb: 255, 85, 73 !important;
 
     --sd-color-primary: var(--pst-color-primary) !important;
-    --sd-color-primary-highlight: #ff9b70 !important;
+    --sd-color-primary-highlight: #ff5549 !important;
     --sd-color-card-background: var(--torax-card);
     --sd-color-card-header: var(--torax-secondary);
     --sd-color-card-border: var(--torax-border);
@@ -151,6 +163,8 @@ html[data-theme="dark"],
   --torax-secondary-fg: color-mix(in srgb, var(--torax-fg) 84%, var(--torax-bg));
   --torax-muted-fg: color-mix(in srgb, var(--torax-fg) 65%, var(--torax-bg));
   --torax-border: #4e5659;
+  --torax-code-bg: #41484b;
+  --torax-code-border: #525b5e;
 
   --pst-color-background: var(--torax-bg) !important;
   --pst-color-on-background: var(--torax-card) !important;
@@ -158,34 +172,37 @@ html[data-theme="dark"],
   --pst-color-on-surface: var(--torax-fg) !important;
   --pst-color-text-base: var(--torax-fg) !important;
   --pst-color-text-muted: var(--torax-muted-fg) !important;
-  --pst-color-primary: #f26b3a !important;
-  --pst-color-primary-highlight: #ff9b70 !important;
-  --pst-color-secondary: #f26b3a !important;
-  --pst-color-secondary-highlight: #ff9b70 !important;
-  --pst-color-accent: #f26b3a !important;
-  --pst-color-link: #ff7a45 !important;
-  --pst-color-link-hover: #ff9b70 !important;
-  --pst-color-link-higher-contrast: #ff7a45 !important;
+  --pst-color-primary: #de2e24 !important;
+  --pst-color-primary-highlight: #ff5549 !important;
+  --pst-color-secondary: #de2e24 !important;
+  --pst-color-secondary-highlight: #ff5549 !important;
+  --pst-color-accent: #de2e24 !important;
+  --pst-color-link: #de2e24 !important;
+  --pst-color-link-hover: #ff5549 !important;
+  --pst-color-link-higher-contrast: #de2e24 !important;
   --pst-color-border: var(--torax-border) !important;
   --pst-color-border-muted: #41484a !important;
   --pst-color-inline-code: var(--torax-fg) !important;
+  --pst-color-target: transparent !important;
+  --torax-target-flash: rgba(222, 46, 36, 0.28);
+  --torax-target-clear: rgba(222, 46, 36, 0);
 
-  --bs-primary: #f26b3a !important;
-  --bs-primary-rgb: 242, 107, 58 !important;
-  --bs-link-color: #ff7a45 !important;
-  --bs-link-color-rgb: 255, 122, 69 !important;
-  --bs-link-hover-color: #ff9b70 !important;
-  --bs-link-hover-color-rgb: 255, 155, 112 !important;
+  --bs-primary: #de2e24 !important;
+  --bs-primary-rgb: 222, 46, 36 !important;
+  --bs-link-color: #de2e24 !important;
+  --bs-link-color-rgb: 222, 46, 36 !important;
+  --bs-link-hover-color: #ff5549 !important;
+  --bs-link-hover-color-rgb: 255, 85, 73 !important;
 
   --sd-color-primary: var(--pst-color-primary) !important;
-  --sd-color-primary-highlight: #ff9b70 !important;
+  --sd-color-primary-highlight: #ff5549 !important;
   --sd-color-card-background: var(--torax-card);
   --sd-color-card-header: var(--torax-secondary);
   --sd-color-card-border: var(--torax-border);
   --sd-color-card-text: var(--torax-fg);
 }
 
-/* Explicit base link colors so user-agent / basic.css / bootstrap never flash blue */
+/* Explicit base link colors */
 a,
 a:link,
 a:visited {
@@ -199,17 +216,27 @@ a:visited:hover {
   color: var(--pst-color-link-hover);
 }
 
-/* Base prose rhythm */
+/* Base prose & monospace rendering */
 body {
+  font-family: var(--pst-font-family-base);
   font-size: var(--pst-font-size-base);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--pst-font-family-monospace);
+  font-variant-ligatures: none;
 }
 
 .bd-main .bd-content .bd-article-container .bd-article {
   line-height: 1.625;
   padding: 1.75rem 3rem 4rem;
-  max-width: 52rem;
+  max-width: 54rem;
 }
 
 @media (max-width: 992px) {
@@ -239,9 +266,10 @@ body {
 .bd-article-container h4,
 .bd-article-container h5,
 .bd-article-container h6 {
+  font-family: var(--pst-font-family-heading);
   color: var(--pst-color-text-base);
   line-height: 1.35;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 /* h1 & h2: font-semibold (600) */
@@ -278,34 +306,91 @@ body {
   margin-bottom: 0.3rem;
 }
 
-/* Bold prose: font-semibold (600), never 700 */
+/* Anchor-jump highlight (:target): brief subtle tint that fades out cleanly.
+ * Note: do NOT put `!important` on `background-color` here—in W3C CSS Cascade
+ * Level 4, `!important` author declarations outrank `@keyframes` animations and
+ * prevent the keyframe from rendering.
+ */
+@keyframes torax-target-fade {
+  0%,
+  22% {
+    background-color: var(--torax-target-flash);
+  }
+  100% {
+    background-color: var(--torax-target-clear);
+  }
+}
+
+.bd-main .bd-content .bd-article-container .bd-article :target > :is(h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6),
+.bd-article :is(h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6):target,
+.bd-article dt:target,
+.bd-article span.highlighted,
+.bd-article aside.footnote:target,
+.bd-article ol.torax-references > li:target,
+.bd-article .torax-jump-flash {
+  background-color: transparent;
+  border-radius: 0.25rem;
+  animation: torax-target-fade 1.5s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-main .bd-content .bd-article-container .bd-article :target > :is(h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6),
+  .bd-article :is(h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6):target,
+  .bd-article dt:target,
+  .bd-article span.highlighted,
+  .bd-article aside.footnote:target,
+  .bd-article ol.torax-references > li:target,
+  .bd-article .torax-jump-flash {
+    animation: none;
+  }
+}
+
+/* Bold prose & tabular numbers in tables */
 .bd-article strong,
 .bd-article b {
   font-weight: 600;
 }
 
-/* Table headers: font-medium (500) on --torax-secondary */
+.bd-article table {
+  font-variant-numeric: tabular-nums;
+}
+
 .bd-article table th {
   background-color: var(--torax-secondary);
   font-weight: 500;
 }
 
-/* 5. Borderless inline code pills */
+/* 5. Inline code in prose: crisp subtle pill; clean inside headers, links, and <dt> */
 code.literal,
 .bd-article code:not(pre code) {
-  background-color: var(--torax-muted);
+  background-color: var(--torax-code-bg);
   color: var(--pst-color-inline-code);
-  border: none;
+  border: 1px solid var(--torax-code-border);
   border-radius: 0.25rem;
-  padding: 0.125rem 0.3rem;
-  font-size: 0.875em;
+  padding: 0.06rem 0.3rem;
+  font-size: 0.85em;
   font-weight: 400;
+}
+
+h1 code,
+h2 code,
+h3 code,
+h4 code,
+h5 code,
+h6 code,
+a code.literal,
+.bd-article a code:not(pre code) {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
 }
 
 /* Code blocks */
 div[class*="highlight-"] pre,
 pre {
   background-color: var(--torax-secondary) !important;
+  font-family: var(--pst-font-family-monospace);
   font-size: 0.8125rem;
   line-height: 1.55;
   border-radius: 0.5rem;
@@ -313,7 +398,7 @@ pre {
   padding: 0.85rem 1rem;
 }
 
-/* 6. Search button & <kbd> shortcut keys: light, clean, never dark/heavy */
+/* 6. Search button & <kbd> shortcut keys */
 .search-button-field {
   background-color: var(--torax-secondary) !important;
   border: 1px solid var(--pst-color-border) !important;
@@ -341,16 +426,213 @@ kbd:not(.compound),
   padding: 0.08rem 0.35rem !important;
 }
 
-/* 7. Configuration & Output 2-column property layout:
- * Left column holds the parameter name + muted monospace type/default;
- * Right column holds the prose description, separated by clean horizontal hairlines.
- */
+/* 7. Configuration & Output 2-column property layout (Hairline tables + dict paths + nested variants) */
+
+/* True dict-key sections stay flush-left at top level; inline-nested dicts & variants indent with a rail */
+.bd-article section.torax-config-dict-section {
+  margin-top: 2.25rem;
+}
+
+.bd-article section.torax-config-variant-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1.25rem;
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--pst-color-border);
+}
+
+.bd-article-container .torax-nested-dict-heading {
+  display: none !important;
+}
+
+.bd-article dl.torax-config-dl > dt:has(+ dd + dd.torax-config-nested-row),
+.bd-article section > dl.simple:not(.field-list):not(.py) > dt:has(+ dd + dd.torax-config-nested-row) {
+  border-bottom: none;
+  padding-bottom: 0.35rem;
+}
+
+.bd-article dl.torax-config-dl > dd:not(.torax-config-nested-row):has(+ dd.torax-config-nested-row),
+.bd-article section > dl.simple:not(.field-list):not(.py) > dd:not(.torax-config-nested-row):has(+ dd.torax-config-nested-row) {
+  border-bottom: none;
+  padding-bottom: 0.35rem;
+}
+
+.bd-article dl.torax-config-dl > dd.torax-config-nested-row,
+.bd-article section > dl.simple:not(.field-list):not(.py) > dd.torax-config-nested-row {
+  grid-column: 1 / -1;
+  padding: 0.15rem 0 1rem 0;
+  border-bottom: 1px solid var(--pst-color-border);
+}
+
+.bd-article section.torax-config-dict-section.torax-is-nested-inline,
+.bd-article section.torax-config-variant-section.torax-is-nested-inline {
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+  margin-left: 0.5rem;
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--pst-color-border);
+}
+
+.bd-article dd.torax-config-nested-row dl.torax-config-dl:last-child,
+.bd-article dd.torax-config-nested-row section > dl.simple:not(.field-list):not(.py):last-child {
+  margin-bottom: 0;
+}
+
+.bd-article dd.torax-config-nested-row dl.torax-config-dl:last-child > dt:nth-last-child(2),
+.bd-article dd.torax-config-nested-row dl.torax-config-dl:last-child > dd:last-child,
+.bd-article dd.torax-config-nested-row section > dl.simple:not(.field-list):not(.py):last-child > dt:nth-last-child(2),
+.bd-article dd.torax-config-nested-row section > dl.simple:not(.field-list):not(.py):last-child > dd:last-child {
+  border-bottom: none;
+  padding-bottom: 0.25rem;
+}
+
+.bd-article-container h2.torax-config-heading,
+.bd-article-container h3.torax-config-heading,
+.bd-article-container h4.torax-config-heading {
+  font-family: var(--pst-font-family-monospace);
+  font-size: 1.0625rem;
+  letter-spacing: -0.015em;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0.5rem;
+}
+
+.bd-article-container .torax-heading-path {
+  font-weight: 400;
+  color: var(--torax-muted-fg);
+}
+
+.bd-article-container .torax-heading-key {
+  font-weight: 600;
+  color: var(--pst-color-text-base);
+}
+
+.bd-article-container .torax-heading-discriminator {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  font-family: var(--pst-font-family-monospace);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  background-color: var(--torax-muted);
+  border-radius: 0.3rem;
+}
+
+.bd-article-container .torax-disc-field {
+  font-weight: 400;
+  color: var(--torax-muted-fg);
+}
+
+.bd-article-container .torax-disc-val {
+  font-weight: 600;
+  color: var(--pst-color-text-base);
+}
+
+/* Non-linked parameter names in <dt> */
+.bd-article dl.torax-config-dl > dt > code.literal:first-child,
+.bd-article dl.torax-config-dl > dt > code.torax-config-name,
+.bd-article section > dl.simple:not(.field-list):not(.py) > dt > code.literal:first-child {
+  display: block;
+  font-family: var(--pst-font-family-monospace);
+  font-weight: 500;
+  font-size: 0.84375rem;
+  line-height: 1.4;
+  color: var(--pst-color-text-base);
+  background-color: transparent;
+  padding: 0;
+  margin: 0 0 0.2rem 0;
+  border: none;
+  border-radius: 0;
+  max-width: 100%;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Unified clickable "goto" link style across <dt>, <dd>, and lists */
+.bd-article a.torax-goto-link {
+  display: inline-block;
+  text-decoration: none !important;
+}
+
+.bd-article dl.torax-config-dl > dt > a.torax-goto-link,
+.bd-article section > dl.simple:not(.field-list):not(.py) > dt > a.torax-goto-link {
+  display: block;
+  margin: 0 0 0.2rem 0;
+}
+
+.bd-article a.torax-goto-link > code {
+  display: inline;
+  font-family: var(--pst-font-family-monospace) !important;
+  font-weight: 500 !important;
+  font-size: 0.84375rem !important;
+  line-height: 1.4 !important;
+  color: var(--pst-color-link) !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  transition: color 0.15s ease;
+}
+
+.bd-article a.torax-goto-link:hover > code {
+  color: var(--pst-color-link-hover) !important;
+}
+
+.bd-article section > dl.simple:not(.field-list):not(.py) > dt > code.literal:not(:first-child) {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  color: var(--torax-muted-fg);
+  font-size: 0.75rem;
+}
+
+.bd-article dl.torax-config-dl > dt code span.pre,
+.bd-article section > dl.simple:not(.field-list):not(.py) > dt code span.pre {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bd-article dl.torax-config-dl > dt .torax-config-meta {
+  display: block;
+  font-family: var(--pst-font-family-monospace);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--torax-muted-fg);
+  font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bd-article dl.torax-config-dl > dt .torax-config-meta a {
+  text-decoration: none;
+}
+
+.bd-article dl.torax-config-dl > dt .torax-config-meta a:hover {
+  text-decoration: underline;
+}
+
+.bd-article dl.torax-config-dl > dd > :first-child,
+.bd-article section > dl.simple:not(.field-list):not(.py) > dd > :first-child {
+  margin-top: 0;
+}
+
+.bd-article dl.torax-config-dl > dd > :last-child,
+.bd-article section > dl.simple:not(.field-list):not(.py) > dd > :last-child {
+  margin-bottom: 0;
+}
+
 .bd-article dl.torax-config-dl,
 .bd-article section > dl.simple:not(.field-list):not(.py) {
   display: grid;
   grid-template-columns: minmax(15rem, 42%) minmax(0, 1fr);
-  margin-top: 0.85rem;
-  margin-bottom: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1.75rem;
   border-top: 1px solid var(--pst-color-border);
 }
 
@@ -372,52 +654,6 @@ kbd:not(.compound),
   word-break: break-word;
 }
 
-.bd-article dl.torax-config-dl > dt > code.literal:first-child,
-.bd-article dl.torax-config-dl > dt > code.torax-config-name,
-.bd-article section > dl.simple:not(.field-list):not(.py) > dt > code.literal:first-child {
-  display: block;
-  font-family: var(--pst-font-family-monospace);
-  font-weight: 500;
-  font-size: 0.84375rem;
-  line-height: 1.4;
-  color: var(--pst-color-text-base);
-  background-color: transparent;
-  padding: 0;
-  margin: 0 0 0.2rem 0;
-  border: none;
-  max-width: 100%;
-  white-space: normal !important;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.bd-article section > dl.simple:not(.field-list):not(.py) > dt > code.literal:not(:first-child) {
-  background-color: transparent;
-  padding: 0;
-  color: var(--torax-muted-fg);
-  font-size: 0.75rem;
-}
-
-.bd-article dl.torax-config-dl > dt > code span.pre,
-.bd-article section > dl.simple:not(.field-list):not(.py) > dt > code span.pre {
-  white-space: normal !important;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.bd-article dl.torax-config-dl > dt .torax-config-meta {
-  display: block;
-  font-family: var(--pst-font-family-monospace);
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.4;
-  color: var(--torax-muted-fg);
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
 .bd-article dl.torax-config-dl > dd,
 .bd-article section > dl.simple:not(.field-list):not(.py) > dd {
   margin: 0;
@@ -430,17 +666,11 @@ kbd:not(.compound),
   min-width: 0;
 }
 
-.bd-article dl.torax-config-dl > dd > :first-child,
-.bd-article section > dl.simple:not(.field-list):not(.py) > dd > :first-child {
-  margin-top: 0;
-}
-
-.bd-article dl.torax-config-dl > dd > :last-child,
-.bd-article section > dl.simple:not(.field-list):not(.py) > dd > :last-child {
-  margin-bottom: 0;
-}
-
 @media (max-width: 640px) {
+  .bd-article section.torax-config-variant-section {
+    padding-left: 0.75rem;
+  }
+
   .bd-article dl.torax-config-dl,
   .bd-article section > dl.simple:not(.field-list):not(.py) {
     grid-template-columns: 1fr;
@@ -458,17 +688,13 @@ kbd:not(.compound),
   }
 }
 
-/* 8. Left sidebar: match the right-hand TOC's rail + 3px blue active mark */
+/* 8. Left sidebar: match the right-hand TOC's rail + 3px crimson active mark */
 .bd-sidebar-primary {
   background-color: var(--torax-bg);
   border-right: 1px solid var(--pst-color-border);
   padding: 1rem 0.85rem;
 }
 
-/* Ensure primary sidebar collapse works across all inline desktop widths
- * (>= 960px, including the 960px–991.98px band where pydata-sphinx-theme uses
- * 25% width and >= 992px where sphinx-book-theme uses 20% flex-basis).
- */
 @media (min-width: 960px) and (max-width: 991.98px) {
   .bd-sidebar-primary:not([open]).pst-sidebar-hidden {
     margin-left: -25%;
@@ -708,4 +934,108 @@ mjx-container[jax="CHTML"][display="true"] {
 .sd-tab-set > label {
   font-weight: 500 !important;
   font-size: 0.875rem !important;
+}
+
+/* 11. Minimal underline tab strip for mutually-exclusive `model_name` / discriminator variants */
+.bd-article .torax-variant-tab-set {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  margin: 0.5rem 0 0.25rem 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.bd-article .torax-variant-tab-set::after {
+  content: "";
+  order: 50;
+  width: 100%;
+  height: 1px;
+  background-color: var(--pst-color-border);
+  margin-top: -1px;
+}
+
+.bd-article dl.torax-config-dl:has(+ .torax-variant-tab-set) {
+  margin-bottom: 0.65rem !important;
+}
+
+.bd-article .torax-variant-tab-set > input.torax-tab-input {
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.bd-article .torax-variant-tab-set > label.torax-tab-label {
+  order: 1;
+  padding: 0.42rem 0.78rem !important;
+  margin: 0 0.15rem 0 0 !important;
+  font-family: var(--pst-font-family-monospace);
+  font-size: 0.8125rem !important;
+  line-height: 1.4 !important;
+  font-weight: 500 !important;
+  color: var(--torax-muted-fg) !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, border-bottom-color 0.15s ease;
+  z-index: 2;
+}
+
+.bd-article .torax-variant-tab-set > input.torax-tab-input:not(:checked) + label.torax-tab-label:hover {
+  color: var(--pst-color-text-base) !important;
+  border-bottom-color: var(--torax-muted-fg) !important;
+  text-decoration: none !important;
+}
+
+.bd-article .torax-variant-tab-set > input.torax-tab-input:checked + label.torax-tab-label {
+  color: var(--pst-color-primary) !important;
+  font-weight: 600 !important;
+  background-color: transparent !important;
+  border-bottom: 2px solid var(--pst-color-primary) !important;
+  z-index: 3;
+}
+
+.bd-article .torax-variant-tab-set > .torax-variant-tab-content {
+  display: none;
+  order: 99;
+  width: 100%;
+  padding: 0.95rem 0 0.35rem 0 !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.bd-article .torax-variant-tab-set > input.torax-tab-input:checked + label.torax-tab-label + .torax-variant-tab-content {
+  display: block;
+}
+
+.bd-article .torax-variant-tab-content > p:first-child {
+  margin-top: 0 !important;
+}
+
+.bd-article .torax-variant-tab-content > p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.bd-article .torax-variant-tab-content > dl.torax-config-dl {
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.65rem !important;
+}
+
+.bd-article .torax-variant-tab-content > dl.torax-config-dl:last-child {
+  margin-bottom: 0 !important;
+}
+
+.bd-article .torax-variant-tab-content > dl.torax-config-dl:last-child > dt:nth-last-child(2),
+.bd-article .torax-variant-tab-content > dl.torax-config-dl:last-child > dd:last-child {
+  border-bottom: none;
+  padding-bottom: 0.1rem;
 }

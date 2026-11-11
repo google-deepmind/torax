@@ -18,9 +18,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import source_helpers
 from torax._src.torax_pydantic import config as torax_pydantic_config
 
 # pylint: disable=invalid-name
@@ -31,32 +31,32 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
 ):
 
   @parameterized.product(
-      n_e_ped=[0.7e20, {0.0: 0.7e20, 1.0: 0.9e20}],
-      rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
-      n_e_ped_is_fGW=[False, True],
+      n_e_top=[0.7e20, {0.0: 0.7e20, 1.0: 0.9e20}],
+      rho_norm_top=[{0.0: 0.5, 1.0: 0.7}],
+      n_e_top_is_f_GW=[False, True],
       time=[0.0, 1.0],
       T_i_T_e_ratio=[1.0, {0.0: 1.0, 1.0: 1.5}],
   )
   def test_build_and_call_pedestal_model(
       self,
-      n_e_ped,
-      rho_norm_ped_top,
-      n_e_ped_is_fGW,
+      n_e_top,
+      rho_norm_top,
+      n_e_top_is_f_GW,
       time,
       T_i_T_e_ratio,
   ):
-    if n_e_ped_is_fGW:
-      if isinstance(n_e_ped, dict):
-        n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
+    if n_e_top_is_f_GW:
+      if isinstance(n_e_top, dict):
+        n_e_top = {key: value / 1e20 for key, value in n_e_top.items()}
       else:
-        n_e_ped /= 1e20
+        n_e_top /= 1e20
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'structure_model': {
-            'model_name': 'set_P_ped_n_ped',
-            'n_e_ped': n_e_ped,
-            'n_e_ped_is_fGW': n_e_ped_is_fGW,
-            'rho_norm_ped_top': rho_norm_ped_top,
+            'model_name': 'set_p_top_n_top',
+            'n_e_top': n_e_top,
+            'n_e_top_is_f_GW': n_e_top_is_f_GW,
+            'rho_norm_top': rho_norm_top,
             'T_i_T_e_ratio': T_i_T_e_ratio,
         }
     }
@@ -68,14 +68,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config, t_override=time)
     )
-    source_states = source_models.initial_state(runtime_params)
-    source_profiles, _ = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,
@@ -91,40 +88,40 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         pedestal_state=pedestal_state,
     )
 
-    if isinstance(rho_norm_ped_top, (float, int)):
-      self.assertEqual(pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top)
+    if isinstance(rho_norm_top, (float, int)):
+      self.assertEqual(pedestal_model_output.rho_norm_top, rho_norm_top)
     else:
       self.assertEqual(
-          pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top[time]
+          pedestal_model_output.rho_norm_top, rho_norm_top[time]
       )
 
-    if isinstance(n_e_ped, (float, int)):
-      expected_n_e_ped = n_e_ped
+    if isinstance(n_e_top, (float, int)):
+      expected_n_e_top = n_e_top
     else:
-      expected_n_e_ped = n_e_ped[time]
-    if n_e_ped_is_fGW:
+      expected_n_e_top = n_e_top[time]
+    if n_e_top_is_f_GW:
       nGW = (
           runtime_params.profile_conditions.I_p
           / 1e6  # Convert to MA.
           / (jnp.pi * geo.a_minor**2)
           * 1e20
       )
-      expected_n_e_ped *= nGW
+      expected_n_e_top *= nGW
 
     np.testing.assert_allclose(
-        pedestal_model_output.structure.n_e_ped, expected_n_e_ped
+        pedestal_model_output.structure.n_e_top, expected_n_e_top
     )
 
     if isinstance(T_i_T_e_ratio, (float, int)):
       np.testing.assert_allclose(
-          pedestal_model_output.structure.T_i_ped
-          / pedestal_model_output.structure.T_e_ped,
+          pedestal_model_output.structure.T_i_top
+          / pedestal_model_output.structure.T_e_top,
           T_i_T_e_ratio,
       )
     else:
       np.testing.assert_allclose(
-          pedestal_model_output.structure.T_i_ped
-          / pedestal_model_output.structure.T_e_ped,
+          pedestal_model_output.structure.T_i_top
+          / pedestal_model_output.structure.T_e_top,
           T_i_T_e_ratio[time],
       )
 
@@ -132,13 +129,13 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'structure_model': {
-            'model_name': 'set_P_ped_n_ped',
-            'n_e_ped': 0.7e20,
-            'n_e_ped_is_fGW': False,
-            'rho_norm_ped_top': 0.91,
+            'model_name': 'set_p_top_n_top',
+            'n_e_top': 0.7e20,
+            'n_e_top_is_f_GW': False,
+            'rho_norm_top': 0.91,
             'T_i_T_e_ratio': 1.0,
-            'P_ped': 1e5,
-            'P_ped_multiplier': 1.0,
+            'p_top': 1e5,
+            'p_top_multiplier': 1.0,
         }
     }
     torax_config = torax_pydantic_config.ToraxConfig.from_dict(config)
@@ -148,14 +145,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(runtime_params)
-    source_profiles, _ = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,
@@ -172,7 +166,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     )
 
     # Modify multiplier to 1.5
-    config['pedestal']['structure_model']['P_ped_multiplier'] = 1.5
+    config['pedestal']['structure_model']['p_top_multiplier'] = 1.5
     torax_config_2 = torax_pydantic_config.ToraxConfig.from_dict(config)
     provider_2 = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config_2
@@ -193,13 +187,13 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     )
 
     np.testing.assert_allclose(
-        output_2.structure.T_e_ped, output_1.structure.T_e_ped * 1.5
+        output_2.structure.T_e_top, output_1.structure.T_e_top * 1.5
     )
     np.testing.assert_allclose(
-        output_2.structure.T_i_ped, output_1.structure.T_i_ped * 1.5
+        output_2.structure.T_i_top, output_1.structure.T_i_top * 1.5
     )
     np.testing.assert_allclose(
-        output_2.structure.n_e_ped, output_1.structure.n_e_ped
+        output_2.structure.n_e_top, output_1.structure.n_e_top
     )
 
 

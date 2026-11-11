@@ -17,20 +17,21 @@
 from typing import Final, NamedTuple
 
 from torax._src.sources import bremsstrahlung_heat_sink
+from torax._src.sources import core_sources
 from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
+from torax._src.sources import neutral_beam_injection_source
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources import pellet_source
 from torax._src.sources import qei_source
-from torax._src.sources import source as source_module
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.ion_cyclotron_source import base as ion_cyclotron_source
 
 
 class _SourceMappingEntry(NamedTuple):
-  affected_core_profiles: tuple[source_module.AffectedCoreProfile, ...]
+  populated_source_outputs: tuple[core_sources.PopulatedSourceOutput, ...]
   torax_source_name: str
   is_external: bool
 
@@ -40,52 +41,57 @@ IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING: Final[
 ] = {
     # External fuelling and HCD sources
     "pellet": _SourceMappingEntry(
-        pellet_source.PelletSource.AFFECTED_CORE_PROFILES,
+        pellet_source.PelletSource.POPULATED_SOURCE_OUTPUTS,
         pellet_source.PelletSource.SOURCE_ID,
         True,
     ),
     "gas_puff": _SourceMappingEntry(
-        gas_puff_source.GasPuffSource.AFFECTED_CORE_PROFILES,
+        gas_puff_source.GasPuffSource.POPULATED_SOURCE_OUTPUTS,
         gas_puff_source.GasPuffSource.SOURCE_ID,
         True,
     ),
     "ec": _SourceMappingEntry(
-        electron_cyclotron_source.ElectronCyclotronSource.AFFECTED_CORE_PROFILES,
+        electron_cyclotron_source.ElectronCyclotronSource.POPULATED_SOURCE_OUTPUTS,
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID,
         True,
     ),
     "ic": _SourceMappingEntry(
-        ion_cyclotron_source.IonCyclotronSource.AFFECTED_CORE_PROFILES,
+        ion_cyclotron_source.IonCyclotronSource.POPULATED_SOURCE_OUTPUTS,
         ion_cyclotron_source.IonCyclotronSource.SOURCE_ID,
         True,
     ),
+    "nbi": _SourceMappingEntry(
+        neutral_beam_injection_source.NeutralBeamInjectionSource.POPULATED_SOURCE_OUTPUTS,
+        neutral_beam_injection_source.NeutralBeamInjectionSource.SOURCE_ID,
+        True,
+    ),
     "ohmic": _SourceMappingEntry(
-        ohmic_heat_source.OhmicHeatSource.AFFECTED_CORE_PROFILES,
+        ohmic_heat_source.OhmicHeatSource.POPULATED_SOURCE_OUTPUTS,
         ohmic_heat_source.OhmicHeatSource.SOURCE_ID,
         False,
     ),
     "fusion": _SourceMappingEntry(
-        fusion_heat_source.FusionHeatSource.AFFECTED_CORE_PROFILES,
+        fusion_heat_source.FusionHeatSource.POPULATED_SOURCE_OUTPUTS,
         fusion_heat_source.FusionHeatSource.SOURCE_ID,
         False,
     ),
     "collisional_equipartition": _SourceMappingEntry(
-        qei_source.QeiSource.AFFECTED_CORE_PROFILES,
+        (),
         qei_source.QeiSource.SOURCE_ID,
         False,
     ),
     "cyclotron_radiation": _SourceMappingEntry(
-        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.AFFECTED_CORE_PROFILES,
+        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.POPULATED_SOURCE_OUTPUTS,
         cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID,
         False,
     ),
     "bremsstrahlung": _SourceMappingEntry(
-        bremsstrahlung_heat_sink.BremsstrahlungHeatSink.AFFECTED_CORE_PROFILES,
+        bremsstrahlung_heat_sink.BremsstrahlungHeatSink.POPULATED_SOURCE_OUTPUTS,
         bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID,
         False,
     ),
     "impurity_radiation": _SourceMappingEntry(
-        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.AFFECTED_CORE_PROFILES,
+        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.POPULATED_SOURCE_OUTPUTS,
         impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID,
         False,
     ),

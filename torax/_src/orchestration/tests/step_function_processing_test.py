@@ -52,15 +52,15 @@ class StepFunctionProcessingTest(parameterized.TestCase):
     config_dict['pedestal'] = {
         'explicit_pedestal': explicit_pedestal,
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 4.5,
-            'T_e_ped': 4.5,
-            'n_e_ped': 0.62e20,
-            'rho_norm_ped_top': 0.9,
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 4.5,
+            'T_e_top': 4.5,
+            'n_e_top': 0.62e20,
+            'rho_norm_top': 0.9,
         },
         'formation_model': {
             'model_name': 'prescribed',
-            'pedestal_active': ({0.0: False, 0.5: True}, 'STEP'),
+            'pedestal_active': ({0.0: False, 0.5: True}, 'step'),
         },
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)

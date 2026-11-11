@@ -132,11 +132,11 @@ Registering a custom pedestal structure model
 =============================================
 
 The TORAX ``PedestalModel`` is composed of three sub-models: a
-``PedestalStructureModel`` (which computes the H-mode target pedestal-top width,
-temperatures, and density), a ``FormationModel``, and a ``SaturationModel``.
+``PedestalStructureModel`` (which computes the H-mode target pedestal-top
+location, temperatures, and density), a ``FormationModel``, and a
+``SaturationModel``.
 To integrate a custom pedestal structure model (for example, an external neural
-network surrogate such as
-`epednn-mit <https://github.com/aaronkho/epednn_mit>`_), you need to:
+network surrogate such as |epednn_mit|), you need to:
 
 1. Define a pedestal structure model class that implements the physics.
 2. Define a pydantic config class for your model.
@@ -174,10 +174,10 @@ override ``initial_state(self) -> pedestal.StructureState``.
         # Implement your pedestal structure model here.
         return (
             pedestal.PedestalStructure(
-                rho_norm_ped_top=jnp.array(0.9),
-                T_i_ped=jnp.array(5.0),
-                T_e_ped=jnp.array(5.0),
-                n_e_ped=jnp.array(0.7e20),
+                rho_norm_top=jnp.array(0.9),
+                T_i_top=jnp.array(5.0),
+                T_e_top=jnp.array(5.0),
+                n_e_top=jnp.array(0.7e20),
             ),
             structure_state,
         )
@@ -211,7 +211,7 @@ Continuing from Step 1 (additional imports only):
     class MyStructureRuntimeParams(pedestal.StructureRuntimeParams):
       """Runtime parameters for MyPedestalStructureModel."""
 
-      T_ped: array_typing.FloatScalar
+      T_top: array_typing.FloatScalar
 
     class MyStructureConfig(pedestal.StructureConfigBase):
       """Pydantic config for MyPedestalStructureModel."""
@@ -219,7 +219,7 @@ Continuing from Step 1 (additional imports only):
       model_name: Annotated[
           Literal['my_pedestal'], torax_pydantic.JAX_STATIC
       ] = 'my_pedestal'
-      T_ped: torax_pydantic.TimeVaryingScalar = (
+      T_top: torax_pydantic.TimeVaryingScalar = (
           torax_pydantic.ValidatedDefault(5.0)
       )
 
@@ -229,7 +229,7 @@ Continuing from Step 1 (additional imports only):
       def build_runtime_params(self, t) -> MyStructureRuntimeParams:
         return MyStructureRuntimeParams(
             **vars(super().build_runtime_params(t)),
-            T_ped=self.T_ped.get_value(t),
+            T_top=self.T_top.get_value(t),
         )
 
 
@@ -272,7 +272,8 @@ Registering a custom source model
 To integrate a custom source model (e.g. a new heat source, particle source,
 or current source), you need to:
 
-1. Define a custom ``Source`` subclass implementing ``_get_model_value``.
+1. Define a custom source subclass (``Source``, ``SourceUsingCoreProfiles``,
+   or ``FinalSource``) implementing ``_get_model_value``.
 2. Define a pydantic config class for your model that builds your source in
    ``build_source()``.
 3. Register the config class with TORAX.
@@ -283,7 +284,7 @@ etc.). This allows multiple source model implementations to exist for the same
 physical source. The special source ``'ei_exchange'`` (ion-electron heat
 exchange) does not support custom registration.
 
-Step 1: Implement the custom Source subclass
+Step 1: Implement the custom source subclass
 --------------------------------------------
 
 Subclass ``torax.sources.Source`` (or an existing source class) and implement
@@ -294,18 +295,19 @@ attributes:
 
 * ``SOURCE_ID``: The target source name (e.g. ``'generic_heat'``), matching the
   corresponding field in the ``Sources`` config.
-* ``AFFECTED_CORE_PROFILES``: A tuple of ``torax.sources.AffectedCoreProfile``
-  values (``PSI``, ``NE``, ``TEMP_ION``, or ``TEMP_EL``)
-  specifying which core profile equations the source contributes to.
+* ``POPULATED_SOURCE_OUTPUTS``: A tuple of
+  ``torax.sources.PopulatedSourceOutput`` values (``POWER_DENSITY_I``,
+  ``POWER_DENSITY_E``, ``J_PARALLEL``, or ``PARTICLE_SOURCE_E``) specifying which
+  fields on ``SourceOutput`` the source populates.
 
 If you instead subclass an existing source class (e.g.
-``GenericIonElectronHeatSource``), ``SOURCE_ID`` and ``AFFECTED_CORE_PROFILES``
-are inherited automatically.
+``GenericIonElectronHeatSource``), ``SOURCE_ID`` and
+``POPULATED_SOURCE_OUTPUTS`` are inherited automatically.
 
 ``_get_model_value`` receives the simulation state and returns a tuple of
-``sources.SourceOutput`` (containing the 1D profiles, one per entry in
-``AFFECTED_CORE_PROFILES``, in the same order, and optional fast ions) and the
-(possibly updated) ``source_state``.
+``sources.SourceOutput`` (containing the 1D cell-grid profiles as named
+attributes corresponding to ``POPULATED_SOURCE_OUTPUTS``, and optional fast
+ions) and the (possibly updated) ``source_state``.
 
 .. code-block:: python
 
@@ -320,35 +322,97 @@ are inherited automatically.
       """Custom heat source model."""
 
       SOURCE_ID: ClassVar[str] = 'generic_heat'
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[sources.AffectedCoreProfile, ...]
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[sources.PopulatedSourceOutput, ...]
       ] = (
-          sources.AffectedCoreProfile.TEMP_ION,
-          sources.AffectedCoreProfile.TEMP_EL,
+          sources.PopulatedSourceOutput.POWER_DENSITY_I,
+          sources.PopulatedSourceOutput.POWER_DENSITY_E,
       )
 
       def _get_model_value(
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.CoreProfiles,
-          calculated_source_profiles: sources.SourceProfiles | None,
-          conductivity,
+          solver_profiles: torax.SolverProfiles,
           source_state: sources.SourceState,
-          psidot: jnp.ndarray | None = None,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        """Calculates model value for this custom source.
-
-        Args:
-          psidot: Loop voltage profile (unused by this source).
-        """
-        # Return a SourceOutput with one profile per affected core profile,
-        # plus the updated source_state.
-        # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
+        # Return a SourceOutput with attributes set for each populated output.
         ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
         el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
         return (
-            sources.SourceOutput(profiles=(ion_heat, el_heat)),
+            sources.SourceOutput(
+                power_density_i=ion_heat, power_density_e=el_heat
+            ),
+            source_state,
+        )
+
+
+Dependent and final sources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Subclass ``torax.sources.SourceUsingCoreProfiles`` for dependent sources
+evaluated after neoclassical and transport models that require full
+``torax.CoreProfiles`` (such as ``core_profiles.conductivity`` or
+``core_profiles.psidot``, e.g. Ohmic heating). Constraints: cannot populate
+``PopulatedSourceOutput.J_PARALLEL``, cannot return ``fast_ions``, and cannot be
+configured with ``is_explicit=True``.
+
+.. code-block:: python
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyDependentHeatSource(sources.SourceUsingCoreProfiles):
+      """Custom heat source using full CoreProfiles."""
+
+      SOURCE_ID: ClassVar[str] = 'ohmic'
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[sources.PopulatedSourceOutput, ...]
+      ] = (sources.PopulatedSourceOutput.POWER_DENSITY_E,)
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          source_state: sources.SourceState,
+      ) -> tuple[sources.SourceOutput, sources.SourceState]:
+        el_heat = core_profiles.conductivity.sigma * 1e-3
+        return (
+            sources.SourceOutput(power_density_e=el_heat),
+            source_state,
+        )
+
+Subclass ``torax.sources.FinalSource`` for a final source or sink evaluated
+after all ``Source`` and ``SourceUsingCoreProfiles`` models have been
+aggregated into ``sources.CoreSources`` (for example, a radiation sink
+scaling with total input heating). Constraints: at most one ``FinalSource``
+can be active in a simulation, cannot populate
+``PopulatedSourceOutput.J_PARALLEL``, cannot return ``fast_ions``, and cannot be
+configured with ``is_explicit=True``.
+
+.. code-block:: python
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyFinalHeatSink(sources.FinalSource):
+      """Custom sink depending on aggregated CoreSources."""
+
+      SOURCE_ID: ClassVar[str] = 'impurity_radiation'
+      POPULATED_SOURCE_OUTPUTS: ClassVar[
+          tuple[sources.PopulatedSourceOutput, ...]
+      ] = (sources.PopulatedSourceOutput.POWER_DENSITY_E,)
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          calculated_core_sources: sources.CoreSources,
+          source_state: sources.SourceState,
+      ) -> tuple[sources.SourceOutput, sources.SourceState]:
+        total_el_heat = calculated_core_sources.total_sources(
+            'power_density_e', geo
+        )
+        return (
+            sources.SourceOutput(power_density_e=-0.1 * total_el_heat),
             source_state,
         )
 
@@ -359,7 +423,8 @@ Step 2: Define the pydantic config
 Create a pydantic config class that inherits from
 ``torax.sources.SourceConfigBase``:
 
-- Implement ``build_source``: returns the ``Source`` instance.
+- Implement ``build_source``: returns the source instance (a subclass of
+  ``Source``, ``SourceUsingCoreProfiles``, or ``FinalSource``).
 - Override ``build_runtime_params`` if your source requires custom
   ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 
@@ -416,11 +481,11 @@ This must be done at module level, before any TORAX config is built.
 The source's ``SOURCE_ID`` must be one of the fields in the ``SourcesConfig``
 pydantic config: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``,
 ``fusion``, ``gas_puff``, ``generic_current``, ``generic_heat``,
-``generic_particle``, ``icrh``, ``impurity_radiation``, ``ohmic``, or
+``generic_particle``, ``icrh``, ``impurity_radiation``, ``nbi``, ``ohmic``, or
 ``pellet``.
 
 If you want to register a custom implementation for a source that isn't in this
-list (for example "nbi"), please reach out to the TORAX team and we will help.
+list (for example "lhcd"), please reach out to the TORAX team and we will help.
 
 
 Using the registered model
@@ -459,13 +524,14 @@ edge model, you need to:
 Step 1: Implement the edge model
 --------------------------------
 
-Create a frozen dataclass that inherits from ``torax.edge.EdgeModel`` and
-implements the ``__call__`` method. The ``__call__``
+Create a frozen dataclass that inherits from ``torax.experimental.edge.EdgeModel`` and
+implements the ``__call__`` method (and optionally ``initial_state`` if the
+model carries persistent state across time steps). The ``__call__``
 method receives the current edge runtime parameters, full simulation runtime
 parameters, geometry, core profiles, and source profiles, and must
-return an ``torax.edge.EdgeModelOutputs`` with the boundary conditions computed
-by the model (any boundary conditions not computed by the model should be left
-as ``None``):
+return a tuple of ``torax.experimental.edge.EdgeModelOutputs`` with the boundary conditions
+computed by the model (any boundary conditions not computed by the model should
+be left as ``None``) and ``torax.experimental.edge.EdgeState``:
 
 * ``T_e_right_bc``: Electron temperature boundary condition at the LCFS [keV].
 * ``T_i_right_bc``: Ion temperature boundary condition at the LCFS [keV].
@@ -478,8 +544,8 @@ as ``None``):
     import dataclasses
     import jax.numpy as jnp
     import torax
-    from torax import edge
     from torax import sources
+    from torax.experimental import edge
 
     @dataclasses.dataclass(frozen=True, eq=False)
     class MyEdgeModel(edge.EdgeModel):
@@ -491,24 +557,68 @@ as ``None``):
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          core_sources: sources.SourceProfiles,
-          previous_edge_outputs: edge.EdgeModelOutputs | None = None,
-      ) -> edge.EdgeModelOutputs:
+          core_sources: sources.CoreSources,
+          edge_state: edge.EdgeState,
+      ) -> tuple[edge.EdgeModelOutputs, edge.EdgeState]:
         del edge_runtime_params, runtime_params, geo, core_profiles, core_sources
-        del previous_edge_outputs
-        return edge.EdgeModelOutputs(
-            T_i_right_bc=jnp.array(0.08),  # [keV]
-            T_e_right_bc=jnp.array(0.12),  # [keV]
+        del edge_state
+        return (
+            edge.EdgeModelOutputs(
+                T_i_right_bc=jnp.array(0.08),  # [keV]
+                T_e_right_bc=jnp.array(0.12),  # [keV]
+            ),
+            edge.EdgeState(),
         )
+
+
+Serializing custom model state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Stateful custom models that carry cross-timestep state (by subclassing
+``edge.EdgeState``, ``sources.SourceState``, or ``pedestal.StructureState``)
+can override ``to_xr_datatree`` using ``torax.output`` types so their state is
+included under ``/model_state`` in simulation outputs and restarts:
+
+.. code-block:: python
+
+    import dataclasses
+    import jax
+    import numpy as np
+    from torax import output
+    from torax.experimental import edge
+    import xarray as xr
+
+    MY_STATE_VAR = output.OutputKey(
+        'my_state_var',
+        units=output.Units.DIMENSIONLESS,
+        grid_type=output.GridType.SCALAR,
+    )
+
+    @jax.tree_util.register_dataclass
+    @dataclasses.dataclass(frozen=True)
+    class MyStatefulEdgeState(edge.EdgeState):
+      counter: jax.Array
+
+      def to_xr_datatree(
+          self,
+          context: output.OutputGridContext,
+      ) -> xr.DataTree:
+        data_vars: dict[str, output.OutputVar] = {
+            MY_STATE_VAR: context.pack(
+                MY_STATE_VAR,
+                np.atleast_1d(np.asarray(self.counter)),
+            ),
+        }
+        return xr.DataTree(dataset=context.build_dataset(data_vars))
 
 
 Step 2: Define the pydantic config
 ----------------------------------
 
 Create a pydantic config class that inherits from
-``torax.edge.EdgeModelConfig`` and implements ``build_edge_model``. Declare
+``torax.experimental.edge.EdgeModelConfig`` and implements ``build_edge_model``. Declare
 ``supported_boundary_conditions`` as a ``ClassVar`` of type
-``torax.edge.SupportedBoundaryConditions`` to specify which boundary conditions
+``torax.experimental.edge.SupportedBoundaryConditions`` to specify which boundary conditions
 your model is capable of calculating (by default on
 ``SupportedBoundaryConditions``, all four are ``False``), and a ``model_name``
 field with a unique ``Literal`` type identifying the model. Each ``update_*``
@@ -519,8 +629,8 @@ for an unsupported boundary condition.
 .. code-block:: python
 
     from typing import Annotated, ClassVar, Literal
-    from torax import edge
     from torax import torax_pydantic
+    from torax.experimental import edge
 
     class MyEdgeConfig(edge.EdgeModelConfig):
       """Pydantic config for MyEdgeModel."""
@@ -542,7 +652,7 @@ for an unsupported boundary condition.
 Step 3: Register the model
 --------------------------
 
-Call ``torax.edge.register_edge_model`` with your pydantic config class.
+Call ``torax.experimental.edge.register_edge_model`` with your pydantic config class.
 This must be done at module level before any TORAX config is built.
 
 .. code-block:: python
@@ -604,7 +714,7 @@ any boundary conditions it should not provide:
 Registering a custom neoclassical model
 =======================================
 
-Use ``torax.neoclassical.register_neoclassical_model`` to couple a custom
+Use ``torax.experimental.neoclassical.register_neoclassical_model`` to couple a custom
 neoclassical model, for example an integrated solver that computes neoclassical
 currents, rotation, and transport.
 
@@ -621,8 +731,8 @@ Create a ``NeoclassicalModel`` subclass implementing
     import jax
     import jax.numpy as jnp
     import torax
-    from torax import neoclassical
     from torax import torax_pydantic
+    from torax.experimental import neoclassical
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
@@ -639,13 +749,15 @@ Create a ``NeoclassicalModel`` subclass implementing
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
-          core_profiles: torax.CoreProfiles,
+          solver_profiles: torax.SolverProfiles,
+          fast_ions: tuple[Any, ...],
       ) -> tuple[
           neoclassical.Conductivity,
           neoclassical.BootstrapCurrent,
           neoclassical.PoloidalVelocity,
           neoclassical.NeoclassicalIntermediates,
       ]:
+        del solver_profiles, fast_ions
         assert isinstance(
             runtime_params.neoclassical, MyNeoclassicalRuntimeParams
         )

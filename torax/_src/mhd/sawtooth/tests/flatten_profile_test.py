@@ -32,7 +32,11 @@ class FlattenProfileTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=_NRHO).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=_NRHO)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def _create_profile(
       self, values: array_typing.Array
@@ -476,9 +480,11 @@ class FlattenProfileTest(parameterized.TestCase):
     rho_norm_q1 = 0.3
     rho_norm_mixing = 0.5
     n_rho_hires = 500
-    geo_hires = circular_geometry.CircularConfig(
-        n_rho=n_rho_hires
-    ).build_geometry()
+    geo_hires = (
+        circular_geometry.CircularConfig(n_rho=n_rho_hires)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     rho_norm = geo_hires.rho_norm
     initial_values = 5.0 - 4.0 * rho_norm**2
 

@@ -494,25 +494,25 @@ class InterpolatedParamTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='step_override_piecewise_linear_data',
-          data=(1.0, 'PIECEWISE_LINEAR'),
+          data=(1.0, 'piecewise_linear'),
           interpolation_mode_override=interpolated_param.InterpolationMode.STEP,
           expected_interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       dict(
           testcase_name='step_override_step_data',
-          data=(1.0, 'STEP'),
+          data=(1.0, 'step'),
           interpolation_mode_override=interpolated_param.InterpolationMode.STEP,
           expected_interpolation_mode=interpolated_param.InterpolationMode.STEP,
       ),
       dict(
           testcase_name='piecewise_linear_override_piecewise_linear_data',
-          data=(1.0, 'PIECEWISE_LINEAR'),
+          data=(1.0, 'piecewise_linear'),
           interpolation_mode_override=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
           expected_interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       dict(
           testcase_name='piecewise_linear_override_step_data',
-          data=(1.0, 'STEP'),
+          data=(1.0, 'step'),
           interpolation_mode_override=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
           expected_interpolation_mode=interpolated_param.InterpolationMode.STEP,
       ),
@@ -524,6 +524,15 @@ class InterpolatedParamTest(parameterized.TestCase):
         data, default_interpolation_mode=interpolation_mode_override
     )
     self.assertEqual(interpolation_mode, expected_interpolation_mode)
+
+  @parameterized.parameters('STEP', 'PIECEWISE_LINEAR')
+  def test_convert_input_to_xs_ys_rejects_uppercase_interpolation_mode(
+      self, invalid_mode: str
+  ):
+    with self.assertRaises(ValueError):
+      interpolated_param.convert_input_to_xs_ys(
+          (1.0, invalid_mode)  # pyrefly: ignore[bad-argument-type]
+      )
 
   @parameterized.parameters(
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR,

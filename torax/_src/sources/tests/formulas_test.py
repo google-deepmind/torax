@@ -23,9 +23,13 @@ class GaussianProfileTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=25,
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def test_output_shape_matches_grid(self):
     profile = formulas.gaussian_profile(
@@ -100,9 +104,13 @@ class ExponentialProfileTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=25,
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(
+            n_rho=25,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def test_output_shape_matches_grid(self):
     profile = formulas.exponential_profile(

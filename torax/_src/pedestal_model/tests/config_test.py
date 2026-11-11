@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 from unittest import mock
 
 from absl.testing import absltest
@@ -29,8 +30,8 @@ from torax._src.pedestal_model.formation import prescribed_formation_model
 class PedestalConfigTest(parameterized.TestCase):
 
   @parameterized.parameters(
-      "set_P_ped_n_ped",
-      "set_T_ped_n_ped",
+      "set_p_top_n_top",
+      "set_T_top_n_top",
   )
   def test_build_and_call_model(
       self, model_name: str
@@ -99,8 +100,8 @@ class PedestalConfigTest(parameterized.TestCase):
     )
     self.assertFalse(bool(formation_before.pedestal_active))
     pedestal_model._update_fields({
-        "structure_model": config.SetTpedNpedConfig(
-            T_i_ped=4.5, T_e_ped=4.5, n_e_ped=0.7e20
+        "structure_model": config.SetTtopNtopConfig(
+            T_i_top=4.5, T_e_top=4.5, n_e_top=0.7e20
         )
     })
     formation_after = pedestal_model.build_runtime_params(t=0.0).formation
@@ -112,7 +113,7 @@ class PedestalConfigTest(parameterized.TestCase):
 
   def test_power_scaling_with_internal_boundary_condition(self):
     pedestal = config.PedestalConfig.from_dict({
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "formation_model": {
             "model_name": "martin_scaling",
             "P_LH_hysteresis_factor": 0.7,
@@ -136,7 +137,7 @@ class PedestalConfigTest(parameterized.TestCase):
 
   def test_prescribed_formation_with_adaptive_transport(self):
     pedestal_model = config.PedestalConfig.from_dict({
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
         "formation_model": {
             "model_name": "prescribed",
@@ -209,20 +210,20 @@ class PedestalConfigTest(parameterized.TestCase):
   def test_transition_time_width_validation(self):
     with self.subTest("allow_positive_values"):
       config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "transition_time_width": 0.5,
       })
 
     with self.subTest("allow_zero_values"):
       config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "transition_time_width": 0.0,
       })
 
     with self.subTest("disallow_negative_values"):
       with self.assertRaises(ValueError):
         config.PedestalConfig.from_dict({
-            "structure_model": {"model_name": "set_T_ped_n_ped"},
+            "structure_model": {"model_name": "set_T_top_n_top"},
             "transition_time_width": -1.0,
         })
 
@@ -234,12 +235,12 @@ class PedestalConfigTest(parameterized.TestCase):
           " mode",
       ):
         config.PedestalConfig.from_dict({
-            "structure_model": {"model_name": "set_T_ped_n_ped"},
+            "structure_model": {"model_name": "set_T_top_n_top"},
             "mode": "internal_boundary_condition",
             "formation_model": {"model_name": "martin_scaling"},
         })
       ped = config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "mode": "internal_boundary_condition",
           "formation_model": {"model_name": "martin_scaling"},
           "transition_time_width": 0.5,
@@ -250,7 +251,7 @@ class PedestalConfigTest(parameterized.TestCase):
 
     with self.subTest("optional_for_scaling_in_adaptive_transport_mode"):
       ped = config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "mode": "adaptive_transport",
           "formation_model": {"model_name": "martin_scaling"},
       })
@@ -265,13 +266,13 @@ class PedestalConfigTest(parameterized.TestCase):
           "formation_model must be explicitly specified",
       ):
         config.PedestalConfig.from_dict({
-            "structure_model": {"model_name": "set_T_ped_n_ped"},
+            "structure_model": {"model_name": "set_T_top_n_top"},
             "mode": "adaptive_transport",
         })
 
     with self.subTest("formation_dict_without_model_name_in_ibc_mode"):
       pedestal = config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "formation_model": {"pedestal_active": False},
       })
       self.assertIsInstance(
@@ -294,7 +295,7 @@ class PedestalConfigTest(parameterized.TestCase):
         r"Unable to extract tag using discriminator 'model_name'",
     ):
       pydantic.TypeAdapter(config.PedestalConfig).validate_python(
-          {"structure_model": {"n_e_ped": 0.7e20}}
+          {"structure_model": {"n_e_top": 0.7e20}}
       )
 
   def test_invalid_formation_model_error_message(self):
@@ -304,19 +305,19 @@ class PedestalConfigTest(parameterized.TestCase):
         r" any of the expected tags",
     ):
       config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "formation_model": {"model_name": "invalid_formation"},
       })
 
   def test_initial_confinement_mode_and_bc_multiplier_validation(self):
     default_ped = config.PedestalConfig.from_dict(
-        {"structure_model": {"model_name": "set_T_ped_n_ped"}}
+        {"structure_model": {"model_name": "set_T_top_n_top"}}
     )
     self.assertIsNone(default_ped.formation_model.initial_confinement_mode)
     self.assertEqual(default_ped.initial_L_mode_bc_multiplier, 2.0)
 
     custom_ped = config.PedestalConfig.from_dict({
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "formation_model": {"initial_confinement_mode": "l_mode"},
         "initial_L_mode_bc_multiplier": 3.5,
     })
@@ -329,18 +330,18 @@ class PedestalConfigTest(parameterized.TestCase):
 
     with self.assertRaises(pydantic.ValidationError):
       config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "formation_model": {"initial_confinement_mode": "invalid_mode"},
       })
     with self.assertRaises(pydantic.ValidationError):
       config.PedestalConfig.from_dict({
-          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "structure_model": {"model_name": "set_T_top_n_top"},
           "initial_L_mode_bc_multiplier": 0.0,
       })
 
   def test_build_pedestal_model_returns_correct_subclass(self):
     ped_ibc = config.PedestalConfig.from_dict({
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": "internal_boundary_condition",
     })
     self.assertIsInstance(
@@ -349,7 +350,7 @@ class PedestalConfigTest(parameterized.TestCase):
     )
 
     ped_adaptive = config.PedestalConfig.from_dict({
-        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "structure_model": {"model_name": "set_T_top_n_top"},
         "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     })
@@ -357,6 +358,18 @@ class PedestalConfigTest(parameterized.TestCase):
         ped_adaptive.build_pedestal_model(),
         pedestal_model_lib.AdaptiveTransportPedestalModel,
     )
+
+  def test_chi_max_and_d_e_max_default_to_inf(self):
+    pedestal = config.PedestalConfig.from_dict({
+        "structure_model": {"model_name": "set_T_top_n_top"},
+        "mode": "adaptive_transport",
+        "formation_model": {"model_name": "martin_scaling"},
+    })
+    params = pedestal.build_runtime_params(t=0.0)
+    self.assertTrue(math.isinf(float(params.chi_max)))
+    self.assertGreater(float(params.chi_max), 0.0)
+    self.assertTrue(math.isinf(float(params.D_e_max)))
+    self.assertGreater(float(params.D_e_max), 0.0)
 
 
 if __name__ == "__main__":

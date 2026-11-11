@@ -16,6 +16,7 @@
 from collections.abc import Mapping
 import enum
 import logging
+import pathlib
 from typing import Annotated, Any, Literal, Self, TypeAlias
 
 import jax
@@ -26,7 +27,6 @@ from torax._src import math_utils
 from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
-from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.geometry import trapped_fraction as trapped_fraction_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -37,6 +37,24 @@ LY_OBJECT_TYPE: TypeAlias = (
 )
 
 # Edge model geometry keys expected in LY data.
+_PROFILE_KEYS = (
+    'TQ',
+    'Q0Q',
+    'Q1Q',
+    'Q2Q',
+    'Q3Q',
+    'Q4Q',
+    'Q5Q',
+    'ItQ',
+    'deltau',
+    'deltal',
+    'kappa',
+    'aminor',
+    'rgeom',
+    'epsilon',
+    'FtPVQ',
+)
+_SCALAR_TIME_KEYS = ('rBt', 'FB', 'FA', 'zA', 'lX', 't')
 _EDGE_MODEL_OMP_KEYS = frozenset({'r_OMP', 'Bp_OMP'})
 _EDGE_MODEL_TARGET_KEYS = frozenset({
     'Lpar_target',
@@ -45,6 +63,140 @@ _EDGE_MODEL_TARGET_KEYS = frozenset({
     'r_target',
 })
 _ALL_EDGE_KEYS = _EDGE_MODEL_OMP_KEYS | _EDGE_MODEL_TARGET_KEYS
+_REQUIRED_KEYS = (
+    tuple(k for k in _PROFILE_KEYS if k != 'FtPVQ') + _SCALAR_TIME_KEYS
+)
+
+
+def _is_bundle_data(data: Mapping[str, Any]) -> bool:
+  """Returns whether the mapping represents a time bundle of slices."""
+  if 't' in data:
+    t = data['t']
+    if isinstance(t, (int, float, np.floating, np.integer)):
+      return False
+    if isinstance(t, np.ndarray):
+      return t.size > 1
+    if isinstance(t, (list, tuple)):
+      if len(t) == 2 and isinstance(t[0], str) and isinstance(t[1], list):
+        return len(t[1]) > 1
+      return len(t) > 1
+  if 'TQ' in data:
+    tq = data['TQ']
+    if isinstance(tq, np.ndarray):
+      return tq.ndim == 2
+    if isinstance(tq, (list, tuple)):
+      if len(tq) == 2 and isinstance(tq[0], str) and isinstance(tq[1], list):
+        return bool(tq[1] and isinstance(tq[1][0], (list, tuple)))
+      return bool(tq and isinstance(tq[0], (list, tuple)))
+  return False
+
+
+def _clean_meq_ly_dict(
+    data: Any, *, target_cls: type[Any], is_bundle: bool
+) -> Any:
+  """Cleans and validates an input mapping for MEQLYSlice or MEQLYBundle."""
+  if not isinstance(data, Mapping):
+    if 'L' not in data:
+      raise ValueError("Either 'L' or 'L_object' must be provided.")
+    if 'LY' not in data:
+      raise ValueError(
+          "One of 'LY', 'LY_object', or 'LY_bundle_object' must be provided."
+      )
+    return data
+  cleaned = dict(data)
+  for k in ('__header__', '__version__', '__globals__', 'shot'):
+    cleaned.pop(k, None)
+
+  # FtPVQ / FtPQ fallback
+  if 'FtPVQ' not in cleaned and 'FtPQ' in cleaned:
+    logging.warning(
+        'FtPVQ not found in LY data, using FtPQ instead. Please upgrade to'
+        ' a newer version of MEQ as the source of the LY data. This will'
+        ' throw an error in a future version.'
+    )
+    cleaned['FtPVQ'] = cleaned.pop('FtPQ')
+  elif 'FtPVQ' not in cleaned and 'FtPQ' not in cleaned:
+    raise ValueError(
+        'LY data is missing a toroidal flux-related key '
+        'provide either FtPVQ or FtPQ.'
+    )
+
+  for key in _REQUIRED_KEYS:
+    if key not in cleaned:
+      raise ValueError(f"LY data is missing the '{key}' key.")
+
+  present_optional = _ALL_EDGE_KEYS.intersection(cleaned.keys())
+  if present_optional and len(present_optional) != len(_ALL_EDGE_KEYS):
+    logging.warning(
+        'Some but not all optional edge model keys are present in LY data. '
+        'This may lead to incomplete edge model initialization. '
+        'Missing data: %s',
+        _ALL_EDGE_KEYS - present_optional,
+    )
+    for k in present_optional:
+      cleaned.pop(k, None)
+
+  if is_bundle:
+    for key in _SCALAR_TIME_KEYS:
+      if isinstance(cleaned[key], np.ndarray):
+        cleaned[key] = np.atleast_1d(cleaned[key].squeeze())
+    for key in ('r_OMP', 'Bp_OMP'):
+      if key in cleaned and isinstance(cleaned[key], np.ndarray):
+        cleaned[key] = np.atleast_1d(cleaned[key].squeeze())
+  else:
+    for key in _PROFILE_KEYS:
+      if isinstance(cleaned[key], np.ndarray):
+        cleaned[key] = np.atleast_1d(cleaned[key].squeeze())
+    for key in ('rBt', 'FB', 'FA', 'zA', 't'):
+      val = cleaned[key]
+      if isinstance(val, (int, float, np.number)):
+        cleaned[key] = float(val)
+      elif isinstance(val, np.ndarray):
+        if val.size != 1:
+          raise ValueError(
+              f"Incorrect shape for key '{key}' in LY data. Expected scalar,"
+              f' got {val.shape}.'
+          )
+        cleaned[key] = float(val.squeeze())
+    if 'lX' in cleaned:
+      val = cleaned['lX']
+      if isinstance(val, (int, np.integer)):
+        cleaned['lX'] = int(val)
+      elif isinstance(val, np.ndarray):
+        if val.size != 1:
+          raise ValueError(
+              "Incorrect shape for key 'lX' in LY data. Expected scalar,"
+              f' got {val.shape}.'
+          )
+        cleaned['lX'] = int(val.squeeze())
+    for key in ('r_OMP', 'Bp_OMP'):
+      if key in cleaned and cleaned[key] is not None:
+        val = cleaned[key]
+        if isinstance(val, (int, float, np.number)):
+          cleaned[key] = float(val)
+        elif isinstance(val, np.ndarray):
+          if val.size != 1:
+            raise ValueError(
+                f"Incorrect shape for key '{key}' in LY data. Expected scalar,"
+                f' got {val.shape}.'
+            )
+          cleaned[key] = float(val.squeeze())
+    for key in ('Lpar_target', 'Lpar_div', 'alpha_target', 'r_target'):
+      if key in cleaned and cleaned[key] is not None:
+        val = cleaned[key]
+        if isinstance(val, np.ndarray):
+          val = val.squeeze()
+          if val.ndim == 0:
+            cleaned[key] = float(val)
+          elif val.ndim == 1:
+            cleaned[key] = val
+          else:
+            raise ValueError(
+                f"Incorrect shape for key '{key}' in LY data. Expected scalar"
+                f' or 1D array, got {val.shape}.'
+            )
+  known_fields = set(target_cls.model_fields.keys()).union({'FtPVQ'})
+  return {k: v for k, v in cleaned.items() if k in known_fields}
 
 
 @enum.unique
@@ -55,25 +207,212 @@ class DivertorDomain(enum.StrEnum):
   LOWER_NULL = 'lower_null'
 
 
+class MEQLData(torax_pydantic.ConfigBase):
+  """Normalized poloidal flux coordinate data from MEQ L file."""
+
+  pQ: torax_pydantic.NumpyArray1D
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_meq_l_data(cls, data: Any) -> Any:
+    if not isinstance(data, Mapping):
+      return data
+    if 'pQ' not in data:
+      raise ValueError("L data is missing the 'pQ' key.")
+    if isinstance(data['pQ'], np.ndarray):
+      pQ = np.atleast_1d(data['pQ'].squeeze())
+      if pQ.ndim != 1:
+        raise ValueError(
+            "Incorrect shape for key 'pQ' in L data. Expected 1D array, got"
+            f' {pQ.shape}.'
+        )
+      return {'pQ': pQ}
+    return {'pQ': data['pQ']}
+
+  @pydantic.model_validator(mode='after')
+  def _validate_shape(self) -> Self:
+    if self.pQ.ndim != 1:
+      raise ValueError(
+          "Incorrect shape for key 'pQ' in L data. Expected 1D array, got"
+          f' {self.pQ.shape}.'
+      )
+    return self
+
+  def to_l_dict(self) -> dict[str, Any]:
+    return {'pQ': self.pQ}
+
+
+class MEQLYSlice(torax_pydantic.ConfigBase):
+  """Single time slice of MEQ LY geometry data."""
+
+  TQ: torax_pydantic.NumpyArray1D
+  Q0Q: torax_pydantic.NumpyArray1D
+  Q1Q: torax_pydantic.NumpyArray1D
+  Q2Q: torax_pydantic.NumpyArray1D
+  Q3Q: torax_pydantic.NumpyArray1D
+  Q4Q: torax_pydantic.NumpyArray1D
+  Q5Q: torax_pydantic.NumpyArray1D
+  ItQ: torax_pydantic.NumpyArray1D
+  deltau: torax_pydantic.NumpyArray1D
+  deltal: torax_pydantic.NumpyArray1D
+  kappa: torax_pydantic.NumpyArray1D
+  FtPVQ: torax_pydantic.NumpyArray1D
+  aminor: torax_pydantic.NumpyArray1D
+  rgeom: torax_pydantic.NumpyArray1D
+  epsilon: torax_pydantic.NumpyArray1D
+
+  rBt: float
+  FB: float
+  FA: float
+  zA: float
+  lX: Annotated[int, torax_pydantic.JAX_STATIC]
+  t: float
+
+  r_OMP: float | None = None
+  Bp_OMP: float | None = None
+  Lpar_target: float | torax_pydantic.NumpyArray1D | None = None
+  Lpar_div: float | torax_pydantic.NumpyArray1D | None = None
+  alpha_target: float | torax_pydantic.NumpyArray1D | None = None
+  r_target: float | torax_pydantic.NumpyArray1D | None = None
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_meq_ly_slice(cls, data: Any) -> Any:
+    return _clean_meq_ly_dict(data, target_cls=cls, is_bundle=False)
+
+  @pydantic.model_validator(mode='after')
+  def _validate_arrays(self) -> Self:
+    n_psi = len(self.TQ)
+    for key in _PROFILE_KEYS:
+      val = getattr(self, key)
+      if val.ndim != 1 or len(val) != n_psi:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. Expected ({n_psi},),"
+            f' got {val.shape}.'
+        )
+    return self
+
+  def to_slice_dict(self) -> dict[str, Any]:
+    return {
+        k: getattr(self, k)
+        for k in self.__class__.model_fields
+        if getattr(self, k) is not None
+    }
+
+
+class MEQLYBundle(torax_pydantic.ConfigBase):
+  """Multi-slice bundled MEQ LY geometry data."""
+
+  TQ: torax_pydantic.NumpyArray
+  Q0Q: torax_pydantic.NumpyArray
+  Q1Q: torax_pydantic.NumpyArray
+  Q2Q: torax_pydantic.NumpyArray
+  Q3Q: torax_pydantic.NumpyArray
+  Q4Q: torax_pydantic.NumpyArray
+  Q5Q: torax_pydantic.NumpyArray
+  ItQ: torax_pydantic.NumpyArray
+  deltau: torax_pydantic.NumpyArray
+  deltal: torax_pydantic.NumpyArray
+  kappa: torax_pydantic.NumpyArray
+  FtPVQ: torax_pydantic.NumpyArray
+  aminor: torax_pydantic.NumpyArray
+  rgeom: torax_pydantic.NumpyArray
+  epsilon: torax_pydantic.NumpyArray
+
+  rBt: torax_pydantic.NumpyArray1D
+  FB: torax_pydantic.NumpyArray1D
+  FA: torax_pydantic.NumpyArray1D
+  zA: torax_pydantic.NumpyArray1D
+  lX: torax_pydantic.NumpyArray1D
+  t: torax_pydantic.NumpyArray1D
+
+  r_OMP: torax_pydantic.NumpyArray1D | None = None
+  Bp_OMP: torax_pydantic.NumpyArray1D | None = None
+  Lpar_target: torax_pydantic.NumpyArray | None = None
+  Lpar_div: torax_pydantic.NumpyArray | None = None
+  alpha_target: torax_pydantic.NumpyArray | None = None
+  r_target: torax_pydantic.NumpyArray | None = None
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_meq_ly_bundle(cls, data: Any) -> Any:
+    return _clean_meq_ly_dict(data, target_cls=cls, is_bundle=True)
+
+  @pydantic.model_validator(mode='after')
+  def _validate_bundle_shapes(self) -> Self:
+    n_times = len(self.t)
+    if self.TQ.ndim != 2:
+      raise ValueError(
+          "Incorrect shape for key 'TQ' in LY data. Expected 2D array,"
+          f' got {self.TQ.shape}.'
+      )
+    n_psi = self.TQ.shape[0]
+    expected_2d = (n_psi, n_times)
+    expected_1d = (n_times,)
+
+    for key in _PROFILE_KEYS:
+      arr = getattr(self, key)
+      if arr.shape != expected_2d:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. Expected"
+            f' {expected_2d}:, got {arr.shape}.'
+        )
+
+    for key in _SCALAR_TIME_KEYS:
+      arr = getattr(self, key)
+      if arr.shape != expected_1d:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. Expected"
+            f' {expected_1d}:, got {arr.shape}.'
+        )
+
+    for key in ('r_OMP', 'Bp_OMP'):
+      arr = getattr(self, key)
+      if arr is not None and arr.shape != expected_1d:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. Expected"
+            f' {expected_1d}:, got {arr.shape}.'
+        )
+    return self
+
+  def get_slice_dict(self, idx: int) -> dict[str, Any]:
+    """Returns a single slice dictionary from the bundle at time index idx."""
+    slice_dict = {key: getattr(self, key)[..., idx] for key in _PROFILE_KEYS}
+    for key in _SCALAR_TIME_KEYS:
+      val = getattr(self, key)[idx]
+      slice_dict[key] = int(val) if key == 'lX' else float(val)
+    for key in _ALL_EDGE_KEYS:
+      val = getattr(self, key)
+      if val is not None:
+        slice_dict[key] = val[..., idx]
+    return slice_dict
+
+
 class MEQConfig(base.GeometryConfigBase):
-  """Pydantic model for the MEQ geometry.
+  """Loads MEQ (e.g., FBT, FGE, or LIUQE) geometry files or in-memory dicts.
+
+  Note that `<B^2>` and `<1/B^2>` are not currently supported by MEQ geometry
+  and are approximated using analytical circular-geometry expressions, which may
+  introduce inaccuracies in neoclassical transport.
 
   Attributes:
-    geometry_type: Always set to 'meq'.
-    geometry_directory: Optionally overrides the default geometry directory.
-    LY_object: Sets a single-slice MEQ LY geometry file to be loaded, or
-      alternatively a dict directly containing a single time slice of LY data.
-    LY_bundle_object: Sets the MEQ LY bundle file to be loaded, corresponding to
-      multiple time-slices, or alternatively a dict directly containing all
-      time-slices of LY data.
-    LY_to_torax_times: Sets the TORAX simulation times corresponding to the
-      individual slices in the MEQ LY bundle file. If not provided, then the
-      times are taken from the LY_bundle_file itself. The length of the array
-      must match the number of slices in the bundle.
-    L_object: Sets the MEQ L geometry file loaded, or alternatively a dict
-      directly containing the L data.
-    divertor_domain: The divertor domain (upper or lower null) for extracting
-      edge quantities when diverted.
+    model_name: Always set to `'meq'`.
+    L: MEQ L data object, or mapping of timestamp to MEQ L data object.
+    LY: MEQ LY slice, bundle, or mapping of timestamp to MEQ LY slice.
+    LY_to_torax_times: TORAX simulation times [s] corresponding to the
+      individual slices in `LY_bundle_object`. If not provided, the times are
+      taken from the bundle itself. Its length must match the number of slices
+      in the bundle.
+    divertor_domain: Selects the divertor domain used to extract edge geometry
+      parameters for the :ref:`extended_lengyel` edge model when diverted.
+      Either `'lower_null'` or `'upper_null'`.
+
+  Note:
+    The constructor also accepts inputs normalized into L and LY:
+      geometry_directory: Directory containing geometry files.
+      L_object: Single MEQ L geometry file path or dict.
+      LY_object: Single-slice MEQ LY geometry file path or dict.
+      LY_bundle_object: Multi-slice MEQ LY bundle file path or dict.
   """
 
   @property
@@ -82,85 +421,294 @@ class MEQConfig(base.GeometryConfigBase):
   ) -> frozenset[trapped_fraction_lib.TrappedFractionSource]:
     return frozenset({trapped_fraction_lib.TrappedFractionSource.SAUTER})
 
-  geometry_type: Annotated[Literal['meq'], torax_pydantic.TIME_INVARIANT] = (
-      'meq'
+  model_name: Annotated[
+      Literal['meq'],
+      torax_pydantic.TIME_INVARIANT,
+      torax_pydantic.JAX_STATIC,
+  ] = 'meq'
+  L: MEQLData | dict[torax_pydantic.Second, MEQLData]
+  LY: MEQLYSlice | MEQLYBundle | dict[torax_pydantic.Second, MEQLYSlice]
+  LY_to_torax_times: torax_pydantic.NumpyArray1D | None = None
+  divertor_domain: Annotated[DivertorDomain, torax_pydantic.JAX_STATIC] = (
+      DivertorDomain.LOWER_NULL
   )
-  geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
-      None
-  )
-  LY_object: LY_OBJECT_TYPE | None = None
-  LY_bundle_object: LY_OBJECT_TYPE | None = None
-  LY_to_torax_times: torax_pydantic.NumpyArray | None = None
-  L_object: LY_OBJECT_TYPE | None = None
-  divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL
+
+  def __init__(
+      self,
+      L: MEQLData | dict[torax_pydantic.Second, MEQLData] | None = None,
+      LY: (
+          MEQLYSlice
+          | MEQLYBundle
+          | dict[torax_pydantic.Second, MEQLYSlice]
+          | None
+      ) = None,
+      L_object: Any = None,
+      LY_object: Any = None,
+      LY_bundle_object: Any = None,
+      geometry_directory: str | None = None,
+      **kwargs: Any,
+  ):
+    data: dict[str, Any] = {}
+    if L is not None:
+      data['L'] = L
+    if LY is not None:
+      data['LY'] = LY
+    if L_object is not None:
+      data['L_object'] = L_object
+    if LY_object is not None:
+      data['LY_object'] = LY_object
+    if LY_bundle_object is not None:
+      data['LY_bundle_object'] = LY_bundle_object
+    if geometry_directory is not None:
+      data['geometry_directory'] = geometry_directory
+    data.update(kwargs)
+    super().__init__(**data)
+
+  @property
+  def LY_bundle_object(self) -> MEQLYBundle | None:
+    return self.LY if isinstance(self.LY, MEQLYBundle) else None
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    # Remove unused fields from the data dict that come from file loading.
-    for obj in ('L_object', 'LY_object', 'LY_bundle_object'):
-      if obj in data and isinstance(data[obj], dict):
-        for k in ('__header__', '__version__', '__globals__', 'shot'):
-          data[obj].pop(k, None)
-        empty_keys = [
-            k
-            for k, v in data[obj].items()
-            if isinstance(v, np.ndarray) and v.size == 0
-        ]
-        for k in empty_keys:
-          data[obj].pop(k, None)
-    return data
+  def _conform_data(cls, data: Any) -> Any:
+    if not isinstance(data, Mapping):
+      return data
+    data = dict(data)
 
-  @pydantic.model_validator(mode='after')
-  def _validate_model(self) -> Self:
-    if self.LY_bundle_object is not None and self.LY_object is not None:
+    # 2. Check conflicting arguments
+    if 'LY_bundle_object' in data and 'LY_object' in data:
       raise ValueError(
           "Cannot use 'LY_object' together with a bundled MEQ file"
       )
-    if self.LY_to_torax_times is not None and self.LY_bundle_object is None:
+    if 'LY' in data and ('LY_object' in data or 'LY_bundle_object' in data):
       raise ValueError(
-          'LY_bundle_object must be set when using LY_to_torax_times.'
+          "Cannot specify both 'LY' and 'LY_object'/'LY_bundle_object'"
       )
+
+    geo_dir = data.pop('geometry_directory', None)
+
+    # 3. Resolve L_object
+    if 'L_object' in data:
+      l_val = data.pop('L_object')
+      if isinstance(l_val, (str, pathlib.Path)):
+        data['L'] = geometry_loader.load_geo_data(
+            geo_dir, str(l_val), geometry_loader.GeometrySource.MEQ
+        )
+      elif isinstance(l_val, Mapping):
+        if 'pQ' in l_val:
+          data['L'] = dict(l_val)
+        else:
+          loaded_l = {}
+          for t, val in l_val.items():
+            if isinstance(val, (str, pathlib.Path)):
+              val = geometry_loader.load_geo_data(
+                  geo_dir, str(val), geometry_loader.GeometrySource.MEQ
+              )
+            loaded_l[float(t)] = val
+          data['L'] = loaded_l
+      else:
+        raise ValueError(
+            'L_object must be a string (file path) or a dictionary.'
+        )
+
+    # 4. Resolve LY_object
+    if 'LY_object' in data:
+      ly_val = data.pop('LY_object')
+      if isinstance(ly_val, (str, pathlib.Path)):
+        data['LY'] = geometry_loader.load_geo_data(
+            geo_dir, str(ly_val), geometry_loader.GeometrySource.MEQ
+        )
+      elif isinstance(ly_val, Mapping):
+        if 'TQ' in ly_val:
+          data['LY'] = dict(ly_val)
+        else:
+          loaded_ly = {}
+          for t, val in ly_val.items():
+            if isinstance(val, (str, pathlib.Path)):
+              val = geometry_loader.load_geo_data(
+                  geo_dir, str(val), geometry_loader.GeometrySource.MEQ
+              )
+            loaded_ly[float(t)] = val
+          data['LY'] = loaded_ly
+      else:
+        raise ValueError(
+            'LY_object must be a string (file path) or a dictionary.'
+        )
+
+    # 5. Resolve LY_bundle_object
+    if 'LY_bundle_object' in data:
+      ly_b_val = data.pop('LY_bundle_object')
+      if isinstance(ly_b_val, (str, pathlib.Path)):
+        data['LY'] = geometry_loader.load_geo_data(
+            geo_dir, str(ly_b_val), geometry_loader.GeometrySource.MEQ
+        )
+      elif isinstance(ly_b_val, Mapping):
+        data['LY'] = dict(ly_b_val)
+      else:
+        raise ValueError(
+            'LY_bundle_object must be a string (file path) or a dictionary.'
+        )
+      if isinstance(data['LY'], Mapping) and not isinstance(
+          data['LY'], (MEQLYSlice, MEQLYBundle)
+      ):
+        data['LY'] = MEQLYBundle.model_validate(data['LY'])
+
+    # Convert L to MEQLData if Mapping
+    if (
+        'L' in data
+        and isinstance(data['L'], Mapping)
+        and not isinstance(data['L'], MEQLData)
+    ):
+      if 'pQ' in data['L']:
+        data['L'] = MEQLData.model_validate(data['L'])
+      else:
+        data['L'] = {
+            float(t): MEQLData.model_validate(v) for t, v in data['L'].items()
+        }
+
+    # Convert LY if Mapping
+    if (
+        'LY' in data
+        and isinstance(data['LY'], Mapping)
+        and not isinstance(data['LY'], (MEQLYSlice, MEQLYBundle))
+    ):
+      if 'TQ' in data['LY']:
+        if _is_bundle_data(data['LY']):
+          data['LY'] = MEQLYBundle.model_validate(data['LY'])
+        else:
+          data['LY'] = MEQLYSlice.model_validate(data['LY'])
+      else:
+        data['LY'] = {
+            float(t): MEQLYSlice.model_validate(v)
+            for t, v in data['LY'].items()
+        }
+
+    return data
+
+  def _resolve_l_for_slice(self, t: float | None = None) -> Mapping[str, Any]:
+    if isinstance(self.L, MEQLData):
+      return self.L.to_l_dict()
+    if isinstance(self.L, Mapping):
+      if not self.L:
+        return {}
+      if t is not None and t in self.L:
+        val = self.L[t]
+      else:
+        val = next(iter(self.L.values()))
+      return val.to_l_dict() if isinstance(val, MEQLData) else val
+    return self.L
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.LY_to_torax_times is not None:
+      if not isinstance(self.LY, MEQLYBundle):
+        raise ValueError(
+            'LY_bundle_object must be set when using LY_to_torax_times.'
+        )
+      if len(self.LY_to_torax_times) != len(self.LY.t):
+        raise ValueError(
+            'Length of LY_to_torax_times must match length of LY bundle data:'
+            f' len(LY_to_torax_times)={len(self.LY_to_torax_times)},'
+            f" len(LY_bundle['t'])={len(self.LY.t)}"
+        )
+
+    # Check pQ length matching
+    if isinstance(self.L, MEQLData):
+      n_psi = len(self.L.pQ)
+      if isinstance(self.LY, MEQLYSlice):
+        if len(self.LY.TQ) != n_psi:
+          raise ValueError(
+              f"Incorrect shape for key 'TQ' in LY data. Expected ({n_psi},),"
+              f' got {self.LY.TQ.shape}.'
+          )
+      elif isinstance(self.LY, MEQLYBundle):
+        if self.LY.TQ.shape[0] != n_psi:
+          raise ValueError(
+              f"Incorrect shape for key 'TQ' in LY data. Expected ({n_psi},"
+              f' {len(self.LY.t)}), got {self.LY.TQ.shape}.'
+          )
+      elif isinstance(self.LY, dict):
+        for t, slice_data in self.LY.items():
+          if len(slice_data.TQ) != n_psi:
+            raise ValueError(
+                f"Incorrect shape for key 'TQ' in LY data at time {t}. Expected"
+                f' ({n_psi},), got {slice_data.TQ.shape}.'
+            )
     return self
 
-  def build_geometry(self) -> standard_geometry.StandardGeometry:
-    intermediates = _from_meq_single_slice(
-        geometry_directory=self.geometry_directory,
-        LY_object=self.LY_object,  # pyrefly: ignore[bad-argument-type]
-        L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
-        face_centers=self.get_face_centers(),
-        hires_factor=self.hires_factor,
-        divertor_domain=self.divertor_domain,
-        trapped_fraction_source=self.trapped_fraction_source,
-    )
-
-    return standard_geometry.build_standard_geometry(intermediates)
-
-  # TODO(b/398191165): Remove this branch once the MEQ bundle logic is
-  # redesigned.
-  def build_meq_geometry_provider_from_bundle(
+  def _build_geometry(
       self,
-      calc_Phi_b_dot: bool,
-  ) -> geometry_provider.GeometryProvider:
-    """Builds a `GeometryProvider` from the input config."""
-    intermediates = _from_meq_bundle(
-        geometry_directory=self.geometry_directory,
-        LY_bundle_object=self.LY_bundle_object,  # pyrefly: ignore[bad-argument-type]
-        L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
-        LY_to_torax_times=self.LY_to_torax_times,
-        face_centers=self.get_face_centers(),
-        hires_factor=self.hires_factor,
-        divertor_domain=self.divertor_domain,
-        trapped_fraction_source=self.trapped_fraction_source,
-    )
-    geometries = {
-        t: standard_geometry.build_standard_geometry(intermediates[t])
-        for t in intermediates
-    }
-    return standard_geometry.StandardGeometryProvider.create_provider(
-        geometries,
-        calc_Phi_b_dot=calc_Phi_b_dot,
-    )
+  ) -> (
+      standard_geometry.StandardGeometry
+      | Mapping[float, standard_geometry.StandardGeometry]
+  ):
+    if isinstance(self.LY, MEQLYSlice):
+      if self.LY_to_torax_times is not None:
+        raise ValueError('LY_to_torax_times can only be used with MEQLYBundle.')
+      intermediates = _from_meq(
+          LY=self.LY.to_slice_dict(),
+          L=self._resolve_l_for_slice(),
+          face_centers=self.get_face_centers(),
+          hires_factor=self.hires_factor,
+          divertor_domain=self.divertor_domain,
+          trapped_fraction_source=self.trapped_fraction_source,
+      )
+      return standard_geometry.build_standard_geometry(intermediates)
+    elif isinstance(self.LY, MEQLYBundle):
+      times = (
+          self.LY_to_torax_times
+          if self.LY_to_torax_times is not None
+          else self.LY.t
+      )
+      if len(times) != len(self.LY.t):
+        raise ValueError(
+            'Length of LY_to_torax_times must match length of LY bundle data:'
+            f' len(LY_to_torax_times)={len(times)},'
+            f" len(LY_bundle['t'])={len(self.LY.t)}"
+        )
+      l_dict = self._resolve_l_for_slice()
+      geos = {}
+      for idx in range(len(times)):
+        slice_dict = self.LY.get_slice_dict(idx)
+        intermediates = _from_meq(
+            LY=slice_dict,
+            L=l_dict,
+            face_centers=self.get_face_centers(),
+            hires_factor=self.hires_factor,
+            divertor_domain=self.divertor_domain,
+            trapped_fraction_source=self.trapped_fraction_source,
+        )
+        geos[float(times[idx])] = standard_geometry.build_standard_geometry(
+            intermediates
+        )
+      if len(geos) == 1:
+        return next(iter(geos.values()))
+      return geos
+    elif isinstance(self.LY, dict):
+      geos = {}
+      for t in sorted(self.LY.keys()):
+        ly_slice = self.LY[t]
+        ly_dict = (
+            ly_slice.to_slice_dict()
+            if isinstance(ly_slice, MEQLYSlice)
+            else ly_slice
+        )
+        intermediates = _from_meq(
+            LY=ly_dict,
+            L=self._resolve_l_for_slice(t),
+            face_centers=self.get_face_centers(),
+            hires_factor=self.hires_factor,
+            divertor_domain=self.divertor_domain,
+            trapped_fraction_source=self.trapped_fraction_source,
+        )
+        geos[float(t)] = standard_geometry.build_standard_geometry(
+            intermediates
+        )
+      if len(geos) == 1:
+        return next(iter(geos.values()))
+      return geos
+    else:
+      raise TypeError(f'Unsupported LY type: {type(self.LY)}')
 
 
 def _from_meq_single_slice(
@@ -284,7 +832,7 @@ def _from_meq_bundle(
   Returns:
     A mapping from user-provided (or inferred) times to
     StandardGeometryIntermediates instances based on the input slices. This
-    can then be used to build a StandardGeometryProvider.
+    can then be used to build StandardGeometry instances.
   """
 
   if isinstance(LY_bundle_object, str):

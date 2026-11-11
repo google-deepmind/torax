@@ -29,22 +29,44 @@ from torax._src.transport_model import runtime_params
 
 # pylint: disable=invalid-name
 class ComponentTransportConfigBase(torax_pydantic.ConfigBase):
-  """Base model holding parameters common to all transport models.
+  """Base model holding parameters common to all component transport models.
 
   Attributes:
-    rho_min: normalized radius above which this model is applied.
-    rho_max: normalized radius below which this model is applied.
-    disable_chi_i: If True, sets the ion heat conductivity output to zero.
-    disable_chi_e: If True, sets the electron heat conductivity output to zero.
-    disable_D_e: If True, sets the electron diffusivity output to zero.
-    disable_V_e: If True, sets the electron convection output to zero.
-    fast_ion_stabilization: If True, applies fast ion stabilization.
-    fast_ion_stabilization_model: Fast ion stabilization model config.
-    fast_ion_stabilization_multiplier: Fast ion stabilization multiplier.
-    merge_mode: Defines how transport coefficients are combined within a
-      TransportModel. 'add' (default) adds to the accumulated value. 'overwrite'
-      overwrites the previous value in this model's valid domain and prevents
-      subsequent 'add' models in the sequence from modifying this region.
+    rho_min: Normalized radius $rho_norm$ above which this transport model is
+      applied. For `rho_min > 0`, the model is active in the range `rho_min <
+      rho <= rho_max`; for `rho_min == 0`, it is active in `rho_min <= rho <=
+      rho_max`. `rho_min` and `rho_max` must share the same interpolation mode
+      so that `rho_min < rho_max` holds at all times.
+    rho_max: Normalized radius $rho_norm$ below which this transport model is
+      applied. `rho_min` and `rho_max` must share the same interpolation mode so
+      that `rho_min < rho_max` holds at all times.
+    disable_chi_i: If `True`, disables contribution from ion heat conductivity
+      `chi_i` to the combined transport coefficients.
+    disable_chi_e: If `True`, disables contribution from electron heat
+      conductivity `chi_e` to the combined transport coefficients.
+    disable_D_e: If `True`, disables contribution from electron diffusivity
+      `D_e` to the combined transport coefficients.
+    disable_V_e: If `True`, disables contribution from electron convection `V_e`
+      to the combined transport coefficients.
+    fast_ion_stabilization: If `True`, applies a fast ion stabilization
+      correction to the $R_over_L_Ti$ input of quasilinear transport models
+      (QLKNN, TGLFNN, QuaLiKiz). Predicts an ITG threshold upshift factor from
+      fast ion parameters ($s_hat$, $q$, $n_fi / n_e$, $T_fi / T_e$,
+      $R_over_L_Tfi$) and divides the input $R_over_L_Ti$ by this factor. For
+      multiple fast ion species, the product of per-species factors is used.
+      Requires `numerics.enable_fast_ions` to be `True`.
+    fast_ion_stabilization_model: Dictionary mapping fast ion species names
+      (e.g., `'H'`, `'He3'`) to a registered fast ion stabilization model name
+      (e.g., `'fast_ion_H_v1'`) or file path to a `.fistab` model file. If empty
+      or omitted for a species, the default model for that species is used.
+    fast_ion_stabilization_multiplier: Multiplier applied to the correction part
+      of the fast ion stabilization factor before modifying $R_over_L_Ti$. The
+      default of `2.0` accounts for stronger stabilization in full gyrokinetic
+      simulations compared to the QuaLiKiz-based surrogate model.
+    merge_mode: Combination mode for this component inside `TransportConfig`:
+      `'add'` (default, adds to the accumulated value in regions not locked by
+      an overwrite model) or `'overwrite'` (replaces and locks enabled transport
+      channels in this model's active radial region).
   """
 
   rho_min: torax_pydantic.UnitIntervalTimeVaryingScalar = (
@@ -101,6 +123,7 @@ class ComponentTransportConfigBase(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.ComponentRuntimeParams:
+    """Builds the runtime parameters for the transport model at time `t`."""
     return runtime_params.ComponentRuntimeParams(
         fast_ion_stabilization=self.fast_ion_stabilization.get_value(t),
         fast_ion_stabilization_model=tuple(

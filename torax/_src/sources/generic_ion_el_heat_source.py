@@ -14,20 +14,20 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -36,9 +36,9 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
-  gaussian_width: array_typing.FloatScalar
-  gaussian_location: array_typing.FloatScalar
-  P_total: array_typing.FloatScalar
+  gaussian_width: array_typing.FloatScalar | None
+  gaussian_location: array_typing.FloatScalar | None
+  P_total: array_typing.FloatScalar | None
   electron_heat_fraction: array_typing.FloatScalar
   absorption_fraction: array_typing.FloatScalar
 
@@ -48,21 +48,20 @@ class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
   SOURCE_ID: ClassVar[str] = 'generic_heat'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_ION,
-      source.AffectedCoreProfile.TEMP_EL,
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
 
   def _get_model_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Computes Gaussian ion/electron heat source terms.
 
     Does not modify source_state; returns it unchanged.
@@ -70,20 +69,31 @@ class GenericIonElectronHeatSource(source.Source):
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_i and power_density_e profiles
+          populated.
+        - SourceState for this source.
     """
-    del core_profiles, calculated_source_profiles, conductivity, psidot
+    del solver_profiles
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
+    if source_params.gaussian_width is None:
+      raise ValueError(
+          'GenericIonElectronHeatSource requires `gaussian_width` to be set.'
+      )
+    if source_params.gaussian_location is None:
+      raise ValueError(
+          'GenericIonElectronHeatSource requires `gaussian_location` to be set.'
+      )
+    if source_params.P_total is None:
+      raise ValueError(
+          'GenericIonElectronHeatSource requires `P_total` to be set.'
+      )
     absorbed_power = source_params.P_total * source_params.absorption_fraction
     profile = formulas.gaussian_profile(
         geo,
@@ -94,7 +104,9 @@ class GenericIonElectronHeatSource(source.Source):
     source_ion = profile * (1 - source_params.electron_heat_fraction)
     source_el = profile * source_params.electron_heat_fraction
     return (
-        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        core_sources.SourceOutput(
+            power_density_i=source_ion, power_density_e=source_el
+        ),
         source_state,
     )
 
@@ -103,31 +115,43 @@ class GenericIonElHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
-    gaussian_width: Gaussian width in normalized radial coordinate
-    gaussian_location: Source Gaussian central location (in normalized r)
-    P_total: Total heating: high default based on total ITER power including
-      alphas
-    electron_heat_fraction: Electron heating fraction
+    model_name: Name of the generic heat model (`'gaussian'`).
+    gaussian_width: Gaussian width of the heat source profile [$rho_norm$].
+    gaussian_location: Gaussian center of the heat source profile [$rho_norm$].
+    P_total: Total source heating power [W]. High default is based on total ITER
+      power including alpha heating.
+    electron_heat_fraction: Fraction of absorbed heating power deposited on
+      electrons (remainder goes to ions).
+    absorption_fraction: Fraction of `P_total` absorbed by the plasma.
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.25)
-  )
-  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      120e6
-  )
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = None
+  P_total: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
   electron_heat_fraction: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.P_total is None:
+        raise ValueError("P_total must be provided when mode is 'model_based'.")
+      if self.gaussian_width is None:
+        raise ValueError(
+            "gaussian_width must be provided when mode is 'model_based'."
+        )
+      if self.gaussian_location is None:
+        raise ValueError(
+            "gaussian_location must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -136,9 +160,17 @@ class GenericIonElHeatSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        gaussian_width=self.gaussian_width.get_value(t),
-        gaussian_location=self.gaussian_location.get_value(t),
-        P_total=self.P_total.get_value(t),
+        gaussian_width=(
+            None
+            if self.gaussian_width is None
+            else self.gaussian_width.get_value(t)
+        ),
+        gaussian_location=(
+            None
+            if self.gaussian_location is None
+            else self.gaussian_location.get_value(t)
+        ),
+        P_total=(None if self.P_total is None else self.P_total.get_value(t)),
         electron_heat_fraction=self.electron_heat_fraction.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )

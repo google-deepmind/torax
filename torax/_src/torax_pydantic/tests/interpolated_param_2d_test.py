@@ -21,7 +21,6 @@ from jax import numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import jax_utils
-from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import interpolated_param_2d
 import xarray as xr
@@ -429,7 +428,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     m2 = Test2(
         x=m1, y=interpolated_param_2d.TimeVaryingArray.model_validate(2.0), z=5
     )
-    grid = circular_geometry.CircularConfig().build_geometry().torax_mesh
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(25)
 
     with self.subTest('set_grid_success'):
       interpolated_param_2d.set_grid(m2, grid)
@@ -457,7 +456,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     array_1 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
     array_2 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
 
-    grid = circular_geometry.CircularConfig().build_geometry().torax_mesh
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(25)
     interpolated_param_2d.set_grid(array_1, grid)
     interpolated_param_2d.set_grid(array_2, grid)
 
@@ -487,8 +486,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -537,8 +535,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -647,8 +644,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     tva = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(tva, grid=grid)
 
     new_tva = tva.update(new_values)
@@ -672,8 +668,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     tva = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(tva, grid=grid)
 
     @jax.jit
@@ -722,8 +717,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
     data = {0.0: {0.9: 1.5, (0.5, 0.7): 3.0}}
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
     # Cell centers at 0.125, 0.375, 0.625, 0.875
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     # 0.9 is closest to 0.875 (idx 3).
@@ -735,8 +729,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
     data = {0.0: {(0.5, 0.7): {0.5: 1.0, 0.7: 2.0}}}
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
     # Cell centers at 0.125, 0.375, 0.625, 0.875
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     # (0.5, 0.7) covers 0.625 (idx 2).
@@ -750,8 +743,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
         1.0: {(0.5, 0.7): {0.5: 2.0, 0.7: 4.0}},
     }
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     expected_t0 = np.array([0.0, 0.0, 1.625, 0.0])
@@ -770,8 +762,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
         }
     }
     stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
-    face_centers = interpolated_param_2d.get_face_centers(4)
-    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(4)
     interpolated_param_2d.set_grid(stva, grid=grid)
 
     @jax.jit
@@ -843,183 +834,44 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
           },
       })
 
+  @parameterized.parameters(
+      ('STEP', 'piecewise_linear'),
+      ('PIECEWISE_LINEAR', 'piecewise_linear'),
+      ('piecewise_linear', 'STEP'),
+      ('piecewise_linear', 'PIECEWISE_LINEAR'),
+  )
+  def test_rejects_uppercase_interpolation_mode(
+      self, time_mode: str, rho_mode: str
+  ):
+    with self.assertRaises(pydantic.ValidationError):
+      interpolated_param_2d.TimeVaryingArray.model_validate((
+          {0.0: {0.0: 1.0, 1.0: 2.0}},
+          {
+              TIME_INTERPOLATION_MODE: time_mode,
+              RHO_INTERPOLATION_MODE: rho_mode,
+          },
+      ))
 
-class NonpositiveIntervalsTest(parameterized.TestCase):
 
-  def _make_profile(self, time_values, mode='piecewise_linear'):
-    """Build a TimeVaryingArray from {time: boundary_value} dict.
+class Grid1DTest(parameterized.TestCase):
 
-    Creates a two-point spatial profile [0.0, 1.0] at each time, where
-    rho=0.0 is always 0.01 (positive) and rho=1.0 is set to
-    ``boundary_value``.
-
-    Args:
-      time_values: Dict mapping time -> boundary_value.
-      mode: Time interpolation mode.
-
-    Returns:
-      A TimeVaryingArray instance.
-    """
-    times = sorted(time_values.keys())
-    rho = np.array([0.0, 1.0])
-    values = np.array([[0.01, time_values[t]] for t in times])
-    input_data = (
-        (np.array(times), rho, values),
-        {
-            TIME_INTERPOLATION_MODE: mode,
-            RHO_INTERPOLATION_MODE: 'piecewise_linear',
-        },
-    )
-    return interpolated_param_2d.TimeVaryingArray.model_validate(input_data)
-
-  def _make_interior_profile(self, time_values, mode='piecewise_linear'):
-    """Build a TimeVaryingArray with a zero in the interior, not the boundary.
-
-    Creates a three-point spatial profile [0.0, 0.5, 1.0] at each time,
-    where rho=0.0 and rho=1.0 are always positive, and rho=0.5 is set to
-    ``interior_value``.
-
-    Args:
-      time_values: Dict mapping time -> interior_value at rho=0.5.
-      mode: Time interpolation mode.
-
-    Returns:
-      A TimeVaryingArray instance.
-    """
-    times = sorted(time_values.keys())
-    rho = np.array([0.0, 0.5, 1.0])
-    values = np.array([[0.01, time_values[t], 0.01] for t in times])
-    input_data = (
-        (np.array(times), rho, values),
-        {
-            TIME_INTERPOLATION_MODE: mode,
-            RHO_INTERPOLATION_MODE: 'piecewise_linear',
-        },
-    )
-    return interpolated_param_2d.TimeVaryingArray.model_validate(input_data)
-
-  # --- Piecewise linear (default) ---
-
-  def test_all_positive_linear(self):
-    profile = self._make_profile({0.0: 0.01, 5.0: 0.01})
-    self.assertEqual(profile.nonpositive_intervals(), [])
-
-  def test_all_zero_linear(self):
-    profile = self._make_profile({0.0: 0.0, 5.0: 0.0})
-    # (-inf, 0) + (0, 5) + (5, inf) merged to (-inf, inf).
-    self.assertEqual(
-        profile.nonpositive_intervals(), [(float('-inf'), float('inf'))]
+  @parameterized.parameters(4, 10)
+  def test_uniform_from_n_rho_matches_get_face_centers(self, n_rho: int):
+    grid = interpolated_param_2d.Grid1D.uniform_from_n_rho(n_rho)
+    self.assertEqual(grid.nx, n_rho)
+    np.testing.assert_allclose(
+        grid.face_centers, interpolated_param_2d.get_face_centers(n_rho)
     )
 
-  def test_single_zero_point_linear(self):
-    profile = self._make_profile({0.0: 0.01, 3.0: 0.0, 6.0: 0.01})
-    self.assertEqual(profile.nonpositive_intervals(), [(3.0, 3.0)])
+  def test_uniform_from_n_rho_less_than_four_raises(self):
+    with self.assertRaises(pydantic.ValidationError):
+      interpolated_param_2d.Grid1D.uniform_from_n_rho(3)
 
-  def test_zero_at_start_linear(self):
-    profile = self._make_profile({0.0: 0.0, 5.0: 0.01})
-    self.assertEqual(profile.nonpositive_intervals(), [(float('-inf'), 0.0)])
-
-  def test_zero_at_end_linear(self):
-    profile = self._make_profile({0.0: 0.01, 5.0: 0.0})
-    self.assertEqual(profile.nonpositive_intervals(), [(5.0, float('inf'))])
-
-  def test_negative_value_linear(self):
-    # rho=[0, 1], values at rho=1: 0.01 -> -0.5 -> 0.01
-    # Zero crossing into negative: t = 0 + 3 * 0.01/0.51 ≈ 0.0588
-    # Zero crossing back to positive: t = 3 + 3 * 0.5/0.51 ≈ 5.9412
-    profile = self._make_profile({0.0: 0.01, 3.0: -0.5, 6.0: 0.01})
-    intervals = profile.nonpositive_intervals()
-    self.assertLen(intervals, 1)
-    self.assertAlmostEqual(intervals[0][0], 3 * 0.01 / 0.51)
-    self.assertAlmostEqual(intervals[0][1], 3 + 3 * 0.5 / 0.51)
-
-  def test_interior_zero_linear(self):
-    # rho=[0, 0.5, 1], values at rho=0.5: 0.01 -> 0.0 -> 0.01
-    # Zero crossing into zero: t = 0 + 3 * 0.01/0.01 = 3.0
-    # Zero crossing back: t = 3 + 3 * 0.0/0.01 = 3.0
-    profile = self._make_interior_profile({0.0: 0.01, 3.0: 0.0, 6.0: 0.01})
-    self.assertEqual(profile.nonpositive_intervals(), [(3.0, 3.0)])
-
-  def test_nonpositive_at_different_rho_locations(self):
-    # Nonpositive values at different spatial locations across time keys.
-    # rho=[0.25, 0.5, 0.75], t=0: [-1, 10, 3], t=1: [3, 20, -1]
-    # rho=0.25: -1 -> 3, crosses zero at t = 1/(1+3) = 0.25
-    # rho=0.75: 3 -> -1, crosses zero at t = 3/(3+1) = 0.75
-    # Expected: [(-inf, 0.25), (0.75, inf)]
-    rho = np.array([0.25, 0.5, 0.75])
-    input_data = (
-        (np.array([0.0, 1.0]), rho,
-         np.array([[-1.0, 10.0, 3.0], [3.0, 20.0, -1.0]])),
-        {
-            TIME_INTERPOLATION_MODE: 'piecewise_linear',
-            RHO_INTERPOLATION_MODE: 'piecewise_linear',
-        },
-    )
-    profile = interpolated_param_2d.TimeVaryingArray.model_validate(input_data)
-    intervals = profile.nonpositive_intervals()
-    self.assertLen(intervals, 2)
-    self.assertAlmostEqual(intervals[0][0], float('-inf'))
-    self.assertAlmostEqual(intervals[0][1], 0.25)
-    self.assertAlmostEqual(intervals[1][0], 0.75)
-    self.assertAlmostEqual(intervals[1][1], float('inf'))
-
-  def test_different_rho_grids_across_time_keys(self):
-    # Adjacent time keys with different rho grids.
-    # t=0: rho=[0.0, 1.0], values=[0.01, -1.0] (nonpositive at rho=1)
-    # t=1: rho=[0.0, 0.5, 1.0], values=[0.01, 0.01, 0.01] (all positive)
-    # After interpolation onto common grid [0.0, 0.5, 1.0]:
-    #   t=0 values: [0.01, -0.495, -1.0] (interp of [0.01, -1.0])
-    #   t=1 values: [0.01, 0.01, 0.01]
-    # rho=0.5: -0.495 -> 0.01, crosses at t = 0.495/0.505
-    # rho=1.0: -1.0 -> 0.01, crosses at t = 1.0/1.01
-    # Latest left crossing is at rho=1.0: t ~= 0.9901
-    input_data = (
-        {0.0: (np.array([0.0, 1.0]), np.array([0.01, -1.0])),
-         1.0: (np.array([0.0, 0.5, 1.0]), np.array([0.01, 0.01, 0.01]))},
-        {
-            TIME_INTERPOLATION_MODE: 'piecewise_linear',
-            RHO_INTERPOLATION_MODE: 'piecewise_linear',
-        },
-    )
-    profile = interpolated_param_2d.TimeVaryingArray.model_validate(input_data)
-    intervals = profile.nonpositive_intervals()
-    self.assertLen(intervals, 1)
-    self.assertAlmostEqual(intervals[0][0], float('-inf'))
-    self.assertAlmostEqual(intervals[0][1], 1.0 / 1.01, places=4)
-
-  def test_single_time_point_positive(self):
-    profile = self._make_profile({0.0: 0.01})
-    self.assertEqual(profile.nonpositive_intervals(), [])
-
-  def test_single_time_point_zero(self):
-    profile = self._make_profile({0.0: 0.0})
-    self.assertEqual(
-        profile.nonpositive_intervals(), [(float('-inf'), float('inf'))]
-    )
-
-  # --- Step ---
-
-  def test_all_positive_step(self):
-    profile = self._make_profile({0.0: 0.01, 5.0: 0.01}, mode='step')
-    self.assertEqual(profile.nonpositive_intervals(), [])
-
-  def test_zero_then_positive_step(self):
-    profile = self._make_profile({0.0: 0.0, 5.0: 0.01}, mode='step')
-    self.assertEqual(profile.nonpositive_intervals(), [(float('-inf'), 5.0)])
-
-  def test_positive_then_zero_step(self):
-    profile = self._make_profile({0.0: 0.01, 5.0: 0.0}, mode='step')
-    self.assertEqual(profile.nonpositive_intervals(), [(5.0, float('inf'))])
-
-  def test_negative_value_step(self):
-    profile = self._make_profile({0.0: 0.01, 5.0: -1.0}, mode='step')
-    self.assertEqual(profile.nonpositive_intervals(), [(5.0, float('inf'))])
-
-  def test_interior_zero_step(self):
-    profile = self._make_interior_profile(
-        {0.0: 0.01, 3.0: 0.0, 6.0: 0.01}, mode='step'
-    )
-    self.assertEqual(profile.nonpositive_intervals(), [(3.0, 6.0)])
+  def test_from_dict_does_not_mutate_caller_dict(self):
+    data = {'nx': 5}
+    grid = interpolated_param_2d.Grid1D.from_dict(data)
+    self.assertEqual(grid.nx, 5)
+    self.assertEqual(data, {'nx': 5})
 
 
 if __name__ == '__main__':

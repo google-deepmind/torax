@@ -26,7 +26,8 @@ class MHDConfig(torax_pydantic.ConfigBase):
   """Config for MHD models.
 
   Attributes:
-    sawtooth: Config for sawtooth models.
+    sawtooth: Configuration for the sawtooth model. If `None` or omitted, the
+      sawtooth model is disabled.
   """
 
   sawtooth: sawtooth_config.SawtoothConfig | None = pydantic.Field(

@@ -18,8 +18,7 @@ import dataclasses
 from absl.testing import absltest
 import jax
 import numpy as np
-from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
@@ -33,7 +32,7 @@ class _DummySource(icrh_base.IonCyclotronSource):
 
   def _get_model_value(self, *args, **kwargs):
     return (
-        source_profiles.SourceOutput(profiles=()),
+        core_sources.SourceOutput(),
         source_state_lib.SourceState(),
     )
 
@@ -49,30 +48,30 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
 
   source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = _DummyConfig
-  extra_source_config_kwargs = {'minority_species': 'He3'}
+  extra_source_config_kwargs = {'minority_species': 'He3', 'P_total': 10e6}
 
   def test_source_name(self):
     self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_ID, 'icrh')
 
-  def test_affected_core_profiles(self):
+  def test_populated_source_outputs(self):
     expected = (
-        source_lib.AffectedCoreProfile.TEMP_ION,
-        source_lib.AffectedCoreProfile.TEMP_EL,
+        core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+        core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
     )
     self.assertEqual(
-        icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected
+        icrh_base.IonCyclotronSource.POPULATED_SOURCE_OUTPUTS, expected
     )
 
   def test_build_source_returns_correct_type(self):
     """IonCyclotronSourceConfig.build_source returns IonCyclotronSource."""
-    config = _DummyConfig(minority_species='He3')
+    config = _DummyConfig(minority_species='He3', P_total=10e6)
     source = config.build_source()
     self.assertIsInstance(source, icrh_base.IonCyclotronSource)
 
   def test_config_default_values(self):
     """Verify default config values are correct."""
-    config = _DummyConfig(minority_species='He3')
-    np.testing.assert_allclose(config.P_total.get_value(0.0), 10e6)
+    config = _DummyConfig(minority_species='He3', mode='zero')
+    self.assertIsNone(config.P_total)
     np.testing.assert_allclose(
         config.absorption_fraction.get_value(0.0), 1.0
     )

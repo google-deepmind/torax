@@ -13,9 +13,10 @@
 # limitations under the License.
 """Classes for representing an EQDSK geometry."""
 
-import json
+from collections.abc import Mapping
 import logging
-from typing import Annotated, Any, Final, Literal, Self
+import os
+from typing import Annotated, Any, Final, Literal
 
 import contourpy
 import eqdsk
@@ -53,27 +54,97 @@ _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL: Final[int] = 20
 
 
 # pylint: disable=invalid-name
-class EQDSKConfig(base.GeometryConfigBase):
-  """Pydantic model for the EQDSK geometry.
+class EQDSKData(torax_pydantic.ConfigBase):
+  """Container for COCOS-11 normalized EQDSK equilibrium data.
 
   Attributes:
-    cocos: COCOS coordinate convention of the EQDSK file, specified as an
-      integer in the range 1-8 or 11-18 inclusive.
-    geometry_file: Name of the EQDSK file in the geometry directory.
-    eqdsk_object: In-memory EQDSKInterface object.
-    geometry_type: Always set to 'eqdsk'.
-    geometry_directory: Optionally overrides the default geometry directory.
-    n_surfaces: Number of surfaces for which flux surface averages are
+    nx: Number of horizontal (R) grid points.
+    nz: Number of vertical (Z) grid points.
+    xdim: Horizontal dimension of the computational domain [m].
+    zdim: Vertical dimension of the computational domain [m].
+    xcentre: Major radius of the reference vacuum field [m].
+    bcentre: Reference vacuum toroidal magnetic field [T].
+    xgrid1: Minimum major radius coordinate of the grid [m].
+    zmid: Midplane vertical coordinate of the grid [m].
+    xmag: Major radius of the magnetic axis [m].
+    zmag: Vertical coordinate of the magnetic axis [m].
+    psimag: Poloidal flux on the magnetic axis [Wb].
+    psibdry: Poloidal flux at the plasma boundary [Wb].
+    cplasma: Total plasma current [A].
+    fpol: Toroidal field flux function profile F = R * B_phi [m T].
+    pprime: Pressure gradient profile dp/dpsi.
+    ffprime: F * dF/dpsi profile.
+    qpsi: Safety factor profile q(psi).
+    xbdry: Major radius coordinates of the boundary contour [m].
+    zbdry: Vertical coordinates of the boundary contour [m].
+    psi: 2D poloidal flux grid psi(R, Z) [Wb].
+    xlim: Major radius coordinates of the limiter boundary [m] (optional).
+    zlim: Vertical coordinates of the limiter boundary [m] (optional).
+  """
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_eqdsk_data(cls, data: Any) -> Any:
+    if not isinstance(data, Mapping):
+      return data
+    return {k: v for k, v in data.items() if k in cls.model_fields}
+
+  nx: Annotated[int, torax_pydantic.JAX_STATIC]
+  nz: Annotated[int, torax_pydantic.JAX_STATIC]
+  xdim: float
+  zdim: float
+  xcentre: float
+  bcentre: float
+  xgrid1: float
+  zmid: float
+  xmag: float
+  zmag: float
+  psimag: float
+  psibdry: float
+  cplasma: float
+  fpol: torax_pydantic.NumpyArray1D
+  pprime: torax_pydantic.NumpyArray1D
+  ffprime: torax_pydantic.NumpyArray1D
+  qpsi: torax_pydantic.NumpyArray1D
+  xbdry: torax_pydantic.NumpyArray1D
+  zbdry: torax_pydantic.NumpyArray1D
+  psi: torax_pydantic.NumpyArray
+  xlim: torax_pydantic.NumpyArray1D | None = None
+  zlim: torax_pydantic.NumpyArray1D | None = None
+
+
+class EQDSKConfig(base.GeometryConfigBase):
+  """Loads an EQDSK equilibrium file or in-memory `EQDSKInterface` object.
+
+  Traces flux surfaces from the 2D poloidal flux grid and computes the
+  corresponding flux-surface averages.
+
+  Attributes:
+    model_name: Always set to `'eqdsk'`.
+    eqdsk_data: COCOS-11 normalized EQDSK equilibrium data or dict across times.
+    n_surfaces: Number of flux surfaces for which flux-surface averages are
       calculated.
-    last_surface_factor: Multiplication factor of the boundary poloidal flux,
-      used for the contour defining geometry terms at the LCFS on the TORAX
-      grid. Needed to avoid divergent integrations in diverted geometries.
+    last_surface_factor: Multiplication factor in `(0, 1)` applied to the
+      boundary poloidal flux for the contour defining geometry terms at the LCFS
+      on the TORAX grid. Needed to avoid divergent integrations in diverted
+      geometries.
     target_psi_grid_resolution: Desired minimum number of grid points along the
-      R and Z dimensions of the 2D psi grid before generating flux surface
-      contours. If set, the integer refinement factor is calculated dynamically
-      as `ceil(target / min_dim)`, where `target = target_psi_grid_resolution`
-      and `min_dim = min(nx, nz)`, refining both dimensions uniformly. If None,
-      no refinement is performed.
+      $R$ and $Z$ dimensions of the 2D $psi$ grid before generating flux surface
+      contours. Contours are linear between grid points, so for coarse EQDSK
+      grids the flux surfaces near the separatrix can be inaccurate (e.g.,
+      underestimating the plasma current) or fail to close. Refining the grid
+      allows `last_surface_factor` to be closer to `1`. If set, the 2D $(R, Z)$
+      grid is refined (using bicubic spline interpolation of $psi$) by an
+      integer factor `ceil(target_psi_grid_resolution / min(nx, nz))`, refining
+      both dimensions uniformly. If `None`, no refinement is performed. Must be
+      `>= 1` if provided.
+
+  Note:
+    The constructor also accepts inputs normalized into eqdsk_data:
+      geometry_file: File name of an EQDSK file.
+      eqdsk_object: EQDSK dictionary or EQDSKInterface object.
+      geometry_directory: Directory containing the EQDSK file.
+      cocos: COCOS convention of the source file or object (default 11).
   """
 
   @property
@@ -85,72 +156,118 @@ class EQDSKConfig(base.GeometryConfigBase):
         trapped_fraction_lib.TrappedFractionSource.EXACT,
     })
 
-  cocos: torax_pydantic.COCOSInt = ...  # pyrefly: ignore[bad-assignment]
-  geometry_file: str | None = None
-  eqdsk_object: eqdsk.EQDSKInterface | None = None
-  geometry_type: Annotated[Literal['eqdsk'], torax_pydantic.TIME_INVARIANT] = (
-      'eqdsk'
-  )
-  geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
-      None
-  )
-  n_surfaces: pydantic.PositiveInt = 100
-  last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
-  target_psi_grid_resolution: Annotated[int | None, pydantic.Field(ge=1)] = 128
+  model_name: Annotated[
+      Literal['eqdsk'],
+      torax_pydantic.TIME_INVARIANT,
+      torax_pydantic.JAX_STATIC,
+  ] = 'eqdsk'
+  eqdsk_data: EQDSKData | dict[torax_pydantic.Second, EQDSKData]
+  n_surfaces: Annotated[pydantic.PositiveInt, torax_pydantic.JAX_STATIC] = 100
+  last_surface_factor: Annotated[
+      float, pydantic.Field(gt=0.0, le=1.0), torax_pydantic.JAX_STATIC
+  ] = 0.99
+  target_psi_grid_resolution: Annotated[
+      int | None, pydantic.Field(ge=1), torax_pydantic.JAX_STATIC
+  ] = 128
 
-  @pydantic.field_validator('eqdsk_object', mode='before')
+  @pydantic.model_validator(mode='before')
   @classmethod
-  def _eqdskinterface_before_validator(
-      cls,
-      x: eqdsk.EQDSKInterface | dict[str, Any] | None,
-  ) -> eqdsk.EQDSKInterface | None:
-    """Convert input to an EQDSKInterface object or None."""
-    if x is None:
-      return None
-    elif isinstance(x, eqdsk.EQDSKInterface):
-      return x
-    elif isinstance(x, dict):
-      return eqdsk.EQDSKInterface.from_dict(x, no_cocos=True)
-    else:
-      raise ValueError(f'Expected EQDSKInterface or dict, but got {type(x)}')
+  def _before_validator(cls, data: Any) -> Any:
+    if not isinstance(data, Mapping):
+      return data
+    data_dict = dict(data)
+    if 'eqdsk_data' in data_dict:
+      data_dict.pop('geometry_file', None)
+      data_dict.pop('eqdsk_object', None)
+      data_dict.pop('geometry_directory', None)
+      data_dict.pop('cocos', None)
+      return data_dict
 
-  @pydantic.field_serializer('eqdsk_object', return_type=dict[str, Any] | None)
-  @classmethod
-  def _eqdskinterface_serializer(
-      cls, obj: eqdsk.EQDSKInterface | None
-  ) -> dict[str, Any] | None:
-    if obj is None:
-      return None
-    # Use eqdsk library's json_writer to serialize in-memory without disk I/O.
-    json_str = eqdsk.tools.json_writer(obj.to_dict())
-    return json.loads(json_str)
+    geometry_file = data_dict.pop('geometry_file', None)
+    eqdsk_object = data_dict.pop('eqdsk_object', None)
+    geometry_directory = data_dict.pop('geometry_directory', None)
+    cocos = data_dict.pop('cocos', None)
 
-  @pydantic.model_validator(mode='after')
-  def _validate_model(self) -> Self:
-    if self.geometry_file is None and self.eqdsk_object is None:
-      raise ValueError(
-          "Either 'geometry_file' or 'eqdsk_object' must be provided."
-      )
-    if self.geometry_file is not None and self.eqdsk_object is not None:
+    if geometry_file is not None and eqdsk_object is not None:
       raise ValueError(
           "Cannot provide both 'geometry_file' and 'eqdsk_object'."
       )
-    return self
 
-  def build_geometry(self) -> standard_geometry.StandardGeometry:
+    if (
+        geometry_file is None
+        and eqdsk_object is None
+        and 'eqdsk_data' not in data_dict
+    ):
+      raise ValueError(
+          "Either 'geometry_file' or 'eqdsk_object' must be provided."
+      )
+
+    if cocos is None:
+      cocos = 11
+
+    def _process_one_eqdsk(file_or_obj: Any) -> Any:
+      if isinstance(file_or_obj, (str, os.PathLike)):
+        res = geometry_loader.load_geo_data(
+            geometry_dir=geometry_directory,
+            geometry_file=file_or_obj,
+            geometry_source=geometry_loader.GeometrySource.EQDSK,
+            cocos=cocos,
+        )
+      else:
+        obj = file_or_obj
+        if isinstance(obj, dict) and 'xbdry' not in obj:
+          obj = eqdsk.EQDSKInterface.from_dict(obj, no_cocos=True)
+        res = _convert_eqdsk_object_to_cocos11_dict(cocos, obj)
+      res = _enforce_torax_sign_convention(res)
+      _validate_torax_sign_convention(res)
+      return res
+
+    if isinstance(geometry_file, Mapping):
+      data_dict['eqdsk_data'] = {
+          float(t): _process_one_eqdsk(f) for t, f in geometry_file.items()
+      }
+    elif (
+        isinstance(eqdsk_object, Mapping)
+        and not hasattr(eqdsk_object, 'xbdry')
+        and not (isinstance(eqdsk_object, dict) and 'xbdry' in eqdsk_object)
+    ):
+      data_dict['eqdsk_data'] = {
+          float(t): _process_one_eqdsk(obj) for t, obj in eqdsk_object.items()
+      }
+    elif eqdsk_object is not None:
+      data_dict['eqdsk_data'] = _process_one_eqdsk(eqdsk_object)
+    else:
+      assert geometry_file is not None
+      data_dict['eqdsk_data'] = _process_one_eqdsk(geometry_file)
+
+    return data_dict
+
+  def _build_slice_geometry(
+      self, data: EQDSKData
+  ) -> standard_geometry.StandardGeometry:
     intermediates = _construct_intermediates_from_eqdsk(
-        geometry_directory=self.geometry_directory,
-        geometry_file=self.geometry_file,
-        eqdsk_object=self.eqdsk_object,
+        eqdsk_data=data,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
-        cocos=self.cocos,
         n_surfaces=self.n_surfaces,
         last_surface_factor=self.last_surface_factor,
-        trapped_fraction_source=self.trapped_fraction_source,
         target_psi_grid_resolution=self.target_psi_grid_resolution,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     return standard_geometry.build_standard_geometry(intermediates)
+
+  def _build_geometry(
+      self,
+  ) -> (
+      standard_geometry.StandardGeometry
+      | Mapping[float, standard_geometry.StandardGeometry]
+  ):
+    if isinstance(self.eqdsk_data, EQDSKData):
+      return self._build_slice_geometry(self.eqdsk_data)
+    return {
+        float(t): self._build_slice_geometry(data)
+        for t, data in self.eqdsk_data.items()
+    }
 
 
 def _is_closed(contour: np.ndarray) -> bool:
@@ -223,9 +340,9 @@ def _select_contour_enclosing_magnetic_axis(
   magnetic axis.
 
   Args:
-    contours: Contour lines from `contourpy` at a single psi level, each an
-      (N, 2) array of (R, Z) vertices. Closed lines repeat their first vertex at
-      the end.
+    contours: Contour lines from `contourpy` at a single psi level, each an (N,
+      2) array of (R, Z) vertices. Closed lines repeat their first vertex at the
+      end.
     r_axis: R coordinate of the magnetic axis.
     z_axis: Z coordinate of the magnetic axis.
 
@@ -244,7 +361,7 @@ def _select_contour_enclosing_magnetic_axis(
   ]
   if len(enclosing_contours) > 1:
     raise ValueError(
-        f'Expected at most one closed contour enclosing the magnetic axis'
+        'Expected at most one closed contour enclosing the magnetic axis'
         f' (R={r_axis}, Z={z_axis}), but found {len(enclosing_contours)}.'
     )
   return enclosing_contours[0] if enclosing_contours else None
@@ -280,18 +397,16 @@ def _line_elements(r: np.ndarray, z: np.ndarray) -> np.ndarray:
 
 
 def _construct_intermediates_from_eqdsk(
-    geometry_directory: str | None,
-    geometry_file: str | None,
-    eqdsk_object: eqdsk.EQDSKInterface | None,
-    hires_factor: int,
+    *,
+    eqdsk_data: EQDSKData,
     face_centers: np.ndarray,
+    hires_factor: int,
     n_surfaces: int,
     last_surface_factor: float,
-    cocos: int,
+    target_psi_grid_resolution: int | None,
     trapped_fraction_source: (
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
-    target_psi_grid_resolution: int | None = None,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -300,32 +415,25 @@ def _construct_intermediates_from_eqdsk(
   geometry 2D psi mesh.
 
   Args:
-    geometry_directory: Directory where to find the EQDSK file describing the
-      magnetic geometry. If None, then it defaults to another dir. See
-      implementation.
-    geometry_file: EQDSK file name. Only used if eqdsk_object is None.
-    eqdsk_object: EQDSKInterface object. If None, then the geometry file is
-      loaded from the geometry directory.
+    eqdsk_data: EQDSKData or dictionary in COCOS-11.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
-    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     n_surfaces: Number of surfaces for which flux surface averages are
       calculated.
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
-    cocos: COCOS convention of the EQDSK file, specified as an integer between
-      1-8 or 11-18 inclusive.
-    trapped_fraction_source: Selects how the effective trapped particle fraction
-      is computed; see `trapped_fraction.TrappedFractionSource`.
     target_psi_grid_resolution: Desired minimum number of grid points along the
       R and Z dimensions of the 2D psi grid before generating flux surface
       contours. If set, the grid is refined by `ceil(target / min_dim)`, where
       `target = target_psi_grid_resolution` and `min_dim = min(nx, nz)`,
       refining both dimensions uniformly. If None, no refinement is performed.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
-    A StandardGeometryIntermediates instance based on the input file or object.
+    A StandardGeometryIntermediates instance based on the input data.
     This can then be used to build a StandardGeometry by passing to
     `build_standard_geometry`.
   """
@@ -336,67 +444,37 @@ def _construct_intermediates_from_eqdsk(
     x_shifted = np.roll(x, -1)
     return 0.5 * np.abs(np.sum(x * z_shifted - z * x_shifted))
 
-  # --------------------------- #
-  # ---- 1. Load the eqdsk ---- #
-  # --------------------------- #
-  if cocos in [2, 4, 6, 8, 12, 14, 16, 18]:
-    logging.warning(
-        'User-specified COCOS %s for EQDSK file has a (R, Z, phi)'
-        ' coordinate system (sigma_RphiZ = -1), but the EQDSK format'
-        ' specifies a (R, phi, Z) coordinate system (sigma_RphiZ = +1). This'
-        ' may result in unexpected behaviour.',
-        cocos,
-    )
-  if eqdsk_object is not None:
-    eq_dict = _convert_eqdsk_object_to_cocos11_dict(cocos, eqdsk_object)
-  elif geometry_file is not None:
-    eq_dict = geometry_loader.load_geo_data(
-        geometry_dir=geometry_directory,
-        geometry_file=geometry_file,
-        geometry_source=geometry_loader.GeometrySource.EQDSK,
-        cocos=cocos,
-    )
-  else:
-    raise ValueError(
-        'Either geometry_file or eqdsk_object must be provided to build EQDSK'
-        ' geometry.'
-    )
-
-  # Check TORAX sign convention.
-  eq_dict = _enforce_torax_sign_convention(eq_dict)
-  _validate_torax_sign_convention(eq_dict)  # pyrefly: ignore[bad-argument-type]
-
   # Reference geometry terms
   # TODO(b/375696414): deal with updown asymmetric cases.
   # R_major taken as Rgeo (LCFS R_major)
-  R_major = (eq_dict['xbdry'].max() + eq_dict['xbdry'].min()) / 2.0
-  a_minor = (eq_dict['xbdry'].max() - eq_dict['xbdry'].min()) / 2.0
+  R_major = (eqdsk_data.xbdry.max() + eqdsk_data.xbdry.min()) / 2.0
+  a_minor = (eqdsk_data.xbdry.max() - eqdsk_data.xbdry.min()) / 2.0
   # Vacuum toroidal magnetic field at R_major. EQDSK vacuum field, bcentre, is
   # defined at an arbitrary reference radius, xcentre. To get B at R_major,
   # use B_vacuum ∝ 1/R.
 
   # See EQDSKInterface in https://github.com/Fusion-Power-Plant-Framework/eqdsk
-  B_0 = eq_dict['bcentre'] * eq_dict['xcentre'] / R_major
-  Raxis = float(eq_dict['xmag'])
-  Zaxis = float(eq_dict['zmag'])
-  Btor_axis = eq_dict['fpol'][0] / eq_dict['xmag']
+  B_0 = eqdsk_data.bcentre * eqdsk_data.xcentre / R_major
+  Raxis = float(eqdsk_data.xmag)
+  Zaxis = float(eqdsk_data.zmag)
+  Btor_axis = eqdsk_data.fpol[0] / eqdsk_data.xmag
 
   # 1D psi grid, with psi(axis) = 0
   psi_1dgrid = np.linspace(
-      0.0, eq_dict['psibdry'] - eq_dict['psimag'], eq_dict['nx']
+      0.0, eqdsk_data.psibdry - eqdsk_data.psimag, eqdsk_data.nx
   )
 
   # 2D psi grid, with psi(axis) = 0
-  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
+  psi_2dgrid = eqdsk_data.psi - eqdsk_data.psimag
 
   # Spline interpolator of 2D psi field defined on raw EQDSK X-Z grid
   raw_X_1D = np.linspace(
-      eq_dict['xgrid1'], eq_dict['xgrid1'] + eq_dict['xdim'], eq_dict['nx']
+      eqdsk_data.xgrid1, eqdsk_data.xgrid1 + eqdsk_data.xdim, eqdsk_data.nx
   )
   raw_Z_1D = np.linspace(
-      eq_dict['zmid'] - eq_dict['zdim'] / 2,
-      eq_dict['zmid'] + eq_dict['zdim'] / 2,
-      eq_dict['nz'],
+      eqdsk_data.zmid - eqdsk_data.zdim / 2,
+      eqdsk_data.zmid + eqdsk_data.zdim / 2,
+      eqdsk_data.nz,
   )
   psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
       raw_X_1D, raw_Z_1D, psi_2dgrid, kx=3, ky=3, s=0
@@ -405,7 +483,7 @@ def _construct_intermediates_from_eqdsk(
   # Optionally refine the 2D psi grid.
   if target_psi_grid_resolution is not None:
     # Convert target resolution to refinement factor.
-    min_resolution = min(eq_dict['nx'], eq_dict['nz'])
+    min_resolution = min(eqdsk_data.nx, eqdsk_data.nz)
     refinement_factor = int(
         jnp.ceil(target_psi_grid_resolution / min_resolution)
     )
@@ -415,8 +493,8 @@ def _construct_intermediates_from_eqdsk(
 
   # 2D X-Z grid
   if refinement_factor > 1:
-    nx = (eq_dict['nx'] - 1) * refinement_factor + 1
-    nz = (eq_dict['nz'] - 1) * refinement_factor + 1
+    nx = (eqdsk_data.nx - 1) * refinement_factor + 1
+    nz = (eqdsk_data.nz - 1) * refinement_factor + 1
     X_1D = np.linspace(raw_X_1D[0], raw_X_1D[-1], nx)
     Z_1D = np.linspace(raw_Z_1D[0], raw_Z_1D[-1], nz)
     psi_2dgrid = psi_2dgrid_interpolator(X_1D, Z_1D)
@@ -425,7 +503,7 @@ def _construct_intermediates_from_eqdsk(
     Z_1D = raw_Z_1D
 
   X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
-  Xlcfs, Zlcfs = eq_dict['xbdry'], eq_dict['zbdry']
+  Xlcfs, Zlcfs = eqdsk_data.xbdry, eqdsk_data.zbdry
 
   # Mask for the region inside the LCFS
   # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
@@ -443,7 +521,7 @@ def _construct_intermediates_from_eqdsk(
   # --------------------------------------- #
   psi_on_flux_surfaces = np.linspace(
       0,
-      (eq_dict['psibdry'] - eq_dict['psimag']) * last_surface_factor,
+      (eqdsk_data.psibdry - eqdsk_data.psimag) * last_surface_factor,
       n_surfaces,
   )
 
@@ -483,13 +561,13 @@ def _construct_intermediates_from_eqdsk(
   # ------------------------------------------------------------------ #
   # Interpolate safety factor onto new flux-surface grid
   q_interpolator = scipy.interpolate.interp1d(
-      psi_1dgrid, eq_dict['qpsi'], kind='cubic'
+      psi_1dgrid, eqdsk_data.qpsi, kind='cubic'
   )
   q_profile = q_interpolator(psi_on_flux_surfaces)
 
   # Interpolate toroidal field flux function onto new flux-surface grid
   F_interpolator = scipy.interpolate.interp1d(
-      psi_1dgrid, eq_dict['fpol'], kind='cubic'
+      psi_1dgrid, eqdsk_data.fpol, kind='cubic'
   )
   F = F_interpolator(psi_on_flux_surfaces)
 
@@ -729,7 +807,7 @@ def _construct_intermediates_from_eqdsk(
       # psi_on_flux_surface has psi(0)=0 for ease of constructing the profiles
       # The absolute value of psi may have meaning when connected in wider
       # workflows, so we make sure that we set psi(0) from the eqdsk
-      psi=psi_on_flux_surfaces + eq_dict['psimag'],
+      psi=psi_on_flux_surfaces + eqdsk_data.psimag,
       I_p_profile=I_p,
       Phi=Phi,
       R_in=R_inboard,
@@ -790,7 +868,7 @@ def _enforce_torax_sign_convention(
 
 
 def _validate_torax_sign_convention(
-    eq_dict: dict[str, np.ndarray | float],
+    eq_dict: Mapping[str, Any],
 ) -> None:
   """Checks that an EQDSK dict complies with TORAX conventions (COCOS11, B_0>0, I_p>0)."""
   # pylint: disable=invalid-name

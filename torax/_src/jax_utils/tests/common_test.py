@@ -142,6 +142,30 @@ class JaxUtilsTest(parameterized.TestCase):
     """Test that the dtype is int32 when JAX_PRECISION is set to 'f32'."""
     self.assertEqual(jax_utils.get_int_dtype(), jnp.int32)
 
+  @mock.patch.object(jax.config, 'update')
+  @mock.patch.dict(os.environ, {}, clear=True)
+  def test_set_jax_precision_default(self, mock_update):
+    jax_utils.set_jax_precision()
+    mock_update.assert_called_once_with('jax_enable_x64', True)
+
+  @mock.patch.object(jax.config, 'update')
+  @mock.patch.dict(os.environ, {'JAX_PRECISION': 'f32'})
+  def test_set_jax_precision_f32(self, mock_update):
+    jax_utils.set_jax_precision()
+    mock_update.assert_not_called()
+
+  @mock.patch.dict(os.environ, {'JAX_PRECISION': 'f16'})
+  def test_set_jax_precision_invalid(self):
+    with self.assertRaisesRegex(
+        ValueError, r'Unknown JAX precision environment variable'
+    ):
+      jax_utils.set_jax_precision()
+
+  def test_log_jax_backend(self):
+    with self.assertLogs(level='INFO') as logs:
+      jax_utils.log_jax_backend()
+    self.assertIn('JAX running on a default', '\n'.join(logs.output))
+
   def test_get_number_of_compiles(self):
     """Check assumptions on JAX internals are valid."""
 

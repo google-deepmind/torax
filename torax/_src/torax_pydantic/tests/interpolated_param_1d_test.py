@@ -21,7 +21,6 @@ import numpy as np
 import pydantic
 from torax._src import interpolated_param
 from torax._src import jax_utils
-from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
@@ -79,35 +78,6 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       a_expected._update_fields({'time': a_time})
       self.assertIs(a_expected.time, a_time)
 
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='linear',
-          mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-      ),
-      dict(
-          testcase_name='step',
-          mode=interpolated_param.InterpolationMode.STEP,
-      ),
-  )
-  def test_to_time_varying_array(self, mode):
-    """Tests that to_time_varying_array produces a consistent array."""
-    scalar = torax_pydantic.TimeVaryingScalar(
-        time=np.array([0.0, 1.0, 2.0]),
-        value=np.array([10.0, 20.0, 30.0]),
-        interpolation_mode=mode,
-    )
-    tva = scalar.to_time_varying_array()
-    self.assertIsInstance(tva, torax_pydantic.TimeVaryingArray)
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(tva, geo.torax_mesh)
-
-    self.assertEqual(tva.time_interpolation_mode, scalar.interpolation_mode)
-
-    # Check that the values are consistent with the scalar.
-    test_times = np.array([-0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
-    for t in test_times:
-      np.testing.assert_allclose(tva.get_value(t=t), scalar.get_value(t=t))
-
   def test_bool_single_value_param_always_return_constant(self):
     """Tests that when passed a single value this is always returned."""
     expected_output = True
@@ -124,22 +94,33 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       torax_pydantic.TimeVaryingScalar.model_validate({})
 
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='negative_value',
-          values={0.0: 1.0, 2.0: -1},
-      ),
-      dict(
-          testcase_name='zero_value',
-          values=0.0,
-      ),
+  @parameterized.product(
+      field_type=[
+          torax_pydantic.PositiveTimeVaryingScalar,
+          torax_pydantic.PositiveTimeVaryingScalarStep,
+      ],
+      values=[{0.0: 1.0, 2.0: -1}, 0.0],
   )
-  def test_raises_error_when_value_is_not_positive(self, values):
-    class TestModel(torax_pydantic.ConfigBase):
-      a: torax_pydantic.PositiveTimeVaryingScalar
+  def test_raises_error_when_value_is_not_positive(self, field_type, values):
+    test_model_cls = pydantic.create_model(
+        'TestModel',
+        a=(field_type, ...),
+        __base__=torax_pydantic.ConfigBase,
+    )
 
     with self.assertRaisesRegex(pydantic.ValidationError, 'greater than 0'):
-      TestModel.model_validate({'a': values})
+      test_model_cls.model_validate({'a': values})
+
+  def test_positive_time_varying_scalar_step_defaults_to_step_mode(self):
+    class TestModel(torax_pydantic.ConfigBase):
+      a: torax_pydantic.PositiveTimeVaryingScalarStep
+
+    model = TestModel.model_validate({'a': {0.0: 1.0, 2.0: 3.0}})
+    self.assertEqual(
+        model.a.interpolation_mode,
+        interpolated_param.InterpolationMode.STEP,
+    )
+    self.assertEqual(model.a.get_value(t=1.0), 1.0)
 
   @parameterized.named_parameters(
       dict(
@@ -615,93 +596,10 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'must be the same length'):
       scalar.update(replacements)
 
-
-class TimeVaryingScalarStepTrueIntervalsTest(parameterized.TestCase):
-
-  def test_step_true_intervals(self):
-    scalar = torax_pydantic.TimeVaryingScalarStep.model_validate(
-        {0.0: True, 5.0: False, 10.0: True}
-    )
-    self.assertEqual(
-        scalar.step_true_intervals(),
-        [(-np.inf, 5.0), (10.0, np.inf)],
-    )
-
-  def test_step_true_intervals_all_true(self):
-    scalar = torax_pydantic.TimeVaryingScalarStep.model_validate(
-        {0.0: True, 5.0: True, 10.0: True}
-    )
-    self.assertEqual(
-        scalar.step_true_intervals(),
-        [(-np.inf, np.inf)],
-    )
-
-  def test_step_true_intervals_all_false(self):
-    scalar = torax_pydantic.TimeVaryingScalarStep.model_validate(
-        {0.0: False, 5.0: False, 10.0: False}
-    )
-    self.assertEqual(
-        scalar.step_true_intervals(),
-        [],
-    )
-
-  def test_step_true_intervals_single_time_point(self):
-    scalar = torax_pydantic.TimeVaryingScalarStep.model_validate(
-        {0.0: True}
-    )
-    self.assertEqual(
-        scalar.step_true_intervals(),
-        [(-np.inf, np.inf)],
-    )
-
-  def test_step_true_intervals_float_values(self):
-    # Test float array compatibility (0.0 and 1.0, or nearly 1.0)
-    # We construct directly to force float values with is_bool_param=True,
-    # making sure time and value have the same float64 dtype to pass validation.
-    scalar = torax_pydantic.TimeVaryingScalarStep(
-        time=np.array([0.0, 3.0, 7.0], dtype=np.float64),
-        value=np.array([1.0, 0.0, 0.9], dtype=np.float64),
-        is_bool_param=True,
-    )
-    self.assertEqual(
-        scalar.step_true_intervals(),
-        [(-np.inf, 3.0), (7.0, np.inf)],
-    )
-
-  def test_step_true_intervals_false_first(self):
-    """First value False: no -inf extrapolation."""
-    scalar = torax_pydantic.TimeVaryingScalarStep.model_validate(
-        {0.0: False, 5.0: True, 10.0: False}
-    )
-    self.assertEqual(
-        scalar.step_true_intervals(),
-        [(5.0, 10.0)],
-    )
-
-  def test_step_true_intervals_raises_if_not_step(self):
-    scalar = torax_pydantic.TimeVaryingScalar(
-        time=np.array([0.0, 5.0], dtype=np.float64),
-        value=np.array([1.0, 0.0], dtype=np.float64),
-        is_bool_param=True,
-        interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-    )
-    with self.assertRaisesRegex(
-        ValueError,
-        'only supported for STEP interpolation mode',
-    ):
-      scalar.step_true_intervals()
-
-  def test_step_true_intervals_raises_if_not_bool(self):
-    scalar = torax_pydantic.TimeVaryingScalarStep(
-        time=np.array([0.0, 5.0], dtype=np.float64),
-        value=np.array([1.0, 2.0], dtype=np.float64),
-        is_bool_param=False,
-    )
-    with self.assertRaisesRegex(
-        ValueError,
-        'only supported for boolean parameters',
-    ):
-      scalar.step_true_intervals()
+  @parameterized.parameters('STEP', 'PIECEWISE_LINEAR')
+  def test_rejects_uppercase_interpolation_mode(self, invalid_mode: str):
+    with self.assertRaises(pydantic.ValidationError):
+      torax_pydantic.TimeVaryingScalar.model_validate((1.0, invalid_mode))
 
 
 if __name__ == '__main__':

@@ -67,7 +67,7 @@ Running the Notebooks
       For loading the tutorial notebook from your cloned source code, carry out
       the following steps:
 
-      1. Navigate your browser to https://colab.research.google.com/
+      1. Navigate your browser to |google_colab|.
       2. Click on "File" in the upper left corner, then "Upload notebook", then
          "Browse".
       3. Navigate to the ``torax/tutorials`` directory in the file explorer and

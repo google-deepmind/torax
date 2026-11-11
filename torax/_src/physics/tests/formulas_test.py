@@ -33,37 +33,50 @@ class FormulasTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=10, a_minor=1.0
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10, a_minor=1.0)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
     self.core_profiles = dataclasses.replace(
         self.core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
-        n_e=core_profile_helpers.make_constant_core_profile(self.geo, 3.0e20),
-        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            self.geo, 0.25e20
+        kinetic=dataclasses.replace(
+            self.core_profiles.kinetic,
+            T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+            T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
+            n_e=core_profile_helpers.make_constant_core_profile(
+                self.geo, 3.0e20
+            ),
+            n_i=core_profile_helpers.make_constant_core_profile(
+                self.geo, 2.5e20
+            ),
+            n_impurity_total=core_profile_helpers.make_constant_core_profile(
+                self.geo, 0.25e20
+            ),
         ),
-        I_p_profile_face=[np.pi * 1e6],  # pyrefly: ignore[bad-argument-type]
+        poloidal_flux=dataclasses.replace(
+            self.core_profiles.poloidal_flux,
+            I_p_profile_face=np.array([np.pi * 1e6]),
+        ),
     )
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
-      dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.0, expected=1.0),
-      dict(Z_i=1.0, Z_impurity=5.0, Z_eff=1.0, expected=1.0),
-      dict(Z_i=2.0, Z_impurity=10.0, Z_eff=2.0, expected=0.5),
-      dict(Z_i=2.0, Z_impurity=5.0, Z_eff=2.0, expected=0.5),
-      dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.9, expected=0.9),
-      dict(Z_i=2.0, Z_impurity=10.0, Z_eff=3.6, expected=0.4),
+      dict(Z_i=1.0, Z_impurity_bundled=10.0, Z_eff=1.0, expected=1.0),
+      dict(Z_i=1.0, Z_impurity_bundled=5.0, Z_eff=1.0, expected=1.0),
+      dict(Z_i=2.0, Z_impurity_bundled=10.0, Z_eff=2.0, expected=0.5),
+      dict(Z_i=2.0, Z_impurity_bundled=5.0, Z_eff=2.0, expected=0.5),
+      dict(Z_i=1.0, Z_impurity_bundled=10.0, Z_eff=1.9, expected=0.9),
+      dict(Z_i=2.0, Z_impurity_bundled=10.0, Z_eff=3.6, expected=0.4),
   ])
   def test_calculate_main_ion_dilution_factor(
-      self, Z_i, Z_impurity, Z_eff, expected
+      self, Z_i, Z_impurity_bundled, Z_eff, expected
   ):
-    """Unit test of `calculate_main_ion_dilution_factor`."""
     np.testing.assert_allclose(
-        formulas.calculate_main_ion_dilution_factor(Z_i, Z_impurity, Z_eff),
+        formulas.calculate_main_ion_dilution_factor(
+            Z_i, Z_impurity_bundled, Z_eff
+        ),
         expected,
     )
 
@@ -86,14 +99,14 @@ class FormulasTest(parameterized.TestCase):
     """Test that Greenwald fraction is calculated correctly."""
     n_e_avg = 1.0e20
 
-    fgw_n_e_volume_avg_calculated = formulas.calculate_greenwald_fraction(
+    f_GW_n_e_volume_avg_calculated = formulas.calculate_greenwald_fraction(
         n_e_avg, self.core_profiles, self.geo
     )
 
-    fgw_n_e_volume_avg_expected = 1.0
+    f_GW_n_e_volume_avg_expected = 1.0
 
     np.testing.assert_allclose(
-        fgw_n_e_volume_avg_calculated, fgw_n_e_volume_avg_expected
+        f_GW_n_e_volume_avg_calculated, f_GW_n_e_volume_avg_expected
     )
 
   def test_calculate_betas(self):
@@ -110,9 +123,13 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(beta_N, beta_N_expected)
 
   def test_calc_dvar_dpsi_against_analytical_solution(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     psi_0 = 1.0
     Delta_psi = 2.5
     rho_norm_face = geo.rho_face / geo.rho_face[-1]
@@ -158,9 +175,13 @@ class FormulasTest(parameterized.TestCase):
       )
 
   def test_calculate_beta_pol_profile_and_derivative_analytical_circular(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     I_p = 1e6
     mu0 = constants.CONSTANTS.mu_0
     R0 = geo.R_major
@@ -216,9 +237,12 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        psi=psi_var,
-        n_e=n_e_val,
-        T_e=T_e_val,
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux, psi=psi_var
+        ),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
+        ),
     )
 
     with self.subTest('beta_pol_profile'):
@@ -237,9 +261,13 @@ class FormulasTest(parameterized.TestCase):
       np.testing.assert_allclose(beta_pol_prime[1:], beta_prime, rtol=1e-4)
 
   def test_calculate_alpha_mhd_analytical_circular(self):
-    geo = circular_geometry.CircularConfig(
-        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     mu0 = constants.CONSTANTS.mu_0
     p_0 = 1.0e5
     # Quadratic pressure profile p(r_mid) = p_0 * (1 - (r_mid / a_minor)^2),
@@ -266,9 +294,12 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        n_e=n_e_val,
-        T_e=T_e_val,
-        q_face=q_face,
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
+        ),
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux, q_face=q_face
+        ),
     )
 
     alpha_mhd = formulas.calculate_alpha_mhd(core_profiles, geo)
@@ -284,13 +315,17 @@ class FormulasTest(parameterized.TestCase):
   def test_calculate_alpha_mhd_miller(self):
     # In unelongated circular geometry (elongation_LCFS=1.0), Miller alpha_mhd
     # reduces identically to the circular s-alpha definition when q = dPhi/dpsi.
-    geo = circular_geometry.CircularConfig(
-        n_rho=50,
-        a_minor=1.0,
-        R_major=10.0,
-        B_0=2.0,
-        elongation_LCFS=1.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=50,
+            a_minor=1.0,
+            R_major=10.0,
+            B_0=2.0,
+            elongation_LCFS=1.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     p_0 = 1.0e5
     # Quadratic pressure profile p(rho_norm) = p_0 * (1 - rho_norm^2).
     p_tot_cell = p_0 * (1.0 - geo.rho_norm**2)
@@ -328,10 +363,12 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     core_profiles = dataclasses.replace(
         core_profiles,
-        psi=psi_var,
-        n_e=n_e_val,
-        T_e=T_e_val,
-        q_face=q_face,
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux, psi=psi_var, q_face=q_face
+        ),
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic, n_e=n_e_val, T_e=T_e_val
+        ),
     )
 
     alpha_mhd_miller = formulas.calculate_alpha_mhd_miller(core_profiles, geo)

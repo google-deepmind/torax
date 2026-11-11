@@ -17,13 +17,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src.sources import cyclotron_radiation_heat_sink
+from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
 
-class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
+class CyclotronRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Unit tests for CyclotronRadiationHeatSink."""
+
+  source_name = (
+      cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID
+  )
+  source_config_class = (
+      cyclotron_radiation_heat_sink.CyclotronRadiationHeatSinkConfig
+  )
 
   @parameterized.product(
       alpha_expected=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
@@ -135,11 +143,11 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     config_dict["profile_conditions"] = {
         "I_p": 15e6,
         "I_p_source": "profile_conditions",
-        "initial_psi_source": "j",
+        "psi_source": "j",
         "T_e": {0.0: te_profile},
         "n_e": {0.0: ne_profile},
-        "n_e_nbar_is_fGW": False,
-        "normalize_n_e_to_nbar": False,
+        "n_e_bar_is_f_GW": False,
+        "normalize_n_e": False,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, runtime_params, geo = (
@@ -148,13 +156,13 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     alpha_n = cyclotron_radiation_heat_sink._alpha_closed_form(
         beta=2.0,
         rho_norm=geo.rho_face_norm,
-        profile_data=core_profiles.n_e.face_value() / 1e20,
+        profile_data=core_profiles.kinetic.n_e.face_value() / 1e20,
         profile_edge_value=0.0,
     )
     alpha_t, _ = (
         cyclotron_radiation_heat_sink._solve_alpha_t_beta_t_grid_search(
             rho_norm=geo.rho_face_norm,
-            te_data=core_profiles.T_e.face_value(),
+            te_data=core_profiles.kinetic.T_e.face_value(),
             beta_scan_parameters=(0.5, 8.0, 32),
         )
     )
@@ -164,12 +172,11 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+        solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    (q_cycl,) = output.profiles
+    q_cycl = output.power_density_e
+    assert q_cycl is not None
     self.assertFalse(np.any(np.isnan(q_cycl)))
     self.assertTrue(np.all(np.isfinite(q_cycl)))
     self.assertTrue(np.all(q_cycl <= 0.0))

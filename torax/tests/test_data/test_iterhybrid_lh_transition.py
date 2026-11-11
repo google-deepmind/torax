@@ -39,9 +39,9 @@ CONFIG['profile_conditions']['n_e'] = {
     0.0: {0.0: 0.5e20, 1.0: 0.15e20},
 }
 CONFIG['profile_conditions']['n_e_right_bc'] = 0.15e20
-CONFIG['profile_conditions']['n_e_right_bc_is_fGW'] = False
-CONFIG['profile_conditions']['n_e_nbar_is_fGW'] = False
-CONFIG['profile_conditions']['normalize_n_e_to_nbar'] = False
+CONFIG['profile_conditions']['n_e_right_bc_is_f_GW'] = False
+CONFIG['profile_conditions']['n_e_bar_is_f_GW'] = False
+CONFIG['profile_conditions']['normalize_n_e'] = False
 
 # Ramp heat up and down to trigger LH and HL transitions
 CONFIG['sources']['generic_heat']['P_total'] = {
@@ -82,11 +82,11 @@ CONFIG['transport'] = {
 CONFIG['pedestal'] = {
     'mode': 'adaptive_transport',
     'structure_model': {
-        'model_name': 'set_T_ped_n_ped',
-        'T_i_ped': 4.5,
-        'T_e_ped': 4.5,
-        'n_e_ped': 0.62e20,
-        'rho_norm_ped_top': 0.9,
+        'model_name': 'set_T_top_n_top',
+        'T_i_top': 4.5,
+        'T_e_top': 4.5,
+        'n_e_top': 0.62e20,
+        'rho_norm_top': 0.9,
     },
     'formation_model': {
         'model_name': 'martin_scaling',

@@ -29,7 +29,7 @@ Tuning of this scenario should be done as follows:
   2. Enable current and heat transport equations and adjust `bgb_multiplier` to
     achieve H98 ≈ 1.1.
   3. Enable all transport equations and adjust pellet fuelling rate to achieve
-    fGW ≈ 0.95.
+    f_GW ≈ 0.95.
 
 Based on:
  1. T.A. Brown, F.J. Casson et al., "OpenSTEP: public data release of the STEP
@@ -87,15 +87,14 @@ CONFIG = {
         core_profiles_ids
     ),
     "profile_conditions": (
-        profile_conditions_from_ids
-        | {
+        profile_conditions_from_ids | {
             "I_p_source": "profile_conditions",
-            "use_v_loop_lcfs_boundary_condition": True,
+            "psi_bc_source": "v_loop",
             "v_loop_lcfs": 0.0,
         }
     ),
     "geometry": {
-        "geometry_type": "IMAS",
+        "model_name": "imas",
         "imas_filepath": "STEP_SPP_001_ECHD_ftop.nc",
         "n_rho": 100,
         # STEP is a low-aspect-ratio (spherical tokamak) scenario, where the
@@ -106,11 +105,11 @@ CONFIG = {
     },
     "pedestal": {
         "structure_model": {
-            "model_name": "set_T_ped_n_ped",
-            "rho_norm_ped_top": 0.95,
-            "T_i_ped": 4.0,  # [keV]
-            "T_e_ped": 5.0,  # [keV]
-            "n_e_ped": 6e19,  # [m^-3]
+            "model_name": "set_T_top_n_top",
+            "rho_norm_top": 0.95,
+            "T_i_top": 4.0,  # [keV]
+            "T_e_top": 5.0,  # [keV]
+            "n_e_top": 6e19,  # [m^-3]
         },
     },
     "sources": {
@@ -136,7 +135,7 @@ CONFIG = {
             # TODO(b/323504363): load from IDS?
             "pellet_deposition_location": 0.8,  # from [2] sec 3.4
             "pellet_width": 0.17,  # from [2] sec 3.4
-            "S_total": 3e21,  # [s^-1], tuned to get desired fGW in Table 5
+            "S_total": 3e21,  # [s^-1], tuned to get desired f_GW in Table 5
         },
     },
     "transport": {

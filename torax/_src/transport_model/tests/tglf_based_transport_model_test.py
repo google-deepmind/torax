@@ -21,8 +21,8 @@ import jax.numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import (
@@ -212,11 +212,14 @@ class TGLFTransportModelTest(parameterized.TestCase):
     omega = 1e5  # [rad/s]
     rigidly_rotating_core_profiles = dataclasses.replace(
         core_profiles,
-        toroidal_angular_velocity=cell_variable.CellVariable(
-            value=jnp.full_like(geo.rho_norm, omega),
-            face_centers=geo.rho_face_norm,
-            right_face_constraint=jnp.array(omega),
-            right_face_grad_constraint=None,
+        kinetic=dataclasses.replace(
+            core_profiles.kinetic,
+            toroidal_angular_velocity=cell_variable.CellVariable(
+                value=jnp.full_like(geo.rho_norm, omega),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=jnp.array(omega),
+                right_face_grad_constraint=None,
+            ),
         ),
     )
 
@@ -286,7 +289,7 @@ class FakeTGLFBasedTransportModel(
       transport_runtime_params: transport_params.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[

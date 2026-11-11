@@ -12,185 +12,505 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Module for a single source/sink term.
+r"""Module for a single source/sink term.
 
-This module contains all the base classes for defining source terms. Other files
-in this folder use these classes to define specific types of sources/sinks.
+This module contains the base class hierarchy for defining TORAX source and sink
+terms. TORAX structures sources into three tiers based on their evaluation stage
+and inputs:
 
-See Source class docstring for more details on what a TORAX source is and how to
-use it.
+1. :class:`Source`: Standard sources depending only on algebraic
+   :class:`~torax.SolverProfiles` (kinetic temperatures and densities, ion
+   composition, flux). Evaluated during basic source evaluation (pass 1
+   explicit, pass 2 implicit before neoclassical/transport). May affect any
+   channel (including current density / ``PSI``), can be configured as explicit
+   or implicit, and can produce fast ion populations.
+
+2. :class:`SourceUsingCoreProfiles`: Sources that require full
+   :class:`~torax.CoreProfiles`, including quantities computed during the
+   intra-step physics evaluation such as neoclassical conductivity and loop
+   voltage (:math:`\\dot{\\psi}`). Evaluated after neoclassical and transport
+   models. Cannot affect ``PSI``, cannot produce fast ions, and must be
+   implicit.
+
+3. :class:`FinalSource`: Source models evaluated after all other sources have
+   been computed, with access to both full :class:`~torax.CoreProfiles` and the
+   aggregated :class:`~torax.sources.CoreSources`. Used for models such as
+   constant-fraction radiation sinks that depend on the total heating from all
+   other sources. At most one ``FinalSource`` may be registered in a simulation.
 """
+
 import abc
+from collections.abc import Callable
 import dataclasses
-import enum
 from typing import ClassVar
 
-from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
-
-
-@enum.unique
-class AffectedCoreProfile(enum.IntEnum):
-  """Defines which part of the core profiles the source helps evolve.
-
-  The profiles of each source/sink are terms included in equations evolving
-  different core profiles. This enum maps a source to those equations.
-  """
-
-  # Current density equation.
-  PSI = 1
-  # Electron density equation.
-  NE = 2
-  # Ion temperature equation.
-  TEMP_ION = 3
-  # Electron temperature equation.
-  TEMP_EL = 4
+import xarray as xr
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class Source(static_dataclass.StaticDataclass, abc.ABC):
-  """Base class for a single source/sink term.
+class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
+  """Shared abstract base class for all TORAX source and sink terms.
 
-  Sources are used to compute source profiles (see source_profiles.py), which
-  are in turn used to compute coeffs in sim.py.
+  Every source model in TORAX subclasses :class:`SourceBase` (typically via
+  one of :class:`Source`, :class:`SourceUsingCoreProfiles`, or
+  :class:`FinalSource`).
 
   Attributes:
-    SOURCE_ID: Identifier for the source type (e.g. `'ecrh'`, `'icrh'`,
-      `'fusion'`). This corresponds to the field name on the `SourcesConfig`
-      Pydantic config and the key in `runtime_params.sources` and
-      `SourceModels.standard_sources`.
-    AFFECTED_CORE_PROFILES: Core profiles affected by this source's profile(s).
-      This attribute defines which equations the source profiles are terms for.
-      By default, the number of affected core profiles should equal the rank of
-      the output shape returned by `output_shape`.
+    SOURCE_ID: String identifier for the source type (e.g. ``'ecrh'``,
+      ``'icrh'``, ``'fusion'``). This corresponds to the field name on the
+      :class:`~torax.sources.SourcesConfig` Pydantic configuration and the key
+      in ``runtime_params.sources`` and ``SourceModels.standard_sources``.
+    POPULATED_SOURCE_OUTPUTS: Tuple of
+      :class:`~torax.sources.PopulatedSourceOutput` enum members defining which
+      fields on :class:`~torax.sources.SourceOutput` this source populates.
+    PRODUCES_FAST_IONS: Whether this source may populate
+      ``SourceOutput.fast_ions`` (either from a physics model or via
+      ``prescribed_values.fast_ions``).
   """
 
   SOURCE_ID: ClassVar[str]
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]]
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ]
+  PRODUCES_FAST_IONS: ClassVar[bool] = False
 
   def __post_init__(self):
+    super().__post_init__()
     if not hasattr(self, 'SOURCE_ID'):
       raise ValueError('Source ID must be set.')
-    if not getattr(self, 'AFFECTED_CORE_PROFILES', None):
-      raise ValueError('Affected core profiles must be set.')
+    if not getattr(self, 'POPULATED_SOURCE_OUTPUTS', None):
+      raise ValueError('Populated source outputs must be set.')
 
   def initial_state(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
   ) -> source_state_lib.SourceState:
-    """Returns the initial state for this source."""
+    """Returns the initial dynamic model state for this source.
+
+    Sources that maintain time-dependent internal state across simulation steps
+    should override this method to provide an initialized subclass of
+    :class:`~torax.sources.SourceState`.
+
+    Args:
+      runtime_params: Full simulation runtime parameters for parameter-dependent
+        initialization.
+
+    Returns:
+      An initialized :class:`~torax.sources.SourceState` (defaults to an empty
+      base state).
+    """
     del runtime_params
     return source_state_lib.SourceState()
 
-  @abc.abstractmethod
-  def _get_model_value(
+  def initial_state_from_datatree(
       self,
+      datatree: xr.DataTree | None,
       runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
-      source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
-    """Returns the model-based value and updated state for this source.
+  ) -> source_state_lib.SourceState:
+    """Reconstructs SourceState from a DataTree.
 
     Args:
-      runtime_params: Slice of the general TORAX config for this timestep.
-      geo: Magnetic geometry.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Already-calculated source profiles.
-      conductivity: Conductivity profile if it exists.
-      source_state: Source state carried over from the previous timestep.
-      psidot: Loop voltage profile on the cell grid if provided. Transitional
-        argument for implicit non-psi sources (OhmicHeatSource) prior to the
-        downstream source hierarchy split.
+      datatree: DataTree containing source model state, or None.
+      runtime_params: Runtime parameters for the simulation.
 
     Returns:
-      A tuple of (SourceOutput, source_state).
+      Reconstructed SourceState.
     """
+    del datatree, runtime_params
+    return source_state_lib.SourceState()
 
-  def get_value(
+  def _evaluate(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
-    """Returns the cell grid profile and updated state for this source.
+      model_fn: Callable[
+          [], tuple[core_sources.SourceOutput, source_state_lib.SourceState]
+      ],
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Evaluates the source according to its configured runtime mode.
+
+    Handles dispatching between:
+    - ``MODEL_BASED``: executes ``model_fn()`` to compute physics values.
+    - ``PRESCRIBED``: uses prescribed profile arrays from runtime parameters.
+    - ``ZERO``: returns zero profiles on the cell grid.
 
     Args:
-      runtime_params: Slice of the general TORAX config that can be used as
-        input for this time step.
-      geo: Geometry of the torus.
-      core_profiles: Core plasma profiles. May be the profiles at the start of
-        the time step or a "live" set of core profiles being actively updated
-        depending on whether this source is explicit or implicit. Explicit
-        sources get the core profiles at the start of the time step, implicit
-        sources get the "live" profiles that is updated through the course of
-        the time step as the solver converges.
-      calculated_source_profiles: The source profiles which have already been
-        calculated for this time step if they exist. This is used to avoid
-        recalculating profiles that are used as inputs to other sources. These
-        profiles will only exist for Source instances that are implicit. i.e.
-        explicit sources cannot depend on other calculated source profiles. In
-        addition, different source types will have different availability of
-        specific calculated_source_profiles since the calculation order matters.
-        See source_profile_builders.py for more details.
-      conductivity: Conductivity profile if it exists. It is only provided for
-        implicit sources.
-      source_state: Source state carried over from the previous timestep.
-      psidot: Loop voltage profile on the cell grid if provided. Transitional
-        argument for implicit non-psi sources (OhmicHeatSource) prior to the
-        downstream source hierarchy split.
+      runtime_params: Full simulation runtime parameters.
+      geo: Toroidal geometry of the tokamak.
+      source_state: Current dynamic model state.
+      model_fn: Zero-argument callable executing the model evaluation when in
+        ``MODEL_BASED`` mode.
 
     Returns:
-      A tuple of (SourceOutput, updated_source_state).
+      A tuple of ``(output, updated_source_state)``.
+
+    Raises:
+      ValueError: If the populated fields on the output do not match
+        ``POPULATED_SOURCE_OUTPUTS``, or if an unknown mode is encountered.
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
 
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        output, source_state = self._get_model_value(
-            runtime_params,
-            geo,
-            core_profiles,
-            calculated_source_profiles,
-            conductivity,
-            source_state=source_state,
-            psidot=psidot,
-        )
+        output, source_state = model_fn()
+        self._validate_output_profiles(output)
       case sources_runtime_params_lib.Mode.PRESCRIBED:
-        if len(source_params.prescribed_values) != len(
-            self.AFFECTED_CORE_PROFILES
-        ):
-          raise ValueError(
-              'When using PRESCRIBED mode, the number of prescribed values must'
-              ' match the number of affected core profiles. Was: '
-              f'{len(source_params.prescribed_values)} '
-              f' Expected: {len(self.AFFECTED_CORE_PROFILES)}.'
-          )
-        output = source_profiles.SourceOutput(
-            profiles=source_params.prescribed_values
-        )
+        output = source_params.prescribed_values
+        self._validate_output_profiles(output)
       case sources_runtime_params_lib.Mode.ZERO:
-        zeros = jnp.zeros(geo.rho_norm.shape)
-        output = source_profiles.SourceOutput(
-            profiles=(zeros,) * len(self.AFFECTED_CORE_PROFILES)
+        output = core_sources.SourceOutput.zeros(
+            geo, self.POPULATED_SOURCE_OUTPUTS
         )
       case _:
         raise ValueError(f'Unknown mode: {mode}')
 
+    return output, source_state
+
+  def _validate_output_profiles(
+      self,
+      output: core_sources.SourceOutput,
+  ) -> None:
+    """Validates that output fields match this source's capabilities."""
+    populated = {
+        f
+        for f in core_sources.PopulatedSourceOutput
+        if getattr(output, f) is not None
+    }
+    expected = set(self.POPULATED_SOURCE_OUTPUTS)
+    if populated != expected:
+      raise ValueError(
+          f'{type(self).__name__} populated {populated}, expected {expected}'
+          ' (POPULATED_SOURCE_OUTPUTS).'
+      )
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class Source(SourceBase):
+  r"""Standard source model depending on SolverProfiles.
+
+  Subclass :class:`Source` when your physics model depends only on algebraic
+  plasma state available on :class:`~torax.SolverProfiles` (temperatures,
+  densities, ion composition, magnetic flux, safety factor) and does not require
+  neoclassical conductivity, loop voltage (:math:`\\dot{\\psi}`), or aggregate
+  heating profiles from other sources.
+
+  Capabilities and constraints:
+  - May populate any :class:`~torax.sources.SourceOutput` profile field,
+    including :attr:`~torax.sources.PopulatedSourceOutput.J_PARALLEL`.
+  - May be configured as explicit (evaluated once before the solver step) or
+    implicit (evaluated iteratively during each solver sub-step).
+  - May generate fast ion populations by returning :class:`~torax.FastIon`
+    objects in :attr:`SourceOutput.fast_ions`.
+  """
+
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Computes model-based source profile terms and updated dynamic state.
+
+    Subclasses must implement this method to perform the physics calculation.
+
+    Args:
+      runtime_params: Full simulation runtime parameters.
+      geo: Magnetic geometry of the tokamak.
+      solver_profiles: Algebraic core profiles derived directly from
+        SolverState.
+      source_state: Dynamic model state carried from the previous timestep.
+
+    Returns:
+      A tuple of ``(output, updated_source_state)``, where ``output`` is a
+      :class:`~torax.sources.SourceOutput` containing profile arrays on the
+      cell grid (one per entry in :attr:`POPULATED_SOURCE_OUTPUTS`) and any
+      generated fast ion populations.
+    """
+
+  def get_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Evaluates the source, applying mode overrides.
+
+    Supported modes are MODEL_BASED, PRESCRIBED, and ZERO.
+
+    Args:
+      runtime_params: Full simulation runtime parameters.
+      geo: Magnetic geometry of the tokamak.
+      solver_profiles: Algebraic core profiles derived directly from
+        SolverState.
+      source_state: Current dynamic model state.
+
+    Returns:
+      A tuple of ``(output, updated_source_state)`` for this evaluation.
+    """
+    output, source_state = self._evaluate(
+        runtime_params,
+        geo,
+        source_state,
+        lambda: self._get_model_value(
+            runtime_params, geo, solver_profiles, source_state
+        ),
+    )
+    if output.fast_ions and not self.PRODUCES_FAST_IONS:
+      raise ValueError(
+          f'{type(self).__name__} provided fast_ions, but'
+          ' PRODUCES_FAST_IONS is False.'
+      )
+    return output, source_state
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class SourceUsingCoreProfiles(SourceBase):
+  r"""Source requiring full CoreProfiles (such as conductivity and psidot).
+
+  Subclass :class:`SourceUsingCoreProfiles` when your model requires profiles
+  computed during the intra-step physics evaluation, such as neoclassical
+  parallel conductivity (:attr:`CoreProfiles.conductivity`) or loop voltage /
+  time derivative of poloidal flux (:attr:`CoreProfiles.psidot`).
+
+  Capabilities and constraints:
+  - Cannot populate :attr:`~torax.sources.PopulatedSourceOutput.J_PARALLEL`
+    because :math:`\\dot{\\psi}` depends on the total current from all
+    current-driving sources.
+  - Cannot produce fast ions (:attr:`SourceOutput.fast_ions` must be empty)
+    because fast ions must be known before neoclassical and transport
+    calculations.
+  - Cannot be configured with ``is_explicit=True`` because full
+    :class:`~torax.CoreProfiles` are only available during implicit intra-step
+    evaluation.
+  """
+
+  def __post_init__(self):
+    super().__post_init__()
+    if (
+        core_sources.PopulatedSourceOutput.J_PARALLEL
+        in self.POPULATED_SOURCE_OUTPUTS
+    ):
+      raise ValueError(
+          f'{type(self).__name__} cannot populate J_PARALLEL, but got'
+          f' POPULATED_SOURCE_OUTPUTS={self.POPULATED_SOURCE_OUTPUTS}.'
+      )
+
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_state: source_state_lib.SourceState,
+      *,
+      phi_b_dot: array_typing.FloatScalar,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Computes model-based source profile terms from full CoreProfiles.
+
+    Subclasses must implement this method to perform the physics calculation.
+
+    Args:
+      runtime_params: Full simulation runtime parameters.
+      geo: Magnetic geometry of the tokamak.
+      core_profiles: Full core plasma profiles including neoclassical
+        conductivity and psidot.
+      source_state: Dynamic model state carried from the previous timestep.
+      phi_b_dot: Time derivative of the boundary toroidal flux.
+
+    Returns:
+      A tuple of ``(output, updated_source_state)``, where ``output`` is a
+      :class:`~torax.sources.SourceOutput` containing profile arrays on the
+      cell grid (one per entry in :attr:`POPULATED_SOURCE_OUTPUTS`). Must not
+      contain fast ions.
+    """
+
+  def get_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_state: source_state_lib.SourceState,
+      *,
+      phi_b_dot: array_typing.FloatScalar,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Evaluates the source with runtime validation and mode dispatch.
+
+    Validates that the source is not configured with ``is_explicit=True`` and
+    that the model output does not produce fast ions.
+
+    Args:
+      runtime_params: Full simulation runtime parameters.
+      geo: Magnetic geometry of the tokamak.
+      core_profiles: Full core plasma profiles including neoclassical
+        conductivity and psidot.
+      source_state: Current dynamic model state.
+      phi_b_dot: Time derivative of the boundary toroidal flux.
+
+    Returns:
+      A tuple of ``(output, updated_source_state)`` for this evaluation.
+
+    Raises:
+      ValueError: If configured with ``is_explicit=True`` or if the model
+        produces fast ions.
+    """
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    if source_params.is_explicit:
+      raise ValueError(
+          f'{type(self).__name__} requires implicit CoreProfiles (such as'
+          ' conductivity and psidot) and cannot be configured with'
+          ' is_explicit=True.'
+      )
+    output, source_state = self._evaluate(
+        runtime_params,
+        geo,
+        source_state,
+        lambda: self._get_model_value(
+            runtime_params,
+            geo,
+            core_profiles,
+            source_state,
+            phi_b_dot=phi_b_dot,
+        ),
+    )
+    if output.fast_ions:
+      raise ValueError(
+          f'{type(self).__name__} consumes CoreProfiles and cannot produce'
+          ' fast_ions.'
+      )
+    return output, source_state
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class FinalSource(SourceBase):
+  """Final source model evaluated after all other sources are computed.
+
+  Subclass :class:`FinalSource` when your model aggregates or scales against
+  already-computed source profiles (for example, constant-fraction impurity
+  radiation that radiates a prescribed fraction of the total input power).
+
+  Capabilities and constraints:
+  - At most one :class:`FinalSource` may be registered in
+    :class:`~torax.sources.SourceModels` so evaluation order remains
+    deterministic and unambiguous; configuring more than one raises a
+    :exc:`ValueError` during :class:`~torax.sources.SourceModels`
+    initialization.
+  - Cannot populate :attr:`~torax.sources.PopulatedSourceOutput.J_PARALLEL`:
+    all current sources affecting poloidal flux must be evaluated in Stage 1
+    prior to solving Ohm's law, neoclassical conductivity, and `psidot`, which
+    precede :class:`FinalSource` evaluation.
+  - Cannot produce fast ions (:attr:`SourceOutput.fast_ions` must be empty):
+    fast-ion populations are required inputs to neoclassical conductivity and
+    bootstrap current when constructing the :class:`~torax.CoreProfiles`
+    consumed by :class:`FinalSource`.
+  - Cannot be configured with ``is_explicit=True`` because aggregate source
+    profiles are only assembled after all standard and core-profile sources
+    have been evaluated.
+  """
+
+  def __post_init__(self):
+    super().__post_init__()
+    if (
+        core_sources.PopulatedSourceOutput.J_PARALLEL
+        in self.POPULATED_SOURCE_OUTPUTS
+    ):
+      raise ValueError(
+          f'{type(self).__name__} cannot populate J_PARALLEL, but got'
+          f' POPULATED_SOURCE_OUTPUTS={self.POPULATED_SOURCE_OUTPUTS}.'
+      )
+
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      calculated_core_sources: core_sources.CoreSources,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Computes model-based source profile terms using source profiles.
+
+    Subclasses must implement this method to perform the physics calculation.
+
+    Args:
+      runtime_params: Full simulation runtime parameters.
+      geo: Magnetic geometry of the tokamak.
+      core_profiles: Full core plasma profiles including neoclassical
+        conductivity and psidot.
+      calculated_core_sources: Aggregated source profiles from all previously
+        evaluated sources in the current step.
+      source_state: Dynamic model state carried from the previous timestep.
+
+    Returns:
+      A tuple of ``(output, updated_source_state)``, where ``output`` is a
+      :class:`~torax.sources.SourceOutput` containing profile arrays on the
+      cell grid (one per entry in :attr:`POPULATED_SOURCE_OUTPUTS`). Must not
+      contain fast ions.
+    """
+
+  def get_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      calculated_core_sources: core_sources.CoreSources,
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
+    """Evaluates the final source with runtime validation and mode dispatch.
+
+    Validates that the source is not configured with ``is_explicit=True`` and
+    that the model output does not produce fast ions.
+
+    Args:
+      runtime_params: Full simulation runtime parameters.
+      geo: Magnetic geometry of the tokamak.
+      core_profiles: Full core plasma profiles including neoclassical
+        conductivity and psidot.
+      calculated_core_sources: Aggregated source profiles from all previously
+        evaluated sources in the current step.
+      source_state: Current dynamic model state.
+
+    Returns:
+      A tuple of ``(output, updated_source_state)`` for this evaluation.
+
+    Raises:
+      ValueError: If configured with ``is_explicit=True`` or if the model
+        produces fast ions.
+    """
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    if source_params.is_explicit:
+      raise ValueError(
+          f'{type(self).__name__} aggregates other source profiles and cannot'
+          ' be configured with is_explicit=True.'
+      )
+    output, source_state = self._evaluate(
+        runtime_params,
+        geo,
+        source_state,
+        lambda: self._get_model_value(
+            runtime_params,
+            geo,
+            core_profiles,
+            calculated_core_sources,
+            source_state,
+        ),
+    )
+    if output.fast_ions:
+      raise ValueError(
+          f'{type(self).__name__} consumes CoreProfiles and cannot produce'
+          ' fast_ions.'
+      )
     return output, source_state

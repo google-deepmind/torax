@@ -12,31 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base class for conductivity models."""
+"""Base class and interface for neoclassical conductivity models."""
 
 from __future__ import annotations
 
 import abc
-import dataclasses
 from typing import Annotated
 
-import jax
 import pydantic
-from torax._src import array_typing
-from torax._src import state
+from torax._src.core_profiles import core_profiles
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(kw_only=True, frozen=True)
-class Conductivity:
-  """Values returned by a conductivity model."""
-
-  sigma: array_typing.FloatVectorCell
-  sigma_face: array_typing.FloatVectorFace
 
 
 class ConductivityModel(abc.ABC):
@@ -47,9 +36,9 @@ class ConductivityModel(abc.ABC):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
-  ) -> Conductivity:
+  ) -> core_profiles.Conductivity:
     """Calculates conductivity."""
 
 
@@ -57,10 +46,14 @@ class ConductivityModelConfig(torax_pydantic.ConfigBase):
   """Base class for conductivity model configs.
 
   Attributes:
-    conductivity_multiplier: Multiplication factor for the conductivity.
-    neoclassical_correction: If True, applies the neoclassical trapped-particle
-      correction to the Spitzer conductivity. If False, the Spitzer conductivity
-      is used.
+    conductivity_multiplier: Multiplier for the neoclassical parallel
+      conductivity. This scales the physical conductivity used throughout the
+      simulation, so it affects the current diffusion timescale as well as the
+      loop voltage and Ohmic heating. Useful for sensitivity studies.
+    neoclassical_correction: If `True`, the Spitzer conductivity is multiplied
+      by the neoclassical trapped-particle correction of the selected model. If
+      `False`, the pure Spitzer conductivity is used. `conductivity_multiplier`
+      is applied in both cases.
   """
 
   conductivity_multiplier: pydantic.PositiveFloat = 1.0

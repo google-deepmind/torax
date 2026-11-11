@@ -172,22 +172,22 @@ CONFIG = {
     },
     "profile_conditions": {
         "I_p": 15000000,
-        "use_v_loop_lcfs_boundary_condition": False,
+        "psi_bc_source": "I_p",
         "T_e": (_RHO, _TE_INIT_KEV),
         "T_i": (_RHO, _TI_INIT_KEV),
         "T_e_right_bc": 0.25,
         "T_i_right_bc": 0.25,
         "n_e": (_RHO, _NE_INIT_M3),
         "n_e_right_bc": 9.54929658551e18,
-        "n_e_right_bc_is_fGW": False,
-        "normalize_n_e_to_nbar": False,
-        "n_e_nbar_is_fGW": False,
+        "n_e_right_bc_is_f_GW": False,
+        "normalize_n_e": False,
+        "n_e_bar_is_f_GW": False,
         # Physical line-averaged density corresponding to f_GW=0.4 for
-        # I_p=15 MA, a=2m. normalize_n_e_to_nbar=False, so this is mainly
+        # I_p=15 MA, a=2m. normalize_n_e=False, so this is mainly
         # bookkeeping.
-        "nbar": 4.77464829276e19,
+        "n_e_bar": 4.77464829276e19,
         "I_p_source": "profile_conditions",
-        "initial_psi_source": "j",
+        "psi_source": "j",
         "initial_j_is_total_current": True,
         "current_profile_nu": 2.0,
     },
@@ -199,7 +199,7 @@ CONFIG = {
         "current_diffusion_time_reduction_factor": 100.0,
     },
     "geometry": {
-        "geometry_type": "circular",
+        "model_name": "circular",
         "R_major": 6.2,
         "a_minor": 2,
         "B_0": 5.3,
@@ -228,9 +228,6 @@ CONFIG = {
             "gaussian_location": 0.2,
             "gaussian_width": 0.3,
         },
-        "generic_particle": {"S_total": 0.0},
-        "gas_puff": {"S_total": 0.0},
-        "pellet": {"S_total": 0.0},
     },
     "transport": {
         "chi_min": 0.05,

@@ -20,11 +20,11 @@ def get_default_config_dict() -> dict[str, Any]:
       'profile_conditions': {
           'I_p': 15e6,
           'I_p_source': 'profile_conditions',
-          'initial_psi_source': 'j',
+          'psi_source': 'j',
       },
       'plasma_composition': {},
       'numerics': {},
-      'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+      'geometry': {'model_name': 'circular', 'n_rho': 4},
       'sources': {},
       'solver': {},
       'transport': {},

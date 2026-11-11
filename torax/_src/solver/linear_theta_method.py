@@ -18,15 +18,18 @@ import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import fixed_point_method
 from torax._src.solver import solver as solver_lib
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
 
 
 class LinearThetaMethod(solver_lib.Solver):
@@ -45,22 +48,22 @@ class LinearThetaMethod(solver_lib.Solver):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
+      solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs_lib.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
 
-    x_old = convertors.core_profiles_to_solver_x_tuple(
-        core_profiles_t, evolving_names
+    x_old = convertors.solver_state_to_solver_x_tuple(
+        solver_state_t, evolving_names
     )
-    x_new_guess = convertors.core_profiles_to_solver_x_tuple(
-        core_profiles_t_plus_dt, evolving_names
+    x_new_guess = convertors.solver_state_to_solver_x_tuple(
+        solver_state_t_plus_dt, evolving_names
     )
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
@@ -73,7 +76,7 @@ class LinearThetaMethod(solver_lib.Solver):
     coeffs_exp = coeffs_callback(
         runtime_params_t,
         geo_t,
-        core_profiles_t,
+        solver_state_t,
         x=x_old,
         explicit_model_outputs=explicit_model_outputs,
         allow_pereverzev=True,
@@ -91,7 +94,7 @@ class LinearThetaMethod(solver_lib.Solver):
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=x_old,
         x_new_guess=x_new_guess,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_dt,
         coeffs_exp=coeffs_exp,
         coeffs_callback=coeffs_callback,
         explicit_model_outputs=explicit_model_outputs,
@@ -105,7 +108,7 @@ class LinearThetaMethod(solver_lib.Solver):
     else:
       inner_solver_iterations = 1
 
-    solver_numeric_outputs = state.SolverNumericOutputs(
+    solver_numeric_outputs = solver_numeric_outputs_lib.SolverNumericOutputs(
         inner_solver_iterations=jnp.array(
             inner_solver_iterations, jax_utils.get_int_dtype()
         ),

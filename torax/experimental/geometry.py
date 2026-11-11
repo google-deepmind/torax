@@ -13,15 +13,22 @@
 # limitations under the License.
 
 """Experimental library functionality for TORAX."""
+
 # pylint: disable=g-importing-member
+from torax._src.geometry.chease import CheaseConfig
+from torax._src.geometry.circular_geometry import CircularConfig
 from torax._src.geometry.config import GeometryConfig
-from torax._src.geometry.geometry_provider import ConstantGeometryProvider
-from torax._src.geometry.geometry_provider import TimeDependentGeometryProvider
-from torax._src.geometry.standard_geometry import StandardGeometryProvider
+from torax._src.geometry.eqdsk import EQDSKConfig
+from torax._src.geometry.imas import IMASConfig
+from torax._src.geometry.meq import MEQConfig
+from torax._src.geometry.tokamaker import TokaMakerConfig
 
 __all__ = [
-    'ConstantGeometryProvider',
-    'TimeDependentGeometryProvider',
+    'CheaseConfig',
+    'CircularConfig',
+    'EQDSKConfig',
     'GeometryConfig',
-    'StandardGeometryProvider',
+    'IMASConfig',
+    'MEQConfig',
+    'TokaMakerConfig',
 ]

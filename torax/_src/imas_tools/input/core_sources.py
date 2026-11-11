@@ -24,7 +24,8 @@ from imas import ids_toplevel
 import numpy as np
 from torax._src.imas_tools import sources_mapping
 from torax._src.imas_tools.input import loader
-from torax._src.sources import source as source_module
+from torax._src.sources import core_sources as core_sources_lib
+from torax._src.sources import qei_source
 
 
 @dataclasses.dataclass
@@ -33,9 +34,9 @@ class _SourceProfiles:
 
   time: Sequence[float]
   rho_norm: Sequence[Sequence[float]]
-  affected_profiles: tuple[source_module.AffectedCoreProfile, ...]
-  # Dict containing the affected profiles.
-  profiles: dict[source_module.AffectedCoreProfile, Sequence[float]]
+  populated_outputs: tuple[core_sources_lib.PopulatedSourceOutput, ...]
+  # Dict containing the populated output profiles.
+  profiles: dict[core_sources_lib.PopulatedSourceOutput, Sequence[float]]
 
   def combine_sources(self, new_source: Self) -> None:
     """Combines 2 sources of the same type together (adds the profiles).
@@ -53,15 +54,15 @@ class _SourceProfiles:
       raise ValueError(
           "Can't combine sources with different time or radial coordinates."
       )
-    if self.affected_profiles != new_source.affected_profiles:
+    if self.populated_outputs != new_source.populated_outputs:
       raise ValueError(
           "combines_sources must be used on sources of the same type."
       )
 
-    for affected_profile in self.affected_profiles:
-      initial_profile = self.profiles[affected_profile]
-      new_profile = new_source.profiles[affected_profile]
-      self.profiles[affected_profile] = np.add(initial_profile, new_profile)  # pyrefly: ignore[unsupported-operation]
+    for output_field in self.populated_outputs:
+      initial_profile = self.profiles[output_field]
+      new_profile = new_source.profiles[output_field]
+      self.profiles[output_field] = np.add(initial_profile, new_profile)  # pyrefly: ignore[unsupported-operation]
 
 
 @dataclasses.dataclass
@@ -89,15 +90,19 @@ class _SourceCollection:
     # them here as IMAS fast ion data seems to be in core_profiles.
     output = {}
     for name, source_data in self._data.items():
-      values_list = []
-      for affected_profile in source_data.affected_profiles:
-        profile = source_data.profiles[affected_profile]
-        values_list.append((source_data.time, source_data.rho_norm, profile))
+      prescribed_values = {}
+      for output_field in source_data.populated_outputs:
+        profile = source_data.profiles[output_field]
+        prescribed_values[output_field.value] = (
+            source_data.time,
+            source_data.rho_norm,
+            profile,
+        )
 
-      if values_list:
+      if prescribed_values:
         output[name] = {
             "mode": "prescribed",
-            "prescribed_values": tuple(values_list),
+            "prescribed_values": prescribed_values,
         }
     return output
 
@@ -120,8 +125,9 @@ def sources_from_IMAS(
       time slices will be shifted such that the first time slice has time =
       t_initial.
     load_only_external_sources: If True, only loads sources from auxiliary
-      systems for which models exist in TORAX (pellet, gas puff, ecrh, icrh). If
-      False, also loads physics-based sources such as radiation sources.
+      systems for which models exist in TORAX (pellet, gas puff, ecrh, icrh,
+      nbi). If False, also loads physics-based sources such as radiation
+      sources.
 
   Returns:
     The fields read from the IDS that can be used to completely or partially
@@ -143,8 +149,19 @@ def sources_from_IMAS(
       ]
       if load_only_external_sources and not source_mapping.is_external:
         continue
+      if source_mapping.torax_source_name == qei_source.QeiSource.SOURCE_ID:
+        # TODO(b/572586768): Support or decouple IMAS collisional_equipartition
+        # input; QeiSource computes coupled QeiInfo terms and disallows
+        # Mode.PRESCRIBED.
+        logging.warning(
+            "Skipping IMAS source %s (%s): QeiSource does not support"
+            " prescribed mode.",
+            imas_source_name,
+            source_mapping.torax_source_name,
+        )
+        continue
       source_data = _extract_source_profiles(
-          source, source_mapping.affected_core_profiles, t_initial
+          source, source_mapping.populated_source_outputs, t_initial
       )
       accumulator.add(source_mapping.torax_source_name, source_data)
     else:
@@ -159,15 +176,15 @@ def sources_from_IMAS(
 
 def _extract_source_profiles(
     source: ids_structure.IDSStructure,
-    affected_profiles: tuple[source_module.AffectedCoreProfile, ...],
+    populated_outputs: tuple[core_sources_lib.PopulatedSourceOutput, ...],
     t_initial: float | None = None,
 ) -> _SourceProfiles:
   """Extracts profiles for a given source from a core_sources IDS.
 
   Args:
       source: Individual source from the core_sources IDS.
-      affected_profiles: Tuple of profiles to extract. See
-        AFFECTED_CORE_PROFILES class for the possible values.
+      populated_outputs: Tuple of source outputs to extract. See
+        POPULATED_SOURCE_OUTPUTS for the possible values.
       t_initial: Initial time used to map the profiles in the dicts.
 
   Returns:
@@ -178,30 +195,33 @@ def _extract_source_profiles(
   )
 
   profiles = {}
-  for affected_profile in affected_profiles:
-    if affected_profile == source_module.AffectedCoreProfile.PSI:
+  for output_field in populated_outputs:
+    if output_field == core_sources_lib.PopulatedSourceOutput.J_PARALLEL:
       # Switch sign due to the difference between input COCOS conventions and
       # TORAX ones. IMAS Data Dictionary version >4.0.0 (TORAX compatible
       # versions) uses COCOS=17. Previous DD versions used COCOS=11, which had
       # the opposite sign convention for psi.
-      profiles[affected_profile] = [
+      profiles[output_field] = [
           -1.0 * profile.j_parallel for profile in profiles_1d
       ]
-    elif affected_profile == source_module.AffectedCoreProfile.TEMP_ION:
-      profiles[affected_profile] = [
+    elif output_field == core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_I:
+      profiles[output_field] = [
           profile.total_ion_energy for profile in profiles_1d
       ]
-    elif affected_profile == source_module.AffectedCoreProfile.TEMP_EL:
-      profiles[affected_profile] = [
+    elif output_field == core_sources_lib.PopulatedSourceOutput.POWER_DENSITY_E:
+      profiles[output_field] = [
           profile.electrons.energy for profile in profiles_1d
       ]
-    elif affected_profile == source_module.AffectedCoreProfile.NE:
-      profiles[affected_profile] = _get_particle_source_profile(profiles_1d)
+    elif (
+        output_field
+        == core_sources_lib.PopulatedSourceOutput.PARTICLE_SOURCE_E
+    ):
+      profiles[output_field] = _get_particle_source_profile(profiles_1d)
 
   return _SourceProfiles(
       time=time_array,
       rho_norm=rhon_array,
-      affected_profiles=affected_profiles,
+      populated_outputs=populated_outputs,
       profiles=profiles,
   )
 

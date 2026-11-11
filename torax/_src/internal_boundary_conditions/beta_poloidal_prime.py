@@ -22,14 +22,14 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
 from torax._src.physics import psi_calculations
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 # pylint: disable=invalid-name
 
@@ -62,14 +62,14 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
       normalized poloidal flux, -d(beta_pol) / d(psi_norm), in the edge region.
       In POWER_DEPENDENT mode, this serves as the asymptotic upper value at high
       P_SOL.
-    Ti_Te_ratio: Ratio of ion to electron temperature (T_i / T_e) in the edge.
+    T_i_T_e_ratio: Ratio of ion to electron temperature (T_i / T_e) in the edge.
     n_e_edge: Target electron density at rho_norm_edge. In units of m^-3 if
-      n_e_is_fGW is False, or in Greenwald fraction if n_e_is_fGW is True.
+      n_e_is_f_GW is False, or in Greenwald fraction if n_e_is_f_GW is True.
       Mutually exclusive with n_e_edge_multiplier.
     n_e_edge_multiplier: Multiplier applied to the right boundary condition
       density (n_e_right_bc) to set the target electron density at
       rho_norm_edge. Mutually exclusive with n_e_edge.
-    n_e_is_fGW: Whether n_e_edge is provided in units of Greenwald fraction.
+    n_e_is_f_GW: Whether n_e_edge is provided in units of Greenwald fraction.
     mode: Mode for determining the effective beta_poloidal_prime.
     beta_poloidal_prime_min: Minimum poloidal beta gradient at P_SOL <= 0 when
       mode is POWER_DEPENDENT. The default of 0.2 reflects typical low-power
@@ -83,10 +83,10 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
 
   rho_norm_edge: array_typing.FloatScalar
   beta_poloidal_prime: array_typing.FloatScalar
-  Ti_Te_ratio: array_typing.FloatScalar
+  T_i_T_e_ratio: array_typing.FloatScalar
   n_e_edge: array_typing.FloatScalar | None = None
   n_e_edge_multiplier: array_typing.FloatScalar | None = None
-  n_e_is_fGW: bool = jax.tree.static(default=False)
+  n_e_is_f_GW: bool = jax.tree.static(default=False)
   mode: Mode = jax.tree.static(default=Mode.CONSTANT)
   beta_poloidal_prime_min: array_typing.FloatScalar = 0.2
   P_SOL_scaling: array_typing.FloatScalar | None = None
@@ -153,15 +153,15 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
 
   After subtracting the fast ion pressure to isolate the thermal pressure, the
   electron and ion temperature profiles are derived using the prescribed
-  density profile and Ti/Te ratio.
+  density profile and T_i / T_e ratio.
   """
 
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_profiles: core_sources_lib.CoreSources,
   ) -> internal_boundary_conditions.InternalBoundaryConditions:
     """Evaluates edge kinetic profiles (T_e, T_i, n_e) from beta_poloidal_prime.
 
@@ -192,12 +192,15 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     edge_mask = geo.rho_norm >= params.rho_norm_edge
 
     if params.n_e_edge_multiplier is not None:
-      n_e_edge = params.n_e_edge_multiplier * core_profiles.n_e.right_face_value
+      n_e_edge = (
+          params.n_e_edge_multiplier
+          * core_profiles.kinetic.n_e.right_face_value
+      )
     else:
       assert (
           params.n_e_edge is not None
       ), 'Expected either n_e_edge or n_e_edge_multiplier to be set.'
-      if params.n_e_is_fGW:
+      if params.n_e_is_f_GW:
         nGW = (
             runtime_params.profile_conditions.I_p
             / 1e6
@@ -218,11 +221,14 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     )
     n_e_edge_profile = (
         n_e_edge
-        + (core_profiles.n_e.right_face_value - n_e_edge) * edge_flux_frac
+        + (core_profiles.kinetic.n_e.right_face_value - n_e_edge)
+        * edge_flux_frac
     )
     n_e_target = jnp.where(edge_mask, n_e_edge_profile, 0.0)
 
-    bpol2_face = psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+    bpol2_face = psi_calculations.calc_bpol_squared(
+        geo, core_profiles.poloidal_flux.psi
+    )
     bpol2_cell = geometry.face_to_cell(bpol2_face)
     bpol2_sep = bpol2_face[-1]
     p_total_sep = core_profiles.pressure_total.right_face_value
@@ -235,11 +241,11 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
         beta_poloidal_prime = params.beta_poloidal_prime
       case Mode.POWER_DEPENDENT:
         assert params.P_SOL_scaling is not None
-        total_power_density = sum(
-            (*source_profiles.T_e.values(), *source_profiles.T_i.values()),
-            jnp.zeros_like(geo.rho_norm),
+        P_SOL = math_utils.cell_integration(
+            source_profiles.total_sources('power_density_e', geo)
+            + source_profiles.total_sources('power_density_i', geo),
+            geo,
         )
-        P_SOL = math_utils.volume_integration(total_power_density, geo)
         beta_poloidal_prime = _calculate_power_dependent_beta_poloidal_prime(
             P_SOL=P_SOL,
             P_SOL_scaling=params.P_SOL_scaling,
@@ -259,16 +265,17 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     # Assuming T_i = T_imp,
     # p_thermal = n_e * T_e * (1 + (T_i / T_e) * (n_i + n_imp) / n_e).
     n_i_n_e_ratio = (
-        core_profiles.n_i.value + core_profiles.n_impurity_thermal.value
-    ) / (core_profiles.n_e.value + constants.CONSTANTS.eps)
+        core_profiles.kinetic.n_i.value
+        + core_profiles.n_impurity_total_thermal.value
+    ) / (core_profiles.kinetic.n_e.value + constants.CONSTANTS.eps)
 
     T_e_edge_profile = p_thermal_cell / (
         constants.CONSTANTS.keV_to_J
         * n_e_edge_profile
-        * (1.0 + params.Ti_Te_ratio * n_i_n_e_ratio)
+        * (1.0 + params.T_i_T_e_ratio * n_i_n_e_ratio)
         + constants.CONSTANTS.eps
     )
-    T_i_edge_profile = params.Ti_Te_ratio * T_e_edge_profile
+    T_i_edge_profile = params.T_i_T_e_ratio * T_e_edge_profile
 
     T_e_target = jnp.where(edge_mask, T_e_edge_profile, 0.0)
     T_i_target = jnp.where(edge_mask, T_i_edge_profile, 0.0)

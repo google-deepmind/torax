@@ -22,14 +22,19 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import model_state as model_state_lib
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
+from torax._src.orchestration import sim_error
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
-from torax._src.sources import source_profiles
+from torax._src.solver import (
+    solver_numeric_outputs as solver_numeric_outputs_lib,
+)
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.time_step_calculator import time_step_calculator_state
+from torax._src.transport_model import transport_coeffs
 
 _EXCLUDE_FROM_NAN_CHECK = ("edge_outputs",)
 _GEOMETRY_EXCLUDE_FROM_NAN_CHECK = (
@@ -51,8 +56,18 @@ def _should_exclude_path(path) -> bool:
     return False
   first_step = path[0]
   if hasattr(first_step, "name"):
+    # Exclude edge outputs and edge model state from NaN checks. This is
+    # acceptable as the edge model can be run in a decoupled mode for
+    # diagnostic purposes, in which case NaNs are not propagated to the
+    # TORAX core profiles and can be ignored. If NaNs are produced in
+    # coupled mode, these will be propagated to the TORAX core profiles
+    # and thus will be caught by the NaN check there.
     if first_step.name in _EXCLUDE_FROM_NAN_CHECK:
       return True
+    if first_step.name == "model_state" and len(path) > 1:
+      second_step = path[1]
+      if hasattr(second_step, "name") and second_step.name == "edge":
+        return True
     if first_step.name == "geometry" and len(path) > 1:
       second_step = path[1]
       if (
@@ -90,41 +105,41 @@ class SimState:
 
   t: array_typing.FloatScalar
   dt: array_typing.FloatScalar
-  core_profiles: state.CoreProfiles
-  core_transport: state.CoreTransport
-  core_sources: source_profiles.SourceProfiles
+  core_profiles: core_profiles_lib.CoreProfiles
+  core_transport: transport_coeffs.CoreTransport
+  core_sources: core_sources_lib.CoreSources
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
-  solver_numeric_outputs: state.SolverNumericOutputs
+  solver_numeric_outputs: solver_numeric_outputs_lib.SolverNumericOutputs
   # TODO(b/434175938): Separate states required for models from states of the
   # PDE system.
   time_step_calculator_state: time_step_calculator_state.TimeStepCalculatorState
   pedestal_output: pedestal_model_output_lib.PedestalModelOutput
   model_state: model_state_lib.ModelState
 
-  def check_for_errors(self) -> state.SimError:
-    """Checks for errors in the simulation state."""
+  def check_for_errors(self) -> sim_error.SimError:
+    """Checks for errors in the simulation state.
+
+    Returns:
+      A `SimError` enum value indicating any error detected in the state, or
+      `SimError.NO_ERROR` if none.
+    """
     if self.core_profiles.negative_temperature_or_density():
       logging.info("Unphysical negative values detected in core profiles:\n")
       _log_negative_profile_names(self.core_profiles)
-      return state.SimError.NEGATIVE_CORE_PROFILES
+      return sim_error.SimError.NEGATIVE_CORE_PROFILES
     if self.has_nan():
       logging.info("NaNs detected in ToraxSimState:\n")
       _log_nans(self)
-      return state.SimError.NAN_DETECTED
+      return sim_error.SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
-      return state.SimError.QUASINEUTRALITY_BROKEN
+      return sim_error.SimError.QUASINEUTRALITY_BROKEN
     else:
-      return state.SimError.NO_ERROR
+      return sim_error.SimError.NO_ERROR
 
   @jax.jit
   def has_nan(self) -> jax.Array:
-    """Returns a boolean JAX scalar indicating whether any checked leaf has NaNs."""
-    # Exclude edge outputs from NaN checks. This is acceptable as the edge model
-    # can be run in a decoupled mode for diagnostic purposes, in which case NaNs
-    # are not propagated to the TORAX core profiles and can be ignored. If NaNs
-    # are produced in coupled mode, these will be propagated to the
-    # TORAX core profiles and thus will be caught by the NaN check there.
+    """Checks whether any checked leaf in SimState contains NaNs."""
     return jnp.any(
         jnp.stack([
             jnp.any(jnp.isnan(value))
@@ -153,7 +168,7 @@ def _log_nans(
         last valid step.""")
 
 
-def _log_negative_profile_names(inputs: state.CoreProfiles) -> None:
+def _log_negative_profile_names(inputs: core_profiles_lib.CoreProfiles) -> None:
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   for path, value in path_vals:
     if np.any(np.less(value, 0.0)):

@@ -35,11 +35,11 @@ class RedlFormulasTest(parameterized.TestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'geometry',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'current_profile_nu': 3,
-            'n_e_nbar_is_fGW': True,
-            'normalize_n_e_to_nbar': True,
-            'nbar': 0.85,
+            'n_e_bar_is_f_GW': True,
+            'normalize_n_e': True,
+            'n_e_bar': 0.85,
             'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
         },
         'numerics': {},
@@ -47,7 +47,8 @@ class RedlFormulasTest(parameterized.TestCase):
             'Z_eff': 2.0,
         },
         'geometry': {
-            'geometry_type': 'chease',
+            'model_name': 'chease',
+            'geometry_file': 'iterhybrid.mat2cols',
             'n_rho': 10,
         },
         'transport': {},
@@ -61,14 +62,15 @@ class RedlFormulasTest(parameterized.TestCase):
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(
-        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()
+        self.core_profiles.kinetic.T_e.face_value(),
+        self.core_profiles.kinetic.n_e.face_value(),
     )
     self.nu_e_star = formulas._calculate_nu_e_star(
-        q=self.core_profiles.q_face,
+        q=self.core_profiles.poloidal_flux.q_face,
         geo=self.geo,
-        n_e=self.core_profiles.n_e.face_value(),
-        T_e=self.core_profiles.T_e.face_value(),
-        Z_eff=self.core_profiles.Z_eff_face,
+        n_e=self.core_profiles.kinetic.n_e.face_value(),
+        T_e=self.core_profiles.kinetic.T_e.face_value(),
+        Z_eff=self.core_profiles.ions.Z_eff_face,
         log_lambda_ei=log_lambda_ei,
     )
 
@@ -76,19 +78,19 @@ class RedlFormulasTest(parameterized.TestCase):
 
   def test_L31_values_are_correct(self):
     L31 = redl_formulas.calculate_L31(
-        self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
+        self.f_trap, self.nu_e_star, self.core_profiles.ions.Z_eff_face
     )
     np.testing.assert_allclose(L31, _L31_EXPECTED, atol=_A_TOL, rtol=_R_TOL)
 
   def test_L32_values_are_correct(self):
     L32 = redl_formulas.calculate_L32(
-        self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
+        self.f_trap, self.nu_e_star, self.core_profiles.ions.Z_eff_face
     )
     np.testing.assert_allclose(L32, _L32_EXPECTED, atol=_A_TOL, rtol=_R_TOL)
 
   def test_L33_values_are_correct(self):
     L33 = redl_formulas.calculate_L33(
-        self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
+        self.f_trap, self.nu_e_star, self.core_profiles.ions.Z_eff_face
     )
     self.assertEqual(L33.shape, self.f_trap.shape)
     self.assertAlmostEqual(float(L33[0]), 1.0, places=6)

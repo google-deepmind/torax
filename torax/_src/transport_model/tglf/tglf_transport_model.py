@@ -24,8 +24,8 @@ import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -109,7 +109,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
@@ -222,14 +222,15 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 class TGLFTransportModelConfig(
     tglf_based_transport_model.TGLFBasedTransportModelConfig
 ):
-  r"""Model for the TGLF transport model.
+  r"""Configuration model for the TGLF quasilinear transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'tglf'.
-    n_processes: Set number of parallel TGLF calculations to run.
-    n_cores_per_process: Number of cores to use for each parallel TGLF
-      calculation.
-    tglf_settings: Dictionary of TGLF namelist parameters.
+    model_name: Transport model identifier. Always set to `'tglf'`.
+    n_processes: Number of parallel TGLF calculations to run across radial
+      faces.
+    n_cores_per_process: Number of cores to use for each parallel TGLF process.
+    tglf_settings: Dictionary of TGLF namelist parameters used to override
+      default physics settings.
   """
 
   model_name: Annotated[Literal['tglf'], torax_pydantic.JAX_STATIC] = 'tglf'

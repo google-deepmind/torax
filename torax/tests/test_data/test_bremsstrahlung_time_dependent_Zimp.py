@@ -29,17 +29,17 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
+        'psi_source': 'geometry',
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
         'n_e_right_bc': 0.5e20,
-        'nbar': 0.95,  # initial density (Greenwald fraction units)
+        'n_e_bar': 0.95,  # initial density (Greenwald fraction units)
     },
     'numerics': {
         'current_diffusion_time_reduction_factor': 100,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     },
     'neoclassical': {
@@ -50,16 +50,22 @@ CONFIG = {
     'sources': {
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,
+            'P_total': 120e6,
+            'gaussian_location': 0.0,
         },
         'ei_exchange': {},
         'ohmic': {},
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
         'bremsstrahlung': {
             'use_relativistic_correction': True,
         },
     },
     'pedestal': {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
+        'structure_model': {'model_name': 'set_T_top_n_top'},
     },
     'transport': {
         'core_transport_models': {

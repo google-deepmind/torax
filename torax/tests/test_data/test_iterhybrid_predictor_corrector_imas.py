@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['geometry'] = {
-    'geometry_type': 'imas',
+    'model_name': 'imas',
     'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
     'trapped_fraction_source': 'file',
 }

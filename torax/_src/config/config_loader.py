@@ -132,6 +132,14 @@ def build_torax_config_from_file(
   Args:
     path: The absolute path to the config file. The path can be represented as a
       string or a `pathlib.Path` object.
+
+  Returns:
+    A `ToraxConfig` object constructed from the config file.
+
+  Raises:
+    NotImplementedError: If the file is a `.json` or `.nc` file.
+    ValueError: If the file is not a valid Torax config file or does not define
+      a `CONFIG` variable.
   """
 
   path = pathlib.Path(path) if isinstance(path, str) else path

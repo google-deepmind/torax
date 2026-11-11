@@ -24,7 +24,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import jax_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
@@ -107,10 +107,10 @@ class QualikizTransportModelOutput(transport_coeffs.TransportCoeffs):
 class RotationMode(enum.StrEnum):
   """Defines how the rotation correction is applied.
 
-  OFF: No rotation correction is applied.
-  HALF_RADIUS: The rotation correction is only applied to the outer
+  - `OFF`: No rotation correction is applied.
+  - `HALF_RADIUS`: The rotation correction is only applied to the outer
     half of the radius (rhon > 0.5).
-  FULL_RADIUS: The rotation correction is applied everywhere.
+  - `FULL_RADIUS`: The rotation correction is applied everywhere.
   """
 
   OFF = 'off'
@@ -126,14 +126,14 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
 
   Attributes:
     DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
+    An_min: Minimum `|R/Lne|` below which effective V is used instead of
+      effective D.
     DV_effective_smooth_width: Particle flux width over which down-gradient
       transport transitions from convection to diffusion.
     collisionality_multiplier: Multiplier applied to collisionality.
     max_normalized_collisionality: Upper bound clamping normalized
       collisionality nu_star.
-    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
+    avoid_big_negative_s: Ensure that smag - alpha >= -0.2 always, to compensate
       for no slab modes.
     smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
       impact of alpha.
@@ -158,7 +158,41 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
 class QualikizBasedTransportModelConfig(
     config_base.ComponentTransportConfigBase
 ):
-  """Base config for Qualikiz-family transport models."""
+  """Base config for Qualikiz-family transport models.
+
+  Attributes:
+    collisionality_multiplier: Collisionality multiplier for sensitivity
+      analysis.
+    max_normalized_collisionality: Maximum normalized collisionality ($nu_star$,
+      ion-electron collision frequency normalized to the bounce frequency)
+      passed to the model. Acts as a ceiling (applied after
+      `collisionality_multiplier`) to mitigate unreliable transport predictions
+      at high collisionality. Set to a finite value (e.g., `1.0`) to cap
+      collisionality in the collisional regime.
+    avoid_big_negative_s: If `True`, modifies input magnetic shear so that
+      $s_hat - alpha_MHD >= -0.2$ always, compensating for the lack of slab ITG
+      modes in QuaLiKiz.
+    smag_alpha_correction: If `True`, reduces input magnetic shear by
+      $0.5 * alpha_MHD$ to capture the main impact of $alpha_MHD$.
+    q_sawtooth_proxy: If `True`, clips QuaLiKiz inputs to $q = 1$ and
+      $s_hat = 0.1$ in zones where $q < 1$, acting as a proxy for sawteeth to
+      avoid unphysical transport barriers.
+    DV_effective: If `True`, uses either $D_eff$ or $V_eff$ for particle
+      transport. See :ref:`physics_models` for details.
+    An_min: Minimum $abs(R_over_L_ne)$ value below which $V_eff$ is used instead
+      of $D_eff$ when `DV_effective=True`.
+    DV_effective_smooth_width: Width [$Gamma_e / Gamma_GB$] (dimensionless
+      GyroBohm-normalized particle flux) over which down-gradient transport
+      transitions smoothly from $V_eff$ to $D_eff$. If `0.0`, uses a sharp step
+      transition. Because QuaLiKiz normalizes using major radius $R_major$
+      rather than minor radius $a$, the default (`0.01`) corresponds roughly to
+      the TGLF default (`0.001`) in SI units.
+    rotation_multiplier: Multiplier for $v_ExB$ in the rotation correction
+      factor.
+    rotation_mode: Defines how the rotation correction is applied: `'off'` (no
+      correction), `'half_radius'` (applied only for $rho_norm > 0.5$), or
+      `'full_radius'` (applied everywhere).
+  """
 
   collisionality_multiplier: float = 1.0
   max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
@@ -283,7 +317,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       qualikiz_inputs: QualikizInputs,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Converts model output to TransportCoeffs."""
@@ -292,7 +326,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     # (a_minor).
     pfe_SI = (
         pfe
-        * core_profiles.n_e.face_value()
+        * core_profiles.kinetic.n_e.face_value()
         * qualikiz_inputs.chiGB
         / geo.a_minor
     )
@@ -315,7 +349,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=pfe_SI,
           normalized_particle_flux=pfe,
-          n_e=core_profiles.n_e,
+          n_e=core_profiles.kinetic.n_e,
           geo=geo,
           gradient_reference_length=geo.R_major,
           An_min=transport.An_min,
@@ -330,7 +364,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
           particle_flux_SI=pfe_SI,
           chi_face_el=chi_face_el,
-          n_e=core_profiles.n_e,
+          n_e=core_profiles.kinetic.n_e,
           geo=geo,
           two_point_mask=two_point_mask,
       )
@@ -346,7 +380,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       self,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> QualikizInputs:
     """Constructs a `QualikizInputs` object from the TORAX state.
@@ -377,9 +411,9 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     rmid_face = geo.r_mid_face
 
     chiGB = quasilinear_utils.calculate_chiGB(
-        reference_temperature=core_profiles.T_i.face_value(),
+        reference_temperature=core_profiles.kinetic.T_i.face_value(),
         reference_magnetic_field=geo.B_0,
-        reference_mass=core_profiles.A_i,
+        reference_mass=core_profiles.ions.A_i,
         reference_length=geo.a_minor,
     )
 
@@ -393,17 +427,20 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         )
     )
 
-    q = core_profiles.q_face
+    q = core_profiles.poloidal_flux.q_face
     smag = psi_calculations.calc_s_rmid(
         geo,
-        core_profiles.psi,
+        core_profiles.poloidal_flux.psi,
     )
 
     epsilon = geo.epsilon_face
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
 
-    Ti_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
+    Ti_Te = (
+        core_profiles.kinetic.T_i.face_value()
+        / core_profiles.kinetic.T_e.face_value()
+    )
 
     nu_star = collisions.calc_nu_star(
         geo=geo,
@@ -451,7 +488,10 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         alpha - 0.2,
         smag,
     )
-    normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+    normni = (
+        core_profiles.kinetic.n_i.face_value()
+        / core_profiles.kinetic.n_e.face_value()
+    )
 
     lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
@@ -462,15 +502,17 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     )
 
     if transport.rotation_mode == RotationMode.OFF:
-      v_ExB = jnp.zeros_like(core_profiles.q_face)
-      v_ExB_poloidal_and_pressure = jnp.zeros_like(core_profiles.q_face)
-      v_ExB_toroidal = jnp.zeros_like(core_profiles.q_face)
+      v_ExB = jnp.zeros_like(core_profiles.poloidal_flux.q_face)
+      v_ExB_poloidal_and_pressure = jnp.zeros_like(
+          core_profiles.poloidal_flux.q_face
+      )
+      v_ExB_toroidal = jnp.zeros_like(core_profiles.poloidal_flux.q_face)
     else:
       rotation_output = rotation.calculate_rotation(
-          psi=core_profiles.psi,
-          n_i=core_profiles.n_i,
-          Z_i_face=core_profiles.Z_i_face,
-          toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+          psi=core_profiles.poloidal_flux.psi,
+          n_i=core_profiles.kinetic.n_i,
+          Z_i_face=core_profiles.ions.Z_i_face,
+          toroidal_angular_velocity=core_profiles.kinetic.toroidal_angular_velocity,
           poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
@@ -529,16 +571,16 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
     gamma_E_QLK = gamma_E_SI * (geo.R_major / c_ref)
     mach_toroidal = (
-        core_profiles.toroidal_angular_velocity.face_value()
+        core_profiles.kinetic.toroidal_angular_velocity.face_value()
         * geo.R_major_profile_face
         / c_ref
     )
     mach_toroidal = mach_toroidal * transport.rotation_multiplier
 
     c_sou = jnp.sqrt(
-        core_profiles.T_e.face_value()
+        core_profiles.kinetic.T_e.face_value()
         * constants.keV_to_J
-        / (core_profiles.A_i * constants.m_amu)
+        / (core_profiles.ions.A_i * constants.m_amu)
     )
     gamma_E_GB_poloidal_and_pressure = gamma_E_SI_poloidal_and_pressure * (
         geo.a_minor / c_sou
@@ -546,7 +588,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     gamma_E_GB_toroidal = gamma_E_SI_toroidal * (geo.a_minor / c_sou)
 
     return QualikizInputs(
-        Z_eff_face=core_profiles.Z_eff_face,
+        Z_eff_face=core_profiles.ions.Z_eff_face,
         lref_over_lti=lref_over_lti,
         lref_over_lte=normalized_logarithmic_gradients.lref_over_lte,
         lref_over_lne=normalized_logarithmic_gradients.lref_over_lne,

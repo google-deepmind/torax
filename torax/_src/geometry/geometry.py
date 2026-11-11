@@ -25,25 +25,22 @@ import numpy as np
 from torax._src import array_typing
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.torax_pydantic import torax_pydantic
 
 
-@jax.jit
 def face_to_cell(
-    face: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorCell:
+    face: array_typing.Array,
+) -> array_typing.Array:
   """Infers cell values corresponding to a vector of face values.
 
   Simply a linear interpolation between face values.
 
   Args:
-    face: An array containing face values.
+    face: An array containing face values, with the radial face axis last.
 
   Returns:
     cell: An array containing cell values.
   """
-
-  return 0.5 * (face[:-1] + face[1:])
+  return 0.5 * (face[..., :-1] + face[..., 1:])
 
 
 @enum.unique
@@ -78,7 +75,8 @@ class Geometry:
 
   Attributes:
     geometry_type: Type of geometry model used. See `GeometryType` for options.
-    torax_mesh: `Grid1D` object representing the radial mesh used by TORAX.
+    rho_face_norm: Normalized toroidal flux coordinate on face grid
+      [dimensionless].
     Phi: Toroidal magnetic flux at each radial grid point [:math:`\mathrm{Wb}`].
     Phi_face: Toroidal magnetic flux at each radial face [:math:`\mathrm{Wb}`].
     R_major: Major radius defined as midplane average of the LCFS radius,
@@ -178,62 +176,59 @@ class Geometry:
       where Z_upper and Z_lower are the Z coordinates of the upper and lower
       extent of the flux surface.
     elongation_face: Plasma elongation profile on face grid [dimensionless].
-    Phi_b_dot: Time derivative of the toroidal magnetic flux
-      [:math:`\mathrm{Wb/s}`]. Calculated across a time interval using ``Phi``
-      from the Geometry objects at time t and t + dt. See
-      ``torax.orchestration.step_function`` for more details.
     _z_magnetic_axis: Vertical position of the magnetic axis
       [:math:`\mathrm{m}`].
   """
 
-  geometry_type: GeometryType
-  torax_mesh: torax_pydantic.Grid1D
-  Phi: array_typing.Array
-  Phi_face: array_typing.Array
+  geometry_type: GeometryType = jax.tree.static()
+  rho_face_norm: array_typing.FloatVectorFace
+  Phi: array_typing.FloatVectorCell
+  Phi_face: array_typing.FloatVectorFace
   R_major: array_typing.FloatScalar
   a_minor: array_typing.FloatScalar
   B_0: array_typing.FloatScalar
-  volume: array_typing.Array
-  volume_face: array_typing.Array
-  area: array_typing.Array
-  area_face: array_typing.Array
-  vpr: array_typing.Array
-  vpr_face: array_typing.Array
-  spr: array_typing.Array
-  spr_face: array_typing.Array
-  delta_face: array_typing.Array
-  trapped_fraction_face: array_typing.Array
-  elongation: array_typing.Array
-  elongation_face: array_typing.Array
-  g0: array_typing.Array
-  g0_face: array_typing.Array
-  g1: array_typing.Array
-  g1_face: array_typing.Array
-  g2: array_typing.Array
-  g2_face: array_typing.Array
-  g3: array_typing.Array
-  g3_face: array_typing.Array
-  gm4: array_typing.Array
-  gm4_face: array_typing.Array
-  gm5: array_typing.Array
-  gm5_face: array_typing.Array
-  g2g3_over_rhon: array_typing.Array
-  g2g3_over_rhon_face: array_typing.Array
-  g2g3_over_rhon_hires: array_typing.Array
-  F: array_typing.Array
-  F_face: array_typing.Array
-  F_hires: array_typing.Array
-  R_in: array_typing.Array
-  R_in_face: array_typing.Array
-  R_out: array_typing.Array
-  R_out_face: array_typing.Array
-  spr_hires: array_typing.Array
-  rho_hires_norm: array_typing.Array
-  rho_hires: array_typing.Array
-  Phi_b_dot: array_typing.FloatScalar
+  volume: array_typing.FloatVectorCell
+  volume_face: array_typing.FloatVectorFace
+  area: array_typing.FloatVectorCell
+  area_face: array_typing.FloatVectorFace
+  vpr: array_typing.FloatVectorCell
+  vpr_face: array_typing.FloatVectorFace
+  spr: array_typing.FloatVectorCell
+  spr_face: array_typing.FloatVectorFace
+  delta_face: array_typing.FloatVectorFace
+  trapped_fraction_face: array_typing.FloatVectorFace
+  elongation: array_typing.FloatVectorCell
+  elongation_face: array_typing.FloatVectorFace
+  g0: array_typing.FloatVectorCell
+  g0_face: array_typing.FloatVectorFace
+  g1: array_typing.FloatVectorCell
+  g1_face: array_typing.FloatVectorFace
+  g2: array_typing.FloatVectorCell
+  g2_face: array_typing.FloatVectorFace
+  g3: array_typing.FloatVectorCell
+  g3_face: array_typing.FloatVectorFace
+  gm4: array_typing.FloatVectorCell
+  gm4_face: array_typing.FloatVectorFace
+  gm5: array_typing.FloatVectorCell
+  gm5_face: array_typing.FloatVectorFace
+  g2g3_over_rhon: array_typing.FloatVectorCell
+  g2g3_over_rhon_face: array_typing.FloatVectorFace
+  g2g3_over_rhon_hires: array_typing.FloatVector
+  F: array_typing.FloatVectorCell
+  F_face: array_typing.FloatVectorFace
+  F_hires: array_typing.FloatVector
+  R_in: array_typing.FloatVectorCell
+  R_in_face: array_typing.FloatVectorFace
+  R_out: array_typing.FloatVectorCell
+  R_out_face: array_typing.FloatVectorFace
+  spr_hires: array_typing.FloatVector
+  rho_hires_norm: array_typing.FloatVector
+  rho_hires: array_typing.FloatVector
   _z_magnetic_axis: array_typing.FloatScalar | None
 
-  def __eq__(self, other: 'Geometry') -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, Geometry):
+      return False
     try:
       chex.assert_trees_all_equal(self, other)
     except AssertionError:
@@ -253,19 +248,19 @@ class Geometry:
     )
 
   @property
-  def rho_norm(self) -> array_typing.Array:
-    r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
-    return self.torax_mesh.cell_centers
+  def n_rho(self) -> int:
+    """Number of radial cells."""
+    return self.rho_face_norm.shape[-1] - 1
 
   @property
-  def rho_face_norm(self) -> array_typing.Array:
-    r"""Normalized toroidal flux coordinate on face grid [dimensionless]."""
-    return self.torax_mesh.face_centers
+  def rho_norm(self) -> array_typing.Array:
+    r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
+    return face_to_cell(self.rho_face_norm)
 
   @property
   def drho_norm(self) -> array_typing.Array:
     """Cell widths [dimensionless]."""
-    return self.torax_mesh.cell_widths
+    return jnp.diff(self.rho_face_norm, axis=-1)
 
   @property
   def rho_face(self) -> array_typing.Array:
@@ -306,14 +301,9 @@ class Geometry:
     )
 
   @property
-  def drho(self) -> array_typing.Array:
-    """Cell widths [m]."""
-    return self.drho_norm * jnp.expand_dims(self.rho_b, axis=-1)
-
-  @property
   def rho_b(self) -> array_typing.FloatScalar:
     """Toroidal flux coordinate [m] at boundary (LCFS)."""
-    return jnp.sqrt(self.Phi_b / np.pi / self.B_0)
+    return jnp.sqrt(self.Phi_b / jnp.pi / self.B_0)
 
   @property
   def Phi_b(self) -> array_typing.FloatScalar:
@@ -370,9 +360,9 @@ class Geometry:
     )
 
   @property
-  def gm9(self) -> jax.Array:
+  def gm9(self) -> array_typing.Array:
     r"""<1/R> on cell grid [:math:`\mathrm{m}^{-1}`]."""
-    return 2 * jnp.pi * self.spr / self.vpr  # pyrefly: ignore[bad-return]
+    return 2 * jnp.pi * self.spr / self.vpr
 
   @property
   def gm9_face(self) -> jax.Array:
@@ -384,17 +374,24 @@ class Geometry:
     )
 
   @property
-  def R_major_profile(self) -> jax.Array:
+  def R_major_profile(self) -> array_typing.Array:
     """Local major radius on cell grid [m]."""
-    return (self.R_in + self.R_out) / 2  # pyrefly: ignore[bad-return]
+    return (self.R_in + self.R_out) / 2
 
   @property
-  def R_major_profile_face(self) -> jax.Array:
+  def R_major_profile_face(self) -> array_typing.Array:
     """Local major radius on face grid [m]."""
-    return (self.R_in_face + self.R_out_face) / 2  # pyrefly: ignore[bad-return]
+    return (self.R_in_face + self.R_out_face) / 2
 
   def z_magnetic_axis(self) -> chex.Numeric:
-    """z position of magnetic axis [m]."""
+    """Returns the z position of the magnetic axis [m].
+
+    Returns:
+      z position of the magnetic axis [m].
+
+    Raises:
+      ValueError: If the geometry does not have a z magnetic axis.
+    """
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:
       return z_magnetic_axis
@@ -404,7 +401,25 @@ class Geometry:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked Geometry into a dictionary of OutputVar tuples."""
+    """Packs time-stacked geometry profiles and scalars into xarray variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and `(dims, data, attrs)` packing.
+
+    Returns:
+      Mapping from geometry output variable names to `(dims, data, attrs)`
+      `OutputVar` tuples:
+        - Extended flux, metric, and radial profiles (`Phi`, `volume`,
+          `area`, `vpr`, `spr`, `elongation`, `g*`, `r_in`, `r_out`,
+          `r_mid`, `R_major_profile`, etc.): `('time', 'rho_norm')` with
+          shape `(n_time, n_rho_cell + 2)`.
+        - Face profiles (`delta`, `trapped_fraction`, `g0_over_vpr`):
+          `('time', 'rho_face_norm')` with shape `(n_time, n_rho_face)`.
+        - Scalar geometry quantities (`R_major`, `a_minor`, `B_0`, boundary
+          fluxes, `z_magnetic_axis` if set): `('time',)` with shape
+          `(n_time,)`.
+    """
     extend = output_grid_context.extend_cell_grid_to_boundaries
     extended_vars = (
         (output_keys.PHI, self.Phi, self.Phi_face),
@@ -449,7 +464,6 @@ class Geometry:
         (output_keys.R_MAJOR, self.R_major),
         (output_keys.A_MINOR, self.a_minor),
         (output_keys.B_0, self.B_0),
-        (output_keys.PHI_B_DOT, self.Phi_b_dot),
         (output_keys.RHO_B, self.rho_b),
         (output_keys.PHI_B, self.Phi_b),
     ]
@@ -479,68 +493,27 @@ def stack_geometries[GeometryT: Geometry](
     raise ValueError('No geometries provided.')
   # Ensure that all geometries have same mesh and are of same type.
   first_geo = geometries[0]
-  torax_mesh = first_geo.torax_mesh
-  geometry_type = first_geo.geometry_type
-  for geometry in geometries[1:]:
-    if geometry.torax_mesh != torax_mesh:
+  for geo in geometries[1:]:
+    if (
+        geo.rho_face_norm.shape != first_geo.rho_face_norm.shape
+        or not np.allclose(geo.rho_face_norm, first_geo.rho_face_norm)
+    ):
       raise ValueError('All geometries must have the same mesh.')
-    if geometry.geometry_type != geometry_type:
+    if geo.geometry_type != first_geo.geometry_type:
       raise ValueError('All geometries must have the same geometry type.')
 
-  stacked_data = {}
-  for field in dataclasses.fields(first_geo):
-    field_name = field.name
-    field_value = getattr(first_geo, field_name)
-    # Stack stackable fields. Save first geo's value for non-stackable fields.
-    if isinstance(field_value, (array_typing.Array, float, np.floating)):
-      field_values = [getattr(geo, field_name) for geo in geometries]
-      stacked_data[field_name] = np.stack(field_values)
-    else:
-      stacked_data[field_name] = field_value
-  # Create a new object with the stacked data with the same class (i.e.
-  # could be child classes of Geometry)
-  return first_geo.__class__(**stacked_data)
-
-
-def update_geometries_with_Phibdot(
-    *,
-    dt: chex.Numeric,
-    geo_t: Geometry,
-    geo_t_plus_dt: Geometry,
-) -> tuple[Geometry, Geometry]:
-  """Update Phibdot in the geometry dataclasses used in the time interval.
-
-  Phibdot is used in calc_coeffs to calculate terms related to time-dependent
-  geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
-  each given time interval. This means that geo_t_plus_dt.Phibdot will not
-  necessarily be the same as the geo_t.Phibdot at the next time step.
-
-  Args:
-    dt: Time step duration.
-    geo_t: The geometry of the torus during this time step of the simulation.
-    geo_t_plus_dt: The geometry of the torus during the next time step of the
-      simulation.
-
-  Returns:
-    Tuple containing:
-      - The geometry of the torus during this time step of the simulation.
-      - The geometry of the torus during the next time step of the simulation.
-  """
-  Phibdot = (geo_t_plus_dt.Phi_b - geo_t.Phi_b) / dt
-  geo_t = dataclasses.replace(geo_t, Phi_b_dot=Phibdot)
-  geo_t_plus_dt = dataclasses.replace(geo_t_plus_dt, Phi_b_dot=Phibdot)
-  return geo_t, geo_t_plus_dt
+  return jax.tree.map(lambda *xs: np.stack(xs), *geometries)
 
 
 def increase_grid_resolution(
     faces: array_typing.Array, factor: int
-) -> array_typing.Array:
+) -> jax.Array:
   """Increase the grid resolution by a factor."""
   if factor <= 1:
     raise ValueError('factor must be >= 1.')
   num_faces = len(faces)
   num_cells = num_faces - 1
-  grid_indices = np.arange(len(faces))
+  grid_indices = jnp.arange(num_faces)
   new_num_faces = num_cells * factor + 1
-  new_indices = np.linspace(0, num_cells, new_num_faces)
-  return np.interp(new_indices, grid_indices, faces)
+  new_indices = jnp.linspace(0, num_cells, new_num_faces)
+  return jnp.interp(new_indices, grid_indices, faces)

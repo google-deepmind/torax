@@ -25,12 +25,13 @@ import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
+from torax._src.solver import solver_numeric_outputs
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -56,13 +57,13 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
+      solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs.SolverNumericOutputs,
   ]:
     """Applies a time step update.
 
@@ -76,11 +77,12 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         implicit calculations in the solver.
       geo_t: Geometry of the torus at time t.
       geo_t_plus_dt: Geometry of the torus at time t + dt.
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
-      core_profiles_t_plus_dt: Core plasma profiles which contain all available
-        prescribed quantities at the end of the time step. This includes
-        evolving boundary conditions and prescribed time-dependent profiles that
-        are not being evolved by the PDE system.
+      solver_state_t: Primary plasma profiles at the beginning of the time
+        step.
+      solver_state_t_plus_dt: Primary plasma profiles which contain all
+        available prescribed quantities at the end of the time step. This
+        includes evolving boundary conditions and prescribed time-dependent
+        profiles that are not being evolved by the PDE system.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       model_state: State of models across timesteps.
 
@@ -103,15 +105,15 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
           runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t=geo_t,
           geo_t_plus_dt=geo_t_plus_dt,
-          core_profiles_t=core_profiles_t,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          solver_state_t=solver_state_t,
+          solver_state_t_plus_dt=solver_state_t_plus_dt,
           explicit_model_outputs=explicit_model_outputs,
           evolving_names=runtime_params_t.numerics.evolving_names,
           model_state=model_state,
       )
     else:
       x_new = tuple()
-      solver_numeric_output = state.SolverNumericOutputs(
+      solver_numeric_output = solver_numeric_outputs.SolverNumericOutputs(
           sawtooth_crash=False,
           solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
           inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
@@ -130,14 +132,14 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
+      solver_state_t: solver_state.SolverState,
+      solver_state_t_plus_dt: solver_state.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
+      solver_numeric_outputs.SolverNumericOutputs,
   ]:
     """Calculates new values of the changing variables.
 
@@ -153,11 +155,12 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         implicit calculations in the solver.
       geo_t: Geometry of the torus for time t.
       geo_t_plus_dt: Geometry of the torus for time t + dt.
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
-      core_profiles_t_plus_dt: Core plasma profiles which contain all available
-        prescribed quantities at the end of the time step. This includes
-        evolving boundary conditions and prescribed time-dependent profiles that
-        are not being evolved by the PDE system.
+      solver_state_t: Primary plasma profiles at the beginning of the time
+        step.
+      solver_state_t_plus_dt: Primary plasma profiles which contain all
+        available prescribed quantities at the end of the time step. This
+        includes evolving boundary conditions and prescribed time-dependent
+        profiles that are not being evolved by the PDE system.
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       evolving_names: The names of core_profiles variables that should evolve.
       model_state: State of models across timesteps.

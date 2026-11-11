@@ -64,7 +64,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('I_p', 'I_bootstrap', 'I_aux_generic', 'I_ecrh'),
+            attrs=('I_p', 'I_bootstrap', 'I_generic_current', 'I_ecrh'),
             labels=(
                 r'$I_\mathrm{p}$',
                 r'$I_\mathrm{bs}$',
@@ -86,6 +86,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 'j_toroidal_bootstrap',
                 'j_toroidal_generic_current',
                 'j_toroidal_ecrh',
+                'j_toroidal_nbi',
             ),
             labels=(
                 r'$j_\mathrm{tot}$',
@@ -93,6 +94,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$j_\mathrm{bs}$',
                 r'$j_\mathrm{generic}$',
                 r'$j_\mathrm{ecrh}$',
+                r'$j_\mathrm{nbi}$',
             ),
             ylabel=r'Toroidal current $[MA~m^{-2}]$',
             legend_fontsize=7,  # Smaller fontsize for this plot
@@ -124,6 +126,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             attrs=(
                 'p_icrh_i',
                 'p_icrh_e',
+                'p_nbi_i',
+                'p_nbi_e',
                 'p_ecrh_e',
                 'p_generic_heat_i',
                 'p_generic_heat_e',
@@ -131,6 +135,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             labels=(
                 r'$Q_\mathrm{ICRH,i}$',
                 r'$Q_\mathrm{ICRH,e}$',
+                r'$Q_\mathrm{NBI,i}$',
+                r'$Q_\mathrm{NBI,e}$',
                 r'$Q_\mathrm{ECRH,e}$',
                 r'$Q_\mathrm{generic,i}$',
                 r'$Q_\mathrm{generic,e}$',
@@ -140,7 +146,12 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('p_alpha_i', 'p_alpha_e', 'p_ohmic_e', 'ei_exchange'),
+            attrs=(
+                'p_alpha_i',
+                'p_alpha_e',
+                'p_ohmic_e',
+                'p_ei_exchange_i',
+            ),
             labels=(
                 r'$Q_\mathrm{alpha,i}$',
                 r'$Q_\mathrm{alpha,e}$',
@@ -172,8 +183,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 'P_ohmic_e',
                 'P_alpha_total',
                 'P_bremsstrahlung_e',
-                'P_radiation_e',
-                'P_cyclotron_e',
+                'P_impurity_radiation_e',
+                'P_cyclotron_radiation_e',
             ),
             labels=(
                 r'$P_\mathrm{aux}$',
@@ -188,9 +199,9 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('Z_impurity',),
+            attrs=('Z_impurity_average',),
             labels=(r'$\langle Z_{impurity} \rangle$',),
-            ylabel=r'Average impurity charge [amu]',
+            ylabel=r'Average impurity charge [dimensionless]',
         ),
     ),
 )

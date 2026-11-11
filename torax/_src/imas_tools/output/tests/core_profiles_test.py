@@ -19,7 +19,6 @@ from absl.testing import parameterized
 import imas
 import numpy as np
 import torax
-from torax._src import state
 from torax._src.imas_tools.input import core_profiles as input_core_profiles
 from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.output import core_profiles as output_core_profiles
@@ -60,7 +59,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Save output profiles to IDS
     post_processed_outputs = state_history.post_processed_outputs
     core_profiles = state_history.core_profiles
-    core_sources = state_history.source_profiles
+    core_sources = state_history.core_sources
     geometry = state_history.geometries
     times = state_history.times
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
@@ -156,7 +155,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     imas_xr = imas_results.simulation_output_to_xr()
 
-    self.assertEqual(imas_results.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(imas_results.sim_error, torax.SimError.NO_ERROR)
 
     self._check_profiles_vs_expected(
         t=imas_xr.time.values,

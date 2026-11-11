@@ -18,14 +18,14 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 
 
 @jax.tree_util.register_dataclass
@@ -46,8 +46,8 @@ class PrescribedFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),
@@ -73,8 +73,8 @@ class PrescribedFormationModel(base.FormationModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
+      source_profiles: core_sources_lib.CoreSources,
       formation_state: pedestal_state_lib.FormationState,
   ) -> tuple[
       array_typing.BoolScalar,

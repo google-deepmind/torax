@@ -3,29 +3,15 @@
 restart
 #######
 
-If this optional entry is supplied in the config, TORAX will be run starting from the
-selected state in a previous simulation. This can be used to resume a completed
-simulation.
+If this optional entry is supplied in the config, TORAX will be run starting
+from the selected state in a previous simulation. This can be used to resume a
+completed simulation.
 
 If the requested restart time is not exactly available in the state file, the
 simulation will restart from the closest available time. A warning will be
 logged in this case.
 
-
-``filename`` (PathLike)
-  Path to an existing TORAX output file (netCDF format).
-
-``time`` (float)
-  Time in output file to load as the new initial state.
-
-``do_restart`` (bool)
-  If True, perform the restart from the selected state. If False, disable the
-  restart and run the simulation as normal.
-
-``stitch`` (bool)
-  If True, concatenate the old and new simulation histories in the resulting
-  output file. If False, output file will only contain the new history.
-
+.. torax_config:: torax._src.torax_pydantic.file_restart.FileRestartConfig
 
 For example, following a simulation in which a state file is saved to
 ``/path/to/torax_state_file.nc``, a new simulation can be started from the old
@@ -45,10 +31,6 @@ previous simulation, and then run forwards from that point in time. For
 all subsequent steps the runtime parameters will be constructed using
 the runtime parameter configuration provided in the new config (from ``t=10``
 onwards).
-
-If the requested restart time is not exactly available in the state file, the
-simulation will restart from the closest available time. A warning will be
-logged in this case.
 
 Some potential use cases for this feature include:
 

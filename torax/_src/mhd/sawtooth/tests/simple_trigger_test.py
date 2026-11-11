@@ -12,18 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import circular_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import simple_trigger
+from torax._src.test_utils import core_profile_helpers
+
+jax.config.update('jax_enable_x64', True)
 
 _NRHO = 20
 
@@ -32,17 +37,24 @@ class SimpleTriggerTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=_NRHO).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=_NRHO)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     self.trigger = simple_trigger.SimpleTrigger()
 
-  def _get_mock_core_profiles(
+  def _get_core_profiles(
       self, q_face: np.ndarray, s_face: np.ndarray
-  ) -> state.CoreProfiles:
-    return mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-        q_face=jnp.asarray(q_face),
-        s_face=jnp.asarray(s_face),
+  ) -> core_profiles_lib.CoreProfiles:
+    core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
+    return dataclasses.replace(
+        core_profiles,
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux,
+            q_face=jnp.asarray(q_face),
+            s_face=jnp.asarray(s_face),
+        ),
     )
 
   @parameterized.named_parameters(
@@ -112,7 +124,7 @@ class SimpleTriggerTest(parameterized.TestCase):
       s_critical: float = 0.3,
       minimum_radius: float = 0.1,
   ):
-    mock_core_profiles = self._get_mock_core_profiles(q_profile, s_profile)
+    core_profiles = self._get_core_profiles(q_profile, s_profile)
 
     mock_params = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
@@ -132,7 +144,7 @@ class SimpleTriggerTest(parameterized.TestCase):
     trigger_result, _ = self.trigger(
         mock_params,
         self.geo,
-        mock_core_profiles,
+        core_profiles,
     )
     self.assertEqual(trigger_result, expected_trigger)
 

@@ -32,7 +32,6 @@ from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.fvm import enums
 from torax._src.geometry import config as geometry_config
-from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import config as ibc_config
 from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
@@ -88,9 +87,11 @@ class ToraxConfig(torax_pydantic.ConfigBase):
       default=None
   )
 
-  def build_models(self):
+  def build_models(self) -> models.Models:
+    """Builds and returns the physics models from the configuration."""
     edge_model = self.edge.build_edge_model() if self.edge else None
     return models.Models(
+        geometry_model=self.geometry.build_geometry_model(),
         pedestal_model=self.pedestal.build_pedestal_model(),
         source_models=self.sources.build_models(),
         transport_model=self.transport.build_transport_model(),
@@ -209,51 +210,62 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   @pydantic.model_validator(mode='after')
   def _validate_v_loop_bc_and_evolve_current(self) -> Self:
     if (
-        self.profile_conditions.use_v_loop_lcfs_boundary_condition
+        self.profile_conditions.psi_bc_source
+        == core_profile_runtime_params_lib.PsiBoundaryConditionSource.V_LOOP
         and not self.numerics.evolve_current
     ):
       raise ValueError(
-          'profile_conditions.use_v_loop_lcfs_boundary_condition cannot be'
-          ' True when numerics.evolve_current is False.'
+          'profile_conditions.psi_bc_source cannot be "v_loop" when'
+          ' numerics.evolve_current is False.'
       )
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_initial_psi_source(self) -> Self:
-    """Validates `profile_conditions.initial_psi_source` compatibility."""
-    initial_psi_source = self.profile_conditions.initial_psi_source
+  def _validate_psi_source(self) -> Self:
+    """Validates `profile_conditions.psi_source` compatibility."""
+    psi_source = self.profile_conditions.psi_source
     is_restarting = self.restart is not None and self.restart.do_restart
     if (
-        initial_psi_source
-        == core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
+        psi_source
+        == core_profile_runtime_params_lib.PsiSource.PROFILE_CONDITIONS
         and self.profile_conditions.psi is None
         and not is_restarting
     ):
       raise ValueError(
           'profile_conditions.psi must be provided when'
-          " profile_conditions.initial_psi_source is 'profile_conditions'"
+          " profile_conditions.psi_source is 'profile_conditions'"
           ' (unless restarting from a file).'
       )
     if (
-        initial_psi_source
-        == core_profile_runtime_params_lib.InitialPsiSource.GEOMETRY
-        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+        psi_source
+        == core_profile_runtime_params_lib.PsiSource.GEOMETRY
+        and self.geometry.model_name == 'circular'
     ):
       raise ValueError(
-          "profile_conditions.initial_psi_source='geometry' is not supported"
+          "profile_conditions.psi_source='geometry' is not supported"
           ' for CircularGeometry.'
       )
     if (
         self.profile_conditions.psi is not None
-        and initial_psi_source
-        != core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
-        and self.numerics.evolve_current
+        and psi_source
+        != core_profile_runtime_params_lib.PsiSource.PROFILE_CONDITIONS
+    ):
+      raise ValueError(
+          'profile_conditions.psi cannot be provided when'
+          ' profile_conditions.psi_source is'
+          f' {psi_source.value!r}.'
+      )
+    # TODO(b/581363815): Support updating psi from j for t > t_initial when
+    # numerics.evolve_current is False (or disallow this combination).
+    if (
+        psi_source
+        == core_profile_runtime_params_lib.PsiSource.J
+        and not self.numerics.evolve_current
     ):
       logging.warning(
-          'profile_conditions.psi is provided but will be ignored because'
-          ' profile_conditions.initial_psi_source is %r and'
-          ' numerics.evolve_current is True.',
-          initial_psi_source.value,
+          "profile_conditions.psi_source='j' does not update psi for"
+          ' t > t_initial when numerics.evolve_current is False; psi will'
+          ' remain fixed at its initial profile.'
       )
     return self
 
@@ -281,7 +293,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     i_p_source = self.profile_conditions.I_p_source
     if (
         i_p_source == core_profile_runtime_params_lib.IpSource.GEOMETRY
-        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+        and self.geometry.model_name == 'circular'
     ):
       raise ValueError(
           "profile_conditions.I_p_source='geometry' is not supported for"
@@ -322,7 +334,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     """Validates that edge models are not used with CircularGeometry."""
     if (
         self.edge is not None
-        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+        and self.geometry.model_name == 'circular'
     ):
       raise ValueError(
           'Edge models are not supported for use with CircularGeometry.'
@@ -354,7 +366,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     - For non-MEQ geometry: `diverted` MUST be set if edge model is used.
     """
     for el_config in self._get_extended_lengyel_configs():
-      is_meq = self.geometry.geometry_type == geometry.GeometryType.MEQ
+      is_meq = self.geometry.model_name == 'meq'
       diverted = el_config.diverted is not None
 
       if is_meq and diverted:
@@ -525,9 +537,9 @@ class ToraxConfig(torax_pydantic.ConfigBase):
         will be raised if this is not the case.
     """
 
-    old_mesh = self.geometry.build_provider.torax_mesh
+    old_mesh = self.geometry.get_grid()
     self._update_fields(x)
-    new_mesh = self.geometry.build_provider.torax_mesh
+    new_mesh = self.geometry.get_grid()
 
     if old_mesh != new_mesh:
       # The grid has changed, e.g. due to a new n_rho.
@@ -542,10 +554,9 @@ class ToraxConfig(torax_pydantic.ConfigBase):
 
   @pydantic.model_validator(mode='after')
   def _set_grid(self) -> Self:
-    # Interpolated `TimeVaryingArray` objects require a mesh, only available
-    # once the geometry provider is built. This could be done in the before
-    # validator, but is harder than setting it after construction.
-    mesh = self.geometry.build_provider.torax_mesh
+    # Interpolated `TimeVaryingArray` objects require a mesh, obtained
+    # directly from `geometry.get_grid()` without building the provider.
+    mesh = self.geometry.get_grid()
     # Note that the grid could already be set, eg. if the config is serialized
     # and deserialized. In this case, we do not want to overwrite it nor fail
     # when trying to set it, which is why mode='relaxed'.

@@ -180,6 +180,37 @@ CORE: Final[OutputKey] = OutputKey(
 PEDESTAL: Final[OutputKey] = OutputKey(
     "pedestal", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+MODEL_STATE: Final[OutputKey] = OutputKey(
+    "model_state",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+SOURCES: Final[OutputKey] = OutputKey(
+    "sources",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+GEOMETRY: Final[OutputKey] = OutputKey(
+    "geometry",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+TRANSPORT: Final[OutputKey] = OutputKey(
+    "transport",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+# Child group names under /model_state/pedestal.
+PEDESTAL_STRUCTURE: Final[OutputKey] = OutputKey(
+    "structure",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+PEDESTAL_FORMATION: Final[OutputKey] = OutputKey(
+    "formation",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.
@@ -212,13 +243,23 @@ Q: Final[OutputKey] = OutputKey(
 MAGNETIC_SHEAR: Final[OutputKey] = OutputKey(
     "magnetic_shear", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
-N_IMPURITY: Final[OutputKey] = OutputKey(
-    "n_impurity",
+N_IMPURITY_TOTAL: Final[OutputKey] = OutputKey(
+    "n_impurity_total",
     units=Units.INVERSE_CUBIC_METER,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-Z_IMPURITY: Final[OutputKey] = OutputKey(
-    "Z_impurity",
+N_IMPURITY_BUNDLED: Final[OutputKey] = OutputKey(
+    "n_impurity_bundled",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Z_IMPURITY_AVERAGE: Final[OutputKey] = OutputKey(
+    "Z_impurity_average",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Z_IMPURITY_BUNDLED: Final[OutputKey] = OutputKey(
+    "Z_impurity_bundled",
     units=Units.DIMENSIONLESS,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
@@ -302,11 +343,6 @@ PRESSURE_TOTAL: Final[OutputKey] = OutputKey(
     units=Units.PASCAL,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-EI_EXCHANGE: Final[OutputKey] = OutputKey(
-    "ei_exchange",
-    units=Units.WATT_PER_CUBIC_METER,
-    grid_type=GridType.CELL,
-)
 PSI_FROM_I_P: Final[OutputKey] = OutputKey(
     "psi_from_I_p", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
 )
@@ -359,10 +395,9 @@ I_BOOTSTRAP: Final[OutputKey] = OutputKey(
 )
 
 # ---------------------------------------------------------------------------
-# Source profile key builders for dynamically generated keys.
-# e.g. "p_ecrh_i", "p_alpha_e", "j_parallel_ecrh", "s_pellet".
+# Dynamic builders for source profile keys.
 # Maps internal source names to output key names where they differ.
-SOURCE_NAME_RENAMES = {"fusion": "alpha"}
+SOURCE_NAME_RENAMES: Final[dict[str, str]] = {"fusion": "alpha"}
 
 
 def p_source_i_key(source: str) -> str:
@@ -540,6 +575,11 @@ J_TOROIDAL_ECRH: Final[OutputKey] = OutputKey(
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
+J_TOROIDAL_NBI: Final[OutputKey] = OutputKey(
+    "j_toroidal_nbi",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
 J_TOROIDAL_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
     "j_toroidal_non_inductive",
     units=Units.AMPERE_PER_SQUARE_METER,
@@ -603,14 +643,14 @@ P_EI_EXCHANGE_I: Final[OutputKey] = OutputKey(
 P_EI_EXCHANGE_E: Final[OutputKey] = OutputKey(
     "P_ei_exchange_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_AUX_GENERIC_I: Final[OutputKey] = OutputKey(
-    "P_aux_generic_i", units=Units.WATT, grid_type=GridType.SCALAR
+P_GENERIC_HEAT_I: Final[OutputKey] = OutputKey(
+    "P_generic_heat_i", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_AUX_GENERIC_E: Final[OutputKey] = OutputKey(
-    "P_aux_generic_e", units=Units.WATT, grid_type=GridType.SCALAR
+P_GENERIC_HEAT_E: Final[OutputKey] = OutputKey(
+    "P_generic_heat_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_AUX_GENERIC_TOTAL: Final[OutputKey] = OutputKey(
-    "P_aux_generic_total", units=Units.WATT, grid_type=GridType.SCALAR
+P_GENERIC_HEAT_TOTAL: Final[OutputKey] = OutputKey(
+    "P_generic_heat_total", units=Units.WATT, grid_type=GridType.SCALAR
 )
 P_ALPHA_I: Final[OutputKey] = OutputKey(
     "P_alpha_i", units=Units.WATT, grid_type=GridType.SCALAR
@@ -627,14 +667,14 @@ P_OHMIC_E: Final[OutputKey] = OutputKey(
 P_BREMSSTRAHLUNG_E: Final[OutputKey] = OutputKey(
     "P_bremsstrahlung_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_CYCLOTRON_E: Final[OutputKey] = OutputKey(
-    "P_cyclotron_e", units=Units.WATT, grid_type=GridType.SCALAR
+P_CYCLOTRON_RADIATION_E: Final[OutputKey] = OutputKey(
+    "P_cyclotron_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
 P_ECRH_E: Final[OutputKey] = OutputKey(
     "P_ecrh_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_RADIATION_E: Final[OutputKey] = OutputKey(
-    "P_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
+P_IMPURITY_RADIATION_E: Final[OutputKey] = OutputKey(
+    "P_impurity_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
 P_FUSION: Final[OutputKey] = OutputKey(
     "P_fusion", units=Units.WATT, grid_type=GridType.SCALAR
@@ -647,6 +687,15 @@ P_ICRH_I: Final[OutputKey] = OutputKey(
 )
 P_ICRH_TOTAL: Final[OutputKey] = OutputKey(
     "P_icrh_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_NBI_E: Final[OutputKey] = OutputKey(
+    "P_nbi_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_NBI_I: Final[OutputKey] = OutputKey(
+    "P_nbi_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_NBI_TOTAL: Final[OutputKey] = OutputKey(
+    "P_nbi_total", units=Units.WATT, grid_type=GridType.SCALAR
 )
 
 # ---------------------------------------------------------------------------
@@ -776,13 +825,13 @@ N_I_LINE_AVG: Final[OutputKey] = OutputKey(
     units=Units.INVERSE_CUBIC_METER,
     grid_type=GridType.SCALAR,
 )
-FGW_N_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
-    "fgw_n_e_volume_avg",
+F_GW_N_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "f_GW_n_e_volume_avg",
     units=Units.DIMENSIONLESS,
     grid_type=GridType.SCALAR,
 )
-FGW_N_E_LINE_AVG: Final[OutputKey] = OutputKey(
-    "fgw_n_e_line_avg",
+F_GW_N_E_LINE_AVG: Final[OutputKey] = OutputKey(
+    "f_GW_n_e_line_avg",
     units=Units.DIMENSIONLESS,
     grid_type=GridType.SCALAR,
 )
@@ -830,8 +879,11 @@ I_EXTERNAL: Final[OutputKey] = OutputKey(
 I_ECRH: Final[OutputKey] = OutputKey(
     "I_ecrh", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
-I_AUX_GENERIC: Final[OutputKey] = OutputKey(
-    "I_aux_generic", units=Units.AMPERE, grid_type=GridType.SCALAR
+I_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
+    "I_generic_current", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
+I_NBI: Final[OutputKey] = OutputKey(
+    "I_nbi", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
 I_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
     "I_non_inductive", units=Units.AMPERE, grid_type=GridType.SCALAR
@@ -854,6 +906,9 @@ S_PELLET: Final[OutputKey] = OutputKey(
 )
 S_GENERIC_PARTICLE: Final[OutputKey] = OutputKey(
     "S_generic_particle", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
+)
+S_NBI: Final[OutputKey] = OutputKey(
+    "S_nbi", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
 )
 S_TOTAL: Final[OutputKey] = OutputKey(
     "S_total", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
@@ -918,13 +973,93 @@ IMPURITY_RIGHT_BC: Final[OutputKey] = OutputKey(
     units=Units.DIMENSIONLESS,
     grid_type=GridType.NOT_APPLICABLE,
 )
+VALID_FOR_CORE_UPDATE: Final[OutputKey] = OutputKey(
+    "valid_for_core_update",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+
+# ---------------------------------------------------------------------------
+# Extended Lengyel edge model state.
+# ---------------------------------------------------------------------------
+PRESSURE_NEUTRAL_DIVERTOR: Final[OutputKey] = OutputKey(
+    "pressure_neutral_divertor",
+    units=Units.PASCAL,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_ALPHA_T: Final[OutputKey] = OutputKey(
+    "warm_start_alpha_t",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_KAPPA_E: Final[OutputKey] = OutputKey(
+    "warm_start_kappa_e",
+    units=Units.W_PER_M_EV35,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_T_E_SEPARATRIX: Final[OutputKey] = OutputKey(
+    "warm_start_T_e_separatrix",
+    units=Units.EV,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_T_E_TARGET: Final[OutputKey] = OutputKey(
+    "warm_start_T_e_target",
+    units=Units.EV,
+    grid_type=GridType.SCALAR,
+)
+WARM_START_C_Z_PREFACTOR: Final[OutputKey] = OutputKey(
+    "warm_start_c_z_prefactor",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+HAS_VIABLE_WARM_START: Final[OutputKey] = OutputKey(
+    "has_viable_warm_start",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+
+# ---------------------------------------------------------------------------
+# Pedestal model state.
+# ---------------------------------------------------------------------------
+CONFINEMENT_MODE: Final[OutputKey] = OutputKey(
+    "confinement_mode",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+TRANSITION_START_TIME: Final[OutputKey] = OutputKey(
+    "transition_start_time",
+    units=Units.SECOND,
+    grid_type=GridType.SCALAR,
+)
+T_I_TOP_L_MODE: Final[OutputKey] = OutputKey(
+    "T_i_top_L_mode",
+    units=Units.KEV,
+    grid_type=GridType.SCALAR,
+)
+T_E_TOP_L_MODE: Final[OutputKey] = OutputKey(
+    "T_e_top_L_mode",
+    units=Units.KEV,
+    grid_type=GridType.SCALAR,
+)
+N_E_TOP_L_MODE: Final[OutputKey] = OutputKey(
+    "n_e_top_L_mode",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+RHO_NORM_TOP: Final[OutputKey] = OutputKey(
+    "rho_norm_top",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+FORMATION_TIME: Final[OutputKey] = OutputKey(
+    "formation_time",
+    units=Units.SECOND,
+    grid_type=GridType.SCALAR,
+)
 
 # ---------------------------------------------------------------------------
 # Numerics.
 # ---------------------------------------------------------------------------
-SIM_STATUS: Final[OutputKey] = OutputKey(
-    "sim_status", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
-)
 SIM_ERROR: Final[OutputKey] = OutputKey(
     "sim_error", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )

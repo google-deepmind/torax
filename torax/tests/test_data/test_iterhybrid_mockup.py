@@ -26,7 +26,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 10.5e6,  # total plasma current in A
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.2}},
@@ -36,9 +36,9 @@ CONFIG = {
         'T_e_right_bc': 0.2,  # boundary condition electron temp for r=a_minor
         'n_e_right_bc': 0.25e20,  # boundary condition density for r=a_minor
         # set initial condition density according to Greenwald fraction.
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.8,
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.8,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },
     'numerics': {
@@ -51,7 +51,7 @@ CONFIG = {
         'evolve_density': True,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters
@@ -123,11 +123,11 @@ CONFIG = {
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 4.5,  # ion pedestal top temperature in keV
-            'T_e_ped': 4.5,  # electron pedestal top temperature in keV
-            'n_e_ped': 0.62e20,  # pedestal top electron density in m^-3
-            'rho_norm_ped_top': 0.9,  # ped top location in normalized radius
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 4.5,  # ion pedestal top temperature in keV
+            'T_e_top': 4.5,  # electron pedestal top temperature in keV
+            'n_e_top': 0.62e20,  # pedestal top electron density in m^-3
+            'rho_norm_top': 0.9,  # ped top location in normalized radius
         },
     },
     'transport': {

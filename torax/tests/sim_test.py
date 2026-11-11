@@ -19,15 +19,14 @@ previously executed TORAX reference:
 """
 
 import copy
-import functools
 import os
 from typing import Any, Final, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src import state
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
@@ -231,8 +230,8 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
-          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
-          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped.py',
+          'test_iterhybrid_predictor_corrector_set_ptop_ttopratio_ntop',
+          'test_iterhybrid_predictor_corrector_set_ptop_ttopratio_ntop.py',
       ),
       # Predictor-corrector solver with cyclotron radiation heat sink
       (
@@ -286,6 +285,15 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
+      ),
+      # Similar to test_iterhybrid_rampup with multi-slice IMAS geometry and
+      # prescribed psi from geometry (evolve_current=False,
+      # psi_source='geometry').
+      (
+          'test_iterhybrid_rampup_imas_psi_from_geometry',
+          'test_iterhybrid_rampup_imas_psi_from_geometry.py',
+          _ALL_PROFILES,
+          1e-7,
       ),
       # Tests LH transition with ADAPTIVE_TRANSPORT
       # TODO(b/331171303): Reinstate when fixed.
@@ -403,10 +411,10 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions': {
             'I_p': 3.0e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
-            'n_e_nbar_is_fGW': False,
+            'n_e_bar_is_f_GW': False,
             'T_i': 6.0,
             'T_e': 6.0,
             'T_i_right_bc': 0.1,
@@ -416,18 +424,21 @@ class SimTest(sim_test_case.SimTestCase):
 
     history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
-    history_length = history._core_profiles.T_i.value.shape[0]
+    history_length = history._core_profiles.kinetic.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(
         history.times[-1], torax_config.time_step_calculator.t_final
     )
     profiles_to_check = (
-        (output_keys.T_I, history._core_profiles.T_i),
-        (output_keys.T_E, history._core_profiles.T_e),
-        (output_keys.N_E, history._core_profiles.n_e),
-        (output_keys.PSI, history._core_profiles.psi),
-        (output_keys.Q, history._core_profiles.q_face),
-        (output_keys.MAGNETIC_SHEAR, history._core_profiles.s_face),
+        (output_keys.T_I, history._core_profiles.kinetic.T_i),
+        (output_keys.T_E, history._core_profiles.kinetic.T_e),
+        (output_keys.N_E, history._core_profiles.kinetic.n_e),
+        (output_keys.PSI, history._core_profiles.poloidal_flux.psi),
+        (output_keys.Q, history._core_profiles.poloidal_flux.q_face),
+        (
+            output_keys.MAGNETIC_SHEAR,
+            history._core_profiles.poloidal_flux.s_face,
+        ),
     )
 
     for profile_name, profile_history in profiles_to_check:
@@ -488,9 +499,13 @@ class SimTest(sim_test_case.SimTestCase):
     ).simulation_output_to_xr()
     # Allow for small numerical differences due to NetCDF round-trip / restart
     # floating point precision.
-    assert_allclose_fn = functools.partial(
-        xr.testing.assert_allclose, atol=1e-6
-    )
+    def assert_allclose_fn(a: xr.Dataset, b: xr.Dataset) -> None:
+      # Exclude solver iteration diagnostic counts which may legitimately differ
+      # due to numerical round-trip precision across restart boundaries.
+      a_comp = a.drop_vars(['solver_iterations'], errors='ignore')
+      b_comp = b.drop_vars(['solver_iterations'], errors='ignore')
+      xr.testing.assert_allclose(a_comp, b_comp, atol=1e-6)
+
     xr.map_over_datasets(assert_allclose_fn, output_xr, gt_output_xr)
 
   def test_I_p_bc_v_loop_bc_equivalence(self):
@@ -517,9 +532,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Run the second sim
     config_dict_v_loop_bc = copy.deepcopy(config_dict_ip_bc)
-    config_dict_v_loop_bc['profile_conditions'][
-        'use_v_loop_lcfs_boundary_condition'
-    ] = True
+    config_dict_v_loop_bc['profile_conditions']['psi_bc_source'] = 'v_loop'
     config_dict_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
         sim_outputs_ip_bc._core_profiles.v_loop_lcfs,
@@ -530,10 +543,10 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     profiles_to_check = (
-        sim_outputs_v_loop_bc._core_profiles.T_i,
-        sim_outputs_v_loop_bc._core_profiles.T_e,
-        sim_outputs_v_loop_bc._core_profiles.psi,
-        sim_outputs_v_loop_bc._core_profiles.n_e,
+        sim_outputs_v_loop_bc._core_profiles.kinetic.T_i,
+        sim_outputs_v_loop_bc._core_profiles.kinetic.T_e,
+        sim_outputs_v_loop_bc._core_profiles.poloidal_flux.psi,
+        sim_outputs_v_loop_bc._core_profiles.kinetic.n_e,
     )
 
     for profile in profiles_to_check:
@@ -557,7 +570,7 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'profile_conditions',
-            'initial_psi_source': 'j',
+            'psi_source': 'j',
         },
         'plasma_composition': {},
         'numerics': {
@@ -569,12 +582,16 @@ class SimTest(sim_test_case.SimTestCase):
             't_final': 3.0,
         },
         'geometry': {
-            'geometry_type': 'circular',
+            'model_name': 'circular',
             'n_rho': 10,
         },
         'sources': {
             'ohmic': {},
-            'generic_current': {},
+            'generic_current': {
+                'fraction_of_total_current': 0.2,
+                'gaussian_width': 0.05,
+                'gaussian_location': 0.4,
+            },
         },
         'transport': {},
         'pedestal': {},
@@ -617,13 +634,15 @@ class SimTest(sim_test_case.SimTestCase):
         test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
 
-    # Compare Runs 1 and 3 - v_loop (cell grid) should be identical
-    # We ignore the v_loop_lcfs since it does not impact cell-grid Ohmic power,
-    # and it is correct that v_loop_lcfs is different between psi-evolving and
-    # psi-fixed simulations.
+    # Compare Runs 1 and 3 - full v_loop profile and v_loop_lcfs should match.
     np.testing.assert_allclose(
-        ref_output_xr.profiles.v_loop.values[:, :-1],
-        test_output_xr_same.profiles.v_loop.values[:, :-1],
+        ref_output_xr.profiles.v_loop.values,
+        test_output_xr_same.profiles.v_loop.values,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        ref_output_xr.scalars.v_loop_lcfs.values,
+        test_output_xr_same.scalars.v_loop_lcfs.values,
         rtol=1e-6,
     )
 
@@ -639,7 +658,7 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
     state_history = run_simulation.run_simulation(torax_config)
 
-    self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NAN_DETECTED)
     self.assertLess(
         state_history.times[-1], torax_config.time_step_calculator.t_final
     )
@@ -658,7 +677,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Check that the simulation stopped due to low temperature collapse
     self.assertEqual(
-        state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
+        state_history.sim_error, sim_error.SimError.LOW_TEMPERATURE_COLLAPSE
     )
     self.assertLess(
         state_history.times[-1], torax_config.time_step_calculator.t_final
@@ -676,6 +695,55 @@ class SimTest(sim_test_case.SimTestCase):
     xr.map_over_datasets(
         xr.testing.assert_allclose, sim_data_tree, ref_data_tree
     )
+
+  @parameterized.parameters(0.5, 1.0)
+  def test_theta_method_faraday_conservation_under_ip_ramp(
+      self, theta_implicit: float
+  ):
+    """Verifies discrete Faraday conservation at LCFS under an I_p ramp."""
+    config_dict = self._get_config_dict('test_crank_nicolson.py')
+    config_dict['numerics']['evolve_current'] = True
+    config_dict['numerics']['evolve_ion_heat'] = False
+    config_dict['numerics']['evolve_electron_heat'] = False
+    config_dict['numerics']['evolve_density'] = False
+    config_dict['profile_conditions']['I_p'] = {0.0: 10e6, 1.0: 15e6}
+    config_dict['solver']['theta_implicit'] = theta_implicit
+    config_dict['solver']['use_fixed_point'] = True
+    config_dict['solver']['n_fixed_point_iterations'] = 5
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_final': 0.25,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    state_history = run_simulation.run_simulation(torax_config)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
+
+    output_xr = state_history.simulation_output_to_xr()
+    times = output_xr.time.values
+    psi_lcfs = output_xr.profiles.psi.values[:, -1]
+    v_loop_lcfs = output_xr.scalars.v_loop_lcfs.values
+
+    start_step = 0 if theta_implicit == 1.0 else 1
+    for i in range(start_step, len(times) - 1):
+      dt = times[i + 1] - times[i]
+      reduction_factor = (
+          torax_config.numerics.current_diffusion_time_reduction_factor
+      )
+      factor = float(reduction_factor.get_value(times[i]))
+      dt_eff = dt * factor
+      expected_dpsi = dt_eff * (
+          (1.0 - theta_implicit) * v_loop_lcfs[i]
+          + theta_implicit * v_loop_lcfs[i + 1]
+      )
+      actual_dpsi = psi_lcfs[i + 1] - psi_lcfs[i]
+      np.testing.assert_allclose(
+          actual_dpsi,
+          expected_dpsi,
+          rtol=1e-5,
+          atol=1e-5,
+          err_msg=f'Failed at step {i} (t={times[i]} to {times[i+1]})',
+      )
 
 
 if __name__ == '__main__':

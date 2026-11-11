@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 .. _installation:
 
 Installation Guide
@@ -9,12 +7,6 @@ Requirements
 ============
 
 Install Python 3.12 or greater.
-
-Make sure that tkinter is installed:
-
-.. code-block:: console
-
-  sudo apt-get install python3-tk
 
 .. _how_to_install:
 
@@ -121,8 +113,8 @@ Optional Extensions & Accelerators
 
 .. dropdown:: GPU support
 
-   Install additional GPU support for JAX if your machine has a GPU:
-   https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
+   Install additional GPU support for JAX if your machine has a GPU (see the
+   |jax_install_docs|).
 
 .. dropdown:: Install QLKNN-hyper (QLKNN10D)
 
@@ -165,9 +157,8 @@ Optional Extensions & Accelerators
    **Isolate the Fortran Sources**
 
    First, ensure you have access to the GACODE repository (available through
-   General Atomics at https://gacode.io). After obtaining or cloning GACODE,
-   export the ``GACODE_ROOT`` environment variable to point to your repository
-   root:
+   General Atomics at |gacode|). After obtaining or cloning GACODE, export the
+   ``GACODE_ROOT`` environment variable to point to your repository root:
 
    .. code-block:: console
 

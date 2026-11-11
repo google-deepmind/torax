@@ -86,6 +86,20 @@ class ConfigTest(parameterized.TestCase):
       torax_config_lib.ToraxConfig.from_dict(config)
 
   @parameterized.named_parameters(
+      ('zero', 0.0),
+      ('negative', -0.1),
+      ('time_dependent_with_zero', {0.0: 0.1, 1.0: 0.0}),
+  )
+  def test_non_positive_fixed_dt_raises_error(self, dt):
+    config = default_configs.get_default_config_dict()
+    config['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': dt,
+    }
+    with self.assertRaisesRegex(pydantic.ValidationError, 'greater than 0'):
+      torax_config_lib.ToraxConfig.from_dict(config)
+
+  @parameterized.named_parameters(
       dict(
           testcase_name='fixed',
           calculator_type='fixed',

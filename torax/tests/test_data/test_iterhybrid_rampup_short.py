@@ -21,13 +21,13 @@ tests/persistent_cache
 CONFIG = {
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 1.0,  # ion pedestal top temperature in keV
-            'T_e_ped': 1.0,  # electron pedestal top temperature in keV
-            'n_e_ped_is_fGW': True,
-            # pedestal top electron density in units of fGW
-            'n_e_ped': {0: 0.3, 80: 0.7},
-            'rho_norm_ped_top': 0.9,  # ped top location in normalized radius
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 1.0,  # ion pedestal top temperature in keV
+            'T_e_top': 1.0,  # electron pedestal top temperature in keV
+            'n_e_top_is_f_GW': True,
+            # pedestal top electron density in units of f_GW
+            'n_e_top': {0: 0.3, 80: 0.7},
+            'rho_norm_top': 0.9,  # ped top location in normalized radius
         },
     },
     'plasma_composition': {
@@ -41,7 +41,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': {0: 3e6, 80: 10.5e6},  # total plasma current in A
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
@@ -49,12 +49,12 @@ CONFIG = {
         # initial condition electron temperature for r=0 and r=a_minor
         'T_e': {0.0: {0.0: 6.0, 1.0: 0.1}},
         'T_e_right_bc': 0.1,  # boundary condition electron temp for r=a_minor
-        'n_e_right_bc_is_fGW': True,
+        'n_e_right_bc_is_f_GW': True,
         # boundary condition density for r=a_minor
         'n_e_right_bc': {0: 0.1, 80: 0.3},
         # set initial condition density according to Greenwald fraction.
-        'n_e_nbar_is_fGW': True,
-        'nbar': 1,
+        'n_e_bar_is_f_GW': True,
+        'n_e_bar': 1,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },
     'numerics': {
@@ -67,7 +67,7 @@ CONFIG = {
         'evolve_density': True,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters

@@ -14,8 +14,9 @@
 
 """Functions for adding post-processed outputs to the simulation state."""
 
+from collections.abc import Sequence
 import dataclasses
-from typing import Callable, Self
+from typing import Callable, Final, Self
 
 from absl import logging
 import jax
@@ -25,9 +26,9 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.orchestration import sim_error
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output_grid_context
@@ -37,7 +38,7 @@ from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profiles
+from torax._src.sources import core_sources as core_sources_lib
 
 
 # pylint: disable=invalid-name
@@ -65,7 +66,7 @@ class PostProcessedOutputs:
     H20: H-mode confinement quality factor with respect to the ITER20 scaling
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime: FF' on the face grid, where F is the toroidal flux function
-    psi_norm: Normalized poloidal flux on the face grid [Wb]
+    psi_norm: Normalized poloidal flux on the face grid [dimensionless]
     P_heat_i: Total ion heating power: all sources - sinks. i.e. auxiliary
       heating + ion-electron exchange + fusion + (negative) radiation sinks [W].
     P_heat_e: Total electron heating power: all sources - sinks. i.e. auxiliary
@@ -87,24 +88,28 @@ class PostProcessedOutputs:
       P_external_injected + P_ohmic_e) [W]
     P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
-    P_aux_generic_i: Total generic_ion_el_heat_source power to ions [W]
-    P_aux_generic_e: Total generic_ion_el_heat_source power to electrons [W]
-    P_aux_generic_total: Total generic_ion_el_heat power [W]
-    P_alpha_i: Total fusion power to ions [W]
-    P_alpha_e: Total fusion power to electrons [W]
-    P_alpha_total: Total fusion power to plasma [W]
+    P_generic_heat_i: Total generic_heat source power to ions [W]
+    P_generic_heat_e: Total generic_heat source power to electrons [W]
+    P_generic_heat_total: Total generic_heat source power [W]
+    P_alpha_i: Total fusion alpha heating power to ions [W]
+    P_alpha_e: Total fusion alpha heating power to electrons [W]
+    P_alpha_total: Total fusion alpha heating power to plasma [W]
     P_ohmic_e: Ohmic heating power to electrons [W]
     P_bremsstrahlung_e: Bremsstrahlung electron heat sink [W]
-    P_cyclotron_e: Cyclotron radiation electron heat sink [W]
+    P_cyclotron_radiation_e: Cyclotron radiation electron heat sink [W]
     P_ecrh_e: Total electron cyclotron source power [W]
-    P_radiation_e: Impurity radiation heat sink [W]
+    P_impurity_radiation_e: Impurity radiation electron heat sink [W]
     P_fusion: Generated fusion power (5*P_alpha_total) [W]
     I_ecrh: Total electron cyclotron source current [A]
-    I_aux_generic: Total generic source current [A]
+    I_generic_current: Total generic_current source current [A]
+    I_nbi: Total neutral beam injection source current [A]
     Q_fusion: Fusion power gain (P_fusion / P_external_total) [dimensionless]
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
+    P_nbi_e: Neutral beam injection heating power to electrons [W]
+    P_nbi_i: Neutral beam injection heating power to ions [W]
+    P_nbi_total: Total neutral beam injection heating power [W]
     P_LH_martin_high_density: H-mode transition power from the Martin scaling
       law for high density branch [W]
     P_LH_martin_min: Minimum H-mode transition power from the Martin scaling law
@@ -138,9 +143,9 @@ class PostProcessedOutputs:
     n_i_volume_avg: Volume average main ion density [m^-3]
     n_e_line_avg: Line averaged electron density [m^-3]
     n_i_line_avg: Line averaged main ion density [m^-3]
-    fgw_n_e_volume_avg: Greenwald fraction from volume-averaged electron density
-      [dimensionless]
-    fgw_n_e_line_avg: Greenwald fraction from line-averaged electron density
+    f_GW_n_e_volume_avg: Greenwald fraction from volume-averaged electron
+      density [dimensionless]
+    f_GW_n_e_line_avg: Greenwald fraction from line-averaged electron density
       [dimensionless]
     q95: q at 95% of the normalized poloidal flux
     W_pol: Total magnetic energy [J]
@@ -168,7 +173,6 @@ class PostProcessedOutputs:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
     I_bootstrap: Total bootstrap current [A].
-    j_toroidal_total: Total toroidal current density [Am^-2]
     j_parallel_total: Total parallel current density [Am^-2]
     j_toroidal_bootstrap: Toroidal bootstrap current density [Am^-2]
     j_toroidal_bootstrap_face: Toroidal bootstrap current density on face grid
@@ -181,12 +185,10 @@ class PostProcessedOutputs:
     j_parallel_ohmic: Parallel ohmic current density [Am^-2]
     j_toroidal_generic_current: Toroidal current density from generic current
       source [Am^-2]
-    j_parallel_generic_current: Parallel current density from generic current
-      source [Am^-2]
     j_toroidal_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
-    j_parallel_ecrh: Toroidal current density from electron cyclotron heating
-      and current source [Am^-2]
+    j_toroidal_nbi: Toroidal current density from neutral beam injection source
+      [Am^-2]
     j_toroidal_non_inductive: Total toroidal non-inductive current density
       [Am^-2]
     j_parallel_non_inductive: Total parallel non-inductive current density
@@ -199,6 +201,7 @@ class PostProcessedOutputs:
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
+    S_nbi: Integrated neutral beam injection particle source [s^-1]
     S_total: Total integrated particle sources [s^-1]
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
@@ -209,13 +212,12 @@ class PostProcessedOutputs:
       poloidal flux on the face grid: -d(beta_pol_local) / d(psi_norm)
       [dimensionless]
     alpha_mhd: s-alpha (shifted-circle) MHD ballooning parameter on the face
-      grid (Connor, Hastie & Taylor, Phys. Rev. Lett. 40, 396, 1978):
-      -(2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
-      [dimensionless]
+      grid (Connor, Hastie & Taylor, Phys. Rev. Lett. 40, 396, 1978): -(2 * mu_0
+        * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid) [dimensionless]
     alpha_mhd_miller: General-geometry (Miller) MHD ballooning parameter on the
-      face grid (Miller et al., Phys. Plasmas 5, 973, 1998):
-      -(2 * dV/dpsi_rad) / (2 * pi)^2 * sqrt(V / (2 * pi^2 * R_0)) *
-      mu_0 * dp_total/dpsi_rad [dimensionless]
+      face grid (Miller et al., Phys. Plasmas 5, 973, 1998): -(2 * dV/dpsi_rad)
+      / (2 * pi)^2 * sqrt(V / (2 * pi^2 * R_0)) * mu_0 * dp_total/dpsi_rad
+      [dimensionless]
     impurity_species: Dictionary of outputs for each impurity species.
     poloidal_velocity: Poloidal velocity [m/s]
     radial_electric_field: Radial electric field [V/m]
@@ -249,24 +251,28 @@ class PostProcessedOutputs:
   P_heat_total: array_typing.FloatScalar
   P_ei_exchange_i: array_typing.FloatScalar
   P_ei_exchange_e: array_typing.FloatScalar
-  P_aux_generic_i: array_typing.FloatScalar
-  P_aux_generic_e: array_typing.FloatScalar
-  P_aux_generic_total: array_typing.FloatScalar
+  P_generic_heat_i: array_typing.FloatScalar
+  P_generic_heat_e: array_typing.FloatScalar
+  P_generic_heat_total: array_typing.FloatScalar
   P_alpha_i: array_typing.FloatScalar
   P_alpha_e: array_typing.FloatScalar
   P_alpha_total: array_typing.FloatScalar
   P_ohmic_e: array_typing.FloatScalar
   P_bremsstrahlung_e: array_typing.FloatScalar
-  P_cyclotron_e: array_typing.FloatScalar
+  P_cyclotron_radiation_e: array_typing.FloatScalar
   P_ecrh_e: array_typing.FloatScalar
-  P_radiation_e: array_typing.FloatScalar
+  P_impurity_radiation_e: array_typing.FloatScalar
   I_ecrh: array_typing.FloatScalar
-  I_aux_generic: array_typing.FloatScalar
+  I_generic_current: array_typing.FloatScalar
+  I_nbi: array_typing.FloatScalar
   P_fusion: array_typing.FloatScalar
   Q_fusion: array_typing.FloatScalar
   P_icrh_e: array_typing.FloatScalar
   P_icrh_i: array_typing.FloatScalar
   P_icrh_total: array_typing.FloatScalar
+  P_nbi_e: array_typing.FloatScalar
+  P_nbi_i: array_typing.FloatScalar
+  P_nbi_total: array_typing.FloatScalar
   P_LH_martin_high_density: array_typing.FloatScalar
   P_LH_martin_min: array_typing.FloatScalar
   P_LH_martin_low_density: array_typing.FloatScalar
@@ -287,8 +293,8 @@ class PostProcessedOutputs:
   n_i_volume_avg: array_typing.FloatScalar
   n_e_line_avg: array_typing.FloatScalar
   n_i_line_avg: array_typing.FloatScalar
-  fgw_n_e_volume_avg: array_typing.FloatScalar
-  fgw_n_e_line_avg: array_typing.FloatScalar
+  f_GW_n_e_volume_avg: array_typing.FloatScalar
+  f_GW_n_e_line_avg: array_typing.FloatScalar
   q95: array_typing.FloatScalar
   W_pol: array_typing.FloatScalar
   li3: array_typing.FloatScalar
@@ -317,6 +323,7 @@ class PostProcessedOutputs:
   j_toroidal_bootstrap_face: array_typing.FloatVector
   j_toroidal_generic_current: array_typing.FloatVector
   j_toroidal_ecrh: array_typing.FloatVector
+  j_toroidal_nbi: array_typing.FloatVector
   j_toroidal_non_inductive: array_typing.FloatVector
   j_parallel_non_inductive: array_typing.FloatVector
   I_external: array_typing.FloatScalar
@@ -326,6 +333,7 @@ class PostProcessedOutputs:
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
+  S_nbi: array_typing.FloatScalar
   beta_tor: array_typing.FloatScalar
   beta_pol: array_typing.FloatScalar
   beta_N: array_typing.FloatScalar
@@ -368,24 +376,28 @@ class PostProcessedOutputs:
         P_heat_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_aux_generic_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_aux_generic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_aux_generic_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_heat_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_heat_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_heat_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_alpha_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_alpha_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_alpha_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ohmic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_bremsstrahlung_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_cyclotron_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_cyclotron_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ecrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_impurity_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        I_aux_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_generic_current=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_nbi=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_nbi_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_nbi_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_nbi_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_martin_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_martin_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_martin_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -406,8 +418,8 @@ class PostProcessedOutputs:
         n_i_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_i_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_GW_n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_GW_n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -432,6 +444,7 @@ class PostProcessedOutputs:
         j_toroidal_external=jnp.zeros(geo.rho.shape),
         j_toroidal_generic_current=jnp.zeros(geo.rho.shape),
         j_toroidal_ecrh=jnp.zeros(geo.rho.shape),
+        j_toroidal_nbi=jnp.zeros(geo.rho.shape),
         j_toroidal_non_inductive=jnp.zeros(geo.rho.shape),
         j_parallel_external=jnp.zeros(geo.rho.shape),
         j_parallel_non_inductive=jnp.zeros(geo.rho.shape),
@@ -442,6 +455,7 @@ class PostProcessedOutputs:
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        S_nbi=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -458,12 +472,18 @@ class PostProcessedOutputs:
 
   @jax.jit
   def has_nan(self) -> jax.Array:
-    """Returns a boolean JAX scalar indicating whether any leaf has NaNs."""
+    """Checks if any leaf in PostProcessedOutputs contains NaNs."""
     return jnp.any(
         jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
     )
 
-  def check_for_errors(self):
+  def check_for_errors(self) -> sim_error.SimError:
+    """Checks for NaNs in the post-processed outputs.
+
+    Returns:
+      SimError.NAN_DETECTED if any NaNs are present, otherwise
+      SimError.NO_ERROR.
+    """
     if self.has_nan():
       path_vals, _ = jax.tree.flatten_with_path(self)
       for path, value in path_vals:
@@ -472,15 +492,37 @@ class PostProcessedOutputs:
               'Found NaNs in post_processed_outputs%s',
               jax.tree_util.keystr(path),
           )
-      return state.SimError.NAN_DETECTED
+      return sim_error.SimError.NAN_DETECTED
     else:
-      return state.SimError.NO_ERROR
+      return sim_error.SimError.NO_ERROR
 
   def to_output_dict(
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts post-processed outputs into an OutputVar mapping."""
+    """Packs time-stacked post-processed outputs into xarray-ready variables.
+
+    Args:
+      context: Grid context providing time and radial coordinates for shape
+        validation and packing. Also registers `impurity` species coordinates
+        in-place when `impurity_species` is non-empty.
+
+    Returns:
+      Mapping from xarray output variable names to `(dims, data, attrs)`
+      `OutputVar` tuples:
+        - Face profiles (`pprime`, `FFprime`, `psi_norm`, `poloidal_velocity`,
+          `E_r`, beta/alpha profiles): `('time', 'rho_face_norm')`, shape
+          `(n_time, n_rho_face)`.
+        - Cell current profiles (`j_*`): `('time', 'rho_cell_norm')`, shape
+          `(n_time, n_rho_cell)`.
+        - Extended bootstrap toroidal current (`j_toroidal_bootstrap`):
+          `('time', 'rho_norm')`, shape `(n_time, n_rho_cell + 2)`.
+        - Scalar quantities (stored energies, powers, averages, currents,
+          beta, `q` diagnostics): `('time',)`, shape `(n_time,)`.
+        - Per-species impurity radiation/density/charge (if present):
+          `('impurity', 'time', 'rho_cell_norm')`, shape
+          `(n_impurities, n_time, n_rho_cell)`.
+    """
     out_dict: dict[str, output_grid_context.OutputVar] = {}
 
     # 1. Profiles on the face grid (FACE)
@@ -507,6 +549,7 @@ class PostProcessedOutputs:
         output_keys.J_PARALLEL_OHMIC: self.j_parallel_ohmic,
         output_keys.J_TOROIDAL_GENERIC_CURRENT: self.j_toroidal_generic_current,
         output_keys.J_TOROIDAL_ECRH: self.j_toroidal_ecrh,
+        output_keys.J_TOROIDAL_NBI: self.j_toroidal_nbi,
         output_keys.J_TOROIDAL_NON_INDUCTIVE: self.j_toroidal_non_inductive,
         output_keys.J_PARALLEL_NON_INDUCTIVE: self.j_parallel_non_inductive,
     }
@@ -552,21 +595,24 @@ class PostProcessedOutputs:
         output_keys.P_HEAT_TOTAL: self.P_heat_total,
         output_keys.P_EI_EXCHANGE_I: self.P_ei_exchange_i,
         output_keys.P_EI_EXCHANGE_E: self.P_ei_exchange_e,
-        output_keys.P_AUX_GENERIC_I: self.P_aux_generic_i,
-        output_keys.P_AUX_GENERIC_E: self.P_aux_generic_e,
-        output_keys.P_AUX_GENERIC_TOTAL: self.P_aux_generic_total,
+        output_keys.P_GENERIC_HEAT_I: self.P_generic_heat_i,
+        output_keys.P_GENERIC_HEAT_E: self.P_generic_heat_e,
+        output_keys.P_GENERIC_HEAT_TOTAL: self.P_generic_heat_total,
         output_keys.P_ALPHA_I: self.P_alpha_i,
         output_keys.P_ALPHA_E: self.P_alpha_e,
         output_keys.P_ALPHA_TOTAL: self.P_alpha_total,
         output_keys.P_OHMIC_E: self.P_ohmic_e,
         output_keys.P_BREMSSTRAHLUNG_E: self.P_bremsstrahlung_e,
-        output_keys.P_CYCLOTRON_E: self.P_cyclotron_e,
+        output_keys.P_CYCLOTRON_RADIATION_E: self.P_cyclotron_radiation_e,
         output_keys.P_ECRH_E: self.P_ecrh_e,
-        output_keys.P_RADIATION_E: self.P_radiation_e,
+        output_keys.P_IMPURITY_RADIATION_E: self.P_impurity_radiation_e,
         output_keys.P_FUSION: self.P_fusion,
         output_keys.P_ICRH_E: self.P_icrh_e,
         output_keys.P_ICRH_I: self.P_icrh_i,
         output_keys.P_ICRH_TOTAL: self.P_icrh_total,
+        output_keys.P_NBI_E: self.P_nbi_e,
+        output_keys.P_NBI_I: self.P_nbi_i,
+        output_keys.P_NBI_TOTAL: self.P_nbi_total,
         # L-H transition thresholds
         output_keys.P_LH_MARTIN_HIGH_DENSITY: self.P_LH_martin_high_density,
         output_keys.P_LH_MARTIN_MIN: self.P_LH_martin_min,
@@ -590,8 +636,8 @@ class PostProcessedOutputs:
         output_keys.N_I_VOLUME_AVG: self.n_i_volume_avg,
         output_keys.N_E_LINE_AVG: self.n_e_line_avg,
         output_keys.N_I_LINE_AVG: self.n_i_line_avg,
-        output_keys.FGW_N_E_VOLUME_AVG: self.fgw_n_e_volume_avg,
-        output_keys.FGW_N_E_LINE_AVG: self.fgw_n_e_line_avg,
+        output_keys.F_GW_N_E_VOLUME_AVG: self.f_GW_n_e_volume_avg,
+        output_keys.F_GW_N_E_LINE_AVG: self.f_GW_n_e_line_avg,
         # q-profile derived scalars
         output_keys.Q_FUSION: self.Q_fusion,
         output_keys.Q95: self.q95,
@@ -607,7 +653,8 @@ class PostProcessedOutputs:
         output_keys.I_BOOTSTRAP: self.I_bootstrap,
         output_keys.I_EXTERNAL: self.I_external,
         output_keys.I_ECRH: self.I_ecrh,
-        output_keys.I_AUX_GENERIC: self.I_aux_generic,
+        output_keys.I_GENERIC_CURRENT: self.I_generic_current,
+        output_keys.I_NBI: self.I_nbi,
         output_keys.I_NON_INDUCTIVE: self.I_non_inductive,
         output_keys.F_NON_INDUCTIVE: self.f_non_inductive,
         output_keys.F_BOOTSTRAP: self.f_bootstrap,
@@ -615,6 +662,7 @@ class PostProcessedOutputs:
         output_keys.S_GAS_PUFF: self.S_gas_puff,
         output_keys.S_PELLET: self.S_pellet,
         output_keys.S_GENERIC_PARTICLE: self.S_generic_particle,
+        output_keys.S_NBI: self.S_nbi,
         output_keys.S_TOTAL: self.S_total,
         # Plasma beta
         output_keys.BETA_TOR: self.beta_tor,
@@ -662,53 +710,60 @@ class PostProcessedOutputs:
     return out_dict
 
 
-# TODO(b/376010694): use the various SOURCE_NAMES for the keys.
-ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'generic_heat': 'P_aux_generic',
-    'fusion': 'P_alpha',
-    'icrh': 'P_icrh',
-}
-EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'ohmic': 'P_ohmic_e',
-    'bremsstrahlung': 'P_bremsstrahlung_e',
-    'cyclotron_radiation': 'P_cyclotron_e',
-    'ecrh': 'P_ecrh_e',
-    'impurity_radiation': 'P_radiation_e',
-}
-EXTERNAL_HEATING_SOURCES = [
+# Integrated source scalar names follow the source's config / SOURCE_ID name
+# directly via output_keys.SOURCE_NAME_RENAMES. The sole exception is 'fusion',
+# whose thermal plasma heating is carried by alpha particles ('alpha'; total D-T
+# fusion power P_fusion is 5 * P_alpha_total, so naming ion/electron thermal
+# heating P_fusion_i / P_fusion_e would be misleading).
+ION_EL_HEAT_SOURCES: Final[Sequence[str]] = (
+    'generic_heat',
+    'fusion',
+    'icrh',
+    'nbi',
+)
+EL_HEAT_SOURCES: Final[Sequence[str]] = (
+    'ohmic',
+    'bremsstrahlung',
+    'cyclotron_radiation',
+    'ecrh',
+    'impurity_radiation',
+)
+EXTERNAL_HEATING_SOURCES: Final[Sequence[str]] = (
     'generic_heat',
     'ecrh',
     'icrh',
-]
-CURRENT_SOURCE_TRANSFORMATIONS = {
-    'generic_current': 'I_aux_generic',
-    'ecrh': 'I_ecrh',
-}
-PARTICLE_SOURCE_TRANSFORMATIONS = {
-    'gas_puff': 'S_gas_puff',
-    'pellet': 'S_pellet',
-    'generic_particle': 'S_generic_particle',
-}
+    'nbi',
+)
+CURRENT_SOURCES: Final[Sequence[str]] = (
+    'generic_current',
+    'ecrh',
+    'nbi',
+)
+PARTICLE_SOURCES: Final[Sequence[str]] = (
+    'gas_puff',
+    'pellet',
+    'generic_particle',
+    'nbi',
+)
 
 
 def _get_integrated_source_value(
-    source_profiles_dict: dict[str, array_typing.FloatVector],
-    internal_source_name: str,
+    profile: array_typing.FloatVector | None,
     geo: geometry.Geometry,
     integration_fn: Callable[
-        [array_typing.FloatVector, geometry.Geometry], jax.Array
+        [array_typing.FloatVector, geometry.Geometry], array_typing.FloatScalar
     ],
 ) -> jax.Array:
-  """Integrates a source profile if it exists, otherwise returns 0.0."""
-  if internal_source_name in source_profiles_dict:
-    return integration_fn(source_profiles_dict[internal_source_name], geo)
+  """Integrates a source profile if it is not None, otherwise returns 0.0."""
+  if profile is not None:
+    return jnp.asarray(integration_fn(profile, geo))
   else:
     return jnp.array(0.0, dtype=jax_utils.get_dtype())
 
 
 def _calculate_integrated_sources(
     geo: geometry.Geometry,
-    core_sources: source_profiles.SourceProfiles,
+    core_sources: core_sources_lib.CoreSources,
     runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
@@ -723,7 +778,7 @@ def _calculate_integrated_sources(
     See PostProcessedOutputs for the full list of keys.
 
     Output dict used to update the `PostProcessedOutputs` object in the
-    output `ToraxSimState`. Sources that don't exist do not have integrated
+    output `SimState`. Sources that don't exist do not have integrated
     quantities included in the returned dict. The corresponding
     `PostProcessedOutputs` attributes remain at their initialized zero values.
   """
@@ -747,30 +802,36 @@ def _calculate_integrated_sources(
       0.0, dtype=jax_utils.get_dtype()
   )
 
-  # Calculate integrated sources with convenient names, transformed from
-  # TORAX internal names.
-  for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    is_in_T_i = key in core_sources.T_i
-    is_in_T_e = key in core_sources.T_e
-    if is_in_T_i != is_in_T_e:
+  # Calculate integrated sources using unified output key names.
+  for key in ION_EL_HEAT_SOURCES:
+    source_output = core_sources.sources.get(key)
+    power_density_i = (
+        source_output.power_density_i if source_output is not None else None
+    )
+    power_density_e = (
+        source_output.power_density_e if source_output is not None else None
+    )
+    if (power_density_i is not None) != (power_density_e is not None):
       raise ValueError(
           f"Source '{key}' is expected to be defined for both ion and electron"
-          ' channels (in core_sources.T_i and core_sources.T_e respectively).'
-          f' Found in T_i: {is_in_T_i}, Found in T_e: {is_in_T_e}.'
+          ' channels (power_density_i and power_density_e).'
+          f' Found power_density_i: {power_density_i is not None},'
+          f' Found power_density_e: {power_density_e is not None}.'
       )
-    integrated[f'{value}_i'] = _get_integrated_source_value(
-        core_sources.T_i, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    integrated[f'P_{output_name}_i'] = _get_integrated_source_value(
+        power_density_i, geo, math_utils.volume_integration
     )
-    integrated[f'{value}_e'] = _get_integrated_source_value(
-        core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+    integrated[f'P_{output_name}_e'] = _get_integrated_source_value(
+        power_density_e, geo, math_utils.volume_integration
     )
-    integrated[f'{value}_total'] = (
-        integrated[f'{value}_i'] + integrated[f'{value}_e']
+    integrated[f'P_{output_name}_total'] = (
+        integrated[f'P_{output_name}_i'] + integrated[f'P_{output_name}_e']
     )
 
     if key in EXTERNAL_HEATING_SOURCES:
-      integrated['P_aux_i'] += integrated[f'{value}_i']
-      integrated['P_aux_e'] += integrated[f'{value}_e']
+      integrated['P_aux_i'] += integrated[f'P_{output_name}_i']
+      integrated['P_aux_e'] += integrated[f'P_{output_name}_e']
 
       # Track injected power for heating sources that have absorption_fraction
       # These are only for sources like ICRH or NBI that are
@@ -779,30 +840,44 @@ def _calculate_integrated_sources(
       if source_params is not None and hasattr(
           source_params, 'absorption_fraction'
       ):
-        total_absorbed = integrated[f'{value}_total']
+        total_absorbed = integrated[f'P_{output_name}_total']
         injected_power = total_absorbed / source_params.absorption_fraction
         integrated['P_external_injected'] += injected_power
       else:
-        integrated['P_external_injected'] += integrated[f'{value}_total']
+        integrated['P_external_injected'] += integrated[
+            f'P_{output_name}_total'
+        ]
 
-  for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    if key in core_sources.T_e and key in core_sources.T_i:
+  for key in EL_HEAT_SOURCES:
+    source_output = core_sources.sources.get(key)
+    power_density_e = (
+        source_output.power_density_e if source_output is not None else None
+    )
+    if (
+        source_output is not None
+        and power_density_e is not None
+        and source_output.power_density_i is not None
+    ):
       raise ValueError(
-          f"Source '{key}' was expected to only be an electron heat source (in"
-          ' core_sources.T_e), but it was also found in ion heat sources'
-          ' (core_sources.T_i).'
+          f"Source '{key}' was expected to only be an electron heat source"
+          ' (power_density_e), but it was also found in ion heat sources'
+          ' (power_density_i).'
       )
-    integrated[f'{value}'] = _get_integrated_source_value(
-        core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    scalar_key = f'P_{output_name}_e'
+    integrated[scalar_key] = _get_integrated_source_value(
+        power_density_e, geo, math_utils.volume_integration
     )
     if key in EXTERNAL_HEATING_SOURCES:
-      integrated['P_aux_e'] += integrated[f'{value}']
-      integrated['P_external_injected'] += integrated[f'{value}']
+      integrated['P_aux_e'] += integrated[scalar_key]
+      integrated['P_external_injected'] += integrated[scalar_key]
 
-  for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
-    integrated[value] = _get_integrated_source_value(
-        core_sources.psi,  # pyrefly: ignore[bad-argument-type]
-        key,
+  for key in CURRENT_SOURCES:
+    source_output = core_sources.sources.get(key)
+    j_parallel = source_output.j_parallel if source_output is not None else None
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    integrated[f'I_{output_name}'] = _get_integrated_source_value(
+        j_parallel,
         geo,
         # Convert current sources to toroidal current before integrating
         lambda x, geo: math_utils.area_integration(  # pyrefly: ignore[bad-argument-type]
@@ -813,11 +888,17 @@ def _calculate_integrated_sources(
         ),
     )
 
-  for key, value in PARTICLE_SOURCE_TRANSFORMATIONS.items():
-    integrated[f'{value}'] = _get_integrated_source_value(
-        core_sources.n_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
+  for key in PARTICLE_SOURCES:
+    source_output = core_sources.sources.get(key)
+    particle_source = (
+        source_output.particle_source_e if source_output is not None else None
     )
-    integrated['S_total'] += integrated[f'{value}']
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    scalar_key = f'S_{output_name}'
+    integrated[scalar_key] = _get_integrated_source_value(
+        particle_source, geo, math_utils.volume_integration
+    )
+    integrated['S_total'] += integrated[scalar_key]
 
   integrated['P_aux_total'] = integrated['P_aux_i'] + integrated['P_aux_e']
   integrated['P_fusion'] = 5 * integrated['P_alpha_total']
@@ -829,9 +910,9 @@ def _calculate_integrated_sources(
       + integrated['P_alpha_e']
       + integrated['P_ohmic_e']
       + integrated['P_ei_exchange_e']
-      + integrated['P_cyclotron_e']
+      + integrated['P_cyclotron_radiation_e']
       + integrated['P_bremsstrahlung_e']
-      + integrated['P_radiation_e']
+      + integrated['P_impurity_radiation_e']
   )
 
   integrated['P_heat_i'] = (
@@ -1064,48 +1145,50 @@ def make_post_processed_outputs(
   H20 = tau_E / tauH20
 
   # Calculate q at 95% of the normalized poloidal flux
-  q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
+  q95 = psi_calculations.calc_q95(
+      psi_norm_face, sim_state.core_profiles.poloidal_flux.q_face
+  )
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.T_i.value, sim_state.geometry
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_e.value, sim_state.geometry
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_e.value, sim_state.geometry
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry
+      sim_state.core_profiles.kinetic.n_i.value, sim_state.geometry
   )
-  fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
+  f_GW_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
   )
-  fgw_n_e_line_avg = formulas.calculate_greenwald_fraction(
+  f_GW_n_e_line_avg = formulas.calculate_greenwald_fraction(
       n_e_line_avg, sim_state.core_profiles, sim_state.geometry
   )
   W_pol = psi_calculations.calc_Wpol(
-      sim_state.geometry, sim_state.core_profiles.psi
+      sim_state.geometry, sim_state.core_profiles.poloidal_flux.psi
   )
   li3 = psi_calculations.calc_li3(
-      sim_state.geometry.R_major,  # pyrefly: ignore[bad-argument-type]
+      sim_state.geometry.R_major,
       W_pol,
-      sim_state.core_profiles.I_p_profile_face[-1],
+      sim_state.core_profiles.poloidal_flux.I_p_profile_face[-1],
   )
 
   safety_factor_fit_outputs = (
       safety_factor_fit.find_min_q_and_q_surface_intercepts(
           sim_state.geometry.rho_face_norm,
-          sim_state.core_profiles.q_face,
+          sim_state.core_profiles.poloidal_flux.q_face,
       )
   )
 
@@ -1114,17 +1197,14 @@ def make_post_processed_outputs(
   # psi_calculations.calc_j_toroidal_total)
   # Core sources psi are all <j.B>/B0
   j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
-      sim_state.core_profiles.j_toroidal_total,
+      sim_state.core_profiles.poloidal_flux.j_toroidal_total,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
   j_parallel_bootstrap = (
       sim_state.core_sources.bootstrap_current.j_parallel_bootstrap
   )
-  j_parallel_external = sum(
-      sim_state.core_sources.psi.values(),
-      jnp.zeros(sim_state.geometry.rho.shape),
-  )
+  j_parallel_external = sim_state.core_sources.j_parallel(sim_state.geometry)
   j_parallel_ohmic = (
       j_parallel_total - j_parallel_external - j_parallel_bootstrap
   )
@@ -1159,11 +1239,12 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_sources = {}
-  for source_name in ['ecrh', 'generic_current']:
-    if source_name in sim_state.core_sources.psi.keys():
+  for source_name in ['ecrh', 'generic_current', 'nbi']:
+    source_output = sim_state.core_sources.sources.get(source_name)
+    if source_output is not None and source_output.j_parallel is not None:
       j_toroidal_sources[f'j_toroidal_{source_name}'] = (
           psi_calculations.j_parallel_to_j_toroidal(
-              sim_state.core_sources.psi[source_name],
+              source_output.j_parallel,
               sim_state.geometry,
               runtime_params.numerics.min_rho_norm,
           )
@@ -1198,10 +1279,12 @@ def make_post_processed_outputs(
   )
 
   rotation_output = rotation.calculate_rotation(
-      psi=sim_state.core_profiles.psi,
-      n_i=sim_state.core_profiles.n_i,
-      Z_i_face=sim_state.core_profiles.Z_i_face,
-      toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
+      psi=sim_state.core_profiles.poloidal_flux.psi,
+      n_i=sim_state.core_profiles.kinetic.n_i,
+      Z_i_face=sim_state.core_profiles.ions.Z_i_face,
+      toroidal_angular_velocity=(
+          sim_state.core_profiles.kinetic.toroidal_angular_velocity
+      ),
       poloidal_velocity=sim_state.core_profiles.poloidal_velocity,
       pressure_total_i=sim_state.core_profiles.pressure_total_i,
       geo=sim_state.geometry,
@@ -1241,8 +1324,8 @@ def make_post_processed_outputs(
       n_i_volume_avg=n_i_volume_avg,
       n_e_line_avg=n_e_line_avg,
       n_i_line_avg=n_i_line_avg,
-      fgw_n_e_volume_avg=fgw_n_e_volume_avg,
-      fgw_n_e_line_avg=fgw_n_e_line_avg,
+      f_GW_n_e_volume_avg=f_GW_n_e_volume_avg,
+      f_GW_n_e_line_avg=f_GW_n_e_line_avg,
       q95=q95,
       W_pol=W_pol,
       li3=li3,
@@ -1269,6 +1352,7 @@ def make_post_processed_outputs(
       j_toroidal_generic_current=j_toroidal_sources[
           'j_toroidal_generic_current'
       ],
+      j_toroidal_nbi=j_toroidal_sources['j_toroidal_nbi'],
       j_toroidal_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
       j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
@@ -1276,12 +1360,12 @@ def make_post_processed_outputs(
       I_non_inductive=I_non_inductive,
       f_non_inductive=math_utils.safe_divide(
           num=I_non_inductive,
-          denom=sim_state.core_profiles.I_p_profile_face[-1],
+          denom=sim_state.core_profiles.poloidal_flux.I_p_profile_face[-1],
           eps=1e-7,
       ),
       f_bootstrap=math_utils.safe_divide(
           num=I_bootstrap,
-          denom=sim_state.core_profiles.I_p_profile_face[-1],
+          denom=sim_state.core_profiles.poloidal_flux.I_p_profile_face[-1],
           eps=1e-7,
       ),
       beta_tor=beta_tor,

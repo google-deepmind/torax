@@ -9,9 +9,9 @@ How to contribute
 We'd love to accept your patches and contributions to this project.
 There are multiple ways to contribute:
 
-* Answering questions on TORAX's `discussions page. <https://github.com/google-deepmind/torax/discussions>`_
-* Improving TORAX's `documentation. <https://torax.readthedocs.io>`_
-* Contributing to TORAX's core `code-base. <https://github.com/google-deepmind/torax>`_
+* Answering questions on TORAX's |torax_discussions|.
+* Improving TORAX's |torax_docs|.
+* Contributing to the |torax_repo|.
 
 A wide variety of contributions are welcome. See the :ref:`roadmap` for
 prioritized projects. In particular, TORAX is envisaged as a natural framework
@@ -31,21 +31,18 @@ Before you begin
 Sign our Contributor License Agreement
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Contributions to this project must be accompanied by a
-`Contributor License Agreement <https://cla.developers.google.com/about>`_
-(CLA).
+Contributions to this project must be accompanied by a |google_cla| (CLA).
 
 If you or your current employer have already signed the Google CLA (even if it
 was for a different project), you probably don't need to do it again.
 
-Visit https://cla.developers.google.com to see your current agreements or to
-sign a new one.
+Visit the |google_cla_portal| to see your current agreements or to sign a new
+one.
 
 Review our community guidelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This project follows
-`[Google's Open Source Community Guidelines] <https://opensource.google/conduct/>`_.
+This project follows |google_oss_conduct|.
 
 Contribution process
 ====================
@@ -54,8 +51,7 @@ Code reviews
 ------------
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-`GitHub Help <https://help.github.com/articles/about-pull-requests/>`_ for more
+use GitHub pull requests for this purpose. Consult |github_pr_help| for more
 information on using pull requests.
 
 Once you have signed the CLA and your code is ready for review, we encourage you
@@ -69,9 +65,9 @@ Internal repository and Copybara
 --------------------------------
 
 It is important to know that we have an internal repository that serves as the
-Single Source of Truth (SSOT) for our codebase. We use a tool called
-`copybara <https://github.com/google/copybara>`_ to keep consistency between our
-internal repo and the external GitHub repository.
+Single Source of Truth (SSOT) for our codebase. We use a tool called |copybara|
+to keep consistency between our internal repo and the external GitHub
+repository.
 
 The typical workflow we follow with PRs is as follows:
 
@@ -113,8 +109,8 @@ To ensure a smooth review process, please consider the following tips:
   is understood by the developer, tests are properly run, and PRs maintain
   focus. Please keep in mind that reviewing is time-consuming and PRs that do
   not adhere to these standards are likely to have longer review times.
-  See `CONTEXT.md <https://github.com/google-deepmind/torax/blob/main/CONTEXT.md>`_
-  for a development guide that provides context for GenAI coding tools and
-  also serves as a useful quick-start reference for new developers.
+  See |CONTEXT.md| for a development guide that provides context for GenAI
+  coding tools and also serves as a useful quick-start reference for new
+  developers.
 
-You can find more contribution tips in our `documentation <https://torax.readthedocs.io/en/latest/contribution_tips.html#contribution-tips>`_.
+You can find more contribution tips in :ref:`contribution_tips`.

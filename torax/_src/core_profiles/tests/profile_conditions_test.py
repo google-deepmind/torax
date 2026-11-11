@@ -37,21 +37,21 @@ import xarray as xr
 # pylint: disable=invalid-name
 class ProfileConditionsTest(parameterized.TestCase):
 
-  def test_missing_initial_psi_source_raises_error(self):
-    with self.assertRaisesRegex(pydantic.ValidationError, 'initial_psi_source'):
+  def test_missing_psi_source_raises_error(self):
+    with self.assertRaisesRegex(pydantic.ValidationError, 'psi_source'):
       profile_conditions.ProfileConditions.from_dict(
           {'I_p_source': 'profile_conditions'}
       )
 
   def test_I_p_and_I_p_source_defaults(self):
     pc = profile_conditions.ProfileConditions.from_dict(
-        {'I_p': 15e6, 'initial_psi_source': 'j'}
+        {'I_p': 15e6, 'psi_source': 'j'}
     )
     self.assertEqual(
         pc.I_p_source, core_profile_runtime_params.IpSource.PROFILE_CONDITIONS
     )
     pc_geo = profile_conditions.ProfileConditions.from_dict(
-        {'I_p_source': 'geometry', 'initial_psi_source': 'j'}
+        {'I_p_source': 'geometry', 'psi_source': 'j'}
     )
     self.assertIsNone(pc_geo.I_p)
 
@@ -61,15 +61,14 @@ class ProfileConditionsTest(parameterized.TestCase):
         "I_p must be provided when I_p_source is 'profile_conditions'.",
     ):
       profile_conditions.ProfileConditions.from_dict(
-          {'initial_psi_source': 'j'}
+          {'psi_source': 'j'}
       )
 
   def test_build_runtime_params_with_I_p_none_and_geometry_source(self):
     pc = profile_conditions.ProfileConditions.from_dict(
-        {'I_p_source': 'geometry', 'initial_psi_source': 'j'}
+        {'I_p_source': 'geometry', 'psi_source': 'j'}
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     rp = pc.build_runtime_params(t=0.0)
     self.assertEqual(rp.I_p, 0.0)
     self.assertEqual(
@@ -78,20 +77,18 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_profile_conditions_build_runtime_params_smoke_test(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     pc.build_runtime_params(t=0.0)
 
   def test_profile_conditions_under_jit(self):
     initial_I_p = 1e6
     updated_I_p = 2e6
     pc = profile_conditions.ProfileConditions(
-        I_p=initial_I_p, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=initial_I_p, I_p_source='profile_conditions', psi_source='j'
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
 
     @jax.jit
     def f(pc_model: profile_conditions.ProfileConditions):
@@ -119,12 +116,11 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         T_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_e_right_bc=T_e_right_bc,
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_e_right_bc, expected_initial_value)
     dcs = pc.build_runtime_params(t=1.5)
@@ -141,12 +137,11 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         T_i={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_i_right_bc=T_i_right_bc,
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_i_right_bc, expected_initial_value)
     dcs = pc.build_runtime_params(t=1.5)
@@ -165,7 +160,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e': {0: {0: 1.0e20, 1: 2.0e20}, 1.5: {0: 100.0e20, 1: 200.0e20}},
         'n_e_right_bc': n_e_right_bc,
     }
@@ -176,14 +171,14 @@ class ProfileConditionsTest(parameterized.TestCase):
     dcs = dcs_provider(t=0.0).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
     if n_e_right_bc is None:
-      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertEqual(dcs.n_e_right_bc_is_f_GW, dcs.n_e_bar_is_f_GW)
       self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
       self.assertTrue(dcs.n_e_right_bc_is_absolute)
     dcs = dcs_provider(t=1.5).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_second_value)
     if n_e_right_bc is None:
-      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertEqual(dcs.n_e_right_bc_is_f_GW, dcs.n_e_bar_is_f_GW)
       self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
       self.assertTrue(dcs.n_e_right_bc_is_absolute)
@@ -213,14 +208,13 @@ class ProfileConditionsTest(parameterized.TestCase):
       self, psi, expected_initial_value, expected_second_value
   ):
     """Tests that psi is set correctly."""
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='profile_conditions' if psi is not None else 'j',
         psi=psi,
     )
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(4))
     dcs = pc.build_runtime_params(t=0.0)
     if psi is None:
       self.assertIsNone(dcs.psi)
@@ -313,7 +307,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       ):
         profile_conditions.ProfileConditions(
             I_p_source='profile_conditions',
-            initial_psi_source='j',
+            psi_source='j',
             T_i=values,
             T_i_right_bc=None,
         )
@@ -321,7 +315,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           T_i=values,
           T_i_right_bc=None,
       )
@@ -352,7 +346,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -363,73 +357,73 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='valid_nbar_m3',
+          testcase_name='valid_n_e_bar_m3',
           config_overrides={
-              'nbar': 1e20,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': 1e20,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_GW': False,
           },
       ),
       dict(
-          testcase_name='invalid_nbar_m3_too_low',
+          testcase_name='invalid_n_e_bar_m3_too_low',
           config_overrides={
-              'nbar': 1e9,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': 1e9,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_GW': False,
           },
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='nbar_m3_not_normalized_no_error',
+          testcase_name='n_e_bar_m3_not_normalized_no_error',
           config_overrides={
-              'nbar': 1e9,
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': 1e9,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_GW': False,
           },
       ),
       dict(
-          testcase_name='valid_nbar_fGW',
+          testcase_name='valid_n_e_bar_f_GW',
           config_overrides={
-              'nbar': 0.5,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': True,
+              'n_e_bar': 0.5,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_GW': True,
           },
       ),
       dict(
-          testcase_name='invalid_nbar_fGW_too_high',
+          testcase_name='invalid_n_e_bar_f_GW_too_high',
           config_overrides={
-              'nbar': 1.1e2,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': True,
+              'n_e_bar': 1.1e2,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_GW': True,
           },
           expected_error_msg='above the maximum threshold',
       ),
       dict(
-          testcase_name='nbar_fGW_too_low_but_not_used_so_no_error',
+          testcase_name='n_e_bar_f_GW_too_low_but_not_used_so_no_error',
           config_overrides={
-              'nbar': 1.1e2,
+              'n_e_bar': 1.1e2,
               'n_e': {0: {0: 0.85, 1: 0.85}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': True,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_GW': True,
           },
       ),
       dict(
-          testcase_name='invalid_nbar_m3_time_varying_too_low',
+          testcase_name='invalid_n_e_bar_m3_time_varying_too_low',
           config_overrides={
-              'nbar': {0: 1e20, 1: 1e9},
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': {0: 1e20, 1: 1e9},
+              'normalize_n_e': True,
+              'n_e_bar_is_f_GW': False,
           },
           expected_error_msg='below the minimum threshold',
       ),
   )
-  def test_nbar_order_of_magnitude_validation(
+  def test_n_e_bar_order_of_magnitude_validation(
       self, config_overrides, expected_error_msg=None
   ):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -443,41 +437,41 @@ class ProfileConditionsTest(parameterized.TestCase):
           testcase_name='valid_ne_m3',
           config_overrides={
               'n_e': {0: {0: 1e20, 1: 1e20}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': False,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_GW': False,
           },
       ),
       dict(
           testcase_name='invalid_ne_m3_too_low',
           config_overrides={
               'n_e': {0: {0: 1e11, 0.5: 1e9, 1: 1e11}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': False,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_GW': False,
           },
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='valid_ne_m3_normalized_to_nbar',
+          testcase_name='valid_ne_m3_normalized_to_n_e_bar',
           config_overrides={
               'n_e': {0: {0: 1e9, 1: 1e9}},
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_GW': False,
           },
       ),
       dict(
-          testcase_name='valid_ne_fGW',
+          testcase_name='valid_ne_f_GW',
           config_overrides={
               'n_e': {0: {0: 0.5, 1: 0.5}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': True,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_GW': True,
           },
       ),
       dict(
-          testcase_name='invalid_ne_fGW_too_high',
+          testcase_name='invalid_ne_f_GW_too_high',
           config_overrides={
               'n_e': {0: {0: 0.5, 0.5: 1.1e2, 1: 0.5}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': True,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_GW': True,
           },
           expected_error_msg='above the maximum threshold',
       ),
@@ -488,7 +482,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -500,20 +494,26 @@ class ProfileConditionsTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='valid_ne_right_bc_m3',
-          config_overrides={'n_e_right_bc': 1e20, 'n_e_right_bc_is_fGW': False},
+          config_overrides={
+              'n_e_right_bc': 1e20,
+              'n_e_right_bc_is_f_GW': False,
+          },
       ),
       dict(
           testcase_name='invalid_ne_right_bc_m3_too_low',
-          config_overrides={'n_e_right_bc': 1e9, 'n_e_right_bc_is_fGW': False},
+          config_overrides={'n_e_right_bc': 1e9, 'n_e_right_bc_is_f_GW': False},
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='valid_ne_right_bc_fGW',
-          config_overrides={'n_e_right_bc': 0.5, 'n_e_right_bc_is_fGW': True},
+          testcase_name='valid_ne_right_bc_f_GW',
+          config_overrides={'n_e_right_bc': 0.5, 'n_e_right_bc_is_f_GW': True},
       ),
       dict(
-          testcase_name='invalid_ne_right_bc_fGW_too_high',
-          config_overrides={'n_e_right_bc': 1.1e2, 'n_e_right_bc_is_fGW': True},
+          testcase_name='invalid_ne_right_bc_f_GW_too_high',
+          config_overrides={
+              'n_e_right_bc': 1.1e2,
+              'n_e_right_bc_is_f_GW': True,
+          },
           expected_error_msg='above the maximum threshold',
       ),
   )
@@ -523,7 +523,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -565,7 +565,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -605,7 +605,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         **config_overrides,
     }
     if expected_error_msg:
@@ -617,7 +617,7 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_multiple_validation_errors(self):
     config_overrides = {
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'I_p': 1e2,
         'T_e': {0: {0: 2e3, 1: 1.0}, 1.0: {0: 1e6, 1: 1e10}},
         'T_i_right_bc': 1e2,
@@ -627,7 +627,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_ne_bc_mode_defaults_to_prescribed(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
     self.assertEqual(
         pc.n_e_right_bc_mode,
@@ -671,7 +671,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_overrides = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': reference_rho,
         'n_e_right_bc_multiplier': multiplier,
@@ -687,7 +687,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           n_e_right_bc_mode='prescribed',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
@@ -705,7 +705,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           n_e_right_bc_mode='density_fraction',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
@@ -716,7 +716,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_fast_ions_default_is_none(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
     self.assertIsNone(pc.fast_ions)
 
@@ -725,7 +725,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           fast_ions=[
               {
                   'source': 'icrh',
@@ -742,7 +742,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         fast_ions=[
             {
                 'source': 'icrh',
@@ -763,7 +763,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         fast_ions=[
             {
                 'source': 'icrh',
@@ -798,7 +798,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         I_p=15e6,
         I_p_source='profile_conditions',
-        initial_psi_source='j',
+        psi_source='j',
         fast_ions=[
             {
                 'source': 'icrh',
@@ -810,8 +810,7 @@ class ProfileConditionsTest(parameterized.TestCase):
             },
         ],
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     rp = pc.build_runtime_params(t=0.0)
     self.assertLen(rp.prescribed_fast_ions, 1)
     pfi = rp.prescribed_fast_ions[0]
@@ -822,16 +821,19 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_build_runtime_params_no_fast_ions_produces_empty_tuple(self):
     pc = profile_conditions.ProfileConditions(
-        I_p=15e6, I_p_source='profile_conditions', initial_psi_source='j'
+        I_p=15e6, I_p_source='profile_conditions', psi_source='j'
     )
-    geo = circular_geometry.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    torax_pydantic.set_grid(pc, torax_pydantic.Grid1D.uniform_from_n_rho(25))
     rp = pc.build_runtime_params(t=0.0)
     self.assertEmpty(rp.prescribed_fast_ions)
 
   def test_apply_prescribed_fast_ions_overwrites_matching(self):
 
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     zeros = np.zeros(4)
     zero_n = cell_variable.CellVariable(
         value=zeros,
@@ -874,7 +876,11 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_apply_prescribed_fast_ions_no_prescribed_returns_unchanged(self):
 
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     zeros = np.zeros(4)
     zero_cv = cell_variable.CellVariable(
         value=zeros,
@@ -896,7 +902,11 @@ class ProfileConditionsTest(parameterized.TestCase):
     np.testing.assert_allclose(result[0].n.value, 0.0, atol=1e-9)
 
   def test_apply_prescribed_fast_ions_appends_when_empty(self):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     prescribed = (
         core_profile_runtime_params.PrescribedFastIonData(
             source='nbi',
@@ -921,7 +931,11 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_apply_prescribed_fast_ions_overwrites_matching_and_appends_unmatched(
       self,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     zeros = np.zeros(4)
     zero_cv = cell_variable.CellVariable(
         value=zeros,
@@ -970,7 +984,11 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_apply_prescribed_fast_ions_later_duplicate_prescribed_overrides(
       self,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     p1 = core_profile_runtime_params.PrescribedFastIonData(
         source='icrh',
         species='He3',
@@ -999,7 +1017,11 @@ class ProfileConditionsTest(parameterized.TestCase):
     np.testing.assert_allclose(result[0].T.value, 200.0, atol=1e-9)
 
   def test_apply_prescribed_fast_ions_unsupported_species_raises(self):
-    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=4)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     p = core_profile_runtime_params.PrescribedFastIonData(
         source='icrh',
         species='UNKNOWN',
@@ -1015,18 +1037,18 @@ class ProfileConditionsTest(parameterized.TestCase):
           geo.rho_face_norm,
       )
 
-  def test_ne_bc_density_fraction_rejects_is_fgw(self):
+  def test_ne_bc_density_fraction_rejects_is_f_GW(self):
     with self.assertRaisesRegex(
-        ValueError, 'n_e_right_bc_is_fGW must be False'
+        ValueError, 'n_e_right_bc_is_f_GW must be False'
     ):
       profile_conditions.ProfileConditions(
           I_p=15e6,
           I_p_source='profile_conditions',
-          initial_psi_source='j',
+          psi_source='j',
           n_e_right_bc_mode='density_fraction',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
-          n_e_right_bc_is_fGW=True,
+          n_e_right_bc_is_f_GW=True,
       )
 
   def test_internal_boundary_conditions_set_correctly(self):
@@ -1035,7 +1057,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         'internal_boundary_conditions': {
             'model_name': 'prescribed',
             'T_i': {
@@ -1057,6 +1079,40 @@ class ProfileConditionsTest(parameterized.TestCase):
     np.testing.assert_array_equal(
         runtime_params.profile_conditions.internal_boundary_conditions.T_i,
         np.array([1.0, 0.0, 0.0, 2.0]),
+    )
+
+  def test_psi_bc_source_v_loop_without_v_loop_lcfs_raises(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'v_loop_lcfs must be set'
+    ):
+      profile_conditions.ProfileConditions(
+          I_p=15e6,
+          psi_source='j',
+          psi_bc_source='v_loop',
+      )
+
+  def test_psi_bc_source_v_loop_sets_enum(self):
+    pc_vloop = profile_conditions.ProfileConditions(
+        I_p=15e6,
+        psi_source='j',
+        psi_bc_source='v_loop',
+        v_loop_lcfs=0.5,
+    )
+    self.assertEqual(
+        pc_vloop.psi_bc_source,
+        profile_conditions.runtime_params_lib.PsiBoundaryConditionSource.V_LOOP,
+    )
+
+  def test_psi_bc_source_ip_with_v_loop_lcfs_logs_warning(self):
+    with self.assertLogs(level='WARNING') as cm:
+      profile_conditions.ProfileConditions(
+          I_p=15e6,
+          psi_source='j',
+          psi_bc_source='I_p',
+          v_loop_lcfs=0.5,
+      )
+    self.assertIn(
+        'v_loop_lcfs is set but will be ignored', '\n'.join(cm.output)
     )
 
 

@@ -17,14 +17,14 @@
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
 from torax._src.transport_model import pereverzev as pereverzev_lib
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_model as transport_model_lib
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -42,13 +42,13 @@ def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     transport_state: transport_state_lib.TransportState,
-    neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
+    neoclassical_transport: transport_coeffs.NeoclassicalTransport,
     two_point_mask: array_typing.BoolVectorFace,
     use_pereverzev: bool = False,
-) -> tuple[state.CoreTransport, transport_state_lib.TransportState]:
+) -> tuple[transport_coeffs.CoreTransport, transport_state_lib.TransportState]:
   """Calculates the transport coefficients from all models and updated state.
 
   Args:
@@ -87,7 +87,7 @@ def calculate_all_transport_coeffs(
     ):
       pedestal_active_mask_face = jnp.where(
           pedestal_model_output.is_active,
-          geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm >= pedestal_model_output.rho_norm_top,
           False,
       )
       pereverzev_transport_coeffs = jax.tree.map(
@@ -103,9 +103,9 @@ def calculate_all_transport_coeffs(
   ]
   if pereverzev_transport_coeffs is not None:
     coeffs_to_sum.append(pereverzev_transport_coeffs)
-  total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
+  total = transport_coeffs.sum_transport_coeffs(*coeffs_to_sum)
 
-  core_transport = state.CoreTransport(
+  core_transport = transport_coeffs.CoreTransport(
       total=total,
       turbulent=turbulent_transport_coeffs,
       neoclassical=neoclassical_transport,

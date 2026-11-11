@@ -109,15 +109,15 @@ def get_sawtooth_test_config_dict() -> Mapping[str, Any]:
           'I_p': 13e6,
           'initial_j_is_total_current': True,
           'I_p_source': 'profile_conditions',
-          'initial_psi_source': 'j',
+          'psi_source': 'j',
           'current_profile_nu': 3,
-          'n_e_nbar_is_fGW': True,
-          'normalize_n_e_to_nbar': True,
-          'nbar': 0.85,
+          'n_e_bar_is_f_GW': True,
+          'normalize_n_e': True,
+          'n_e_bar': 0.85,
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
       },
       'plasma_composition': {},
-      'geometry': {'geometry_type': 'circular', 'n_rho': NRHO},
+      'geometry': {'model_name': 'circular', 'n_rho': NRHO},
       'pedestal': {},
       'sources': {'ohmic': {}},
       'solver': {
@@ -183,10 +183,12 @@ def calculate_sawtooth_crash_references() -> Mapping[str, np.ndarray]:
 
   return {
       'post_crash_temperature': np.asarray(
-          output_state.core_profiles.T_e.value
+          output_state.core_profiles.kinetic.T_e.value
       ),
-      'post_crash_n': np.asarray(output_state.core_profiles.n_e.value),
-      'post_crash_psi': np.asarray(output_state.core_profiles.psi.value),
+      'post_crash_n': np.asarray(output_state.core_profiles.kinetic.n_e.value),
+      'post_crash_psi': np.asarray(
+          output_state.core_profiles.poloidal_flux.psi.value
+      ),
   }
 
 

@@ -16,22 +16,24 @@
 
 import dataclasses
 import jax
+from torax._src import array_typing
 from torax._src import model_state as model_state_lib
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import getters
+from torax._src.core_profiles import solver_profiles
+from torax._src.core_profiles import solver_state
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
+
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.output_tools import post_processing
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import formulas
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
@@ -49,7 +51,6 @@ def sawtooth_step(
     runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.SimState,
@@ -72,7 +73,6 @@ def sawtooth_step(
     runtime_params_t: Runtime params at time t.
     runtime_params_provider: Provider for runtime params.
     geo_t: Geometry at time t.
-    geometry_provider: Provider for geometry.
     explicit_model_outputs: Explicit model outputs evaluated at time t.
     edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
@@ -87,24 +87,33 @@ def sawtooth_step(
   # Asserts needed for linter.
   assert runtime_params_t.mhd.sawtooth is not None
   dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
-  runtime_params_t_plus_crash_dt, geo_t_plus_crash_dt = (
-      build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=input_state.t + dt_crash,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
-          core_profiles=input_state.core_profiles,
-          edge_outputs=edge_outputs,
-      )
+  (
+      runtime_params_t_plus_crash_dt,
+      geo_t_plus_crash_dt,
+      updated_geometry_state,
+  ) = build_runtime_params.step_consistent_runtime_params_and_geometry(
+      t=input_state.t + dt_crash,
+      dt=dt_crash,
+      geometry_state=model_state_t.geometry,
+      runtime_params_provider=runtime_params_provider,
+      geometry_model=sawtooth_solver.models.geometry_model,
+      core_profiles=input_state.core_profiles,
+      edge_outputs=edge_outputs,
   )
 
-  # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
+  # Prepare solver_state_t_plus_crash_dt with new boundary conditions
   # and prescribed profiles if present.
-  core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
-      dt=dt_crash,  # pyrefly: ignore[bad-argument-type]
+  _, solver_state_t_plus_crash_dt = updaters.provide_solver_states(
+      dt=dt_crash,
       runtime_params_t=runtime_params_t,
       runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
+  )
+
+  model_state = dataclasses.replace(
+      model_state_t,
+      geometry=updated_geometry_state,
   )
 
   (
@@ -118,9 +127,9 @@ def sawtooth_step(
       geo_t=geo_t,
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
-      core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
+      solver_state_t_plus_dt=solver_state_t_plus_crash_dt,
       explicit_model_outputs=explicit_model_outputs,
-      model_state=model_state_t,
+      model_state=model_state,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():
@@ -138,11 +147,12 @@ def sawtooth_step(
     x_evolved = _evolve_x_after_sawtooth(
         x_redistributed=x_candidate,
         runtime_params_t_plus_crash_dt=runtime_params_t_plus_crash_dt,
-        core_profiles_redistributed=core_profiles_t_plus_crash_dt,
+        solver_state_redistributed=solver_state_t_plus_crash_dt,
         geo_t_plus_crash_dt=geo_t_plus_crash_dt,
         previous_post_processed_outputs=input_post_processed_outputs,
         evolving_names=runtime_params_t.numerics.evolving_names,
-        dt_crash=dt_crash,  # pyrefly: ignore[bad-argument-type]
+        dt_crash=dt_crash,
+        fast_ions_t=input_state.core_profiles.fast_ions,
     )
 
     return step_function_processing.finalize_outputs(
@@ -152,15 +162,14 @@ def sawtooth_step(
         solver_numeric_outputs=solver_numeric_outputs,
         runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
         geometry_t_plus_dt=geo_t_plus_crash_dt,
-        core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
+        solver_state_t_plus_dt=solver_state_t_plus_crash_dt,
         explicit_model_outputs=explicit_model_outputs,
         edge_outputs=edge_outputs,
         models=sawtooth_solver.models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
         time_step_calculator_state_t=time_step_calculator_state_t,
-        model_state_t=model_state_t,
+        model_state_t=model_state,
     )
 
   return jax.lax.cond(
@@ -176,37 +185,34 @@ def sawtooth_step(
 def _evolve_x_after_sawtooth(
     x_redistributed: tuple[cell_variable.CellVariable, ...],
     runtime_params_t_plus_crash_dt: runtime_params_lib.RuntimeParams,
-    core_profiles_redistributed: state.CoreProfiles,
+    solver_state_redistributed: solver_state.SolverState,
     geo_t_plus_crash_dt: geometry.Geometry,
     previous_post_processed_outputs: post_processing.PostProcessedOutputs,
     evolving_names: tuple[str, ...],
-    dt_crash: jax.Array,
+    dt_crash: array_typing.FloatScalar,
+    fast_ions_t: tuple[fast_ion_lib.FastIon, ...] = (),
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Evolves the x_redistributed after the sawtooth redistribution."""
 
-  updated_core_profiles = convertors.solver_x_tuple_to_core_profiles(
-      x_new=x_redistributed,
-      evolving_names=evolving_names,
-      core_profiles=core_profiles_redistributed,
+  updated_solver_state = convertors.solver_x_tuple_to_solver_state(
+      x_redistributed,
+      evolving_names,
+      solver_state_redistributed,
   )
-
-  ions = getters.get_updated_ions(
+  base_profiles = solver_profiles.SolverProfiles.from_solver_state(
       runtime_params_t_plus_crash_dt,
       geo_t_plus_crash_dt,
-      updated_core_profiles.n_e,
-      updated_core_profiles.T_e,
+      updated_solver_state,
   )
 
-  updated_core_profiles = dataclasses.replace(
-      updated_core_profiles,
-      n_i=ions.n_i,
-      n_impurity=ions.n_impurity,
-  )
+  p_thermal_e = base_profiles.pressure_thermal_e
+  p_thermal_i = base_profiles.calculate_pressure_thermal_i(fast_ions_t)
+  p_thermal_total = cell_variable.add_cell_variables(p_thermal_e, p_thermal_i)
 
   _, _, W_thermal_tot = formulas.calculate_stored_thermal_energy(
-      updated_core_profiles.pressure_thermal_e,
-      updated_core_profiles.pressure_thermal_i,
-      updated_core_profiles.pressure_thermal_total,
+      p_thermal_e,
+      p_thermal_i,
+      p_thermal_total,
       geo_t_plus_crash_dt,
   )
 
@@ -215,20 +221,20 @@ def _evolve_x_after_sawtooth(
 
   factor = 1 + dW_target / W_thermal_tot
 
-  updated_core_profiles = dataclasses.replace(
-      updated_core_profiles,
+  updated_solver_state = dataclasses.replace(
+      updated_solver_state,
       T_e=dataclasses.replace(
-          updated_core_profiles.T_e,
-          value=updated_core_profiles.T_e.value * factor,
+          updated_solver_state.T_e,
+          value=updated_solver_state.T_e.value * factor,
       ),
       T_i=dataclasses.replace(
-          updated_core_profiles.T_i,
-          value=updated_core_profiles.T_i.value * factor,
+          updated_solver_state.T_i,
+          value=updated_solver_state.T_i.value * factor,
       ),
   )
 
-  x_evolved = convertors.core_profiles_to_solver_x_tuple(
-      updated_core_profiles,
+  x_evolved = convertors.solver_state_to_solver_x_tuple(
+      updated_solver_state,
       evolving_names,
   )
 

@@ -17,12 +17,14 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import eqdsk as eqdsk_lib
 import numpy as np
 from torax._src import array_typing
 from torax._src.geometry import base
 from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry_loader
+from torax._src.geometry import standard_geometry
 
 # pylint: disable=invalid-name
 
@@ -35,17 +37,27 @@ class EqdskGeometryTest(parameterized.TestCase):
   ])
   def test_build_geometry_from_eqdsk(self, geometry_file, cocos):
     """Test that EQDSK geometries can be built."""
-    config = eqdsk.EQDSKConfig(geometry_file=geometry_file, cocos=cocos)
-    config.build_geometry()
+    config = eqdsk.EQDSKConfig.from_dict(
+        {'geometry_file': geometry_file, 'cocos': cocos}
+    )
+    _ = config.build_runtime_params(0.0).geometry
 
   def test_eqdsk_cocos_conversion_is_consistent(self):
     """Tests that EQDSK geometries from different COCOS are identical after conversion."""
-    geo_cocos2 = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos02.eqdsk', cocos=2
-    ).build_geometry()
-    geo_cocos11 = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
-    ).build_geometry()
+    geo_cocos2 = (
+        eqdsk.EQDSKConfig.from_dict(
+            {'geometry_file': 'iterhybrid_cocos02.eqdsk', 'cocos': 2}
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_cocos11 = (
+        eqdsk.EQDSKConfig.from_dict(
+            {'geometry_file': 'iterhybrid_cocos11.eqdsk', 'cocos': 11}
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
     for field in dataclasses.fields(geo_cocos2):
       name = field.name
       val1 = getattr(geo_cocos2, name)
@@ -67,12 +79,16 @@ class EqdskGeometryTest(parameterized.TestCase):
 
     eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(file_path, from_cocos=2)
 
-    geo_file = eqdsk.EQDSKConfig(
-        geometry_file=file_name, cocos=2
-    ).build_geometry()
-    geo_obj = eqdsk.EQDSKConfig(
-        eqdsk_object=eqdsk_obj, cocos=2
-    ).build_geometry()
+    geo_file = (
+        eqdsk.EQDSKConfig.from_dict({'geometry_file': file_name, 'cocos': 2})
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_obj = (
+        eqdsk.EQDSKConfig.from_dict({'eqdsk_object': eqdsk_obj, 'cocos': 2})
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     for field in dataclasses.fields(geo_file):
       name = field.name
@@ -89,11 +105,15 @@ class EqdskGeometryTest(parameterized.TestCase):
 
   def test_trapped_fraction_is_physically_sensible(self):
     """Tests that the exact trapped particle fraction is well-behaved."""
-    geo = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos11.eqdsk',
-        cocos=11,
-        trapped_fraction_source=base.TrappedFractionSource.EXACT,
-    ).build_geometry()
+    geo = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos11.eqdsk',
+            'cocos': 11,
+            'trapped_fraction_source': base.TrappedFractionSource.EXACT,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     trapped_fraction = geo.trapped_fraction_face
     self.assertIsNotNone(trapped_fraction)
     with self.subTest('axis_zero'):
@@ -120,11 +140,15 @@ class EqdskGeometryTest(parameterized.TestCase):
         return_value=np.nan,
     ):
       with self.assertLogs(level='WARNING') as cm:
-        geo = eqdsk.EQDSKConfig(
-            geometry_file='iterhybrid_cocos11.eqdsk',
-            cocos=11,
-            trapped_fraction_source=base.TrappedFractionSource.EXACT,
-        ).build_geometry()
+        geo = (
+            eqdsk.EQDSKConfig.from_dict({
+                'geometry_file': 'iterhybrid_cocos11.eqdsk',
+                'cocos': 11,
+                'trapped_fraction_source': base.TrappedFractionSource.EXACT,
+            })
+            .build_runtime_params(0.0)
+            .geometry
+        )
     self.assertTrue(
         any('Overwriting' in msg and 'EXACT' in msg for msg in cm.output)
     )
@@ -133,24 +157,32 @@ class EqdskGeometryTest(parameterized.TestCase):
   def test_trapped_fraction_source_file_not_supported(self):
     """Tests that FILE is rejected for EQDSK (no precomputed value)."""
     with self.assertRaisesRegex(ValueError, 'not supported for EQDSKConfig'):
-      eqdsk.EQDSKConfig(
-          geometry_file='iterhybrid_cocos11.eqdsk',
-          cocos=11,
-          trapped_fraction_source=base.TrappedFractionSource.FILE,
-      )
+      eqdsk.EQDSKConfig.from_dict({
+          'geometry_file': 'iterhybrid_cocos11.eqdsk',
+          'cocos': 11,
+          'trapped_fraction_source': base.TrappedFractionSource.FILE,
+      })
 
   def test_trapped_fraction_geometry_consistent_with_sauter(self):
     """Tests that the exact and Sauter trapped fractions roughly agree."""
-    geo_sauter = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos11.eqdsk',
-        cocos=11,
-        trapped_fraction_source=base.TrappedFractionSource.SAUTER,
-    ).build_geometry()
-    geo_geometry = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos11.eqdsk',
-        cocos=11,
-        trapped_fraction_source=base.TrappedFractionSource.EXACT,
-    ).build_geometry()
+    geo_sauter = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos11.eqdsk',
+            'cocos': 11,
+            'trapped_fraction_source': base.TrappedFractionSource.SAUTER,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_geometry = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos11.eqdsk',
+            'cocos': 11,
+            'trapped_fraction_source': base.TrappedFractionSource.EXACT,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     # Moderately coarse tolerance: Sauter is only an analytic approximation,
     # so it need not match the exact integral closely, but a large deviation
     # would indicate a bug rather than the expected model discrepancy.
@@ -168,17 +200,17 @@ class EqdskGeometryTest(parameterized.TestCase):
     file_path = f'{geo_dir}/{file_name}'
     eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(file_path, from_cocos=11)
 
-    config = eqdsk.EQDSKConfig(eqdsk_object=eqdsk_obj, cocos=11)
+    config = eqdsk.EQDSKConfig.from_dict(
+        {'eqdsk_object': eqdsk_obj, 'cocos': 11}
+    )
     dumped = config.model_dump()
     config_restored = eqdsk.EQDSKConfig.from_dict(dumped)
-    self.assertIsNotNone(config_restored.eqdsk_object)
-    self.assertIsInstance(
-        config_restored.eqdsk_object, eqdsk_lib.EQDSKInterface
-    )
+    self.assertIsNotNone(config_restored.eqdsk_data)
+    self.assertIsInstance(config_restored.eqdsk_data, eqdsk.EQDSKData)
 
     # Verify that the built geometries match
-    geo_original = config.build_geometry()
-    geo_restored = config_restored.build_geometry()
+    geo_original = config.build_runtime_params(0.0).geometry
+    geo_restored = config_restored.build_runtime_params(0.0).geometry
 
     for field in dataclasses.fields(geo_original):
       name = field.name
@@ -192,6 +224,36 @@ class EqdskGeometryTest(parameterized.TestCase):
         self.assertIsNone(val2, msg=f'Field "{name}" mismatch (dict).')
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch (dict).')
+
+  def test_eqdsk_multi_slice(self):
+    """Tests multi-slice EQDSK configuration."""
+    config = eqdsk.EQDSKConfig.from_dict(
+        {'geometry_file': 'iterhybrid_cocos11.eqdsk', 'cocos': 11}
+    )
+    self.assertIsInstance(config.eqdsk_data, eqdsk.EQDSKData)
+    multi_config = eqdsk.EQDSKConfig(
+        eqdsk_data={
+            0.0: config.eqdsk_data,
+            1.0: config.eqdsk_data,
+        }
+    )
+    geo_0 = multi_config.build_runtime_params(0.0).geometry
+    geo_1 = multi_config.build_runtime_params(1.0).geometry
+    self.assertIsInstance(geo_0, standard_geometry.StandardGeometry)
+    self.assertIsInstance(geo_1, standard_geometry.StandardGeometry)
+
+  def test_eqdsk_build_runtime_params(self):
+    """Tests runtime params creation."""
+    config = eqdsk.EQDSKConfig.from_dict(
+        {'geometry_file': 'iterhybrid_cocos11.eqdsk', 'cocos': 11}
+    )
+    runtime_params = config.build_runtime_params(t=0.0)
+    self.assertIsInstance(
+        runtime_params.geometry, standard_geometry.StandardGeometry
+    )
+    chex.assert_trees_all_close(
+        runtime_params.geometry.rho_face_norm, config.get_face_centers()
+    )
 
   def _coarsened_iterhybrid_eqdsk(
       self, stride: int
@@ -213,37 +275,43 @@ class EqdskGeometryTest(parameterized.TestCase):
     # Use last_surface_factor=0.97 so that all contours remain closed on the
     # unrefined stride=2 grid (at the default 0.99, the outermost two contours
     # are clipped open by the LCFS bounding box).
-    reference_I_p = (
-        eqdsk.EQDSKConfig(
-            geometry_file='iterhybrid_cocos11.eqdsk',
-            cocos=11,
-            last_surface_factor=0.97,
-        )
-        .build_geometry()
-        .I_p_profile_face[-1]
+    ref_geo = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos11.eqdsk',
+            'cocos': 11,
+            'last_surface_factor': 0.97,
+        })
+        .build_runtime_params(0.0)
+        .geometry
     )
+    assert isinstance(ref_geo, standard_geometry.StandardGeometry)
+    reference_I_p = ref_geo.I_p_profile_face[-1]
     # coarsened_obj has nx = 65, nz = 65.
     # resolution=None: no refinement. resolution=130: ceil(130/65) = 2.
-    coarse_I_p_unrefined = (
-        eqdsk.EQDSKConfig(
-            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
-            cocos=11,
-            last_surface_factor=0.97,
-            target_psi_grid_resolution=None,
-        )
-        .build_geometry()
-        .I_p_profile_face[-1]
+    coarse_geo_unrefined = (
+        eqdsk.EQDSKConfig.from_dict({
+            'eqdsk_object': self._coarsened_iterhybrid_eqdsk(stride=2),
+            'cocos': 11,
+            'last_surface_factor': 0.97,
+            'target_psi_grid_resolution': None,
+        })
+        .build_runtime_params(0.0)
+        .geometry
     )
-    coarse_I_p_refined = (
-        eqdsk.EQDSKConfig(
-            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
-            cocos=11,
-            last_surface_factor=0.97,
-            target_psi_grid_resolution=130,
-        )
-        .build_geometry()
-        .I_p_profile_face[-1]
+    assert isinstance(coarse_geo_unrefined, standard_geometry.StandardGeometry)
+    coarse_I_p_unrefined = coarse_geo_unrefined.I_p_profile_face[-1]
+    coarse_geo_refined = (
+        eqdsk.EQDSKConfig.from_dict({
+            'eqdsk_object': self._coarsened_iterhybrid_eqdsk(stride=2),
+            'cocos': 11,
+            'last_surface_factor': 0.97,
+            'target_psi_grid_resolution': 130,
+        })
+        .build_runtime_params(0.0)
+        .geometry
     )
+    assert isinstance(coarse_geo_refined, standard_geometry.StandardGeometry)
+    coarse_I_p_refined = coarse_geo_refined.I_p_profile_face[-1]
     error_unrefined = abs(coarse_I_p_unrefined / reference_I_p - 1)
     error_refined = abs(coarse_I_p_refined / reference_I_p - 1)
     self.assertLess(error_refined, 5e-3)
@@ -255,34 +323,50 @@ class EqdskGeometryTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError, 'No closed contour enclosing the magnetic axis'
       ):
-        eqdsk.EQDSKConfig(
-            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
-            cocos=11,
-            target_psi_grid_resolution=None,
-        ).build_geometry()
+        _ = (
+            eqdsk.EQDSKConfig.from_dict({
+                'eqdsk_object': self._coarsened_iterhybrid_eqdsk(stride=4),
+                'cocos': 11,
+                'target_psi_grid_resolution': None,
+            })
+            .build_runtime_params(0.0)
+            .geometry
+        )
     with self.subTest('refined_succeeds'):
       # stride 4 coarsened_obj has nx = 33, nz = 33.
       # target_psi_grid_resolution = 130 leads to ceil(130 / 33) = 4.
-      eqdsk.EQDSKConfig(
-          eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
-          cocos=11,
-          target_psi_grid_resolution=130,
-      ).build_geometry()
+      _ = (
+          eqdsk.EQDSKConfig.from_dict({
+              'eqdsk_object': self._coarsened_iterhybrid_eqdsk(stride=4),
+              'cocos': 11,
+              'target_psi_grid_resolution': 130,
+          })
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   def test_target_psi_grid_resolution_preserves_well_resolved_geometry(self):
     """Tests that refining an already well-resolved grid changes little."""
     # iterhybrid_cocos11 has nx = 129, nz = 129.
-    geo_unrefined = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos11.eqdsk',
-        cocos=11,
-        target_psi_grid_resolution=None,
-    ).build_geometry()
+    geo_unrefined = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos11.eqdsk',
+            'cocos': 11,
+            'target_psi_grid_resolution': None,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     # target_psi_grid_resolution = 260 leads to ceil(260 / 129) = 2.
-    geo_refined = eqdsk.EQDSKConfig(
-        geometry_file='iterhybrid_cocos11.eqdsk',
-        cocos=11,
-        target_psi_grid_resolution=260,
-    ).build_geometry()
+    geo_refined = (
+        eqdsk.EQDSKConfig.from_dict({
+            'geometry_file': 'iterhybrid_cocos11.eqdsk',
+            'cocos': 11,
+            'target_psi_grid_resolution': 260,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     for name in ['Phi_face', 'volume_face', 'area_face', 'F_face']:
       np.testing.assert_allclose(
           getattr(geo_unrefined, name),
@@ -297,15 +381,23 @@ class EqdskGeometryTest(parameterized.TestCase):
     coarsened_obj = self._coarsened_iterhybrid_eqdsk(stride=2)
     # coarsened_obj has nx = 65, nz = 65.
     # Default target_psi_grid_resolution = 128 gives ceil(128 / 65) = 2.
-    geo_default = eqdsk.EQDSKConfig(
-        eqdsk_object=coarsened_obj,
-        cocos=11,
-    ).build_geometry()
-    geo_explicit_128 = eqdsk.EQDSKConfig(
-        eqdsk_object=coarsened_obj,
-        cocos=11,
-        target_psi_grid_resolution=128,
-    ).build_geometry()
+    geo_default = (
+        eqdsk.EQDSKConfig.from_dict({
+            'eqdsk_object': coarsened_obj,
+            'cocos': 11,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    geo_explicit_128 = (
+        eqdsk.EQDSKConfig.from_dict({
+            'eqdsk_object': coarsened_obj,
+            'cocos': 11,
+            'target_psi_grid_resolution': 128,
+        })
+        .build_runtime_params(0.0)
+        .geometry
+    )
     for name in ['Phi_face', 'volume_face', 'area_face', 'F_face']:
       np.testing.assert_allclose(
           getattr(geo_default, name),
@@ -316,11 +408,11 @@ class EqdskGeometryTest(parameterized.TestCase):
   def test_target_psi_grid_resolution_invalid_value_raises(self):
     """Tests that target_psi_grid_resolution < 1 raises a validation error."""
     with self.assertRaises(ValueError):
-      eqdsk.EQDSKConfig(
-          geometry_file='iterhybrid_cocos11.eqdsk',
-          cocos=11,
-          target_psi_grid_resolution=0,
-      )
+      eqdsk.EQDSKConfig.from_dict({
+          'geometry_file': 'iterhybrid_cocos11.eqdsk',
+          'cocos': 11,
+          'target_psi_grid_resolution': 0,
+      })
 
   def test_flux_surface_quantities_are_invariant_to_contour_seam(self):
     # Moving the start/end vertex of each closed contour must not change any
@@ -337,7 +429,6 @@ class EqdskGeometryTest(parameterized.TestCase):
     theta = np.linspace(0.0, 2 * np.pi, n_points, endpoint=False)
     r = 6.2 + radius * np.cos(theta)
     z = 0.3 + radius * np.sin(theta)
-
     dl = eqdsk._line_elements(r, z)
 
     # Perimeter of a regular n-gon inscribed in a circle of this radius.
@@ -352,11 +443,15 @@ class EqdskGeometryTest(parameterized.TestCase):
         r'No closed contour enclosing the magnetic axis found for 2 EQDSK flux'
         r' surface\(s\)',
     ):
-      eqdsk.EQDSKConfig(
-          eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
-          cocos=11,
-          target_psi_grid_resolution=None,
-      ).build_geometry()
+      _ = (
+          eqdsk.EQDSKConfig.from_dict({
+              'eqdsk_object': self._coarsened_iterhybrid_eqdsk(stride=2),
+              'cocos': 11,
+              'target_psi_grid_resolution': None,
+          })
+          .build_runtime_params(0.0)
+          .geometry
+      )
 
   def test_select_contour_enclosing_magnetic_axis_skips_other_contours(self):
     open_contour = np.array([[6.0, 1.0], [6.5, 1.2], [7.0, 1.0], [7.5, 0.5]])
@@ -468,9 +563,13 @@ def _shift_closed_contour_seam(contour: np.ndarray, shift: int) -> np.ndarray:
 
 
 def _build_iterhybrid_geometry():
-  return eqdsk.EQDSKConfig(
-      geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
-  ).build_geometry()
+  return (
+      eqdsk.EQDSKConfig.from_dict(
+          {'geometry_file': 'iterhybrid_cocos11.eqdsk', 'cocos': 11}
+      )
+      .build_runtime_params(0.0)
+      .geometry
+  )
 
 
 def _build_iterhybrid_geometry_with_contours(

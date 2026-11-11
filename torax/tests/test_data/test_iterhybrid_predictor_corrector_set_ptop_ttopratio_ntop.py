@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Like test_iterhybrid_predictor_corrector but with set_P_ped_n_ped."""
+"""Like test_iterhybrid_predictor_corrector but with set_p_top_n_top."""
 
 import copy
 
@@ -22,10 +22,10 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {
     'structure_model': {
-        'model_name': 'set_P_ped_n_ped',
+        'model_name': 'set_p_top_n_top',
         'T_i_T_e_ratio': 1.0,
-        'P_ped': 89300.0,
-        'n_e_ped': 0.62e20,
-        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+        'p_top': 89300.0,
+        'n_e_top': 0.62e20,
+        'rho_norm_top': 0.9,  # set ped top location in normalized radius
     },
 }

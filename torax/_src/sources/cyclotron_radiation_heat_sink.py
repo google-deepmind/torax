@@ -15,6 +15,7 @@
 # pylint: disable=invalid-name
 
 """Cyclotron radiation heat sink for electron heat equation.."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal, Self
 
@@ -26,14 +27,13 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -240,20 +240,17 @@ class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
   SOURCE_ID: ClassVar[str] = 'cyclotron_radiation'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (core_sources.PopulatedSourceOutput.POWER_DENSITY_E,)
 
   def _get_model_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates cyclotron radiation heat sink for electron heat equation.
 
     Total cyclotron radiation is from:
@@ -277,27 +274,24 @@ class CyclotronRadiationHeatSink(source.Source):
     Args:
       runtime_params: A slice of runtime parameters.
       geo: The geometry object.
-      core_profiles: The core profiles object.
-      calculated_source_profiles: Unused.
-      conductivity: Unused.
+      solver_profiles: The core profiles object.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
-    del calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
 
     # Notation conventions based on the Albajar and Artaud papers
     # pylint: disable=invalid-name
 
-    n_e20_face = jnp.asarray(core_profiles.n_e.face_value() / 1e20)
-    n_e20_cell = core_profiles.n_e.value / 1e20
-    te_face = jnp.asarray(core_profiles.T_e.face_value())
+    n_e20_face = jnp.asarray(solver_profiles.kinetic.n_e.face_value() / 1e20)
+    n_e20_cell = solver_profiles.kinetic.n_e.value / 1e20
+    te_face = jnp.asarray(solver_profiles.kinetic.T_e.face_value())
 
     # Dimensionless optical thickness parameter, on-axis:
     # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
@@ -356,7 +350,7 @@ class CyclotronRadiationHeatSink(source.Source):
         * geo.elongation**0.79
         * (geo.F / geo.R_major_profile) ** 2.62
         * n_e20_cell**0.38
-        * core_profiles.T_e.value**3.61
+        * solver_profiles.kinetic.T_e.value**3.61
     )
 
     # Scale the profile shape to match the total integrated power loss
@@ -364,23 +358,26 @@ class CyclotronRadiationHeatSink(source.Source):
     rescaling_factor = P_cycl_total / denom
     Q_cycl = Q_cycl_shape * rescaling_factor
 
-    return source_profiles.SourceOutput(profiles=(-Q_cycl,)), source_state
+    return core_sources.SourceOutput(power_density_e=-Q_cycl), source_state
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):
-  """Cyclotron radiation heat sink for electron heat equation.
+  """Cyclotron radiation heat sink for the electron heat equation.
 
   Attributes:
-    wall_reflection_coeff: The wall reflection coefficient is a
-      machine-dependent dimensionless parameter corresponding to the fraction of
-      cyclotron radiation reflected off the wall and back into the plasma where
-      it is re-absorbed. The default value is a typical value.
-    beta_min: The minimum value of the beta parameter used in the parameterized
-      function for the temperature fit.
-    beta_max: The maximum value of the beta parameter used in the parameterized
-      function for the temperature fit.
-    beta_grid_size: The number of points to use in the grid search for the best
-      fit of the temperature function.
+    model_name: Name of the cyclotron radiation model (`'albajar_artaud'`).
+    wall_reflection_coeff: Machine-dependent dimensionless parameter
+      corresponding to the fraction of cyclotron radiation reflected off the
+      wall and re-absorbed by the plasma.
+    beta_min: Lower bound of the grid search range `[beta_min, beta_max]` for
+      the temperature profile shape parameter $beta_T$ in the Albajar
+      parameterization.
+    beta_max: Upper bound of the grid search range `[beta_min, beta_max]` for
+      the temperature profile shape parameter $beta_T$ in the Albajar
+      parameterization.
+    beta_grid_size: Number of uniformly spaced grid points in `[beta_min,
+      beta_max]` used to fit $beta_T$ in the Albajar temperature profile
+      parameterization. Must be positive.
   """
 
   model_name: Annotated[

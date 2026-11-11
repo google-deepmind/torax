@@ -43,15 +43,17 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Calculates total DT fusion power [MW] from the fusion source profiles."""
     source = source_models.standard_sources[self.source_name]
+    assert isinstance(source, fusion_heat_source.FusionHeatSource)
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+        solver_profiles=core_profiles,
         source_state=source.initial_state(runtime_params),
     )
-    Pfus_i, Pfus_e = output.profiles
+    Pfus_i = output.power_density_i
+    Pfus_e = output.power_density_e
+    assert Pfus_i is not None
+    assert Pfus_e is not None
     # Total fusion power to charged particles (alphas) is Pfus_i + Pfus_e.
     # Total DT fusion power includes neutrons: P_total = P_alpha / (3.5 / 17.6).
     torax_alpha_power = (
@@ -124,7 +126,7 @@ def reference_calc_fusion(geo, core_profiles):
   """Reference implementation from PINT. We still use TORAX state here."""
   # PINT doesn't follow Google style
   # pylint:disable=invalid-name
-  T = core_profiles.T_i.face_value()
+  T = core_profiles.kinetic.T_i.face_value()
   consts = constants.CONSTANTS
 
   # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
@@ -151,7 +153,9 @@ def reference_calc_fusion(geo, core_profiles):
       C1 * theta * np.sqrt(xi / (mrc2 * T**3)) * np.exp(-3 * xi) / 1e6
   )  # units of m^3/s
 
-  Pfus = Efus * 0.25 * core_profiles.n_i.face_value() ** 2 * sigmav  # [W/m^3]
+  Pfus = (
+      Efus * 0.25 * core_profiles.kinetic.n_i.face_value() ** 2 * sigmav
+  )  # [W/m^3]
   Pfus_cell = 0.5 * (Pfus[:-1] + Pfus[1:])
   P_total = math_utils.volume_integration(Pfus_cell, geo) / 1e6  # [MW]
 

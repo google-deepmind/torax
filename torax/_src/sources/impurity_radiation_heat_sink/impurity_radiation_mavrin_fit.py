@@ -13,20 +13,21 @@
 # limitations under the License.
 
 """Routines for calculating impurity radiation based on a polynomial fit."""
+
 import dataclasses
 from typing import Annotated, Literal, Sequence
 import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics.radiation import radiation
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
+from torax._src.sources import source as source_lib
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
@@ -68,7 +69,8 @@ def calculate_total_impurity_radiation(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class MavrinImpurityRadiationHeatSink(
-    impurity_radiation_heat_sink.ImpurityRadiationHeatSink
+    impurity_radiation_heat_sink.ImpurityRadiationHeatSink,
+    source_lib.Source,
 ):
   """Impurity radiation heat sink based on Mavrin polynomial fit."""
 
@@ -76,12 +78,9 @@ class MavrinImpurityRadiationHeatSink(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates Mavrin fit impurity radiation heat sink profile.
 
     Does not modify source_state; returns it unchanged.
@@ -89,60 +88,43 @@ class MavrinImpurityRadiationHeatSink(
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
-    del geo, calculated_source_profiles, conductivity, psidot
+    del geo
     # Reconstruct array from mapping for DynamicIonMixture and effective LZ
     # calculations.
     ion_symbols = runtime_params.plasma_composition.impurity_names
-    impurity_fractions_arr = jnp.stack(
-        [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
-    )
+    impurity_fractions_arr = jnp.stack([
+        solver_profiles.ions.impurity_fractions[symbol]
+        for symbol in ion_symbols
+    ])
     # Calculate the total effective cooling rate coming from all impurity
     # species.
     effective_LZ = calculate_total_impurity_radiation(
         ion_symbols=runtime_params.plasma_composition.impurity_names,
         impurity_fractions=impurity_fractions_arr,
-        T_e=core_profiles.T_e.value,
+        T_e=solver_profiles.kinetic.T_e.value,
     )
-    # The impurity density must be scaled to account for the true total impurity
-    # density. This is because in an IonMixture, the impurity density is an
-    # effective density as follows:
-    # n_imp_true * sum(fraction_imp * Z_imp) = n_imp_eff * Z_imp_eff
-    # where core_profiles.Z_impurity is the effective impurity charge for the
-    # IonMixture and core_profiles.n_impurity is effective total impurity
-    # density.
-    # However, the input fractions correspond to fractions of the true total
-    # impurity density which must be scaled from the effective density as
-    # follows:
-    # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
-    # It is important that the calculated radiation corresponds to the true
-    # total impurity density, not the effective one.
-    impurity_density_scaling = core_profiles.impurity_density_scaling
-
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     radiation_profile = (
         effective_LZ
-        * core_profiles.n_e.value
-        * core_profiles.n_impurity.value
-        * impurity_density_scaling
+        * solver_profiles.kinetic.n_e.value
+        * solver_profiles.kinetic.n_impurity_total.value
         * source_params.radiation_multiplier
     )
 
     # The impurity radiation heat sink is a negative source, so we return a
     # negative profile.
     return (
-        source_profiles.SourceOutput(profiles=(-radiation_profile,)),
+        core_sources.SourceOutput(power_density_e=-radiation_profile),
         source_state,
     )
 
@@ -154,10 +136,13 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceConfigBase):
-  """Configuration for the ImpurityRadiationHeatSink.
+  """Configuration for the Mavrin polynomial-fit ImpurityRadiationHeatSink.
 
   Attributes:
-    radiation_multiplier: Multiplier for the impurity radiation profile.
+    model_name: Selects the impurity radiation model (`'mavrin_fit'` or
+      `'P_in_scaled_flat_profile'`).
+    radiation_multiplier: Multiplication factor applied to the impurity
+      radiation term for sensitivity testing.
   """
 
   model_name: Annotated[Literal['mavrin_fit'], torax_pydantic.JAX_STATIC] = (

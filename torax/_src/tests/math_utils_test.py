@@ -71,9 +71,11 @@ class MathUtilsTest(parameterized.TestCase):
     x = jax.random.uniform(
         jax.random.PRNGKey(0), shape=(num_cell_grid_points + 1,)
     )
-    geo = circular_geometry.CircularConfig(
-        n_rho=num_cell_grid_points
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=num_cell_grid_points)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     np.testing.assert_allclose(
         math_utils.cell_integration(geometry.face_to_cell(x), geo),
@@ -83,10 +85,14 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_area_integration(self):
     """Test that area_integration is equivalent to an analytical formula."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=200,
-        elongation_LCFS=1.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=200,
+            elongation_LCFS=1.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     x = geo.rho_norm
     # For circular geometry, spr = 2*pi*rho*a_minor. Do the integration by hand.
@@ -100,10 +106,14 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_volume_integration(self):
     """Test that volume_integration is equivalent to an analytical formula."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=200,
-        elongation_LCFS=1.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=200,
+            elongation_LCFS=1.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     x = geo.rho_norm
     # For circular geometry, vpr = 4*pi^2*rho*a_minor*R_major.
@@ -120,10 +130,14 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_line_average(self):
     """Test that line_average is equivalent to an analytical formula."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=200,
-        elongation_LCFS=1.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=200,
+            elongation_LCFS=1.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     x = geo.rho_norm
     expected_line_average = 0.5
@@ -136,10 +150,14 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_volume_average(self):
     """Test that volume_average is equivalent to an analytical formula."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=200,
-        elongation_LCFS=1.0,
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(
+            n_rho=200,
+            elongation_LCFS=1.0,
+        )
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     x = geo.rho_norm
     # For circular geometry, vpr = 4*pi^2*rho*a_minor*R_major.
@@ -155,7 +173,11 @@ class MathUtilsTest(parameterized.TestCase):
   def test_cell_integration_raises_when_shape_mismatch(
       self,
   ):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     with self.assertRaises(ValueError):
       math_utils.cell_to_face(jnp.array([1.0]), geo)
 
@@ -221,9 +243,11 @@ class MathUtilsTest(parameterized.TestCase):
       expected_face_values_except_right: np.ndarray,
       preserved_quantity: math_utils.IntegralPreservationQuantity,
   ):
-    geo = circular_geometry.CircularConfig(
-        n_rho=len(cell_values)
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=len(cell_values))
+        .build_runtime_params(0.0)
+        .geometry
+    )
     cell_values = jnp.array(cell_values, dtype=jnp.float32)  # pyrefly: ignore[bad-assignment]
 
     face_values = math_utils.cell_to_face(cell_values, geo, preserved_quantity)  # pyrefly: ignore[bad-argument-type]
@@ -257,9 +281,11 @@ class MathUtilsTest(parameterized.TestCase):
   @parameterized.parameters(5, 50)
   def test_cumulative_cell_integration(self, num_cell_grid_points: int):
     """Tests cumulative_cell_integration against cell_integration."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=num_cell_grid_points
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=num_cell_grid_points)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     x = jax.random.uniform(jax.random.PRNGKey(1), shape=(num_cell_grid_points,))
 
     cumulative_result = math_utils.cumulative_cell_integration(x, geo)
@@ -276,9 +302,11 @@ class MathUtilsTest(parameterized.TestCase):
   @parameterized.parameters(5, 50)
   def test_cumulative_area_integration(self, num_cell_grid_points: int):
     """Tests cumulative_area_integration against area_integration."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=num_cell_grid_points
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=num_cell_grid_points)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     x = jax.random.uniform(jax.random.PRNGKey(2), shape=(num_cell_grid_points,))
 
     cumulative_result = math_utils.cumulative_area_integration(x, geo)
@@ -297,9 +325,11 @@ class MathUtilsTest(parameterized.TestCase):
   @parameterized.parameters(5, 50)
   def test_cumulative_volume_integration(self, num_cell_grid_points: int):
     """Tests cumulative_volume_integration against volume_integration."""
-    geo = circular_geometry.CircularConfig(
-        n_rho=num_cell_grid_points
-    ).build_geometry()
+    geo = (
+        circular_geometry.CircularConfig(n_rho=num_cell_grid_points)
+        .build_runtime_params(0.0)
+        .geometry
+    )
     x = jax.random.uniform(jax.random.PRNGKey(3), shape=(num_cell_grid_points,))
 
     cumulative_result = math_utils.cumulative_volume_integration(x, geo)

@@ -22,10 +22,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import step_function
+from torax._src.solver import solver_numeric_outputs
 from torax._src.torax_pydantic import config
 from torax.tests.scripts import regenerate_sawtooth_refs
 
@@ -65,7 +66,6 @@ class SawtoothModelTest(parameterized.TestCase):
         models=torax_config.build_models(),
     )
 
-    geometry_provider = torax_config.geometry.build_provider
     self.runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -73,7 +73,6 @@ class SawtoothModelTest(parameterized.TestCase):
     self.step_fn = step_function.SimulationStepFn(
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.build_time_step_calculator(),
-        geometry_provider=geometry_provider,
         runtime_params_provider=self.runtime_params_provider,
     )
 
@@ -99,7 +98,7 @@ class SawtoothModelTest(parameterized.TestCase):
         self.initial_post_processed_outputs,
     )
 
-    np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+    np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
     np.testing.assert_equal(
         output_state.solver_numeric_outputs.sawtooth_crash, np.array(True)
     )
@@ -109,28 +108,32 @@ class SawtoothModelTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        output_state.core_profiles.T_e.value,
+        output_state.core_profiles.kinetic.T_e.value,
         self._post_crash_temperature,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.n_e.value,
+        output_state.core_profiles.kinetic.n_e.value,
         self._post_crash_n,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.psi.value,
+        output_state.core_profiles.poloidal_flux.psi.value,
         self._post_crash_psi,
         rtol=1e-6,
     )
 
   def test_no_sawtooth_crash(self):
     """Tests that if q>1, no crash occurs."""
-    raised_q_face = self.initial_state.core_profiles.q_face * 2
+    raised_q_face = self.initial_state.core_profiles.poloidal_flux.q_face * 2
     initial_state = dataclasses.replace(
         self.initial_state,
         core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles, q_face=raised_q_face
+            self.initial_state.core_profiles,
+            poloidal_flux=dataclasses.replace(
+                self.initial_state.core_profiles.poloidal_flux,
+                q_face=raised_q_face,
+            ),
         ),
     )
     output_state, _ = self.step_fn(
@@ -141,7 +144,7 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state,
         self.initial_post_processed_outputs,
     )
-    np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+    np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
     np.testing.assert_equal(
         output_state.solver_numeric_outputs.sawtooth_crash, np.array(False)
     )
@@ -161,21 +164,15 @@ class SawtoothModelTest(parameterized.TestCase):
     # q is in trigger condition, but sawtooth_crash is True so no crash.
     new_input_state_should_not_crash = dataclasses.replace(
         output_state0,
-        core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles,
-            q_face=self.initial_state.core_profiles.q_face,
-        ),
+        core_profiles=self.initial_state.core_profiles,
     )
 
     # Check that the sawtooth is indeed triggered if sawtooth_crash is
     # set to False.
     new_input_state_should_crash = dataclasses.replace(
         output_state0,
-        core_profiles=dataclasses.replace(
-            self.initial_state.core_profiles,
-            q_face=self.initial_state.core_profiles.q_face,
-        ),
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        core_profiles=self.initial_state.core_profiles,
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             inner_solver_iterations=np.array(0, np.int64),
             outer_solver_iterations=np.array(0, np.int64),
             solver_error_state=np.array(0, np.int64),
@@ -192,7 +189,7 @@ class SawtoothModelTest(parameterized.TestCase):
           output_state_should_not_crash,
           post_processed_outputs0,
       )
-      np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+      np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
       np.testing.assert_equal(
           output_state_should_not_crash.solver_numeric_outputs.sawtooth_crash,
           np.array(False),
@@ -210,7 +207,7 @@ class SawtoothModelTest(parameterized.TestCase):
           input_state=new_input_state_should_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )
-      np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
+      np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
       np.testing.assert_equal(
           output_state_should_crash.solver_numeric_outputs.sawtooth_crash,
           np.array(True),

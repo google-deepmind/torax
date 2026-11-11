@@ -16,7 +16,7 @@
 
 import abc
 import dataclasses
-from typing import Self
+from typing import Final, Self
 
 import jax
 from jax import numpy as jnp
@@ -24,7 +24,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import (
     internal_boundary_conditions as internal_boundary_conditions_lib,
@@ -33,10 +33,14 @@ from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from torax._src.transport_model import transport_coeffs
 from typing_extensions import override
 
 # pylint: disable=invalid-name
+
+# In the Snyder mtanh parameterization, the pedestal top lies at
+# ψ_top = 1 - 1.5 * Δ, where Δ is the mtanh pedestal width.
+_PEDESTAL_TOP_WIDTH_FACTOR: Final[float] = 1.5
 
 
 @jax.tree_util.register_dataclass
@@ -61,28 +65,28 @@ class TransportMultipliers:
 
 def pedestal_face_mask(
     rho_face_norm: array_typing.FloatVectorFace,
-    rho_norm_ped_top: array_typing.FloatScalar,
+    rho_norm_top: array_typing.FloatScalar,
 ) -> array_typing.BoolVectorFace:
   """Returns the faces at or beyond the pedestal top."""
-  return rho_face_norm >= rho_norm_ped_top
+  return rho_face_norm >= rho_norm_top
 
 
 def _pedestal_cell_mask(
     rho_face_norm: array_typing.FloatVectorFace,
-    rho_norm_ped_top: array_typing.FloatScalar,
+    rho_norm_top: array_typing.FloatScalar,
 ) -> array_typing.BoolVectorCell:
   """Returns the cells whose right face is at or beyond the pedestal top."""
-  return pedestal_face_mask(rho_face_norm, rho_norm_ped_top)[1:]
+  return pedestal_face_mask(rho_face_norm, rho_norm_top)[1:]
 
 
 def _tanh_internal_boundary_conditions(
     structure: pedestal_structure.PedestalStructure,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
   """Compute mtanh-shaped internal boundary conditions.
 
-  The mtanh width Δ is derived from rho_norm_ped_top using the ψ_N(ρ)
+  The mtanh width Δ is derived from rho_norm_top using the ψ_N(ρ)
   mapping. In the mtanh geometry, the pedestal top is at ψ_top = 1 - 1.5Δ,
   so Δ = (1 - ψ_top) / 1.5.
 
@@ -93,8 +97,8 @@ def _tanh_internal_boundary_conditions(
     a₀ = (q_top - q_sep) / (tanh(1) + tanh(2))
 
   Values are applied to the cells given by `_pedestal_cell_mask`, whose right
-  face lies at or beyond ρ_ped_top. Core cells get 0.0, and no cells are
-  pinned when ρ_ped_top >= 1.
+  face lies at or beyond `rho_norm_top`. Core cells get 0.0, and no cells are
+  pinned when `rho_norm_top >= 1`.
 
   Args:
     structure: Pedestal structure containing values at the pedestal top.
@@ -107,28 +111,30 @@ def _tanh_internal_boundary_conditions(
   # Get ψ_N at each cell center.
   psi_norm_cell = core_profiles.psi_norm
 
-  # Interpolate ψ_top continuously at rho_norm_ped_top so Δ = (1 - ψ_top)/1.5
-  # avoids O(Δρ) cell-snapping steps. Clamp rho_norm_ped_top to the [0, 1]
+  # Interpolate ψ_top continuously at rho_norm_top so Δ = (1 - ψ_top)/1.5
+  # avoids O(Δρ) cell-snapping steps. Clamp rho_norm_top to the [0, 1]
   # face grid and floor Δ at eps so reverse-mode AD stays finite when
-  # rho_norm_ped_top >= 1.0 (e.g. no_pedestal() = inf, where jnp.interp's
+  # rho_norm_top >= 1.0 (e.g. no_pedestal() = inf, where jnp.interp's
   # discarded extrapolation branch would otherwise give inf * 0 gradients).
-  rho_ped_clamped = jnp.clip(structure.rho_norm_ped_top, 0.0, 1.0)
+  rho_top_clamped = jnp.clip(structure.rho_norm_top, 0.0, 1.0)
   psi_top = jnp.interp(
-      rho_ped_clamped, geo.rho_face_norm, core_profiles.psi_norm_face
+      rho_top_clamped, geo.rho_face_norm, core_profiles.psi_norm_face
   )
-  delta = jnp.maximum((1.0 - psi_top) / 1.5, constants.CONSTANTS.eps)
+  delta = jnp.maximum(
+      (1.0 - psi_top) / _PEDESTAL_TOP_WIDTH_FACTOR, constants.CONSTANTS.eps
+  )
   psi_mid = 1.0 - delta / 2.0
 
   # Separatrix values from the rightmost face of core_profiles.
-  T_i_sep = core_profiles.T_i.right_face_value
-  T_e_sep = core_profiles.T_e.right_face_value
-  n_e_sep = core_profiles.n_e.right_face_value
+  T_i_sep = core_profiles.kinetic.T_i.right_face_value
+  T_e_sep = core_profiles.kinetic.T_e.right_face_value
+  n_e_sep = core_profiles.kinetic.n_e.right_face_value
 
   # A pedestal top at or beyond the LCFS means no pedestal: Δ collapses to eps
   # and would otherwise pin the last cell to a zero-width step at ~q_top.
   ped_mask = _pedestal_cell_mask(
-      geo.rho_face_norm, structure.rho_norm_ped_top
-  ) & (structure.rho_norm_ped_top < 1.0)
+      geo.rho_face_norm, structure.rho_norm_top
+  ) & (structure.rho_norm_top < 1.0)
 
   def _mtanh_profile(val_top, val_sep):
     """Evaluate mtanh for one quantity."""
@@ -141,9 +147,9 @@ def _tanh_internal_boundary_conditions(
     return jnp.where(ped_mask, profile, 0.0)
 
   return internal_boundary_conditions_lib.InternalBoundaryConditions(
-      T_i=_mtanh_profile(structure.T_i_ped, T_i_sep),
-      T_e=_mtanh_profile(structure.T_e_ped, T_e_sep),
-      n_e=_mtanh_profile(structure.n_e_ped, n_e_sep),
+      T_i=_mtanh_profile(structure.T_i_top, T_i_sep),
+      T_e=_mtanh_profile(structure.T_e_top, T_e_sep),
+      n_e=_mtanh_profile(structure.n_e_top, n_e_sep),
   )
 
 
@@ -170,9 +176,9 @@ class PedestalModelOutput(abc.ABC):
   )
 
   @property
-  def rho_norm_ped_top(self) -> array_typing.FloatScalar:
+  def rho_norm_top(self) -> array_typing.FloatScalar:
     """Normalized radial coordinate of the pedestal top."""
-    return self.structure.rho_norm_ped_top
+    return self.structure.rho_norm_top
 
   @property
   def is_active(self) -> array_typing.BoolScalar:
@@ -231,16 +237,16 @@ class IBCPedestalModelOutput(PedestalModelOutput):
   def to_internal_boundary_conditions(
       self,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
+      core_profiles: core_profiles_lib.CoreProfiles | None = None,
       pedestal_profile_form: pedestal_runtime_params_lib.PedestalProfileForm = (
-          pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+          pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_TOP
       ),
   ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
     """Converts the pedestal model output to internal boundary conditions.
 
     Generates a smooth mtanh-shaped profile across the pedestal region when
     `pedestal_profile_form` is `MTANH`, or pins pedestal values at the single
-    grid cell nearest to `rho_norm_ped_top` when `SET_AT_PED_TOP`.
+    grid cell nearest to `rho_norm_top` when `SET_AT_TOP`.
 
     Args:
       geo: Geometry object for the grid.
@@ -261,20 +267,20 @@ class IBCPedestalModelOutput(PedestalModelOutput):
         return _tanh_internal_boundary_conditions(
             self.structure, geo, core_profiles
         )
-      case pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP:
-        # Single-point mask: pin values at the nearest cell to ped top.
-        rho_norm_ped_top_idx = jnp.argmin(
-            jnp.abs(geo.rho_norm - self.structure.rho_norm_ped_top)
+      case pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_TOP:
+        # Single-point mask: pin values at the nearest cell to the pedestal top.
+        rho_norm_top_idx = jnp.argmin(
+            jnp.abs(geo.rho_norm - self.structure.rho_norm_top)
         )
         pedestal_mask = (
             jnp.zeros_like(geo.rho, dtype=bool)
-            .at[rho_norm_ped_top_idx]
+            .at[rho_norm_top_idx]
             .set(True)
         )
         return internal_boundary_conditions_lib.InternalBoundaryConditions(
-            T_i=jnp.where(pedestal_mask, self.structure.T_i_ped, 0.0),
-            T_e=jnp.where(pedestal_mask, self.structure.T_e_ped, 0.0),
-            n_e=jnp.where(pedestal_mask, self.structure.n_e_ped, 0.0),
+            T_i=jnp.where(pedestal_mask, self.structure.T_i_top, 0.0),
+            T_e=jnp.where(pedestal_mask, self.structure.T_e_top, 0.0),
+            n_e=jnp.where(pedestal_mask, self.structure.n_e_top, 0.0),
         )
 
 
@@ -319,10 +325,10 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
 
   def modify_core_transport(
       self,
-      core_transport: state.CoreTransport,
+      core_transport: transport_coeffs.CoreTransport,
       geo: geometry.Geometry,
       pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
-  ) -> state.CoreTransport:
+  ) -> transport_coeffs.CoreTransport:
     """Modifies core transport coefficients in the pedestal region.
 
     Scales the turbulent core transport coefficients in the pedestal region by
@@ -342,7 +348,7 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
     """
     # We are using the face grid here, since transport coefficients are
     # applied on the face grid.
-    pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
+    pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_top
 
     # TODO(b/573686723): The +/-2 width band spreads the smoothing well into the
     # pedestal at the default width and is strongly resolution dependent.
@@ -351,7 +357,7 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
         geo.rho_face_norm,
         smoothing_width,
         active=(
-            jnp.abs(geo.rho_face_norm - self.rho_norm_ped_top)
+            jnp.abs(geo.rho_face_norm - self.rho_norm_top)
             < 2.0 * smoothing_width
         ),
     )
@@ -433,8 +439,8 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
     coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
     if core_transport.pereverzev is not None:
       coeffs_to_sum.append(core_transport.pereverzev)
-    total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
-    return state.CoreTransport(
+    total = transport_coeffs.sum_transport_coeffs(*coeffs_to_sum)
+    return transport_coeffs.CoreTransport(
         total=total,
         turbulent=modified_turbulent,
         neoclassical=core_transport.neoclassical,

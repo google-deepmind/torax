@@ -71,11 +71,10 @@ Because the ``RuntimeParams`` are used across the simulation they have to be
 made to work with JAX compilation. For most parameters this works out the box
 but for some parameters we have marked them as ``static`` according to JAX which
 allows us to use them in standard python control flow. The impacts of this is
-that ``static`` parameters are treated as compile time constants (see
-`jax docs <https://docs.jax.dev/en/latest/jit-compilation.html#marking-arguments-as-static>`_
-for details). These ``static`` parameters cause a recompilation of the JAX
-functions for each new value they are given. An example of a ``static``
-parameter is the ``mode`` of the ``Sources``.
+that ``static`` parameters are treated as compile time constants (see the
+|jax_static_args_docs| for details). These ``static`` parameters cause a
+recompilation of the JAX functions for each new value they are given. An example
+of a ``static`` parameter is the ``mode`` of the ``Sources``.
 
 
 orchestration
@@ -100,18 +99,21 @@ subject to API changes but users who want to write their own simulation loops
 can experiment with this. If you want to use this in more permanent code, please
 reach out to our team to help us understand your use case.
 
+|orchestration.sim_state.py| defines |SimState|, which tracks the internal
+simulation state at each time step.
+
 output_tools
 ^^^^^^^^^^^^
 
 The |output_tools| module contains the structures of the outputs of a TORAX
 simulation. These are the ``xarray.DataTree`` and |torax.StateHistory| objects.
 
-state
-^^^^^
+core_profiles
+^^^^^^^^^^^^^
 
-The |state| module describes the internal state of TORAX. |ToraxSimState| is
-used to keep track of the internal state throughout a simulation. Each time step
-generates a new state.
+The |core_profiles| package defines ``torax.CoreProfiles``, ``SolverState``,
+and ``SolverProfiles``, which represent the evolved PDE variables and derived
+plasma profiles throughout the simulation.
 
 geometry
 ^^^^^^^^
@@ -123,10 +125,8 @@ classes, as well as :ref:`geometry_doc` and :ref:`physics_geometry`.
 Each ``Geometry`` object represents the geometry at a single point in time.
 A sequence of different geometries at different timesteps can be provided at
 config, and the various ``Geometry`` objects are constructed upon
-initialization. These are packaged together into a
-|GeometryProvider| which, interpolates a new ``Geometry`` at each timestep
-allowing for dynamic time stepping. For numerical geometries this is implemented
-as a |StandardGeometryProvider|.
+initialization. These are evaluated at each timestep via ``GeometryModel``
+and ``RuntimeParamsProvider`` allowing for dynamic time stepping.
 
 solver
 ^^^^^^^
@@ -182,7 +182,7 @@ corresponding to the H-mode pedestal (see :ref:`pedestal_config`).
   implementations (``SetTemperatureDensityPedestalModel`` and
   ``SetPressureTemperatureRatioAndDensityPedestalModel``, plus ``NoPedestal``
   for when the pedestal is disabled), and supports registering external models
-  such as `epednn-mit <https://github.com/aaronkho/epednn_mit>`_.
+  such as |epednn_mit|.
 * ``FormationModel``: controls L-H and H-L transitions (either via a prescribed
   schedule or a power-scaling law).
 * ``SaturationModel``: controls how transport scales in the pedestal region
@@ -225,7 +225,7 @@ sub-models or with an integrated model:
   neoclassical transport across the two steps.
 
 Custom implementations—either a top-level integrated ``NeoclassicalModel`` or
-individual analytical sub-models—can be registered via ``torax.neoclassical``
+individual analytical sub-models—can be registered via ``torax.experimental.neoclassical``
 (see :ref:`model-integration`).
 
 time_step_calculator

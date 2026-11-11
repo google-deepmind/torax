@@ -25,13 +25,14 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -44,8 +45,25 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
   ) -> transport_state_lib.ComponentTransportState:
-    """Returns the initial state for this component transport model."""
+    """Returns the initial `ComponentTransportState` for this model."""
     del runtime_params
+    return transport_state_lib.ComponentTransportState()
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.ComponentTransportState:
+    """Reconstructs ComponentTransportState from a DataTree.
+
+    Args:
+      datatree: DataTree containing component transport state, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed ComponentTransportState.
+    """
+    del datatree, runtime_params
     return transport_state_lib.ComponentTransportState()
 
   def __call__(
@@ -53,7 +71,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
@@ -70,9 +88,10 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: Runtime parameters for the simulation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      two_point_mask: Boolean mask on the face grid indicating where to use
-        2-point central differencing instead of 3-point polynomial interpolation
-        for gradients.
+      two_point_mask: Boolean mask on the face grid (`shape=(n_rho_face,)`)
+        indicating where to use 2-point central differencing instead of
+        3-point polynomial interpolation for gradients (e.g., across internal
+        boundary conditions).
       component_state: ComponentTransportState for this model.
 
     Returns:
@@ -98,13 +117,29 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
       transport_coeffs.TransportCoeffs,
       transport_state_lib.ComponentTransportState,
   ]:
+    """Calculates transport coefficients for this component model.
+
+    Args:
+      transport_runtime_params: Runtime parameters for the transport model.
+      runtime_params: Runtime parameters for the simulation.
+      geo: The magnetic geometry of the tokamak.
+      core_profiles: Core plasma profiles.
+      two_point_mask: Boolean mask on the face grid (`shape=(n_rho_face,)`)
+        indicating where to use 2-point central differencing instead of
+        3-point polynomial interpolation for gradients (e.g., across internal
+        boundary conditions).
+      component_state: ComponentTransportState for this model.
+
+    Returns:
+      Tuple of (`TransportCoeffs`, updated `ComponentTransportState`).
+    """
     pass
 
   def zero_out_disabled_channels(

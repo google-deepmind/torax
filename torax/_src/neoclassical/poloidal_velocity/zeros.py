@@ -14,7 +14,7 @@
 """Zeros model for neoclassical poloidal velocity."""
 
 from typing import Annotated, Literal
-from torax._src import state
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base
@@ -29,11 +29,11 @@ class ZerosModel(base.PoloidalVelocityModel):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.PoloidalVelocity:
     """Returns zero poloidal velocity."""
-    del runtime_params, core_profiles, neoclassical_intermediates
+    del runtime_params, solver_profiles, neoclassical_intermediates
     return base.PoloidalVelocity.zeros(geometry)
 
   def __eq__(self, other) -> bool:

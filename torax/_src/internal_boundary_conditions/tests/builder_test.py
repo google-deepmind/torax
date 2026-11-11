@@ -17,8 +17,8 @@
 from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import (
     runtime_params as core_profile_runtime_params,
 )
@@ -33,7 +33,7 @@ from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
 from torax._src.pedestal_model.structure import pedestal_structure
-from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import config
 
@@ -44,10 +44,16 @@ class BuilderTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=20).build_geometry()
-    self.core_profiles = mock.create_autospec(state.CoreProfiles, instance=True)
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=20)
+        .build_runtime_params(0.0)
+        .geometry
+    )
+    self.core_profiles = mock.create_autospec(
+        core_profiles_lib.CoreProfiles, instance=True
+    )
     self.source_profiles = mock.create_autospec(
-        source_profiles_lib.SourceProfiles, instance=True
+        core_sources_lib.CoreSources, instance=True
     )
     self.inboard_mask = self.geo.rho_norm <= 0.3
     self.ped_cell = int(jnp.argmin(jnp.abs(self.geo.rho_norm - 0.9)))
@@ -69,7 +75,7 @@ class BuilderTest(absltest.TestCase):
         pedestal_runtime_params_lib.StructureRuntimeParams,
         instance=True,
         pedestal_profile_form=(
-            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_TOP
         ),
     )
     pedestal = mock.create_autospec(
@@ -95,13 +101,13 @@ class BuilderTest(absltest.TestCase):
   def _make_ibc_pedestal_output(
       self,
       confinement_mode: pedestal_runtime_params_lib.ConfinementMode,
-      T_e_ped: float = 2.0,
+      T_e_top: float = 2.0,
   ) -> pedestal_model_output.IBCPedestalModelOutput:
     output = pedestal_structure.PedestalStructure(
-        T_i_ped=2.0,
-        T_e_ped=T_e_ped,
-        n_e_ped=1e19,
-        rho_norm_ped_top=0.9,
+        T_i_top=2.0,
+        T_e_top=T_e_top,
+        n_e_top=1e19,
+        rho_norm_top=0.9,
     )
     return pedestal_model_output.IBCPedestalModelOutput(
         structure=output,
@@ -134,7 +140,7 @@ class BuilderTest(absltest.TestCase):
     )
     h_mode_output = self._make_ibc_pedestal_output(
         confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
-        T_e_ped=2.0,
+        T_e_top=2.0,
     )
     built_ibc_h = builder.build_internal_boundary_conditions(
         runtime_params=runtime_params,
@@ -154,10 +160,10 @@ class BuilderTest(absltest.TestCase):
         profile_conditions_ibc=self.profile_conditions_ibc
     )
     structure = pedestal_structure.PedestalStructure(
-        T_i_ped=2.0,
-        T_e_ped=2.0,
-        n_e_ped=1e19,
-        rho_norm_ped_top=0.9,
+        T_i_top=2.0,
+        T_e_top=2.0,
+        n_e_top=1e19,
+        rho_norm_top=0.9,
     )
     adaptive_output = (
         pedestal_model_output.AdaptiveTransportPedestalModelOutput(
@@ -214,13 +220,13 @@ class BuilderTest(absltest.TestCase):
             profile_conditions=dict(
                 I_p=15e6,
                 I_p_source='profile_conditions',
-                initial_psi_source='j',
+                psi_source='j',
                 internal_boundary_conditions=dict(
                     model_name='prescribed',
                     T_e={0.0: {(0.0, 0.3): 10.0}},
                 ),
             ),
-            geometry=dict(geometry_type='circular', n_rho=20),
+            geometry=dict(model_name='circular', n_rho=20),
             pedestal=dict(),
             sources=dict(),
             solver=dict(use_fixed_point=False),

@@ -17,9 +17,9 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src import state
 from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
 import xarray as xr
@@ -35,10 +35,10 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         torax_config, max_steps=100
     ).simulation_output_to_xr()
 
-    original_value = torax_config.profile_conditions.nbar
+    original_value = torax_config.profile_conditions.n_e_bar
     new_value = original_value.value * 1.1
 
-    torax_config.update_fields({'profile_conditions.nbar': new_value})
+    torax_config.update_fields({'profile_conditions.n_e_bar': new_value})
     new_simulation_xr = run_simulation.run_simulation(
         torax_config, max_steps=100
     ).simulation_output_to_xr()
@@ -131,7 +131,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     state_history = run_simulation.run_simulation(torax_config, max_steps=1)
 
     self.assertEqual(
-        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+        state_history.sim_error, sim_error.SimError.DID_NOT_REACH_T_FINAL
     )
 
   @parameterized.named_parameters(
@@ -149,7 +149,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     )
     self.assertIsInstance(state_history.simulation_output_to_xr(), xr.DataTree)
     self.assertIsInstance(state_history, output.StateHistory)
-    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    self.assertEqual(state_history.sim_error, sim_error.SimError.NO_ERROR)
     with jit_run_loop._LOCK:
       self.assertEmpty(jit_run_loop._TQDM_REF)
 

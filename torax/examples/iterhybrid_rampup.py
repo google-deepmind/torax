@@ -31,17 +31,17 @@ CONFIG = {
     'profile_conditions': {
         'I_p': {0: 3e6, 80: 10.5e6},  # Total plasma current [A]
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         # Boundary and initial conditions for T and n
         'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
         'T_i_right_bc': 0.1,
         'T_e': {0.0: {0.0: 6.0, 1.0: 0.1}},
         'T_e_right_bc': 0.1,
-        'n_e_right_bc_is_fGW': True,
+        'n_e_right_bc_is_f_GW': True,
         'n_e_right_bc': {0: 0.1, 80: 0.3},
         # Set initial condition density according to Greenwald fraction
-        'n_e_nbar_is_fGW': True,
-        'nbar': 1,
+        'n_e_bar_is_f_GW': True,
+        'n_e_bar': 1,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {
@@ -53,7 +53,7 @@ CONFIG = {
         'evolve_density': True,
     },
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
         'R_major': 6.2,  # Major radius R [m]
         'a_minor': 2.0,  # Minor radius a [m]
@@ -117,12 +117,15 @@ CONFIG = {
     },
     'pedestal': {
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': 1.0,  # Ion pedestal top temperature [keV]
-            'T_e_ped': 1.0,  # Electron pedestal top temperature [keV]
-            'n_e_ped_is_fGW': True,
-            'n_e_ped': {0: 0.3, 80: 0.7},  # Pedestal top electron density [fGW]
-            'rho_norm_ped_top': 0.9,  # Pedestal top location
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': 1.0,  # Ion pedestal top temperature [keV]
+            'T_e_top': 1.0,  # Electron pedestal top temperature [keV]
+            'n_e_top_is_f_GW': True,
+            'n_e_top': {
+                0: 0.3,
+                80: 0.7,
+            },  # Pedestal top electron density [f_GW]
+            'rho_norm_top': 0.9,  # Pedestal top location
         },
     },
     'transport': {

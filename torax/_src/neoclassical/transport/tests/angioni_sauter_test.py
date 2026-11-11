@@ -16,8 +16,8 @@ import dataclasses
 
 from absl.testing import absltest
 import numpy as np
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
@@ -36,17 +36,19 @@ class AngioniSauterTest(absltest.TestCase):
   def _get_reference_runtime_params_geo_and_core_profiles(
       self,
   ) -> tuple[
-      runtime_params_lib.RuntimeParams, geometry.Geometry, state.CoreProfiles
+      runtime_params_lib.RuntimeParams,
+      geometry.Geometry,
+      core_profiles_lib.CoreProfiles,
   ]:
     torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
             'I_p': 15e6,
             'I_p_source': 'geometry',
-            'initial_psi_source': 'geometry',
+            'psi_source': 'geometry',
             'current_profile_nu': 3,
-            'n_e_nbar_is_fGW': True,
-            'normalize_n_e_to_nbar': True,
-            'nbar': 0.85,
+            'n_e_bar_is_f_GW': True,
+            'normalize_n_e': True,
+            'n_e_bar': 0.85,
             'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
         },
         'numerics': {},
@@ -54,7 +56,8 @@ class AngioniSauterTest(absltest.TestCase):
             'Z_eff': 2.0,
         },
         'geometry': {
-            'geometry_type': 'chease',
+            'model_name': 'chease',
+            'geometry_file': 'iterhybrid.mat2cols',
             'n_rho': _N_RHO,
         },
         'transport': {},
@@ -95,7 +98,7 @@ class AngioniSauterTest(absltest.TestCase):
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+        geo, core_profiles, fast_ions=()
     )
     raw = angioni_sauter._calculate_angioni_sauter_transport(
         geometry=geo,

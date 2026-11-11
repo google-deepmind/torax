@@ -30,17 +30,20 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src import state as state_lib
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import getters as getters_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
 from torax._src.edge import updaters as edge_updaters
+from torax._src.geometry import base as geometry_base
+from torax._src.geometry import config as geometry_config
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.geometry import geometry_model as geometry_model_lib
+from torax._src.geometry import geometry_state as geometry_state_lib
 from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import config as pedestal_config
@@ -58,11 +61,13 @@ from torax._src.transport_model import config as transport_config
 ReplaceablePytreeNodes: TypeAlias = (
     interpolated_param_1d.TimeVaryingScalar
     | interpolated_param_2d.TimeVaryingArray
+    | geometry_base.GeometryConfigBase
     | chex.Numeric
 )
 ValidUpdates: TypeAlias = (
     interpolated_param_1d.TimeVaryingScalarUpdate
     | interpolated_param_2d.TimeVaryingArrayUpdate
+    | geometry_base.GeometryConfigBase
     | chex.Numeric
 )
 
@@ -93,6 +98,7 @@ class RuntimeParamsProvider:
   edge: edge_base.EdgeModelConfig | None
   neoclassical: neoclassical_config.NeoclassicalConfigBase
   time_step_calculator: time_step_calculator_config.TimeStepCalculatorConfig
+  geometry: geometry_config.GeometryConfig
 
   @classmethod
   def from_config(
@@ -100,6 +106,10 @@ class RuntimeParamsProvider:
       torax_config: config.ToraxConfig,
   ) -> Self:
     """Constructs a RuntimeParamsProvider from a ToraxConfig."""
+    # TODO(b/398191165): Move geometry precomputation into Pydantic validation.
+    # Warm the host-side cached property so that precomputation never runs
+    # inside JAX JIT tracing.
+    torax_config.geometry.precompute()
     return cls(
         sources=torax_config.sources,
         numerics=torax_config.numerics,
@@ -112,6 +122,7 @@ class RuntimeParamsProvider:
         edge=torax_config.edge,
         neoclassical=torax_config.neoclassical,
         time_step_calculator=torax_config.time_step_calculator,
+        geometry=torax_config.geometry,
     )
 
   # TODO(b/460347309): investigate effect of jit here on overall compile time.
@@ -119,9 +130,10 @@ class RuntimeParamsProvider:
       self,
       t: chex.Numeric,
   ) -> runtime_params_lib.RuntimeParams:
-    """Returns a runtime_params.RuntimeParams to use during time t."""
+    """Returns a `RuntimeParams` instance evaluated at time `t`."""
+    t_float = jnp.asarray(t, dtype=jax_utils.get_dtype())
     return runtime_params_lib.RuntimeParams(
-        t=jnp.asarray(t, dtype=jax_utils.get_dtype()),
+        t=t_float,
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
         sources={
@@ -137,6 +149,7 @@ class RuntimeParamsProvider:
         mhd=self.mhd.build_runtime_params(t),
         time_step_calculator=self.time_step_calculator.build_runtime_params(t),
         edge=None if self.edge is None else self.edge.build_runtime_params(t),
+        geometry=self.geometry.build_runtime_params(t_float),
     )
 
   def update_provider(
@@ -169,7 +182,7 @@ class RuntimeParamsProvider:
       get_nodes_to_replace: A function that takes a provider and returns a tuple
         of nodes to replace. See above for an example. The returned nodes must
         be one of the following types: `TimeVaryingScalar`, `TimeVaryingArray`,
-        `chex.Numeric`.
+        `GeometryConfigBase`, `chex.Numeric`.
       replacement_values: A tuple of values to replace the nodes with.
 
     Returns:
@@ -192,6 +205,12 @@ class RuntimeParamsProvider:
 
     Args:
       path: A dot-separated sequence of attributes or dictionary keys.
+
+    Returns:
+      The attribute or dictionary value located at `path`.
+
+    Raises:
+      ValueError: If any segment of `path` is not found.
     """
 
     x = self
@@ -258,6 +277,24 @@ def _get_provider_value_from_replace_value(
 ) -> ReplaceablePytreeNodes:
   """Validate and convert any replacement value to the correct type."""
   match leaf:
+    case geometry_base.GeometryConfigBase():
+      if not isinstance(replace_value, geometry_base.GeometryConfigBase):
+        raise ValueError(
+            "To replace a `GeometryConfigBase` pass a `GeometryConfigBase`,"
+            f" got {type(replace_value)} instead."
+        )
+      if leaf.model_name != replace_value.model_name:
+        raise ValueError(
+            f"Cannot replace geometry model '{leaf.model_name}' with"
+            f" '{replace_value.model_name}'."
+        )
+      if leaf.get_grid() != replace_value.get_grid():
+        raise ValueError(
+            "Cannot replace geometry with a different grid:"
+            f" {leaf.get_grid()} != {replace_value.get_grid()}."
+        )
+      replace_value.precompute()
+      return replace_value
     case interpolated_param_1d.TimeVaryingScalar():
       if not isinstance(
           replace_value, interpolated_param_1d.TimeVaryingScalarUpdate
@@ -296,8 +333,8 @@ def _get_provider_value_from_replace_value(
       return replace_value
     case _:
       raise ValueError(
-          "Only a scalar, `TimeVaryingScalar` or `TimeVaryingArray` can be"
-          f" replaced, got {type(leaf)} instead."
+          "Only a scalar, `TimeVaryingScalar`, `TimeVaryingArray`, or"
+          f" `GeometryConfigBase` can be replaced, got {type(leaf)} instead."
       )
 
 
@@ -305,7 +342,7 @@ def _get_provider_value_from_replace_value(
 def _update_ne_density_fraction_boundary_condition(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state_lib.CoreProfiles | None = None,
+    core_profiles: core_profiles_lib.CoreProfiles | None = None,
 ) -> runtime_params_lib.RuntimeParams:
   """Updates n_e boundary condition for ``density_fraction`` mode."""
   if (
@@ -318,7 +355,7 @@ def _update_ne_density_fraction_boundary_condition(
   multiplier = runtime_params.profile_conditions.n_e_right_bc_multiplier
 
   if core_profiles is not None:
-    n_e_face_values = core_profiles.n_e.face_value()
+    n_e_face_values = core_profiles.kinetic.n_e.face_value()
   else:  # Fall back to prescribed n_e profile (e.g. at initialization).
     n_e = getters_lib.get_updated_electron_density(
         runtime_params.profile_conditions, geo
@@ -341,9 +378,9 @@ def get_consistent_runtime_params_and_geometry(
     *,
     t: chex.Numeric,
     runtime_params_provider: RuntimeParamsProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
+    geometry_model: geometry_model_lib.GeometryModel,
     edge_outputs: edge_base.EdgeModelOutputs | None = None,
-    core_profiles: state_lib.CoreProfiles | None = None,
+    core_profiles: core_profiles_lib.CoreProfiles | None = None,
     is_initialization: bool = False,
 ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
   """Returns the runtime params and geometry for a given time.
@@ -351,7 +388,7 @@ def get_consistent_runtime_params_and_geometry(
   Args:
     t: The time at which to evaluate the runtime params and geometry.
     runtime_params_provider: Provider for runtime params.
-    geometry_provider: Provider for geometry.
+    geometry_model: Model for evaluating geometry.
     edge_outputs: Optional edge model outputs for updating boundary conditions.
     core_profiles: Optional core profiles from the current state. Used by the
       ``density_fraction`` boundary condition mode to derive ``n_e_right_bc``
@@ -366,8 +403,10 @@ def get_consistent_runtime_params_and_geometry(
   if core_profiles is None and not is_initialization:
     raise ValueError("`core_profiles` cannot be `None` after initialization.")
 
-  geo = geometry_provider(t)
   runtime_params = runtime_params_provider(t=t)
+  geo, _ = geometry_model.initialize(
+      runtime_params, core_profiles=core_profiles
+  )
   runtime_params, geo = runtime_params_lib.make_I_p_consistent(
       runtime_params, geo
   )
@@ -378,3 +417,40 @@ def get_consistent_runtime_params_and_geometry(
       runtime_params, edge_outputs
   )
   return runtime_params, geo
+
+
+def step_consistent_runtime_params_and_geometry(
+    *,
+    t: chex.Numeric,
+    dt: array_typing.FloatScalar,
+    geometry_state: geometry_state_lib.GeometryState,
+    runtime_params_provider: RuntimeParamsProvider,
+    geometry_model: geometry_model_lib.GeometryModel,
+    edge_outputs: edge_base.EdgeModelOutputs | None = None,
+    core_profiles: core_profiles_lib.CoreProfiles | None = None,
+) -> tuple[
+    runtime_params_lib.RuntimeParams,
+    geometry.Geometry,
+    geometry_state_lib.GeometryState,
+]:
+  """Steps runtime params, geometry, and geometry state across time step dt."""
+  if core_profiles is None:
+    raise ValueError("`core_profiles` cannot be `None` when stepping.")
+
+  runtime_params = runtime_params_provider(t=t)
+  geo, updated_geometry_state = geometry_model(
+      runtime_params,
+      geometry_state,
+      dt=dt,
+      core_profiles=core_profiles,
+  )
+  runtime_params, geo = runtime_params_lib.make_I_p_consistent(
+      runtime_params, geo
+  )
+  runtime_params = _update_ne_density_fraction_boundary_condition(
+      runtime_params, geo, core_profiles
+  )
+  runtime_params = edge_updaters.update_runtime_params(
+      runtime_params, edge_outputs
+  )
+  return runtime_params, geo, updated_geometry_state

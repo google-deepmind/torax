@@ -68,12 +68,12 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
 
     # Read output values
-    torax_mesh = torax_config.geometry.build_provider.torax_mesh
-    cell_centers = torax_mesh.cell_centers
+    grid = torax_config.geometry.get_grid()
+    cell_centers = grid.cell_centers
     # Compare the initial core_profiles with the ids profiles
     init_core_profiles = sim_state.core_profiles
     np.testing.assert_allclose(
-        init_core_profiles.T_e.value * 1e3,
+        init_core_profiles.kinetic.T_e.value * 1e3,
         np.interp(
             cell_centers,
             rhon_in,
@@ -84,14 +84,14 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         err_msg="Te profile failed",
     )
     np.testing.assert_allclose(
-        init_core_profiles.T_i.value * 1e3,
+        init_core_profiles.kinetic.T_i.value * 1e3,
         np.interp(cell_centers, rhon_in, ids_in.profiles_1d[0].t_i_average),
         rtol=rtol,
         atol=atol,
         err_msg="Ti profile failed",
     )
     np.testing.assert_allclose(
-        init_core_profiles.n_e.value,
+        init_core_profiles.kinetic.n_e.value,
         np.interp(
             cell_centers,
             rhon_in,
@@ -102,7 +102,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         err_msg="ne profile failed",
     )
     np.testing.assert_allclose(
-        init_core_profiles.psi.value,
+        init_core_profiles.poloidal_flux.psi.value,
         np.interp(cell_centers, rhon_in, ids_in.profiles_1d[0].grid.psi),
         rtol=rtol,
         atol=atol,

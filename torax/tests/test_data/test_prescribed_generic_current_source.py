@@ -16,6 +16,7 @@
 
 Constant transport coefficient model, circular geometry.
 """
+
 import numpy as np
 
 
@@ -36,10 +37,10 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
-        'nbar': 0.85,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
+        'psi_source': 'j',
+        'n_e_bar': 0.85,
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
         # 'current_profile_nu': 0,
@@ -53,32 +54,26 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'circular',
+        'model_name': 'circular',
     },
     'sources': {
         # Only drive the external current source
         'generic_current': {
             'mode': 'prescribed',
-            'prescribed_values': (
-                (
+            'prescribed_values': {
+                'j_parallel': (
                     times,
                     gauss_r,
                     generic_current_profiles,
                 ),
-            ),
-        },
-        # Disable density sources/sinks
-        'generic_particle': {
-            'S_total': 0.0,
-        },
-        'gas_puff': {
-            'S_total': 0.0,
-        },
-        'pellet': {
-            'S_total': 0.0,
+            },
         },
         # Use default heat sources
-        'generic_heat': {},
+        'generic_heat': {
+            'P_total': 120e6,
+            'gaussian_width': 0.25,
+            'gaussian_location': 0.0,
+        },
         'ei_exchange': {},
     },
     'pedestal': {},

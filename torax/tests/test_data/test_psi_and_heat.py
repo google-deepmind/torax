@@ -22,7 +22,7 @@ CONFIG = {
     'profile_conditions': {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'j',
+        'psi_source': 'j',
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 8.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 8.0, 1.0: 1.0}},
@@ -35,18 +35,34 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'circular',
+        'model_name': 'circular',
     },
     'sources': {
-        'generic_heat': {},
+        'generic_heat': {
+            'P_total': 120e6,
+            'gaussian_width': 0.25,
+            'gaussian_location': 0.0,
+        },
         'ei_exchange': {},
-        'generic_particle': {},
-        'gas_puff': {},
-        'pellet': {},
-        'generic_current': {},
+        'generic_particle': {
+            'S_total': 1e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
+        },
+        'gas_puff': {'S_total': 1e22, 'puff_decay_length': 0.05},
+        'pellet': {
+            'S_total': 2e22,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
+        },
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
     },
     'pedestal': {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
+        'structure_model': {'model_name': 'set_T_top_n_top'},
     },
     'transport': {
         'core_transport_models': {

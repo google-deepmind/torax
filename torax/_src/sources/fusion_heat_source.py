@@ -16,16 +16,14 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 from jax import numpy as jnp
-from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import source
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -37,21 +35,21 @@ class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
 
   SOURCE_ID: ClassVar[str] = 'fusion'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_ION,
-      source.AffectedCoreProfile.TEMP_EL,
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_I,
+      core_sources.PopulatedSourceOutput.POWER_DENSITY_E,
   )
+  PRODUCES_FAST_IONS: ClassVar[bool] = True
 
   def _get_model_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      solver_profiles: solver_profiles_lib.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Calculates DT fusion heating power with Bosch-Hale (NF 1992).
 
     Does not modify source_state; returns it unchanged.
@@ -59,28 +57,25 @@ class FusionHeatSource(source.Source):
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry of the torus.
-      core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
-      conductivity: Conductivity model output.
+      solver_profiles: Core plasma profiles.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Unused.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_i and power_density_e profiles
+          populated.
+        - SourceState for this source.
     """
-    del geo, calculated_source_profiles, conductivity, psidot
+    del geo
     # If both D and T not present in the main ion mixture, return zero fusion.
     # Otherwise, calculate the fusion power.
     main_ion_names = runtime_params.plasma_composition.main_ion_names
     if not {'D', 'T'}.issubset(main_ion_names):
       return (
-          source_profiles.SourceOutput(
-              profiles=(
-                  jnp.zeros_like(core_profiles.T_i.value),
-                  jnp.zeros_like(core_profiles.T_i.value),
-              )
+          core_sources.SourceOutput(
+              power_density_i=jnp.zeros_like(solver_profiles.kinetic.T_i.value),
+              power_density_e=jnp.zeros_like(solver_profiles.kinetic.T_i.value),
           ),
           source_state,
       )
@@ -94,7 +89,7 @@ class FusionHeatSource(source.Source):
           product *= fraction
       DT_fraction_product = product
 
-    t_face = core_profiles.T_i.face_value()
+    t_face = solver_profiles.kinetic.T_i.face_value()
 
     # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
     # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
@@ -128,7 +123,7 @@ class FusionHeatSource(source.Source):
 
     logPfus = (
         jnp.log(DT_fraction_product * Efus)
-        + 2 * jnp.log(core_profiles.n_i.face_value())
+        + 2 * jnp.log(solver_profiles.kinetic.n_i.face_value())
         + logsigmav
     )
 
@@ -143,17 +138,26 @@ class FusionHeatSource(source.Source):
     alpha_mass = 4.002602
     frac_i = collisions.mikkelsen_fast_ion_heating_fraction(
         birth_energy,
-        core_profiles.T_e.value,
+        solver_profiles.kinetic.T_e.value,
         alpha_mass,
     )
     frac_e = 1.0 - frac_i
     Pfus_i = Pfus_cell * frac_i * alpha_fraction
     Pfus_e = Pfus_cell * frac_e * alpha_fraction
-    return source_profiles.SourceOutput(profiles=(Pfus_i, Pfus_e)), source_state
+    return (
+        core_sources.SourceOutput(
+            power_density_i=Pfus_i, power_density_e=Pfus_e
+        ),
+        source_state,
+    )
 
 
 class FusionHeatSourceConfig(base.SourceConfigBase):
-  """Configuration for the FusionHeatSource."""
+  """Configuration for the DT fusion heat source.
+
+  Attributes:
+    model_name: Name of the fusion reactivity parameterization (`'bosch_hale'`).
+  """
 
   model_name: Annotated[Literal['bosch_hale'], torax_pydantic.JAX_STATIC] = (
       'bosch_hale'

@@ -23,11 +23,8 @@ import os
 from absl import app
 from absl import logging
 from absl.flags import argparse_flags
-import matplotlib
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
-
-matplotlib.use('TkAgg')
 
 
 def parse_flags(_):
@@ -50,7 +47,7 @@ def parse_flags(_):
       '--output_dir',
       default=None,
       help='Directory path where interactive HTML plots will be saved. If not'
-      ' set, the plots will be shown in a new window.',
+      ' set, the plots will be shown in a browser.',
   )
   return parser.parse_args()
 

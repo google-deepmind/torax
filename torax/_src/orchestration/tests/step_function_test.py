@@ -20,13 +20,14 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error as sim_error_lib
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+from torax._src.solver import solver_numeric_outputs
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
@@ -61,7 +62,7 @@ class StepFunctionTest(parameterized.TestCase):
         sim_state,
         post_processed_outputs,
     )
-    self.assertEqual(error, state.SimError.NO_ERROR)
+    self.assertEqual(error, sim_error_lib.SimError.NO_ERROR)
 
   def test_nan_in_bc(self):
     step_fn, sim_state, post_processed_outputs = (
@@ -69,9 +70,12 @@ class StepFunctionTest(parameterized.TestCase):
     )
     core_profiles = dataclasses.replace(
         sim_state.core_profiles,
-        T_i=dataclasses.replace(
-            sim_state.core_profiles.T_i,
-            right_face_constraint=jnp.array(jnp.nan),
+        kinetic=dataclasses.replace(
+            sim_state.core_profiles.kinetic,
+            T_i=dataclasses.replace(
+                sim_state.core_profiles.kinetic.T_i,
+                right_face_constraint=jnp.array(jnp.nan),
+            ),
         ),
     )
     new_sim_state_core_profiles = dataclasses.replace(
@@ -81,7 +85,7 @@ class StepFunctionTest(parameterized.TestCase):
         new_sim_state_core_profiles,
         post_processed_outputs,
     )
-    self.assertEqual(error, state.SimError.NAN_DETECTED)
+    self.assertEqual(error, sim_error_lib.SimError.NAN_DETECTED)
 
   def test_nan_in_post_processed_outputs(self):
     step_fn, sim_state, post_processed_outputs = (
@@ -95,7 +99,7 @@ class StepFunctionTest(parameterized.TestCase):
         sim_state,
         new_post_processed_outputs,
     )
-    self.assertEqual(error, state.SimError.NAN_DETECTED)
+    self.assertEqual(error, sim_error_lib.SimError.NAN_DETECTED)
 
   def test_nan_in_source_array(self):
     step_fn, sim_state, post_processed_outputs = (
@@ -117,7 +121,7 @@ class StepFunctionTest(parameterized.TestCase):
         new_sim_state_sources,
         post_processed_outputs,
     )
-    self.assertEqual(error, state.SimError.NAN_DETECTED)
+    self.assertEqual(error, sim_error_lib.SimError.NAN_DETECTED)
 
   def test_below_min_dt(self):
     config_dict = default_configs.get_default_config_dict()
@@ -132,7 +136,7 @@ class StepFunctionTest(parameterized.TestCase):
     new_sim_state = dataclasses.replace(
         sim_state,
         dt=jnp.array(3.0),
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=1,
             outer_solver_iterations=0,
             inner_solver_iterations=0,
@@ -143,7 +147,7 @@ class StepFunctionTest(parameterized.TestCase):
         new_sim_state,
         post_processed_outputs,
     )
-    self.assertEqual(error, state.SimError.REACHED_MIN_DT)
+    self.assertEqual(error, sim_error_lib.SimError.REACHED_MIN_DT)
 
   def test_no_error_when_below_min_dt_but_solver_converged(self):
     config_dict = default_configs.get_default_config_dict()
@@ -160,7 +164,7 @@ class StepFunctionTest(parameterized.TestCase):
         sim_state,
         dt=jnp.array(1.0),
         t=jnp.array(5.0),
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             solver_error_state=0,
             outer_solver_iterations=0,
             inner_solver_iterations=0,
@@ -171,7 +175,7 @@ class StepFunctionTest(parameterized.TestCase):
         new_sim_state,
         post_processed_outputs,
     )
-    self.assertEqual(error, state.SimError.NO_ERROR)
+    self.assertEqual(error, sim_error_lib.SimError.NO_ERROR)
 
   def test_fixed_step_with_smaller_passed_max_dt(self):
     config_dt = 0.1
@@ -192,7 +196,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
@@ -204,7 +208,6 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
-        geometry_provider=step_fn.geometry_provider,
         model_state_t=sim_state.model_state,
     )
     self.assertGreater(config_dt, passed_max_dt)
@@ -232,7 +235,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
@@ -244,7 +247,6 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
-        geometry_provider=step_fn.geometry_provider,
         model_state_t=sim_state.model_state,
     )
     self.assertGreater(passed_max_dt, config_dt)
@@ -271,7 +273,7 @@ class StepFunctionTest(parameterized.TestCase):
         torax_config.time_step_calculator.t_initial
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=sim_state.core_sources,
+        sources={},
         pedestal=None,
     )
     output_state, _ = step_fn._adaptive_step(
@@ -283,7 +285,6 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
-        geometry_provider=step_fn.geometry_provider,
         model_state_t=sim_state.model_state,
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
@@ -386,7 +387,7 @@ class StepFunctionTest(parameterized.TestCase):
 
     # Check that the MIN_DT error is reported.
     sim_error = step_fn.check_for_errors(sim_state, post_processed_outputs)
-    self.assertEqual(sim_error, state.SimError.REACHED_MIN_DT)
+    self.assertEqual(sim_error, sim_error_lib.SimError.REACHED_MIN_DT)
 
   def test_step_function_overrides(self):
     original_ip = 15e6
@@ -438,14 +439,23 @@ class StepFunctionTest(parameterized.TestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
 
+    baseline_state, _ = step_fn(
+        sim_state,
+        post_processed_outputs,
+    )
+
     # Construct a new step function with a different geometry.
-    torax_config.update_fields({'geometry.calc_Phi_b_dot': False})
+    torax_config.update_fields({'geometry.B_0': 6.0})
     new_step_fn = run_simulation.make_step_fn(torax_config)
     # Use original step function with new step function's geometry as overrides.
+    runtime_params_overrides = dataclasses.replace(
+        step_fn.runtime_params_provider,
+        geometry=new_step_fn.runtime_params_provider.geometry,
+    )
     override_state, override_post_processed_outputs = step_fn(
         sim_state,
         post_processed_outputs,
-        geometry_overrides=new_step_fn.geometry_provider,
+        runtime_params_overrides=runtime_params_overrides,
     )
 
     # Use the new step function.
@@ -458,6 +468,12 @@ class StepFunctionTest(parameterized.TestCase):
     chex.assert_trees_all_close(override_state, ref_state)
     chex.assert_trees_all_close(
         override_post_processed_outputs, ref_post_processed_outputs
+    )
+    self.assertFalse(
+        np.allclose(
+            override_state.geometry.B_0,
+            baseline_state.geometry.B_0,
+        )
     )
 
 

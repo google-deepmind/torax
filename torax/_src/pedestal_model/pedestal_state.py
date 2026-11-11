@@ -17,10 +17,14 @@
 import dataclasses
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import jax_utils
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import runtime_params as runtime_params_lib
 from torax._src.pedestal_model.structure import pedestal_structure
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -30,11 +34,41 @@ from torax._src.pedestal_model.structure import pedestal_structure
 class StructureState:
   """State for a pedestal structure model."""
 
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of structure state, or None.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of structure state, or None if stateless.
+    """
+    del context
+    return None
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class FormationState:
   """State for a pedestal formation model."""
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of formation state, or None.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of formation state, or None if stateless.
+    """
+    del context
+    return None
 
 
 @jax.tree_util.register_dataclass
@@ -64,6 +98,42 @@ class PedestalState:
     """Returns whether the pedestal is active (i.e. not in L-mode)."""
     return self.confinement_mode != runtime_params_lib.ConfinementMode.L_MODE
 
+  def _build_children(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, xr.DataTree]:
+    children = {}
+    structure_tree = self.structure.to_xr_datatree(context)
+    if structure_tree is not None:
+      children[output_keys.PEDESTAL_STRUCTURE] = structure_tree
+    formation_tree = self.formation.to_xr_datatree(context)
+    if formation_tree is not None:
+      children[output_keys.PEDESTAL_FORMATION] = formation_tree
+    return children
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of pedestal state.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of pedestal state.
+    """
+    data_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.CONFINEMENT_MODE: context.pack(
+            output_keys.CONFINEMENT_MODE,
+            np.atleast_1d(np.asarray(self.confinement_mode, dtype=np.int32)),
+        ),
+    }
+    return xr.DataTree(
+        dataset=context.build_dataset(data_vars),
+        children=self._build_children(context),
+    )
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -80,29 +150,29 @@ class IBCPedestalState(PedestalState):
     transition_start_time: Simulation time at which the current L-H or H-L
       transition started (-inf when no transition has occurred; mirrored
       pseudo-start-time when dithering).
-    T_i_ped_L_mode: Ion temperature at the pedestal top captured for L-mode
+    T_i_top_L_mode: Ion temperature at the pedestal top captured for L-mode
       ramp interpolation [keV].
-    T_e_ped_L_mode: Electron temperature at the pedestal top captured for
+    T_e_top_L_mode: Electron temperature at the pedestal top captured for
       L-mode ramp interpolation [keV].
-    n_e_ped_L_mode: Electron density at the pedestal top captured for L-mode
+    n_e_top_L_mode: Electron density at the pedestal top captured for L-mode
       ramp interpolation [m^-3].
-    rho_norm_ped_top: Normalized toroidal flux coordinate of the pedestal top
+    rho_norm_top: Normalized toroidal flux coordinate of the pedestal top
       from the previous step.
   """
 
   transition_start_time: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(-jnp.inf, dtype=jax_utils.get_dtype())
   )
-  T_i_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
+  T_i_top_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
-  T_e_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
+  T_e_top_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
-  n_e_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
+  n_e_top_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
-  rho_norm_ped_top: array_typing.FloatScalar = dataclasses.field(
+  rho_norm_top: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(jnp.inf, dtype=jax_utils.get_dtype())
   )
 
@@ -175,21 +245,64 @@ class IBCPedestalState(PedestalState):
       )
 
     scaled_T_i = _interpolate_transition(
-        l_val=self.T_i_ped_L_mode,
-        h_val=structure.T_i_ped,
+        l_val=self.T_i_top_L_mode,
+        h_val=structure.T_i_top,
     )
     scaled_T_e = _interpolate_transition(
-        l_val=self.T_e_ped_L_mode,
-        h_val=structure.T_e_ped,
+        l_val=self.T_e_top_L_mode,
+        h_val=structure.T_e_top,
     )
     scaled_n_e = _interpolate_transition(
-        l_val=self.n_e_ped_L_mode,
-        h_val=structure.n_e_ped,
+        l_val=self.n_e_top_L_mode,
+        h_val=structure.n_e_top,
     )
 
     return dataclasses.replace(
         structure,
-        T_i_ped=scaled_T_i,
-        T_e_ped=scaled_T_e,
-        n_e_ped=scaled_n_e,
+        T_i_top=scaled_T_i,
+        T_e_top=scaled_T_e,
+        n_e_top=scaled_n_e,
+    )
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree | None:
+    """Builds an xr.DataTree of IBC pedestal state.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of IBC pedestal state.
+    """
+    data_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.CONFINEMENT_MODE: context.pack(
+            output_keys.CONFINEMENT_MODE,
+            np.atleast_1d(np.asarray(self.confinement_mode, dtype=np.int32)),
+        ),
+        output_keys.TRANSITION_START_TIME: context.pack(
+            output_keys.TRANSITION_START_TIME,
+            np.atleast_1d(np.asarray(self.transition_start_time)),
+        ),
+        output_keys.T_I_TOP_L_MODE: context.pack(
+            output_keys.T_I_TOP_L_MODE,
+            np.atleast_1d(np.asarray(self.T_i_top_L_mode)),
+        ),
+        output_keys.T_E_TOP_L_MODE: context.pack(
+            output_keys.T_E_TOP_L_MODE,
+            np.atleast_1d(np.asarray(self.T_e_top_L_mode)),
+        ),
+        output_keys.N_E_TOP_L_MODE: context.pack(
+            output_keys.N_E_TOP_L_MODE,
+            np.atleast_1d(np.asarray(self.n_e_top_L_mode)),
+        ),
+        output_keys.RHO_NORM_TOP: context.pack(
+            output_keys.RHO_NORM_TOP,
+            np.atleast_1d(np.asarray(self.rho_norm_top)),
+        ),
+    }
+    return xr.DataTree(
+        dataset=context.build_dataset(data_vars),
+        children=self._build_children(context),
     )

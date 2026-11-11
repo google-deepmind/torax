@@ -25,10 +25,11 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -39,6 +40,7 @@ from torax._src.transport_model import (
 )
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
+import xarray as xr
 
 MIN_SMOOTHING_WIDTH = 1e-5
 # Smoothing kernel values below this fraction of the peak are set to zero,
@@ -69,11 +71,56 @@ class TransportModel(static_dataclass.StaticDataclass):
         },
     )
 
+  def initial_state_from_datatree(
+      self,
+      transport_datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.TransportState:
+    """Reconstructs TransportState from a DataTree.
+
+    Args:
+      transport_datatree: DataTree containing transport model states, or None.
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Reconstructed TransportState.
+    """
+    core_node = (
+        transport_datatree.children.get(output_keys.CORE)
+        if transport_datatree is not None
+        else None
+    )
+    core_children = core_node.children if core_node is not None else {}
+
+    pedestal_node = (
+        transport_datatree.children.get(output_keys.PEDESTAL)
+        if transport_datatree is not None
+        else None
+    )
+    pedestal_children = (
+        pedestal_node.children if pedestal_node is not None else {}
+    )
+
+    return transport_state_lib.TransportState(
+        core_transport_states={
+            name: sub.initial_state_from_datatree(
+                core_children.get(name), runtime_params
+            )
+            for name, sub in self.core_transport_models.items()
+        },
+        pedestal_transport_states={
+            name: sub.initial_state_from_datatree(
+                pedestal_children.get(name), runtime_params
+            )
+            for name, sub in self.pedestal_transport_models.items()
+        },
+    )
+
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
       transport_state: transport_state_lib.TransportState,
@@ -104,7 +151,7 @@ class TransportModel(static_dataclass.StaticDataclass):
         pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
             geo.rho_face_norm,
-            pedestal_model_output.rho_norm_ped_top,
+            pedestal_model_output.rho_norm_top,
         )
     )
     if isinstance(
@@ -177,7 +224,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       ],
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       domain_mask: jax.Array,
       smoothing_matrix: jax.Array,
@@ -222,7 +269,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       ],
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_states: Mapping[
           str, transport_state_lib.ComponentTransportState
@@ -381,16 +428,16 @@ def _build_smoothing_matrix(
     smoothing_width_profile = build_profile_fallback()
 
   # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
-  # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding
+  # Zeros out smoothing_width_profile for rho >= rho_norm_top to avoid bleeding
   # into boundary condition zone.
   if isinstance(
       pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
   ):
-    rho_norm_ped_top = pedestal_model_output.rho_norm_ped_top
+    rho_norm_top = pedestal_model_output.rho_norm_top
     smoothing_width_profile = jnp.where(
         pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
-            geo.rho_face_norm, rho_norm_ped_top
+            geo.rho_face_norm, rho_norm_top
         ),
         0.0,
         smoothing_width_profile,
@@ -410,10 +457,10 @@ def _build_pedestal_smoothing_matrix(
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix localized to the pedestal region."""
-  rho_norm_ped_top = pedestal_model_output.rho_norm_ped_top
+  rho_norm_top = pedestal_model_output.rho_norm_top
   smoothing_width_profile = jnp.where(
       pedestal_model_output_lib.pedestal_face_mask(
-          geo.rho_face_norm, rho_norm_ped_top
+          geo.rho_face_norm, rho_norm_top
       ),
       transport_runtime_params.pedestal_smoothing_width,
       0.0,

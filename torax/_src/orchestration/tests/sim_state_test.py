@@ -18,8 +18,10 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src import model_state as model_state_lib
-from torax._src import state
+from torax._src.edge.extended_lengyel import divertor_sol_1d
+from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_state
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import sim_state
@@ -27,9 +29,11 @@ from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
-from torax._src.sources import source_profiles
+from torax._src.solver import solver_numeric_outputs
+from torax._src.sources import core_sources
 from torax._src.test_utils import core_profile_helpers
 from torax._src.time_step_calculator import time_step_calculator_state
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
@@ -79,11 +83,11 @@ class SimStateTest(parameterized.TestCase):
 
   def _make_sim_state(self, geo: geometry.Geometry) -> sim_state.SimState:
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    core_transport = state.CoreTransport.zeros(geo)
+    core_transport = transport_coeffs.CoreTransport.zeros(geo)
 
-    sp = source_profiles.SourceProfiles(
+    sp = core_sources.CoreSources(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
-        qei=source_profiles.QeiInfo.zeros(geo),
+        qei=core_sources.QeiInfo.zeros(geo),
     )
 
     return sim_state.SimState(
@@ -94,7 +98,7 @@ class SimStateTest(parameterized.TestCase):
         core_sources=sp,
         edge_outputs=None,
         geometry=geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,
@@ -105,6 +109,7 @@ class SimStateTest(parameterized.TestCase):
             pedestal_model_output_lib.IBCPedestalModelOutput.empty()
         ),
         model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(geo),
             pedestal=pedestal_state_lib.PedestalState(),
             transport=transport_state_lib.TransportState(),
             sources={},
@@ -119,10 +124,13 @@ class SimStateTest(parameterized.TestCase):
   def test_has_nan_detects_nan_in_core_profiles(self):
     geo = self._make_geometry()
     s = self._make_sim_state(geo)
-    T_e = s.core_profiles.T_e
+    T_e = s.core_profiles.kinetic.T_e
     new_value = T_e.value.at[0].set(jnp.nan)  # pyrefly: ignore[missing-attribute]
     new_T_e = dataclasses.replace(T_e, value=new_value)
-    new_core_profiles = dataclasses.replace(s.core_profiles, T_e=new_T_e)
+    new_core_profiles = dataclasses.replace(
+        s.core_profiles,
+        kinetic=dataclasses.replace(s.core_profiles.kinetic, T_e=new_T_e),
+    )
     s = dataclasses.replace(s, core_profiles=new_core_profiles)
     self.assertTrue(s.has_nan())
 
@@ -141,6 +149,25 @@ class SimStateTest(parameterized.TestCase):
   def test_has_nan_ignores_z_magnetic_axis(self):
     geo = self._make_geometry(z_magnetic_axis=np.nan)
     s = self._make_sim_state(geo)
+    self.assertFalse(s.has_nan())
+
+  def test_has_nan_ignores_edge_model_state(self):
+    geo = self._make_geometry()
+    s = self._make_sim_state(geo)
+    edge_state = extended_lengyel_model.ExtendedLengyelEdgeState(
+        pressure_neutral_divertor=jnp.asarray(jnp.nan),
+        warm_start_guess=divertor_sol_1d.ForwardInitialGuess(
+            alpha_t=jnp.asarray(jnp.nan),
+            kappa_e=jnp.asarray(jnp.nan),
+            T_e_separatrix=jnp.asarray(jnp.nan),
+            T_e_target=jnp.asarray(jnp.nan),
+        ),
+        has_viable_warm_start=jnp.asarray(False, dtype=jnp.bool_),
+    )
+    s = dataclasses.replace(
+        s,
+        model_state=dataclasses.replace(s.model_state, edge=edge_state),
+    )
     self.assertFalse(s.has_nan())
 
 

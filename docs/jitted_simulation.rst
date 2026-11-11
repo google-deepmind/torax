@@ -4,7 +4,7 @@ Running a completely JITted simulation
 ######################################
 
 TORAX contains various helpers for running simulations completely under a
-[``jax.jit``](https://docs.jax.dev/en/latest/_autosummary/jax.jit.html) context.
+|jax_jit| context.
 This can be useful for performance as well as making use of other
 JAX functionality such as batching, automatic differentation and using
 accelerators such as GPU or TPU.

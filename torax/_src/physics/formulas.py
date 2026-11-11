@@ -16,7 +16,7 @@
 
 Functions:
     - calculate_main_ion_dilution_factor: Calculates the main ion dilution
-      factor based on average impurity charge and Z_eff.
+      factor based on bundled impurity charge and Z_eff.
     - calculate_pressure: Calculates pressure from density and temperatures.
     - calc_dvar_dpsi: Calculates derivative of a CellVariable with respect to
       poloidal flux.
@@ -48,7 +48,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
@@ -60,11 +61,11 @@ from torax._src.physics import psi_calculations
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def calculate_main_ion_dilution_factor(
     Z_i: array_typing.FloatScalar,
-    Z_impurity: array_typing.FloatVector,
+    Z_impurity_bundled: array_typing.FloatVector,
     Z_eff: array_typing.FloatVector,
 ) -> array_typing.FloatVector:
-  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
+  """Calculates the main ion dilution factor n_i / n_e from Z_eff."""
+  return (Z_impurity_bundled - Z_eff) / (Z_i * (Z_impurity_bundled - Z_i))
 
 
 def calc_dvar_dpsi(
@@ -113,18 +114,18 @@ def calc_dvar_dpsi(
 
 
 def calc_pprime(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
 ) -> array_typing.FloatVectorFace:
   """Calculates total pressure gradient with respect to poloidal flux."""
   return calc_dvar_dpsi(
       var=core_profiles.pressure_total,
-      psi=core_profiles.psi,
+      psi=core_profiles.poloidal_flux.psi,
       normalized=False,
   )
 
 
 def calc_FFprime(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVector:
   r"""Calculates FF', an output quantity used for equilibrium coupling.
@@ -153,7 +154,7 @@ def calc_FFprime(
   # g3 = <1/R^2>
   # gm9 = <1/R>
   g3 = geo.g3_face
-  jtor_over_R = core_profiles.j_toroidal_total_face * geo.gm9_face
+  jtor_over_R = core_profiles.poloidal_flux.j_toroidal_total_face * geo.gm9_face
 
   FFprime_face = -(jtor_over_R / (2 * jnp.pi) + pprime) * mu0 / g3
   return FFprime_face
@@ -219,7 +220,7 @@ def calculate_time_derivative_with_exponential_smoothing(
 
 def calculate_greenwald_fraction(
     n_e_avg: array_typing.FloatScalar,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates the Greenwald fraction from the averaged electron density.
@@ -233,18 +234,20 @@ def calculate_greenwald_fraction(
     geo: Geometry object
 
   Returns:
-    fgw: Greenwald density fraction
+    f_GW: Greenwald density fraction
   """
   # gw_limit is in units of 10^20 m^-3 when I_p is in MA and a_minor is in m.
   gw_limit = (
-      core_profiles.I_p_profile_face[-1] * 1e-6 / (jnp.pi * geo.a_minor**2)
+      core_profiles.poloidal_flux.I_p_profile_face[-1]
+      * 1e-6
+      / (jnp.pi * geo.a_minor**2)
   )
-  fgw = n_e_avg / (gw_limit * 1e20)
-  return fgw
+  f_GW = n_e_avg / (gw_limit * 1e20)
+  return f_GW
 
 
 def calculate_betas(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates the beta_tor, beta_pol, and beta_N plasma beta quantities.
@@ -293,7 +296,7 @@ def calculate_betas(
       * p_total_volume_avg
       / (
           constants.CONSTANTS.mu_0
-          * core_profiles.I_p_profile_face[-1] ** 2
+          * core_profiles.poloidal_flux.I_p_profile_face[-1] ** 2
           * geo.R_major
           + constants.CONSTANTS.eps
       )
@@ -305,7 +308,10 @@ def calculate_betas(
       * (
           geo.a_minor
           * geo.B_0
-          / (core_profiles.I_p_profile_face[-1] + constants.CONSTANTS.eps)
+          / (
+              core_profiles.poloidal_flux.I_p_profile_face[-1]
+              + constants.CONSTANTS.eps
+          )
       )
   )
 
@@ -313,7 +319,7 @@ def calculate_betas(
 
 
 def calculate_beta_pol_profile(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Calculates the local poloidal beta profile on the cell grid.
@@ -327,7 +333,9 @@ def calculate_beta_pol_profile(
   Returns:
     beta_pol_profile: CellVariable of local poloidal beta profile.
   """
-  bpol2_face = psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+  bpol2_face = psi_calculations.calc_bpol_squared(
+      geo, core_profiles.poloidal_flux.psi
+  )
   bpol2_cell = geometry.face_to_cell(bpol2_face)
   denom_cell = (
       bpol2_cell / (2.0 * constants.CONSTANTS.mu_0) + constants.CONSTANTS.eps
@@ -350,7 +358,7 @@ def calculate_beta_pol_profile(
 
 
 def calculate_beta_pol_prime(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVectorFace:
   r"""Calculates beta_pol_prime on the face grid.
@@ -372,13 +380,13 @@ def calculate_beta_pol_prime(
   beta_pol = calculate_beta_pol_profile(core_profiles, geo)
   return -calc_dvar_dpsi(
       var=beta_pol,
-      psi=core_profiles.psi,
+      psi=core_profiles.poloidal_flux.psi,
       normalized=True,
   )
 
 
 def calculate_alpha_mhd(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
     two_point_mask: array_typing.BoolVectorFace | None = None,
 ) -> array_typing.FloatVectorFace:
@@ -411,14 +419,14 @@ def calculate_alpha_mhd(
       -2.0
       * constants.CONSTANTS.mu_0
       * geo.R_major
-      * core_profiles.q_face**2
+      * core_profiles.poloidal_flux.q_face**2
       / (geo.B_0**2 + constants.CONSTANTS.eps)
       * dp_total_dr_mid
   )
 
 
 def calculate_alpha_mhd_miller(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVectorFace:
   r"""Calculates the Miller general-geometry MHD ballooning parameter on faces.
@@ -445,7 +453,7 @@ def calculate_alpha_mhd_miller(
       [dimensionless].
   """
   pprime = calc_pprime(core_profiles)
-  dpsi_drhon = core_profiles.psi.face_grad()
+  dpsi_drhon = core_profiles.poloidal_flux.psi.face_grad()
   dV_dpsi_bulk = geo.vpr_face[1:] / dpsi_drhon[1:]
   r_vol_bulk = jnp.sqrt(
       geo.volume_face[1:] / (2.0 * jnp.pi**2 * geo.R_major)

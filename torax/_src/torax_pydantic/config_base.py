@@ -17,7 +17,9 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Self, Sequence, TypeAlias
+import types
+import typing
+from typing import Annotated, Any, Final, Mapping, Self, Sequence, TypeAlias, get_args, get_origin
 
 import jax
 import pydantic
@@ -28,6 +30,12 @@ JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
 
 StaticKwargs: TypeAlias = dict[str, Any]
 DynamicArgs: TypeAlias = list[Any]
+
+
+def _has_pydantic_model(t: Any) -> bool:
+  if isinstance(t, type) and issubclass(t, pydantic.BaseModel):
+    return True
+  return any(_has_pydantic_model(arg) for arg in get_args(t))
 
 
 class ConfigBase(pydantic.BaseModel):
@@ -126,14 +134,16 @@ class ConfigBase(pydantic.BaseModel):
 
   @classmethod
   def from_dict(cls: type[Self], config_dict: Mapping[str, Any]) -> Self:
+    """Constructs a config object from a dictionary of configuration values."""
     return cls.model_validate(config_dict)
 
   def to_dict(self) -> dict[str, Any]:
+    """Serializes the config object to a dictionary."""
     return self.model_dump()
 
   @classmethod
   def time_invariant_fields(cls) -> tuple[str, ...]:
-    """Returns the names of the time invariant fields in the model."""
+    """Returns the names of fields annotated with `TIME_INVARIANT`."""
     return tuple(
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
@@ -183,7 +193,16 @@ class ConfigBase(pydantic.BaseModel):
     return len(submodels) == len(unique_ids)
 
   def tree_build(self) -> treelib.Tree:
-    """Returns a treelib.Tree representation of a nested Pydantic model."""
+    """Returns a treelib.Tree representation of a nested config object.
+
+    Returns:
+      A `treelib.Tree` representing the hierarchy of nested `ConfigBase`
+      config objects.
+
+    Raises:
+      ValueError: If the config object has non-unique (shared) nested
+        `ConfigBase` instances.
+    """
 
     # The tree nodes are object IDs, which also allows easy node lookup. This
     # causes problems when the user creates a Pydantic model with shared objects
@@ -264,15 +283,51 @@ class ConfigBase(pydantic.BaseModel):
             ' ConfigBase model.'
         )
       assert value_name in model.__dict__
-      field_type = model.__class__.model_fields[value_name].annotation
+      field_info = model.__class__.model_fields[value_name]
+      field_type = field_info.rebuild_annotation()
+      disc = field_info.discriminator
+      disc_key = (
+          disc.discriminator
+          if isinstance(disc, pydantic.Discriminator)
+          else disc
+      )
+
+      current_val = model.__dict__[value_name]
+      if isinstance(value, dict):
+        if (
+            isinstance(disc_key, str)
+            and disc_key not in value
+            and isinstance(current_val, ConfigBase)
+            and hasattr(current_val, disc_key)
+        ):
+          value = {disc_key: getattr(current_val, disc_key), **value}
+        elif (
+            field_info.json_schema_extra
+            and isinstance(field_info.json_schema_extra, dict)
+            and 'default_model_name' in field_info.json_schema_extra
+            and 'model_name' not in value
+        ):
+          value = {
+              'model_name': field_info.json_schema_extra['default_model_name'],
+              **value,
+          }
+
+      if disc is not None and get_origin(field_type) in (
+          types.UnionType,
+          typing.Union,
+      ):
+        disc_obj = (
+            pydantic.Discriminator(disc_key)
+            if isinstance(disc_key, str)
+            else disc
+        )
+        field_type = Annotated[field_type, disc_obj]
 
       # TypeAdapter does not allow a config arg if the value is a Pydantic
       # model, as this has its own config.
       cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
-      try:
-        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg  # pyrefly: ignore[bad-argument-type]
-      except TypeError:
-        pass
+      if _has_pydantic_model(field_type):
+        cfg = None
       value = pydantic.TypeAdapter(field_type, config=cfg).validate_python(
           value
       )

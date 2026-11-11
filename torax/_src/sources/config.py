@@ -28,7 +28,9 @@ from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import generic_current_source as generic_current_source_lib
 from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
+from torax._src.sources import neutral_beam_injection_source as neutral_beam_injection_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
+from torax._src.sources import particle_feedback_source as particle_feedback_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import runtime_params
@@ -69,6 +71,24 @@ class SourcesConfig(torax_pydantic.ConfigBase):
   Each standard source field defaults to `None` (disabled) when omitted. When a
   source is configured with a mapping that omits `model_name`, the default model
   specified via `_source_field` for that source is used.
+
+  Attributes:
+    ei_exchange: Collisional ion-electron heat exchange source (`QeiSource`).
+      Defaults to disabled (`{'mode': 'zero'}`) when omitted.
+    bremsstrahlung: Bremsstrahlung radiation heat sink.
+    cyclotron_radiation: Cyclotron radiation heat sink.
+    ecrh: Electron-cyclotron heating and current drive source.
+    fusion: DT fusion heat source.
+    gas_puff: Edge gas puff particle source.
+    generic_current: Generic Gaussian external current source.
+    generic_heat: Generic Gaussian ion and electron heat source.
+    generic_particle: Generic particle source (Gaussian or PID density
+      feedback).
+    icrh: Ion-cyclotron resonance heating source.
+    impurity_radiation: Impurity radiation heat sink.
+    nbi: Neutral beam injection heating, current drive, and particle source.
+    ohmic: Ohmic heating source.
+    pellet: Pellet fueling particle source.
   """
 
   ei_exchange: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
@@ -107,7 +127,9 @@ class SourcesConfig(torax_pydantic.ConfigBase):
       default_config_if_enabled=generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig
   )
   generic_particle: (
-      generic_particle_source_lib.GenericParticleSourceConfig | None
+      generic_particle_source_lib.GenericParticleSourceConfig
+      | particle_feedback_source_lib.ParticleFeedbackSourceConfig
+      | None
   ) = _source_field(
       default_config_if_enabled=generic_particle_source_lib.GenericParticleSourceConfig
   )
@@ -122,6 +144,11 @@ class SourcesConfig(torax_pydantic.ConfigBase):
       | None
   ) = _source_field(
       default_config_if_enabled=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
+  )
+  nbi: (
+      neutral_beam_injection_source_lib.NeutralBeamInjectionSourceConfig | None
+  ) = _source_field(
+      default_config_if_enabled=neutral_beam_injection_source_lib.NeutralBeamInjectionSourceConfig
   )
   ohmic: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = _source_field(
       default_config_if_enabled=ohmic_heat_source_lib.OhmicHeatSourceConfig
@@ -184,7 +211,7 @@ class SourcesConfig(torax_pydantic.ConfigBase):
     standard_sources = {
         k: v.build_source()
         for k, v in self.source_model_config.items()
-        if k != 'ei_exchange'
+        if isinstance(v, base.SourceConfigBase)
     }
     # Qei is a special source that is not in standard_sources.
     # It has its own attribute in SourceModels.
@@ -194,9 +221,13 @@ class SourcesConfig(torax_pydantic.ConfigBase):
     )
 
   @property
-  def source_model_config(self) -> dict[str, base.SourceConfigBase]:
+  def source_model_config(
+      self,
+  ) -> dict[str, base.SourceConfigBase | qei_source_lib.QeiSourceConfig]:
     return {
         k: v
         for k, v in self.__dict__.items()
-        if isinstance(v, base.SourceConfigBase)
+        if isinstance(
+            v, (base.SourceConfigBase, qei_source_lib.QeiSourceConfig)
+        )
     }

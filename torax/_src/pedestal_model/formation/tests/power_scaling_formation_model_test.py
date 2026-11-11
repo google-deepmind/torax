@@ -20,9 +20,11 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
+from torax._src.output_tools import output_grid_context
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
+from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
@@ -36,7 +38,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     # Switch to use the PowerScaling formation model.
     config_dict['pedestal'] = {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
+        'structure_model': {'model_name': 'set_T_top_n_top'},
         'mode': 'adaptive_transport',
         # Individual tests will override the model name.
         'formation_model': {
@@ -206,8 +208,12 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     aux_power_profile = power * jnp.ones_like(self.initial_state.geometry.rho)
     high_power_profiles = dataclasses.replace(
         self.initial_state.core_sources,
-        T_e={'aux': aux_power_profile},
-        T_i={'aux': aux_power_profile},
+        sources={
+            'aux': core_sources_lib.SourceOutput(
+                power_density_e=aux_power_profile,
+                power_density_i=aux_power_profile,
+            )
+        },
     )
 
     transport_multipliers = formation_model(
@@ -383,9 +389,12 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(0.1))
     modified_core_profiles = dataclasses.replace(
         self.initial_state.core_profiles,
-        T_e=dataclasses.replace(
-            self.initial_state.core_profiles.T_e,
-            value=self.initial_state.core_profiles.T_e.value * 2.0,
+        kinetic=dataclasses.replace(
+            self.initial_state.core_profiles.kinetic,
+            T_e=dataclasses.replace(
+                self.initial_state.core_profiles.kinetic.T_e,
+                value=self.initial_state.core_profiles.kinetic.T_e.value * 2.0,
+            ),
         ),
     )
     # When dt > 0.0, update_state advances state.
@@ -541,6 +550,62 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         multipliers_high_dw_dt.chi_e_multiplier,
         multipliers_low_dw_dt.chi_e_multiplier,
     )
+
+  def test_power_scaling_formation_state_round_trip(self):
+    geo = self.initial_state.geometry
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    formation_state = self.initial_state.model_state.pedestal.formation
+    assert isinstance(
+        formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    tree = formation_state.to_xr_datatree(context)
+    self.assertIsNotNone(tree)
+    slice_tree = tree.sel(time=0.0, method='nearest')
+    model = self.torax_config.pedestal.formation_model.build_formation_model()
+    restored = model.initial_state_from_datatree(
+        slice_tree,
+        self.runtime_params,
+    )
+    assert isinstance(
+        restored,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    self.assertIsNotNone(restored.W_thermal_total)
+    self.assertIsNotNone(restored.dW_thermal_dt_smoothed)
+    self.assertIsNotNone(restored.t)
+    self.assertIsNotNone(formation_state.W_thermal_total)
+    self.assertIsNotNone(formation_state.dW_thermal_dt_smoothed)
+    self.assertIsNotNone(formation_state.t)
+    np.testing.assert_allclose(
+        restored.W_thermal_total, formation_state.W_thermal_total
+    )
+    np.testing.assert_allclose(
+        restored.dW_thermal_dt_smoothed,
+        formation_state.dW_thermal_dt_smoothed,
+    )
+    np.testing.assert_allclose(restored.t, formation_state.t)
+
+  def test_power_scaling_formation_state_none_datatree_raises(self):
+    model = self.torax_config.pedestal.formation_model.build_formation_model()
+    with self.assertRaises(ValueError):
+      model.initial_state_from_datatree(None, self.runtime_params)
+
+  def test_power_scaling_formation_state_stateless_when_dw_dt_disabled(self):
+    geo = self.initial_state.geometry
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    stateless = power_scaling_formation_model.PowerScalingFormationState()
+    self.assertIsNone(stateless.to_xr_datatree(context))
 
 
 if __name__ == '__main__':

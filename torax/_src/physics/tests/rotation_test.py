@@ -26,9 +26,11 @@ class RotationTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=10, a_minor=1.0
-    ).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10, a_minor=1.0)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
   def test_calculate_rotation_shapes_are_correct(self):
     rotation_output = rotation.calculate_rotation(

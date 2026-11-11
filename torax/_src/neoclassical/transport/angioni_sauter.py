@@ -30,7 +30,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import sauter as sauter_formulas
@@ -64,7 +64,21 @@ class RuntimeParams(transport_runtime_params.RuntimeParams):
 
 
 class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
-  """Pydantic model for the Angioni-Sauter neoclassical transport model."""
+  """Pydantic model for the Angioni-Sauter |angioni2000| neoclassical transport model.
+
+  Attributes:
+    model_name: Selected neoclassical transport model.
+    use_shaing_ion_correction: If `True`, smoothly blends the near-axis Shaing
+      |shaing1997| ion thermal conductivity into the Angioni-Sauter
+      |angioni2000| ion thermal conductivity.
+    shaing_ion_multiplier: Multiplier applied to the Shaing ion thermal
+      conductivity term.
+    shaing_blend_start: Normalized toroidal flux coordinate $rho_norm$ in $[0,
+      1]$ where the sigmoid transition between Shaing and Angioni-Sauter is
+      centered.
+    shaing_blend_rate: Steepness of the sigmoid transition between the Shaing
+      and Angioni-Sauter models.
+  """
 
   model_name: Annotated[
       Literal['angioni_sauter'], torax_pydantic.JAX_STATIC
@@ -98,7 +112,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       self,
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: core_profiles_lib.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients.
@@ -162,7 +176,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 
 def _calculate_angioni_sauter_transport(
     geometry: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
@@ -198,19 +212,23 @@ def _calculate_angioni_sauter_transport(
   log_lambda_ii = neoclassical_intermediates.log_lambda_ii
 
   # Impurity strength parameter alpha_I = n_I Z_I^2 / (n_i Z_i^2), defined
-  # below Eq. 25. Since the bundled impurity has Z_impurity = <Z^2> / <Z>,
-  # n_impurity * Z_impurity^2 = sum_k n_k Z_k^2 for impurity mixtures.
+  # below Eq. 25. Since the bundled impurity has Z_impurity_bundled =
+  # <Z^2> / <Z>, n_impurity_bundled * Z_impurity_bundled^2 = sum_k n_k Z_k^2
+  # for impurity mixtures.
   alpha_I = (
-      core_profiles.n_impurity.face_value()
-      * core_profiles.Z_impurity_face**2
-      / (core_profiles.n_i.face_value() * core_profiles.Z_i_face**2)
+      core_profiles.n_impurity_bundled.face_value()
+      * core_profiles.ions.Z_impurity_bundled_face**2
+      / (
+          core_profiles.kinetic.n_i.face_value()
+          * core_profiles.ions.Z_i_face**2
+      )
   )
 
   # --- Step 2: Calculate dimensionless transport matrix K_mn ---
   Kmn_e, Kmn_i = _calculate_Kmn(
       ftrap=ftrap,
       ftrap_d=ftrap_d,
-      Z_eff=core_profiles.Z_eff_face,
+      Z_eff=core_profiles.ions.Z_eff_face,
       B2_avg_Bm2_avg=B2_avg_Bm2_avg,
       nu_e_star=nu_e_star,
       nu_i_star=nu_i_star,
@@ -229,24 +247,28 @@ def _calculate_angioni_sauter_transport(
 
   # --- Step 4: Calculate thermodynamic forces ---
   # Convert to Angioni-Sauter psi units.
-  dpsi_drhon = core_profiles.psi.face_grad() / (2 * jnp.pi)
+  dpsi_drhon = core_profiles.poloidal_flux.psi.face_grad() / (2 * jnp.pi)
   dlnne_dpsi = math_utils.safe_divide(
-      num=core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(),
+      num=core_profiles.kinetic.n_e.face_grad()
+      / core_profiles.kinetic.n_e.face_value(),
       denom=dpsi_drhon,
       eps=1e-7,
   )
   dlnte_dpsi = math_utils.safe_divide(
-      num=core_profiles.T_e.face_grad() / core_profiles.T_e.face_value(),
+      num=core_profiles.kinetic.T_e.face_grad()
+      / core_profiles.kinetic.T_e.face_value(),
       denom=dpsi_drhon,
       eps=1e-7,
   )
   dlnni_dpsi = math_utils.safe_divide(
-      num=core_profiles.n_i.face_grad() / core_profiles.n_i.face_value(),
+      num=core_profiles.kinetic.n_i.face_grad()
+      / core_profiles.kinetic.n_i.face_value(),
       denom=dpsi_drhon,
       eps=1e-7,
   )
   dlnti_dpsi = math_utils.safe_divide(
-      num=core_profiles.T_i.face_grad() / core_profiles.T_i.face_value(),
+      num=core_profiles.kinetic.T_i.face_grad()
+      / core_profiles.kinetic.T_i.face_value(),
       denom=dpsi_drhon,
       eps=1e-7,
   )
@@ -290,7 +312,11 @@ def _calculate_angioni_sauter_transport(
       + alpha * Lmn_e[:, 3, 2] * E_parallel_B_over_B2
       + (
           Lmn_i[:, 1, 1]
-          + (1 - Rpe) / Rpe * alpha**2 / core_profiles.Z_i_face * Lmn_e[:, 3, 3]
+          + (1 - Rpe)
+          / Rpe
+          * alpha**2
+          / core_profiles.ions.Z_i_face
+          * Lmn_e[:, 3, 3]
       )
       * dlnti_dpsi
   )
@@ -308,7 +334,7 @@ def _calculate_angioni_sauter_transport(
   chi_neo_e_bulk = math_utils.safe_divide(
       num=-Be2[1:],
       denom=(
-          core_profiles.n_e.face_value()[1:]
+          core_profiles.kinetic.n_e.face_value()[1:]
           * dlnte_dpsi[1:]
           * (dpsi_drhon[1:] / geometry.rho_b) ** 2
           * grad_rho_sq[1:]
@@ -320,7 +346,7 @@ def _calculate_angioni_sauter_transport(
   chi_neo_i_bulk = math_utils.safe_divide(
       num=-Bi2[1:],
       denom=(
-          core_profiles.n_i.face_value()[1:]
+          core_profiles.kinetic.n_i.face_value()[1:]
           * dlnti_dpsi[1:]
           * (dpsi_drhon[1:] / geometry.rho_b) ** 2
           * grad_rho_sq[1:]
@@ -337,7 +363,7 @@ def _calculate_angioni_sauter_transport(
   D_neo_e_bulk = math_utils.safe_divide(
       num=-Lmn_e[1:, 0, 0],
       denom=(
-          core_profiles.n_e.face_value()[1:]
+          core_profiles.kinetic.n_e.face_value()[1:]
           * (dpsi_drhon[1:] / geometry.rho_b) ** 2
           * grad_rho_sq[1:]
       ),
@@ -360,7 +386,7 @@ def _calculate_angioni_sauter_transport(
       denom=(
           (dpsi_drhon[1:] / geometry.rho_b)
           * grad_rho[1:]
-          * core_profiles.n_e.face_value()[1:]
+          * core_profiles.kinetic.n_e.face_value()[1:]
       ),
       eps=_SAFE_DIVIDE_EPS,
   )
@@ -373,7 +399,7 @@ def _calculate_angioni_sauter_transport(
       denom=(
           (dpsi_drhon[1:] / geometry.rho_b)
           * grad_rho[1:]
-          * core_profiles.n_e.face_value()[1:]
+          * core_profiles.kinetic.n_e.face_value()[1:]
       ),
       eps=_SAFE_DIVIDE_EPS,
   )
@@ -622,27 +648,27 @@ def _calculate_Lmn(
     Kmn_e: array_typing.Array,
     Kmn_i: array_typing.Array,
     geo: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     log_lambda_ei: array_typing.FloatVectorFace,
     log_lambda_ii: array_typing.FloatVectorFace,
 ) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensional transport matrices Lmn."""
   # Normalization factors from Eqs. 16, 20, and 21.
   consts = constants.CONSTANTS
-  m_i = core_profiles.A_i * consts.m_amu
-  q_i = core_profiles.Z_i_face * consts.q_e
+  m_i = core_profiles.ions.A_i * consts.m_amu
+  q_i = core_profiles.ions.Z_i_face * consts.q_e
 
   collision_time_e = collisions.calculate_tau_e(
-      T_e=core_profiles.T_e.face_value(),
-      n_e=core_profiles.n_e.face_value(),
-      Z_eff=core_profiles.Z_eff_face,
+      T_e=core_profiles.kinetic.T_e.face_value(),
+      n_e=core_profiles.kinetic.n_e.face_value(),
+      Z_eff=core_profiles.ions.Z_eff_face,
       ln_Lambda_ei=log_lambda_ei,
   )
   collision_time_i = collisions.calculate_tau_ii(
-      A_i=core_profiles.A_i,
-      Z_i=core_profiles.Z_i_face,
-      T_i=core_profiles.T_i.face_value(),
-      n_i=core_profiles.n_i.face_value(),
+      A_i=core_profiles.ions.A_i,
+      Z_i=core_profiles.ions.Z_i_face,
+      T_i=core_profiles.kinetic.T_i.face_value(),
+      n_i=core_profiles.kinetic.n_i.face_value(),
       ln_Lambda_ii=log_lambda_ii,
   )
 
@@ -660,9 +686,9 @@ def _calculate_Lmn(
   # where the (dpsi/drho)^2 terms have cancelled.
   Ld = (
       2
-      * core_profiles.n_e.face_value()
+      * core_profiles.kinetic.n_e.face_value()
       * consts.m_e
-      * (core_profiles.T_e.face_value() * consts.keV_to_J)
+      * (core_profiles.kinetic.T_e.face_value() * consts.keV_to_J)
       / consts.q_e**2
       / geo.B_0**2
       * geo.F_face**2
@@ -670,23 +696,23 @@ def _calculate_Lmn(
   )
   Ldi = (
       2
-      * core_profiles.n_i.face_value()
+      * core_profiles.kinetic.n_i.face_value()
       * m_i
-      * (core_profiles.T_i.face_value() * consts.keV_to_J)
+      * (core_profiles.kinetic.T_i.face_value() * consts.keV_to_J)
       / q_i**2
       / geo.B_0**2
       * geo.F_face**2
       / collision_time_i
   )
-  Lb = geo.F_face * core_profiles.n_e.face_value()
-  Lbi = geo.F_face * core_profiles.n_i.face_value()
+  Lb = geo.F_face * core_profiles.kinetic.n_e.face_value()
+  Lbi = geo.F_face * core_profiles.kinetic.n_i.face_value()
 
   Lsi = (
-      core_profiles.n_i.face_value()
+      core_profiles.kinetic.n_i.face_value()
       * q_i**2
       * collision_time_i
       * geo.B_0**2
-      / (m_i * core_profiles.T_i.face_value() * consts.keV_to_J)
+      / (m_i * core_profiles.kinetic.T_i.face_value() * consts.keV_to_J)
   )
 
   # Calculate electron matrix (Eq. 20)
@@ -729,7 +755,7 @@ def _calculate_Lmn(
 def _calculate_shaing_transport(
     runtime_params: RuntimeParams,
     geometry: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Shaing transport model.
@@ -751,20 +777,20 @@ def _calculate_shaing_transport(
     Neoclassical transport coefficients.
   """
   # Aliases for readability
-  m_ion = core_profiles.A_i * constants.CONSTANTS.m_amu
-  q = core_profiles.q_face
+  m_ion = core_profiles.ions.A_i * constants.CONSTANTS.m_amu
+  q = core_profiles.poloidal_flux.q_face
   kappa = geometry.elongation_face  # Note: denoted delta in Shaing
   F = geometry.F_face  # Note: denoted I in Shaing
   R = geometry.R_major_profile_face
-  T_i_J = core_profiles.T_i.face_value() * constants.CONSTANTS.keV_to_J
+  T_i_J = core_profiles.kinetic.T_i.face_value() * constants.CONSTANTS.keV_to_J
 
   # Collisionality
   ln_Lambda_ii = neoclassical_intermediates.log_lambda_ii
   tau_ii = collisions.calculate_tau_ii(
-      A_i=core_profiles.A_i,
-      Z_i=core_profiles.Z_i_face,
-      T_i=core_profiles.T_i.face_value(),
-      n_i=core_profiles.n_i.face_value(),
+      A_i=core_profiles.ions.A_i,
+      Z_i=core_profiles.ions.Z_i_face,
+      T_i=core_profiles.kinetic.T_i.face_value(),
+      n_i=core_profiles.kinetic.n_i.face_value(),
       ln_Lambda_ii=ln_Lambda_ii,
   )
   nu_ii = 1 / tau_ii  # Ion-ion collision frequency
@@ -774,7 +800,10 @@ def _calculate_shaing_transport(
 
   # Larmor (gyro)frequency
   Omega_0_ion = (
-      constants.CONSTANTS.q_e * core_profiles.Z_i_face * geometry.B_0 / m_ion
+      constants.CONSTANTS.q_e
+      * core_profiles.ions.Z_i_face
+      * geometry.B_0
+      / m_ion
   )
 
   # Large aspect ratio approximation (Equation 3, Shaing March 1997)
@@ -784,7 +813,7 @@ def _calculate_shaing_transport(
   # TODO(b/467357743): make a more informed choice for dpsi_drhon near the axis
   # (currently we simply copy the value at i=1). This is ok as chi[0] is never
   # used.
-  dpsi_drhon = core_profiles.psi.face_grad()
+  dpsi_drhon = core_profiles.poloidal_flux.psi.face_grad()
   dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])  # pyrefly: ignore[missing-attribute]
   conversion_factor = 1 / (dpsi_drhon / (2 * jnp.pi * geometry.rho_b)) ** 2
 

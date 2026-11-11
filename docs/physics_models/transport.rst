@@ -1,5 +1,3 @@
-.. include:: ../links.rst
-
 .. _physics_transport:
 
 Transport models

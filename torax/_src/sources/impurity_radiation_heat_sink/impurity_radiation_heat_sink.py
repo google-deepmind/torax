@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 """Class for impurity radiation heat sinks.
 
 Model functions are in separate files.
 """
 
 import dataclasses
+from typing import ClassVar
 
+from torax._src.sources import core_sources
 from torax._src.sources import source as source_lib
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class ImpurityRadiationHeatSink(source_lib.Source):
+class ImpurityRadiationHeatSink(source_lib.SourceBase):
   """Impurity radiation heat sink for electron heat equation."""
 
-  SOURCE_ID = "impurity_radiation"
-  AFFECTED_CORE_PROFILES = (source_lib.AffectedCoreProfile.TEMP_EL,)
+  SOURCE_ID: ClassVar[str] = 'impurity_radiation'
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (core_sources.PopulatedSourceOutput.POWER_DENSITY_E,)

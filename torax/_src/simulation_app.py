@@ -29,26 +29,28 @@ also enables optional output logging.
 Note that `app.run` cannot be directly run on the `main()` function in this
 module, due to the tuple return type.
 
-.. code-block:: python
+```
+# In my_runnable_sim.py:
 
-  # In my_runnable_sim.py:
+from absl import app
+from absl import logging
+from torax._src import simulation_app
+from torax.examples import basic_config
+from torax._src.config import build_sim
 
-  from absl import app
-  from absl import logging
-  from torax._src import simulation_app
-  from torax.examples import basic_config
-  from torax._src.config import build_sim
 
-  def run(_):
-    sim_builder = lambda: build_sim.build_sim_from_config(basic_config.CONFIG)
-    simulation_app.main(
+def run(_):
+  sim_builder = lambda: build_sim.build_sim_from_config(basic_config.CONFIG)
+  simulation_app.main(
       sim_builder,
       log_sim_progress=True,
-      )
+  )
 
-  if __name__ == '__main__':
-    logging.set_verbosity(logging.INFO)
-    app.run(run)
+
+if __name__ == '__main__':
+  logging.set_verbosity(logging.INFO)
+  app.run(run)
+```
 """
 
 from collections.abc import Sequence
@@ -62,8 +64,9 @@ from typing import Callable, Final
 from absl import logging
 import jax
 import numpy as np
-from torax._src import state
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_error
 from torax._src.torax_pydantic import config
 import xarray as xr
 
@@ -120,21 +123,21 @@ def write_output_to_file(path: str, data_tree: xr.DataTree):
 
 
 def _log_single_state(
-    core_profiles: state.CoreProfiles,
+    core_profiles: core_profiles_lib.CoreProfiles,
     t: float | jax.Array,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
-  logging.info('T_i: %s', core_profiles.T_i.value)
-  logging.info('T_e: %s', core_profiles.T_e.value)
-  logging.info('psi: %s', core_profiles.psi.value)
-  logging.info('n_e: %s', core_profiles.n_e.value)
-  logging.info('n_i: %s', core_profiles.n_i.value)
-  logging.info('q: %s', core_profiles.q_face)
-  logging.info('magnetic_shear: %s', core_profiles.s_face)
+  logging.info('T_i: %s', core_profiles.kinetic.T_i.value)
+  logging.info('T_e: %s', core_profiles.kinetic.T_e.value)
+  logging.info('psi: %s', core_profiles.poloidal_flux.psi.value)
+  logging.info('n_e: %s', core_profiles.kinetic.n_e.value)
+  logging.info('n_i: %s', core_profiles.kinetic.n_i.value)
+  logging.info('q: %s', core_profiles.poloidal_flux.q_face)
+  logging.info('magnetic_shear: %s', core_profiles.poloidal_flux.s_face)
 
 
 def log_simulation_output_to_stdout(
-    core_profile_history: Sequence[state.CoreProfiles],
+    core_profile_history: Sequence[core_profiles_lib.CoreProfiles],
     t: np.ndarray,
 ) -> None:
   _log_single_state(core_profile_history[0], t[0])
@@ -201,7 +204,7 @@ def main(
   data_tree = state_history.simulation_output_to_xr()
 
   # Check if simulation encountered an error
-  if state_history.sim_error != state.SimError.NO_ERROR:
+  if state_history.sim_error != sim_error.SimError.NO_ERROR:
     log_to_stdout(
         f'Simulation stopped with error: {state_history.sim_error.name}',
         color=AnsiColors.YELLOW,

@@ -41,14 +41,15 @@ imas_data2 = core_profiles.plasma_composition_from_IMAS(
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG["geometry"] = {
-    "geometry_type": "imas",
+    "model_name": "imas",
     "imas_filepath": "ITERhybrid_COCOS17_IDS_ddv4.nc",
 }
 # Dump all profile_conditions from the first IDS loaded.
 CONFIG["profile_conditions"] = {
     **imas_data1,
     "I_p_source": "geometry",
-    "initial_psi_source": "geometry",
+    "psi": None,
+    "psi_source": "geometry",
 }
 # Load just a specific key from the other IDS: impurity species dict.
 CONFIG["plasma_composition"] = {

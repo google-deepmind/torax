@@ -23,21 +23,21 @@ CONFIG = {
     'pedestal': {
         'explicit_pedestal': False,
         'structure_model': {
-            'model_name': 'set_T_ped_n_ped',
-            'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
-            'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
+            'model_name': 'set_T_top_n_top',
+            'T_i_top': {0: 2, 4: 2, 6: 5, 8: 4},
+            'T_e_top': {0: 2, 4: 2, 6: 5, 8: 4},
         },
     },
     'profile_conditions': {
         'I_p_source': 'profile_conditions',
-        'initial_psi_source': 'geometry',
+        'psi_source': 'geometry',
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'I_p': {0: 5e6, 4: 15e6, 6: 12e6, 8: 12e6},
         'n_e_right_bc': 0.5e20,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,
+        'n_e_bar_is_f_GW': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {
@@ -47,7 +47,7 @@ CONFIG = {
     },
     'plasma_composition': {},
     'geometry': {
-        'geometry_type': 'chease',
+        'model_name': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     },
     'sources': {
@@ -59,9 +59,14 @@ CONFIG = {
                 10: 120e6,
                 15: 120e6,
             },  # in W
+            'gaussian_location': 0.0,
         },
         'ei_exchange': {},
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
     },
     'transport': {
         'core_transport_models': {

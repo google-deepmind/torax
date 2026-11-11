@@ -19,9 +19,9 @@ import jax.numpy as jnp
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import circular_geometry
+from torax._src.sources import core_sources
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
@@ -40,6 +40,8 @@ class ImpurityRadiationConstantFractionTest(
   )
   model_name = 'P_in_scaled_flat_profile'
   needs_source_models = True
+  can_be_explicit = False
+  extra_source_config_kwargs = {'fraction_P_heating': 0.1}
 
   def test_source_value(self):
     heat_name = (
@@ -79,16 +81,17 @@ class ImpurityRadiationConstantFractionTest(
 
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource()
 
-    geo = circular_geometry.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_runtime_params(0.0).geometry
     heat_source_output, _ = heat_source.get_value(
         runtime_params,
         geo,
         mock.ANY,
-        None,
-        None,
         source_state=source_state_lib.SourceState(),
     )
-    el, ion = heat_source_output.profiles
+    ion = heat_source_output.power_density_i
+    el = heat_source_output.power_density_e
+    assert ion is not None
+    assert el is not None
 
     impurity_radiation_sink = (
         impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
@@ -98,28 +101,37 @@ class ImpurityRadiationConstantFractionTest(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
-        calculated_source_profiles=source_profiles.SourceProfiles(
+        calculated_core_sources=core_sources.CoreSources(
             bootstrap_current=mock.ANY,
             qei=mock.ANY,
-            T_e={
-                'foo': jnp.asarray(el),
-                'bremsstrahlung': -0.3 * jnp.asarray(el),
-                'cyclotron_radiation': -0.2 * jnp.asarray(el),
+            sources={
+                'foo': core_sources.SourceOutput(
+                    power_density_e=jnp.asarray(el)
+                ),
+                'bremsstrahlung': core_sources.SourceOutput(
+                    power_density_e=-0.3 * jnp.asarray(el)
+                ),
+                'cyclotron_radiation': core_sources.SourceOutput(
+                    power_density_e=-0.2 * jnp.asarray(el)
+                ),
+                'foo_source': core_sources.SourceOutput(
+                    power_density_i=jnp.asarray(ion)
+                ),
             },
-            T_i={'foo_source': jnp.asarray(ion)},
         ),
-        conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
 
-    self.assertLen(impurity_output.profiles, 1)
-    impurity_radiation_heat_sink_power_density = impurity_output.profiles[0]
+    impurity_radiation_heat_sink_power_density = impurity_output.power_density_e
+    assert impurity_radiation_heat_sink_power_density is not None
     # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.
     impurity_radiation_heat_sink_power = math_utils.volume_integration(
         impurity_radiation_heat_sink_power_density, geo
     )
+    assert heat_params.P_total is not None
+    assert impurity_radiation_params.fraction_P_heating is not None
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,
         heat_params.P_total * -impurity_radiation_params.fraction_P_heating,

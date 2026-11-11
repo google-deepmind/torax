@@ -11,26 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Ohmic heat source."""
+
 # pylint: disable=invalid-name
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
+from torax._src.sources import core_sources
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class OhmicHeatSource(source_lib.Source):
+class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
   """Ohmic heat source for electron heat equation.
 
   P_ohm = sigma * <E . B>^2 / <B^2>, the flux-surface-averaged collisional
@@ -42,20 +43,19 @@ class OhmicHeatSource(source_lib.Source):
   """
 
   SOURCE_ID: ClassVar[str] = 'ohmic'
-  AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_lib.AffectedCoreProfile, ...]
-  ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+  POPULATED_SOURCE_OUTPUTS: ClassVar[
+      tuple[core_sources.PopulatedSourceOutput, ...]
+  ] = (core_sources.PopulatedSourceOutput.POWER_DENSITY_E,)
 
   def _get_model_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: core_profiles_lib.CoreProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
+      *,
+      phi_b_dot: array_typing.FloatScalar,
+  ) -> tuple[core_sources.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.
 
     Does not modify source_state; returns it unchanged.
@@ -64,48 +64,38 @@ class OhmicHeatSource(source_lib.Source):
       runtime_params: Runtime parameters (unused).
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far (unused).
-      conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Precomputed loop voltage (dpsi/dt at fixed rho_norm) on the cell
-        grid.
+      phi_b_dot: Time derivative of the toroidal magnetic flux at the plasma
+        boundary (LCFS) [Wb/s].
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
-      source_state).
+      A tuple containing:
+        - SourceOutput, with the power_density_e profile populated.
+        - SourceState for this source.
     """
-    del runtime_params, calculated_source_profiles
-    if conductivity is None:
-      raise ValueError(
-          'conductivity is a required argument for'
-          ' OhmicHeatSource._get_model_value. This can occur if this source'
-          ' is used in an explicit source.'
-      )
-    if psidot is None:
-      raise ValueError(
-          'psidot is a required argument for'
-          ' OhmicHeatSource._get_model_value. This can occur if this source'
-          ' is used in an explicit source.'
-      )
-
+    del runtime_params
     # Joule dissipation of the Ohmic current, P_ohm = sigma <E.B>^2 / <B^2>,
     # with <E.B> from dpsi/dt at fixed toroidal flux (psidot is at fixed
     # rho_norm). See the "Ohmic power" section of docs/physics_models.rst.
     psidot_fixed_phi = (
-        psidot
+        core_profiles.psidot.value
         - geo.rho_norm
-        * geo.Phi_b_dot
+        * phi_b_dot
         / (2.0 * geo.Phi_b)
-        * core_profiles.psi.grad()
+        * core_profiles.poloidal_flux.psi.grad()
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
-    P_ohm = conductivity.sigma * E_dot_B**2 / geo.gm5
-    return source_profiles.SourceOutput(profiles=(P_ohm,)), source_state
+    P_ohm = core_profiles.conductivity.sigma * E_dot_B**2 / geo.gm5
+    return core_sources.SourceOutput(power_density_e=P_ohm), source_state
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):
-  """Configuration for the OhmicHeatSource."""
+  """Configuration for the OhmicHeatSource.
+
+  Attributes:
+    model_name: Name of the Ohmic heating model (`'standard'`).
+  """
 
   model_name: Annotated[Literal['standard'], torax_pydantic.JAX_STATIC] = (
       'standard'

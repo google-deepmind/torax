@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
+from torax._src import jax_utils
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 
@@ -30,7 +29,11 @@ class ConvertersTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    self.geo = (
+        circular_geometry.CircularConfig(n_rho=10)
+        .build_runtime_params(0.0)
+        .geometry
+    )
 
     T_i = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 1.0,
@@ -56,141 +59,109 @@ class ConvertersTest(parameterized.TestCase):
         right_face_constraint=jnp.array(0.8),
         right_face_grad_constraint=None,
     )
+    toroidal_angular_velocity = cell_variable.CellVariable(
+        value=jnp.ones(self.geo.rho_norm.shape) * 5.0,
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=jnp.array(0.9),
+        right_face_grad_constraint=None,
+    )
 
-    self.base_core_profiles = state.CoreProfiles(
+    self.base_solver_state = solver_state.SolverState(
         T_i=T_i,
         T_e=T_e,
         psi=psi,
         n_e=n_e,
-        n_i=mock.ANY,
-        n_impurity=mock.ANY,
-        impurity_fractions=mock.ANY,
-        main_ion_fractions=mock.ANY,
-        psidot=mock.ANY,
-        q_face=mock.ANY,
-        s_face=mock.ANY,
-        v_loop_lcfs=mock.ANY,
-        Z_i=mock.ANY,
-        Z_i_face=mock.ANY,
-        Z_eff=mock.ANY,
-        Z_eff_face=mock.ANY,
-        A_i=mock.ANY,
-        Z_impurity=mock.ANY,
-        Z_impurity_face=mock.ANY,
-        A_impurity=mock.ANY,
-        A_impurity_face=mock.ANY,
-        sigma=mock.ANY,
-        sigma_face=mock.ANY,
-        j_toroidal_total=mock.ANY,
-        j_toroidal_total_face=mock.ANY,
-        I_p_profile_face=mock.ANY,
-        toroidal_angular_velocity=mock.ANY,
-        poloidal_velocity=mock.ANY,
-        charge_state_info=mock.ANY,
-        charge_state_info_face=mock.ANY,
-        fast_ions=mock.ANY,
-    )
-
-  def test_core_profiles_to_solver_x_tuple(self):
-    evolving_names = ('T_e', 'n_e', 'psi')
-    solver_x_tuple = convertors.core_profiles_to_solver_x_tuple(
-        self.base_core_profiles,
-        evolving_names,
-    )
-    self.assertLen(solver_x_tuple, 3)
-
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[0].value, self.base_core_profiles.T_e.value, decimal=10
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[0].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-        self.base_core_profiles.T_e.right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[1].value,
-        self.base_core_profiles.n_e.value
-        / convertors.STATE_SCALING_FACTORS['n_e'],
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[1].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
-        self.base_core_profiles.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        / convertors.STATE_SCALING_FACTORS['n_e'],
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[2].value, self.base_core_profiles.psi.value, decimal=10
-    )
-    np.testing.assert_array_almost_equal(
-        solver_x_tuple[2].right_face_grad_constraint,  # pyrefly: ignore[bad-argument-type]
-        self.base_core_profiles.psi.right_face_grad_constraint,  # pyrefly: ignore[bad-argument-type]
-        decimal=10,
-    )
-
-  def test_solver_x_tuple_to_core_profiles(self):
-    evolving_names = ('T_e', 'n_e', 'psi')
-
-    # Simulate solver output
-    x_new_T_e_val = self.base_core_profiles.T_e.value * 1.5
-    x_new_n_e_val = self.base_core_profiles.n_e.value * 2.0
-    x_new_psi_val = self.base_core_profiles.psi.value * 3.0
-
-    x_new_solver_tuple = (
-        dataclasses.replace(
-            self.base_core_profiles.T_e,
-            value=x_new_T_e_val,
-        ),
-        dataclasses.replace(
-            self.base_core_profiles.n_e,
-            value=x_new_n_e_val,
-        ),
-        dataclasses.replace(
-            self.base_core_profiles.psi,
-            value=x_new_psi_val,
+        toroidal_angular_velocity=toroidal_angular_velocity,
+        psidot_right_face_grad_constraint=jnp.asarray(
+            1.1, dtype=jax_utils.get_dtype()
         ),
     )
 
-    updated_cp = convertors.solver_x_tuple_to_core_profiles(
-        x_new_solver_tuple,
-        evolving_names,
-        self.base_core_profiles,
-    )
-
-    np.testing.assert_array_almost_equal(
-        updated_cp.T_e.value, x_new_T_e_val, decimal=10
-    )
-    np.testing.assert_array_almost_equal(
-        updated_cp.n_e.value,
-        x_new_n_e_val * convertors.STATE_SCALING_FACTORS['n_e'],
-        decimal=10,
-    )
-    np.testing.assert_array_almost_equal(
-        updated_cp.psi.value, x_new_psi_val, decimal=10
-    )
-
-    # Check non-evolving variables are untouched from the template
-    np.testing.assert_array_almost_equal(
-        updated_cp.T_i.value, self.base_core_profiles.T_i.value, decimal=10
-    )
-
-  def test_core_profiles_to_x_round_trip(self):
-    evolving_names = ('T_e', 'n_e', 'psi')
-    checked_names = ('T_e', 'T_i', 'n_e', 'psi')
-    x_solver_tuple = convertors.core_profiles_to_solver_x_tuple(
-        self.base_core_profiles,
+  def test_solver_state_to_x_round_trip(self):
+    evolving_names = ('T_i', 'T_e', 'psi', 'n_e')
+    x_solver_tuple = convertors.solver_state_to_solver_x_tuple(
+        self.base_solver_state,
         evolving_names,
     )
-    updated_cp = convertors.solver_x_tuple_to_core_profiles(
+    self.assertLen(x_solver_tuple, len(evolving_names))
+
+    for name, cv in zip(evolving_names, x_solver_tuple):
+      base_cv = getattr(self.base_solver_state, name)
+      scaling = convertors.STATE_SCALING_FACTORS[name]
+      np.testing.assert_allclose(cv.value, base_cv.value / scaling)
+      if base_cv.right_face_constraint is not None:
+        assert cv.right_face_constraint is not None
+        np.testing.assert_allclose(
+            cv.right_face_constraint,
+            base_cv.right_face_constraint / scaling,
+        )
+      if base_cv.right_face_grad_constraint is not None:
+        assert cv.right_face_grad_constraint is not None
+        np.testing.assert_allclose(
+            cv.right_face_grad_constraint,
+            base_cv.right_face_grad_constraint / scaling,
+        )
+
+    result = convertors.solver_x_tuple_to_solver_state(
         x_solver_tuple,
         evolving_names,
-        self.base_core_profiles,
+        self.base_solver_state,
     )
-    for name in checked_names:
+    for name in (
+        'T_i',
+        'T_e',
+        'psi',
+        'n_e',
+        'toroidal_angular_velocity',
+    ):
       chex.assert_trees_all_close(
-          getattr(updated_cp, name),
-          getattr(self.base_core_profiles, name),
+          getattr(result, name),
+          getattr(self.base_solver_state, name),
       )
+    chex.assert_trees_all_close(
+        result.psidot_right_face_grad_constraint,
+        self.base_solver_state.psidot_right_face_grad_constraint,
+    )
+
+  @parameterized.parameters(
+      (('T_e',),),
+      (('T_i', 'T_e', 'n_e'),),
+      (('T_i', 'T_e', 'psi', 'n_e'),),
+  )
+  def test_solver_x_tuple_to_solver_state_updates_evolving(
+      self, evolving_names: tuple[str, ...]
+  ):
+    x_new_solver_tuple = tuple(
+        dataclasses.replace(
+            getattr(self.base_solver_state, name),
+            value=getattr(self.base_solver_state, name).value
+            / convertors.STATE_SCALING_FACTORS[name]
+            * 2.5,
+        )
+        for name in evolving_names
+    )
+    result = convertors.solver_x_tuple_to_solver_state(
+        x_new_solver_tuple,
+        evolving_names,
+        self.base_solver_state,
+    )
+    for name in (
+        'T_i',
+        'T_e',
+        'psi',
+        'n_e',
+        'toroidal_angular_velocity',
+    ):
+      base_cv = getattr(self.base_solver_state, name)
+      updated_cv = getattr(result, name)
+      if name in evolving_names:
+        np.testing.assert_allclose(updated_cv.value, base_cv.value * 2.5)
+      else:
+        chex.assert_trees_all_close(updated_cv, base_cv)
+    chex.assert_trees_all_close(
+        result.psidot_right_face_grad_constraint,
+        self.base_solver_state.psidot_right_face_grad_constraint,
+    )
 
   @parameterized.parameters('T_i', 'T_e', 'n_e', 'psi')
   def test_compute_channel_residual_scale(self, channel: str):
@@ -215,14 +186,14 @@ class ConvertersTest(parameterized.TestCase):
 
   def test_compute_residual_scaling_vector(self):
     evolving_names = ('T_e', 'n_e', 'psi')
-    n_cells = len(self.base_core_profiles.T_e.value)
+    n_cells = len(self.base_solver_state.T_e.value)
     psi = dataclasses.replace(
-        self.base_core_profiles.psi,
+        self.base_solver_state.psi,
         value=jnp.linspace(0.0, 5.0, n_cells),
     )
     x_old = (
-        self.base_core_profiles.T_e,
-        self.base_core_profiles.n_e,
+        self.base_solver_state.T_e,
+        self.base_solver_state.n_e,
         psi,
     )
     scales = convertors.compute_residual_scaling_vector(evolving_names, x_old)
