@@ -56,6 +56,7 @@ class IMASSliceData(torax_pydantic.ConfigBase):
     B_0: Vacuum toroidal magnetic field at `R_major` [T].
     z_magnetic_axis: Vertical coordinate of the magnetic axis [m].
     diverted: Whether the boundary configuration is diverted.
+    r0_vacuum: Reference major radius of the input vacuum toroidal field [m].
   """
 
   psi: torax_pydantic.NumpyArray1D
@@ -82,6 +83,7 @@ class IMASSliceData(torax_pydantic.ConfigBase):
   B_0: float
   z_magnetic_axis: float | None = None
   diverted: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  r0_vacuum: float | None = None
 
 
 def extract_slice_data(
@@ -276,6 +278,11 @@ class IMASConfig(base.GeometryConfigBase):
         R_OMP=None,
         R_target=None,
         B_pol_OMP=None,
+        r0_vacuum=(
+            np.array(slice_data.r0_vacuum)
+            if slice_data.r0_vacuum is not None
+            else None
+        ),
     )
     return standard_geometry.build_standard_geometry(intermediates)
 
@@ -293,3 +300,15 @@ class IMASConfig(base.GeometryConfigBase):
         float(t): self._build_slice_geometry(data)
         for t, data in self.imas_data.items()
     }
+
+  def tree_flatten(self):
+    # imas_data is host-side input to the precomputed geometry. Its slice times
+    # are dict keys, which would end up in the treedef and retrigger JIT
+    # compilation whenever the slice times change (e.g. a coupled run updating
+    # the geometry every step). The precomputed geometry carries the times as
+    # array data instead.
+    dynamic_children, static_children = super().tree_flatten()
+    imas_data_index = self._jit_dynamic_kwarg_names().index('imas_data')
+    dynamic_children = list(dynamic_children)
+    dynamic_children[imas_data_index] = None
+    return tuple(dynamic_children), static_children

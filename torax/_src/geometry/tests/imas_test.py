@@ -14,6 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 import numpy as np
 from torax._src.fvm import cell_variable
 from torax._src.geometry import base
@@ -69,6 +70,36 @@ class IMASGeometryTest(parameterized.TestCase):
     })
     geo = cfg.build_runtime_params(0.0).geometry
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
+
+  def test_new_slice_times_do_not_retrace(self):
+    """Updating the slice times keeps the treedef, so jit does not retrace."""
+    cfg = imas.IMASConfig.from_dict({
+        'imas_filepath': 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc',
+    })
+    slices = list(cfg.imas_data.values())[:2]
+
+    def config_at(t0):
+      shifted = imas.IMASConfig.from_dict(
+          {'imas_data': {t0: slices[0], t0 + 1.0: slices[1]}}
+      )
+      shifted.precompute()
+      return shifted
+
+    n_traces = 0
+
+    @jax.jit
+    def f(config, t):
+      nonlocal n_traces
+      n_traces += 1
+      return config.build_runtime_params(t).geometry.vpr
+
+    first, second = config_at(0.0), config_at(10.0)
+    self.assertEqual(
+        jax.tree_util.tree_structure(first),
+        jax.tree_util.tree_structure(second),
+    )
+    np.testing.assert_allclose(f(first, 0.5), f(second, 10.5))
+    self.assertEqual(n_traces, 1)
 
   def test_gm4_gm5_terms(self):
     """Test that gm4 and gm5 are correctly computed."""

@@ -443,6 +443,7 @@ def _geometry_from_single_slice(
       "R_OMP": None,
       "R_target": None,
       "B_pol_OMP": None,
+      "r0_vacuum": r0,
   })
 
 
