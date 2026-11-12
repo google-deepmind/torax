@@ -300,3 +300,15 @@ class IMASConfig(base.GeometryConfigBase):
         float(t): self._build_slice_geometry(data)
         for t, data in self.imas_data.items()
     }
+
+  def tree_flatten(self):
+    # imas_data is host-side input to the precomputed geometry. Its slice times
+    # are dict keys, which would end up in the treedef and retrigger JIT
+    # compilation whenever the slice times change (e.g. a coupled run updating
+    # the geometry every step). The precomputed geometry carries the times as
+    # array data instead.
+    dynamic_children, static_children = super().tree_flatten()
+    imas_data_index = self._jit_dynamic_kwarg_names().index('imas_data')
+    dynamic_children = list(dynamic_children)
+    dynamic_children[imas_data_index] = None
+    return tuple(dynamic_children), static_children
