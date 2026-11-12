@@ -345,6 +345,22 @@ class EdgeModelOutputsDataTreeTest(parameterized.TestCase):
     )
     self.assertFalse(bool(parsed.valid_for_core_update))
 
+  def test_from_datatree_nan_overrides_saved_valid_for_core_update(self):
+    # As in a stitched file where an impurity species was added on restart:
+    # earlier rows pad that species with NaN next to a saved flag.
+    ds_nan_padded = xr.Dataset(
+        data_vars={
+            output_keys.T_E_RIGHT_BC: ((), 100.0),
+            output_keys.IMPURITY_RIGHT_BC: (('impurity',), [0.03, np.nan]),
+            output_keys.VALID_FOR_CORE_UPDATE: ((), True),
+        },
+        coords={'impurity': ['Ne', 'Ar']},
+    )
+    parsed = edge_base.EdgeModelOutputs.from_datatree(
+        xr.DataTree(dataset=ds_nan_padded)
+    )
+    self.assertFalse(bool(parsed.valid_for_core_update))
+
   def test_from_datatree_with_explicit_valid_for_core_update_false(self):
     ds_invalid = xr.Dataset(
         data_vars={

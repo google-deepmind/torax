@@ -28,7 +28,6 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_state as geometry_state_lib
 from torax._src.geometry import runtime_params as geometry_runtime_params
-import xarray as xr
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -43,16 +42,6 @@ class GeometryModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: core_profiles_lib.CoreProfiles | None = None,
   ) -> tuple[geometry.Geometry, geometry_state_lib.GeometryState]:
     """Evaluates initial `Geometry` and `GeometryState` at `t_initial`."""
-
-  def initial_state_from_datatree(
-      self,
-      datatree: xr.DataTree | None,
-      runtime_params: runtime_params_lib.RuntimeParams,
-  ) -> geometry_state_lib.GeometryState:
-    """Reconstructs GeometryState from a `/model_state/geometry` DataTree."""
-    del datatree
-    _, state = self.initialize(runtime_params)
-    return state
 
   @abc.abstractmethod
   def __call__(

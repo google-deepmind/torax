@@ -67,6 +67,20 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
     """Initializes the pedestal state and output."""
 
   @abc.abstractmethod
+  def top_level_state_from_datatree(
+      self,
+      datatree: xr.DataTree,
+  ) -> pedestal_state_lib.PedestalState:
+    """Reconstructs PedestalState from a DataTree, excluding sub-model states.
+
+    The structure and formation sub-states are left at their defaults, so that
+    callers can restore or cold-start them separately.
+
+    Args:
+      datatree: Time-sliced `/model_state/pedestal` DataTree.
+    """
+
+  @abc.abstractmethod
   def initial_state_from_datatree(
       self,
       datatree: xr.DataTree | None,
@@ -194,17 +208,11 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
         pedestal_state,
     )
 
-  def initial_state_from_datatree(
+  def top_level_state_from_datatree(
       self,
-      datatree: xr.DataTree | None,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      datatree: xr.DataTree,
   ) -> pedestal_state_lib.IBCPedestalState:
-    """Reconstructs IBCPedestalState from a DataTree."""
-    if datatree is None:
-      raise ValueError(
-          'InternalBoundaryConditionPedestalModel requires a non-None '
-          'pedestal DataTree.'
-      )
+    """Reconstructs IBCPedestalState, excluding sub-model states."""
     required_keys = (
         output_keys.CONFINEMENT_MODE,
         output_keys.TRANSITION_START_TIME,
@@ -218,20 +226,9 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       raise ValueError(
           f'Missing required variables in pedestal DataTree: {missing}'
       )
-    children = datatree.children
-    structure_state = self.structure_model.initial_state_from_datatree(
-        children.get(output_keys.PEDESTAL_STRUCTURE),
-        runtime_params,
-    )
-    formation_state = self.formation_model.initial_state_from_datatree(
-        children.get(output_keys.PEDESTAL_FORMATION),
-        runtime_params,
-    )
     ds = datatree.dataset
     dtype = jax_utils.get_dtype()
     return pedestal_state_lib.IBCPedestalState(
-        structure=structure_state,
-        formation=formation_state,
         confinement_mode=jnp.asarray(
             np.squeeze(ds[output_keys.CONFINEMENT_MODE].values),
             dtype=jax_utils.get_int_dtype(),
@@ -251,6 +248,30 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
         ),
         rho_norm_top=jnp.asarray(
             np.squeeze(ds[output_keys.RHO_NORM_TOP].values), dtype=dtype
+        ),
+    )
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.IBCPedestalState:
+    """Reconstructs IBCPedestalState from a DataTree."""
+    if datatree is None:
+      raise ValueError(
+          'InternalBoundaryConditionPedestalModel requires a non-None '
+          'pedestal DataTree.'
+      )
+    children = datatree.children
+    return dataclasses.replace(
+        self.top_level_state_from_datatree(datatree),
+        structure=self.structure_model.initial_state_from_datatree(
+            children.get(output_keys.PEDESTAL_STRUCTURE),
+            runtime_params,
+        ),
+        formation=self.formation_model.initial_state_from_datatree(
+            children.get(output_keys.PEDESTAL_FORMATION),
+            runtime_params,
         ),
     )
 
@@ -434,16 +455,12 @@ class AdaptiveTransportPedestalModel(PedestalModel):
     )
     return output, pedestal_state
 
-  def initial_state_from_datatree(
+  def top_level_state_from_datatree(
       self,
-      datatree: xr.DataTree | None,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      datatree: xr.DataTree,
   ) -> pedestal_state_lib.AdaptiveTransportPedestalState:
-    """Reconstructs AdaptiveTransportPedestalState from a DataTree."""
-    if (
-        datatree is None
-        or output_keys.CONFINEMENT_MODE not in datatree.dataset.data_vars
-    ):
+    """Reconstructs the adaptive state, excluding sub-model states."""
+    if output_keys.CONFINEMENT_MODE not in datatree.dataset.data_vars:
       raise ValueError(
           'AdaptiveTransportPedestalModel requires confinement_mode in '
           'pedestal DataTree.'
@@ -459,20 +476,33 @@ class AdaptiveTransportPedestalModel(PedestalModel):
           f'Invalid confinement_mode {mode_val} for '
           'AdaptiveTransportPedestalModel.'
       )
-    children = datatree.children
-    structure_state = self.structure_model.initial_state_from_datatree(
-        children.get(output_keys.PEDESTAL_STRUCTURE),
-        runtime_params,
-    )
-    formation_state = self.formation_model.initial_state_from_datatree(
-        children.get(output_keys.PEDESTAL_FORMATION),
-        runtime_params,
-    )
     return pedestal_state_lib.AdaptiveTransportPedestalState(
-        structure=structure_state,
-        formation=formation_state,
         confinement_mode=jnp.asarray(
             mode_val, dtype=jax_utils.get_int_dtype()
+        ),
+    )
+
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_state_lib.AdaptiveTransportPedestalState:
+    """Reconstructs AdaptiveTransportPedestalState from a DataTree."""
+    if datatree is None:
+      raise ValueError(
+          'AdaptiveTransportPedestalModel requires confinement_mode in '
+          'pedestal DataTree.'
+      )
+    children = datatree.children
+    return dataclasses.replace(
+        self.top_level_state_from_datatree(datatree),
+        structure=self.structure_model.initial_state_from_datatree(
+            children.get(output_keys.PEDESTAL_STRUCTURE),
+            runtime_params,
+        ),
+        formation=self.formation_model.initial_state_from_datatree(
+            children.get(output_keys.PEDESTAL_FORMATION),
+            runtime_params,
         ),
     )
 

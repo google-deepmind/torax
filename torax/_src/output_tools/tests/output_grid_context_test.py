@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+import xarray as xr
 
 
 class OutputGridContextTest(parameterized.TestCase):
@@ -219,6 +220,25 @@ class OutputGridContextTest(parameterized.TestCase):
         [[1.0, 10.0, 20.0, 30.0, 4.0], [1.0, 10.0, 20.0, 30.0, 4.0]]
     )
     np.testing.assert_array_equal(extended, expected)
+
+  def test_has_saved_state(self):
+    with self.subTest("none"):
+      self.assertFalse(output_grid_context.has_saved_state(None))
+
+    with self.subTest("empty"):
+      self.assertFalse(output_grid_context.has_saved_state(xr.DataTree()))
+
+    with self.subTest("populated"):
+      ds = xr.Dataset({"a": np.nan})
+      self.assertTrue(
+          output_grid_context.has_saved_state(xr.DataTree(dataset=ds))
+      )
+
+    with self.subTest("nested_children"):
+      tree = xr.DataTree(
+          children={"sub": xr.DataTree(dataset=xr.Dataset({"a": 1.0}))}
+      )
+      self.assertTrue(output_grid_context.has_saved_state(tree))
 
 
 if __name__ == "__main__":

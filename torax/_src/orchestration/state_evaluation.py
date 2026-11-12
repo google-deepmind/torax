@@ -19,8 +19,11 @@ internal boundary conditions, and transport coefficients that depend on the
 primary SolverState and runtime configuration.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 import dataclasses
+from typing import Any
+
+from absl import logging
 
 import jax
 from jax import numpy as jnp
@@ -39,6 +42,7 @@ from torax._src.core_profiles import (
 )
 from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_state as geometry_state_lib
 from torax._src.internal_boundary_conditions import (
     builder as internal_boundary_conditions_builder,
 )
@@ -55,9 +59,12 @@ from torax._src.neoclassical.bootstrap_current import (
 from torax._src.orchestration import (
     explicit_model_outputs as explicit_model_outputs_lib,
 )
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
+from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.physics import psi_calculations
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.sources import source_models as source_models_lib
@@ -66,6 +73,7 @@ from torax._src.sources import source_state as source_state_lib
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
+import xarray as xr
 
 
 @jax.tree_util.register_dataclass
@@ -407,25 +415,219 @@ def _evaluate_ibc_and_transport(
   return internal_boundary_conditions, core_transport, updated_transport_state
 
 
+def get_child(datatree: xr.DataTree | None, key: str) -> xr.DataTree | None:
+  """Returns child node `key` of `datatree`, or None if either is absent."""
+  return datatree.children.get(key) if datatree is not None else None
+
+
+def restore_or_cold_start(
+    datatree: xr.DataTree | None,
+    restore_fn: Callable[[xr.DataTree], Any],
+    cold_start_fn: Callable[[], Any],
+    *,
+    label: str,
+    t: object,
+) -> tuple[Any, bool]:
+  """Restores state from `datatree` if present and compatible, else cold-starts.
+
+  Args:
+    datatree: Time-sliced DataTree for the model, or None.
+    restore_fn: Restores state from a non-empty `datatree`.
+    cold_start_fn: Produces a fresh state when saved state is absent or invalid.
+    label: Human-readable model/state label for warning logs.
+    t: Restart time for warning logs.
+
+  Returns:
+    A tuple of (state, was_restored).
+  """
+  if output_grid_context.has_saved_state(datatree):
+    try:
+      return restore_fn(datatree), True
+    except ValueError as err:
+      logging.warning(
+          'Incompatible saved %s at t=%s (%s); initializing fresh state.',
+          label,
+          t,
+          err,
+      )
+      return cold_start_fn(), False
+  state = cold_start_fn()
+  if jax.tree.leaves(state):
+    logging.warning(
+        'No saved %s at t=%s; initializing fresh state.',
+        label,
+        t,
+    )
+  return state, False
+
+
+def _restore_state(
+    model: Any,
+    datatree: xr.DataTree | None,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    *,
+    label: str,
+) -> tuple[Any, bool]:
+  """Restores one model's saved state, or cold-starts it."""
+  return restore_or_cold_start(
+      datatree,
+      lambda dt: model.initial_state_from_datatree(dt, runtime_params),
+      lambda: model.initial_state(runtime_params),
+      label=label,
+      t=runtime_params.t,
+  )
+
+
+def _restore_states(
+    named_models: Mapping[str, Any],
+    datatree: xr.DataTree | None,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    *,
+    kind: str,
+) -> tuple[dict[str, Any], set[str]]:
+  """Restores saved per-model states, or cold-starts models without one."""
+  states: dict[str, Any] = {}
+  restored: set[str] = set()
+  for name, model in named_models.items():
+    states[name], was_restored = _restore_state(
+        model,
+        get_child(datatree, name),
+        runtime_params,
+        label=f'{kind} {name!r} state',
+    )
+    if was_restored:
+      restored.add(name)
+  return states, restored
+
+
+def _keep_restored(
+    seed_states: Mapping[str, Any],
+    restored: set[str],
+    evaluated_states: Mapping[str, Any],
+) -> dict[str, Any]:
+  """Keeps restored states (for explicit models) and evaluated cold-starts."""
+  return {
+      name: seed_states[name] if name in restored else evaluated_states[name]
+      for name in seed_states
+  }
+
+
+def _restore_geometry_state(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    models: models_lib.Models,
+    restart_datatree: xr.DataTree,
+) -> geometry_state_lib.GeometryState:
+  """Restores GeometryState using a saved Phi_b_dot if available."""
+  if runtime_params.geometry.calc_Phi_b_dot:
+    scalars = restart_datatree.children[output_keys.SCALARS].dataset.squeeze()
+    if output_keys.PHI_B_DOT in scalars.data_vars:
+      return geometry_state_lib.GeometryState.from_geometry(
+          geo,
+          Phi_b_dot=jnp.asarray(
+              scalars.data_vars[output_keys.PHI_B_DOT].to_numpy(),
+              dtype=jax_utils.get_dtype(),
+          ),
+      )
+  _, geometry_state = models.geometry_model.initialize(runtime_params)
+  return geometry_state
+
+
+def _restore_pedestal_state(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: core_profiles_lib.CoreProfiles,
+    models: models_lib.Models,
+    pedestal_tree: xr.DataTree | None,
+) -> pedestal_state_lib.PedestalState | None:
+  """Restores PedestalState from `pedestal_tree`, or returns None to init."""
+  if not output_grid_context.has_saved_state(pedestal_tree):
+    logging.warning(
+        'No saved pedestal state at t=%s; initializing fresh state.',
+        runtime_params.t,
+    )
+    return None
+  try:
+    top_level_state = models.pedestal_model.top_level_state_from_datatree(
+        pedestal_tree
+    )
+  except ValueError as err:
+    logging.warning(
+        'Incompatible saved pedestal state at t=%s (%s); initializing fresh'
+        ' state.',
+        runtime_params.t,
+        err,
+    )
+    return None
+
+  def _restore_sub(sub_model: Any, key: str, label: str) -> Any:
+    state, _ = restore_or_cold_start(
+        get_child(pedestal_tree, key),
+        lambda dt: sub_model.initial_state_from_datatree(dt, runtime_params),
+        lambda: sub_model.initial_state(runtime_params, geo, core_profiles),
+        label=label,
+        t=runtime_params.t,
+    )
+    return state
+
+  return dataclasses.replace(
+      top_level_state,
+      structure=_restore_sub(
+          models.pedestal_model.structure_model,
+          output_keys.PEDESTAL_STRUCTURE,
+          'pedestal structure state',
+      ),
+      formation=_restore_sub(
+          models.pedestal_model.formation_model,
+          output_keys.PEDESTAL_FORMATION,
+          'pedestal formation state',
+      ),
+  )
+
+
 def evaluate_initial_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     solver_state: solver_state_lib.SolverState,
     models: models_lib.Models,
+    restart_datatree: xr.DataTree | None = None,
 ) -> tuple[EvaluatedState, model_state_lib.ModelState]:
-  """Evaluates derived state variables and initial model state at t = 0.
+  """Evaluates derived state variables and initial ModelState.
+
+  On a fresh start, every stateful model is cold-started from the plasma state
+  at `runtime_params.t`. On a file restart, each model's saved state in
+  `restart_datatree` is restored when present and compatible; otherwise the
+  model is cold-started and a warning is logged.
 
   Args:
-    runtime_params: Runtime configuration parameters at t = 0.
-    geo: Magnetic geometry at t = 0.
+    runtime_params: Runtime configuration parameters at the (re)start time.
+    geo: Magnetic geometry at the (re)start time.
     solver_state: Initial primary profiles.
     models: Physical models configured for the simulation.
+    restart_datatree: Time-sliced output DataTree to restart from, or None for a
+      fresh start.
 
   Returns:
     A tuple of (EvaluatedState, initial_model_state).
   """
-  _, initial_geometry_state = models.geometry_model.initialize(runtime_params)
-  initial_source_states = models.source_models.initial_state(runtime_params)
+  model_state_tree = get_child(restart_datatree, output_keys.MODEL_STATE)
+
+  # Geometry and sources.
+  if restart_datatree is None:
+    _, geometry_state = models.geometry_model.initialize(runtime_params)
+    seed_source_states = models.source_models.initial_state(runtime_params)
+    restored_sources: set[str] = set()
+  else:
+    geometry_state = _restore_geometry_state(
+        runtime_params, geo, models, restart_datatree
+    )
+    seed_source_states, restored_sources = _restore_states(
+        models.source_models.standard_sources,
+        get_child(model_state_tree, output_keys.SOURCES),
+        runtime_params,
+        kind='source',
+    )
+
   (
       core_profiles,
       basic_source_outputs,
@@ -438,12 +640,12 @@ def evaluate_initial_state(
       solver_state=solver_state,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
-      source_states=initial_source_states,
+      source_states=seed_source_states,
       explicit=True,
       calculate_anyway=True,
-      phi_b_dot=initial_geometry_state.Phi_b_dot,
+      phi_b_dot=geometry_state.Phi_b_dot,
   )
-  total_source_profiles, initial_source_states = (
+  total_source_profiles, evaluated_source_states = (
       source_profile_builders.evaluate_dependent_sources(
           runtime_params=runtime_params,
           geo=geo,
@@ -452,43 +654,100 @@ def evaluate_initial_state(
           source_states=basic_source_states,
           basic_source_outputs=basic_source_outputs,
           bootstrap_current=bootstrap_current,
-          phi_b_dot=initial_geometry_state.Phi_b_dot,
+          phi_b_dot=geometry_state.Phi_b_dot,
       )
   )
-  initial_pedestal_output, initial_pedestal_state = (
-      models.pedestal_model.initialize(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          source_profiles=total_source_profiles,
-      )
-  )
+
+  # Pedestal.
+  if restart_datatree is None:
+    pedestal_state = None
+  else:
+    pedestal_state = _restore_pedestal_state(
+        runtime_params,
+        geo,
+        core_profiles,
+        models,
+        get_child(model_state_tree, output_keys.PEDESTAL),
+    )
+  if pedestal_state is None:
+    pedestal_output, pedestal_state = models.pedestal_model.initialize(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=total_source_profiles,
+    )
+  else:
+    pedestal_output, _ = models.pedestal_model(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=total_source_profiles,
+        pedestal_state=pedestal_state,
+    )
+
+  # Transport.
+  if restart_datatree is None:
+    seed_transport_state = models.transport_model.initial_state(runtime_params)
+    restored_core_transport: set[str] = set()
+    restored_ped_transport: set[str] = set()
+  else:
+    transport_tree = get_child(model_state_tree, output_keys.TRANSPORT)
+    seed_core_transport, restored_core_transport = _restore_states(
+        models.transport_model.core_transport_models,
+        get_child(transport_tree, output_keys.CORE),
+        runtime_params,
+        kind='core transport model',
+    )
+    seed_ped_transport, restored_ped_transport = _restore_states(
+        models.transport_model.pedestal_transport_models,
+        get_child(transport_tree, output_keys.PEDESTAL),
+        runtime_params,
+        kind='pedestal transport model',
+    )
+    seed_transport_state = transport_state_lib.TransportState(
+        core_transport_states=seed_core_transport,
+        pedestal_transport_states=seed_ped_transport,
+    )
   (
       internal_boundary_conditions,
       core_transport,
-      initial_transport_state,
+      evaluated_transport_state,
   ) = _evaluate_ibc_and_transport(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
-      pedestal_output=initial_pedestal_output,
+      pedestal_output=pedestal_output,
       models=models,
       source_profiles=total_source_profiles,
       neoclassical_intermediates=neoclassical_intermediates,
-      transport_state=models.transport_model.initial_state(runtime_params),
+      transport_state=seed_transport_state,
       use_pereverzev=False,
   )
+
   evaluated_state = EvaluatedState(
       core_profiles=core_profiles,
       core_sources=total_source_profiles,
       core_transport=core_transport,
-      pedestal_output=initial_pedestal_output,
+      pedestal_output=pedestal_output,
       internal_boundary_conditions=internal_boundary_conditions,
   )
   initial_model_state = model_state_lib.ModelState(
-      geometry=initial_geometry_state,
-      pedestal=initial_pedestal_state,
-      transport=initial_transport_state,
-      sources=initial_source_states,
+      geometry=geometry_state,
+      pedestal=pedestal_state,
+      transport=transport_state_lib.TransportState(
+          core_transport_states=_keep_restored(
+              seed_transport_state.core_transport_states,
+              restored_core_transport,
+              evaluated_transport_state.core_transport_states,
+          ),
+          pedestal_transport_states=_keep_restored(
+              seed_transport_state.pedestal_transport_states,
+              restored_ped_transport,
+              evaluated_transport_state.pedestal_transport_states,
+          ),
+      ),
+      sources=_keep_restored(
+          seed_source_states, restored_sources, evaluated_source_states
+      ),
   )
   return evaluated_state, initial_model_state
