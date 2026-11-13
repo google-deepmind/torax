@@ -102,7 +102,7 @@ def profile_conditions_from_IMAS(
 
   # Map v_loop_lcfs in case it is used as bc for psi equation.
   if ids.global_quantities.v_loop:
-    v_loop_lcfs = (time_array, ids.global_quantities.v_loop)
+    v_loop_lcfs = (time_array, -1 * ids.global_quantities.v_loop)
   else:
     v_loop_lcfs = None
 
