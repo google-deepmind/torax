@@ -218,8 +218,7 @@ class StaticDataclass:
     # Make sure nested dataclasses are StaticDataclass
     for v, field in zip(values, fields):
       n = field.name
-      if (dataclasses.is_dataclass(cur_value) and  # pyrefly: ignore[unbound-name]
-          not isinstance(cur_value, StaticDataclass)):
+      if dataclasses.is_dataclass(v) and not isinstance(v, StaticDataclass):
         raise TypeError(
             f"{self}.{n} is a dataclass but not a "
             "StaticDataclass. The whole hierarchy must be "
