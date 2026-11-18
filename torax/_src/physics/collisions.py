@@ -308,7 +308,6 @@ def calculate_tau_ii(
   return jnp.exp(log_tau_ii)
 
 
-# TODO(b/377225415): generalize to arbitrary number of ions.
 def _calculate_weighted_Z_eff(
     core_profiles: solver_profiles.SolverProfiles,
 ) -> jax.Array:

@@ -517,7 +517,6 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       v_ExB_shear = v_ExB_shear * transport.rotation_multiplier
       return v_ExB_shear
 
-    # TODO(b/381199010): Validate against existing frameworks.
     if transport.use_rotation:
       v_ExB_shear = _get_v_ExB_shear(
           core_profiles,

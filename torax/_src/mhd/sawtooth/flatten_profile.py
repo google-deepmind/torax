@@ -200,8 +200,6 @@ def flatten_current_profile(
   # Construct a new psi profile using the new j_toroidal_total profile.
   # Since we will need to use a hires j_toroidal_total profile, we expect a
   # minor deviation from the conserved current.
-  # TODO(b/317360481). Come up with a better way to conserve current through
-  # the j-->psi conversion.
 
   new_j_toroidal_total_hires = jnp.interp(
       geo.rho_hires_norm, geo.rho_norm, new_j_toroidal_total

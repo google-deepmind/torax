@@ -64,10 +64,8 @@ def _extrapolate_cell_profile_to_axis(
   Returns:
       The cell profile with modified near-axis values.
   """
-  # TODO(b/464285811): Replace with a more sophisticated extrapolation method
-  # (eg splines)
-  # Current method: Extend the value of the first cell where rho_norm >=
-  # min_rho_norm to the axis.
+  # Extend the value of the first cell where rho_norm >= min_rho_norm to the
+  # axis.
   mask = geo.rho_norm >= min_rho_norm
   # In a boolean array, argmax returns the index of the first True and returns 0
   # if all False
@@ -87,10 +85,8 @@ def _extrapolate_face_profile_to_axis(
     min_rho_norm: array_typing.FloatScalar,
 ) -> array_typing.FloatVectorFace:
   """Extrapolates the value of a face profile towards the axis."""
-  # TODO(b/464285811): Replace with a more sophisticated extrapolation method
-  # (eg splines)
-  # Current method: Extend the value of the first cell where rho_norm >=
-  # min_rho_norm to the axis. Note that if there is a face i s.t.
+  # Extend the value of the first cell where rho_norm >= min_rho_norm to the
+  # axis. Note that if there is a face i s.t.
   # min_rho_norm <= rho_face_norm[i] <= first_cell_greater_than_min_rho_norm,
   # the value at this face will also be modified.
   mask = geo.rho_norm >= min_rho_norm

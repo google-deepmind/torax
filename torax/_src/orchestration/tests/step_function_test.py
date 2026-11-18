@@ -216,7 +216,6 @@ class StepFunctionTest(parameterized.TestCase):
     )
 
   def test_fixed_step_with_larger_passed_max_dt(self):
-    # TODO(b/456188184): Improve test coverage for the fixed step function.
     config_dt = 0.1
     passed_max_dt = 1.0
 
