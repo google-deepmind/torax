@@ -746,6 +746,62 @@ class InitialStateTest(sim_test_case.SimTestCase):
     with self.assertRaises(dataclasses.FrozenInstanceError):
       plasma_comp.main_ion_names = ()  # pyrefly: ignore[read-only]
 
+  @parameterized.named_parameters(
+      ('implicit', False),
+      ('explicit', True),
+  )
+  def test_restart_particle_feedback(self, is_explicit: bool):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
+    config_dict['numerics']['evolve_density'] = True
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.0,
+        't_final': 0.25,
+        'exact_t_final': True,
+    }
+    config_dict['sources'] = {
+        'generic_particle': {
+            'model_name': 'feedback',
+            'is_explicit': is_explicit,
+            'proportional_gain': 1e2,
+            'integral_gain': 5e2,
+            'derivative_gain': 1e1,
+            'derivative_smoothing_time_scale': 0.05,
+            'target_average_n_e': 1.2e20,
+            'S_feedforward': 1e21,
+        }
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, f'continuous_pid_{is_explicit}.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.15
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.15,
+        'do_restart': True,
+        'stitch': True,
+    }
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    restarted_xr = restarted_res.simulation_output_to_xr()
+
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, restarted_xr, continuous_xr)
+
 
 if __name__ == '__main__':
   absltest.main()

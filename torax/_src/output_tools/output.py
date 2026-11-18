@@ -80,6 +80,9 @@ def concat_datatrees(
   """Concats two xr.DataTrees along the time dimension.
 
   For any duplicate time steps, the values from the first dataset are kept.
+  Child subtrees present in only one DataTree (e.g. stateful models enabled or
+  disabled across a restart) are reindexed onto the concatenated time coordinate
+  with NaN padding outside their active time range.
 
   Args:
     tree1: The first xr.DataTree to concatenate.
@@ -88,6 +91,15 @@ def concat_datatrees(
   Returns:
     A xr.DataTree containing the concatenation of the two datasets.
   """
+
+  if (
+      output_keys.TIME not in tree1.coords
+      or output_keys.TIME not in tree2.coords
+  ):
+    raise ValueError(
+        f"Both DataTrees must have a '{output_keys.TIME}' coordinate on the"
+        " root."
+    )
 
   def _concat_datasets(
       previous_ds: xr.Dataset,
@@ -103,7 +115,52 @@ def concat_datatrees(
     ds = ds.drop_duplicates(dim=output_keys.TIME, keep="first")
     return ds
 
-  return xr.map_over_datasets(_concat_datasets, tree1, tree2)
+  # `xr.map_over_datasets` requires identical tree topologies, which fails when
+  # optional groups (e.g. `/model_state/sources/*`, `/edge`, `/auxiliary/*`) are
+  # enabled or disabled across a stitched restart. Walk the union of children
+  # instead, and reindex single-sided subtrees onto the stitched time grid so
+  # `xr.DataTree` parent-child coordinate alignment is preserved (NaN-padding
+  # times when the model was inactive).
+  stitched_time = xr.concat(
+      [tree1.coords[output_keys.TIME], tree2.coords[output_keys.TIME]],
+      dim=output_keys.TIME,
+  ).drop_duplicates(dim=output_keys.TIME, keep="first")
+
+  def _reindex_subtree(node: xr.DataTree) -> xr.DataTree:
+    """Reindexes a single-sided subtree onto `stitched_time`."""
+    ds = node.dataset
+    if not ds.data_vars:
+      # Empty container node: let DataTree inherit `stitched_time` from parent.
+      ds = xr.Dataset()
+    else:
+      # `reindex` fills timestamps absent from this tree with NaN by default
+      # for time-indexed vars, and leaves non-time-indexed vars untouched while
+      # aligning the inherited `time` coordinate.
+      ds = ds.drop_duplicates(dim=output_keys.TIME, keep="first").reindex(
+          {output_keys.TIME: stitched_time}
+      )
+    return xr.DataTree(
+        dataset=ds,
+        children={
+            k: _reindex_subtree(child) for k, child in node.children.items()
+        },
+    )
+
+  def _concat_nodes(node1: xr.DataTree, node2: xr.DataTree) -> xr.DataTree:
+    ds = _concat_datasets(node1.dataset, node2.dataset)
+    children: dict[str, xr.DataTree] = {}
+    for k in dict.fromkeys((*node1.children, *node2.children)):
+      c1 = node1.children.get(k)
+      c2 = node2.children.get(k)
+      if c1 is not None and c2 is not None:
+        children[k] = _concat_nodes(c1, c2)
+      elif c1 is not None:
+        children[k] = _reindex_subtree(c1)
+      elif c2 is not None:
+        children[k] = _reindex_subtree(c2)
+    return xr.DataTree(dataset=ds, children=children)
+
+  return _concat_nodes(tree1, tree2)
 
 
 def stitch_state_files(
