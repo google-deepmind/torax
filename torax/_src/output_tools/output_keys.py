@@ -1058,6 +1058,35 @@ FORMATION_TIME: Final[OutputKey] = OutputKey(
 )
 
 # ---------------------------------------------------------------------------
+# Particle feedback source model state.
+# ---------------------------------------------------------------------------
+INTEGRAL_TERM: Final[OutputKey] = OutputKey(
+    "integral_term",
+    units=Units.INVERSE_SECOND,
+    grid_type=GridType.SCALAR,
+)
+PREVIOUS_ERROR: Final[OutputKey] = OutputKey(
+    "previous_error",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+SMOOTHED_DERIVATIVE: Final[OutputKey] = OutputKey(
+    "smoothed_derivative",
+    units=Units.INVERSE_CUBIC_METER_PER_SECOND,
+    grid_type=GridType.SCALAR,
+)
+FEEDBACK_TIME: Final[OutputKey] = OutputKey(
+    "feedback_time",
+    units=Units.SECOND,
+    grid_type=GridType.SCALAR,
+)
+INITIALIZED: Final[OutputKey] = OutputKey(
+    "initialized",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+
+# ---------------------------------------------------------------------------
 # Numerics.
 # ---------------------------------------------------------------------------
 SIM_ERROR: Final[OutputKey] = OutputKey(

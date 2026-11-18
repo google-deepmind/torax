@@ -386,6 +386,105 @@ class StateHistoryTest(parameterized.TestCase):
         tree_expected,
     )
 
+  def test_concat_datatrees_non_isomorphic_children(self):
+    tree1 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.0, 0.1]}),
+        children={
+            'shared': xr.DataTree(
+                dataset=xr.Dataset(
+                    {'a': (output_keys.TIME, [1.0, 2.0])},
+                    coords={output_keys.TIME: [0.0, 0.1]},
+                )
+            ),
+            'only_first': xr.DataTree(
+                dataset=xr.Dataset(
+                    {'b': (output_keys.TIME, [10.0, 20.0])},
+                    coords={output_keys.TIME: [0.0, 0.1]},
+                )
+            ),
+        },
+    )
+    tree2 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.1, 0.2]}),
+        children={
+            'shared': xr.DataTree(
+                dataset=xr.Dataset(
+                    {'a': (output_keys.TIME, [2.0, 3.0])},
+                    coords={output_keys.TIME: [0.1, 0.2]},
+                )
+            ),
+            'nested': xr.DataTree(
+                children={
+                    'only_second': xr.DataTree(
+                        dataset=xr.Dataset(
+                            {'c': (output_keys.TIME, [100.0, 200.0])},
+                            coords={output_keys.TIME: [0.1, 0.2]},
+                        )
+                    )
+                }
+            ),
+        },
+    )
+    stitched = output.concat_datatrees(tree1, tree2)
+    np.testing.assert_allclose(
+        stitched.children['shared'].dataset['a'].values,
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        stitched.children['only_first'].dataset['b'].values,
+        [10.0, 20.0, np.nan],
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        stitched.children['nested']
+        .children['only_second']
+        .dataset['c']
+        .values,
+        [np.nan, 100.0, 200.0],
+        equal_nan=True,
+    )
+
+  def test_concat_datatrees_missing_root_time_raises(self):
+    tree_with_time = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.0, 0.1]})
+    )
+    tree_without_time = xr.DataTree(dataset=xr.Dataset())
+    with self.assertRaisesRegex(ValueError, output_keys.TIME):
+      output.concat_datatrees(tree_with_time, tree_without_time)
+    with self.assertRaisesRegex(ValueError, output_keys.TIME):
+      output.concat_datatrees(tree_without_time, tree_with_time)
+
+  def test_concat_datatrees_single_sided_node_with_time_and_static_vars(self):
+    tree1 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.0, 0.1]})
+    )
+    tree2 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.1, 0.2]}),
+        children={
+            'mixed': xr.DataTree(
+                dataset=xr.Dataset(
+                    {
+                        'time_var': (output_keys.TIME, [10.0, 20.0]),
+                        'static_1d': ('rho', [1.0, 2.0]),
+                        'static_scalar': ((), 42),
+                    },
+                    coords={output_keys.TIME: [0.1, 0.2]},
+                )
+            )
+        },
+    )
+    stitched = output.concat_datatrees(tree1, tree2)
+    mixed_ds = stitched.children['mixed'].dataset
+    np.testing.assert_allclose(
+        mixed_ds['time_var'].values,
+        [np.nan, 10.0, 20.0],
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(mixed_ds['static_1d'].values, [1.0, 2.0])
+    self.assertEqual(mixed_ds['static_1d'].dims, ('rho',))
+    self.assertEqual(int(mixed_ds['static_scalar'].values), 42)
+    self.assertEqual(mixed_ds['static_scalar'].dims, ())
+
   def test_config_is_saved(self):
     """Tests that the config is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()

@@ -16,7 +16,7 @@
 
 from collections.abc import Mapping
 import enum
-from typing import Any
+from typing import Any, TypeGuard
 import chex
 import numpy as np
 from torax._src import array_typing
@@ -121,6 +121,26 @@ class OutputGridContext:
       else:
         raise KeyError(f"Missing coordinate array for dimension '{dim}'.")
     return xr.Dataset(data_vars=data_vars, coords=coords)
+
+
+def has_saved_state(datatree: xr.DataTree | None) -> TypeGuard[xr.DataTree]:
+  """Returns whether `datatree` (or any descendant) holds non-NaN model state.
+
+  Returns False if `datatree` is None, has no data variables across its subtree,
+  or every data variable is all-NaN (as produced by `output.concat_datatrees`
+  for times outside a model's active range in a stitched output file).
+
+  Args:
+    datatree: Time-sliced DataTree of a model's saved state, or None.
+  """
+  if datatree is None:
+    return False
+  for node in datatree.subtree:
+    if any(
+        not bool(da.isnull().all()) for da in node.dataset.data_vars.values()
+    ):
+      return True
+  return False
 
 
 def extend_cell_grid_to_boundaries(
