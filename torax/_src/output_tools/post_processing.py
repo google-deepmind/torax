@@ -34,6 +34,7 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import safety_factor_fit
+from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
@@ -57,6 +58,7 @@ class PostProcessedOutputs:
     W_thermal_e: Electron thermal stored energy [J]
     W_thermal_total: Total thermal stored energy [J]
     tau_E: Thermal energy confinement time [s]
+    tau_ei: Electron-ion collision time on the cell grid [s]
     H89P: L-mode confinement quality factor with respect to the ITER89P scaling
       law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
@@ -231,6 +233,7 @@ class PostProcessedOutputs:
   W_thermal_e: array_typing.FloatScalar
   W_thermal_total: array_typing.FloatScalar
   tau_E: array_typing.FloatScalar
+  tau_ei: array_typing.FloatVector
   H89P: array_typing.FloatScalar
   H98: array_typing.FloatScalar
   H97L: array_typing.FloatScalar
@@ -357,6 +360,7 @@ class PostProcessedOutputs:
         W_thermal_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_thermal_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         tau_E=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        tau_ei=jnp.zeros(geo.rho.shape),
         H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H97L=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -513,7 +517,7 @@ class PostProcessedOutputs:
         - Face profiles (`pprime`, `FFprime`, `psi_norm`, `poloidal_velocity`,
           `E_r`, beta/alpha profiles): `('time', 'rho_face_norm')`, shape
           `(n_time, n_rho_face)`.
-        - Cell current profiles (`j_*`): `('time', 'rho_cell_norm')`, shape
+        - Cell profiles (`j_*`, `tau_ei`): `('time', 'rho_cell_norm')`, shape
           `(n_time, n_rho_cell)`.
         - Extended bootstrap toroidal current (`j_toroidal_bootstrap`):
           `('time', 'rho_norm')`, shape `(n_time, n_rho_cell + 2)`.
@@ -542,6 +546,7 @@ class PostProcessedOutputs:
 
     # 2. Profiles on the cell grid (CELL)
     cell_vars = {
+        output_keys.TAU_EI: self.tau_ei,
         output_keys.J_PARALLEL_TOTAL: self.j_parallel_total,
         output_keys.J_TOROIDAL_EXTERNAL: self.j_toroidal_external,
         output_keys.J_PARALLEL_EXTERNAL: self.j_parallel_external,
@@ -1125,6 +1130,16 @@ def make_post_processed_outputs(
   )
 
   tau_E = W_thermal_total / P_loss
+  log_lambda_ei = collisions.calculate_log_lambda_ei(
+      sim_state.core_profiles.kinetic.T_e.value,
+      sim_state.core_profiles.kinetic.n_e.value,
+  )
+  tau_ei = collisions.calculate_tau_e(
+      sim_state.core_profiles.kinetic.T_e.value,
+      sim_state.core_profiles.kinetic.n_e.value,
+      sim_state.core_profiles.ions.Z_eff,
+      log_lambda_ei,
+  )
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
       sim_state.geometry, sim_state.core_profiles, P_loss, 'H89P'
@@ -1296,6 +1311,7 @@ def make_post_processed_outputs(
       W_thermal_e=W_thermal_e,
       W_thermal_total=W_thermal_total,
       tau_E=tau_E,
+      tau_ei=tau_ei,
       H89P=H89P,
       H98=H98,
       H97L=H97L,
