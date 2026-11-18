@@ -196,7 +196,18 @@ CONFIG = {
         "evolve_electron_heat": True,
         "evolve_current": True,
         "evolve_density": True,
-        "current_diffusion_time_reduction_factor": 100.0,
+        "current_diffusion_time_reduction_factor": 1.0,
+    },
+    "neoclassical": {
+        "bootstrap_current": {
+            "model_name": "zeros",
+        },
+        "conductivity": {
+            "model_name": "sauter",
+            # Equivalent to TokaGrad's resistivity_multiplier = 100.0
+            # (scales both poloidal flux diffusion and Ohmic heating).
+            "conductivity_multiplier": 0.01,
+        },
     },
     "geometry": {
         "model_name": "circular",
