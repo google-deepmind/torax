@@ -61,8 +61,12 @@ def torax_state_to_imas_equilibrium(
       "equilibrium IDS built from ToraxSimState object."
   )
   equilibrium.time = [sim_state.t]
-  equilibrium.vacuum_toroidal_field.r0 = geometry.R_major
-  equilibrium.vacuum_toroidal_field.b0 = [-1 * geometry.B_0]
+  # B_0 is given at R_major; write it back at the input reference radius if any.
+  r0 = geometry.R_major if geometry.r0_vacuum is None else geometry.r0_vacuum
+  equilibrium.vacuum_toroidal_field.r0 = r0
+  equilibrium.vacuum_toroidal_field.b0 = [
+      -1 * geometry.B_0 * geometry.R_major / r0
+  ]
   equilibrium.time_slice.resize(1)
   eq = equilibrium.time_slice[0]
   eq.boundary.geometric_axis.r = geometry.R_major
