@@ -358,6 +358,21 @@ class StaticDataclassTest(absltest.TestCase):
     ):
       DataclassWithAnyMapping(mapping={1: "a", "b": "c"})
 
+  def test_deterministic_hash_key(self):
+    d = MyData(x=1, y="deterministic_string")
+    key = static_dataclass._deterministic_hash_key(d._full_tuple())
+    # Ensure no raw Python str objects remain in the hash key tuple
+    for item in key:
+      self.assertNotIsInstance(item, str)
+    # Verify exact hash value is deterministic across any PYTHONHASHSEED
+    expected_y_key = static_dataclass._deterministic_hash_key(
+        "deterministic_string"
+    )
+    expected_cls_key = static_dataclass._deterministic_hash_key(
+        f"{MyData.__module__}.{MyData.__qualname__}"
+    )
+    self.assertEqual(hash(d), hash((1, expected_y_key, expected_cls_key)))
+
 
 if __name__ == "__main__":
   absltest.main()
