@@ -19,6 +19,7 @@ from __future__ import annotations
 import abc
 from typing import Annotated
 
+import chex
 import pydantic
 from torax._src.core_profiles import core_profiles
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
@@ -59,8 +60,11 @@ class ConductivityModelConfig(torax_pydantic.ConfigBase):
   conductivity_multiplier: pydantic.PositiveFloat = 1.0
   neoclassical_correction: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
-  def build_runtime_params(self) -> conductivity_runtime_params.RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> conductivity_runtime_params.RuntimeParams:
     """Builds runtime params."""
+    del t
     return conductivity_runtime_params.RuntimeParams(
         conductivity_multiplier=self.conductivity_multiplier,
         neoclassical_correction=self.neoclassical_correction,

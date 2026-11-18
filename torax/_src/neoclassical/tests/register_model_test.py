@@ -17,6 +17,7 @@ import dataclasses
 from typing import Annotated, Literal
 
 from absl.testing import absltest
+import chex
 import jax
 import jax.numpy as jnp
 import pydantic
@@ -174,7 +175,9 @@ class CustomTopLevelNeoclassicalConfig(
 
   def build_runtime_params(
       self,
+      t: chex.Numeric,
   ) -> CustomNeoclassicalRuntimeParams:
+    del t
     return CustomNeoclassicalRuntimeParams(custom_sigma=self.custom_sigma)
 
   def build_model(self) -> CustomNeoclassicalModel:

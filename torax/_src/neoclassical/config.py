@@ -17,6 +17,7 @@ import abc
 import copy
 from typing import Annotated, Any, Literal
 
+import chex
 import pydantic
 from torax._src.neoclassical import neoclassical_model
 from torax._src.neoclassical import runtime_params as runtime_params_lib
@@ -42,7 +43,9 @@ class NeoclassicalConfigBase(torax_pydantic.ConfigBase):
   """
 
   @abc.abstractmethod
-  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params_lib.RuntimeParams:
     """Builds the runtime parameters for the neoclassical model."""
 
   @abc.abstractmethod
@@ -147,12 +150,14 @@ class AnalyticalNeoclassicalConfig(NeoclassicalConfigBase):
 
     return configurable_data
 
-  def build_runtime_params(self) -> runtime_params_lib.AnalyticalRuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params_lib.AnalyticalRuntimeParams:
     return runtime_params_lib.AnalyticalRuntimeParams(
-        bootstrap_current=self.bootstrap_current.build_runtime_params(),
-        conductivity=self.conductivity.build_runtime_params(),
-        transport=self.transport.build_runtime_params(),
-        poloidal_velocity=self.poloidal_velocity.build_runtime_params(),
+        bootstrap_current=self.bootstrap_current.build_runtime_params(t),
+        conductivity=self.conductivity.build_runtime_params(t),
+        transport=self.transport.build_runtime_params(t),
+        poloidal_velocity=self.poloidal_velocity.build_runtime_params(t),
     )
 
   def build_model(self) -> neoclassical_model.AnalyticalNeoclassicalModel:
