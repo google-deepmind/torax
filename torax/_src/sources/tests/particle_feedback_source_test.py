@@ -23,6 +23,8 @@ import pydantic
 import torax
 from torax._src import math_utils
 from torax._src.config import build_runtime_params
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import formulas as physics_formulas
 from torax._src.sources import config as sources_config
 from torax._src.sources import formulas
@@ -33,6 +35,7 @@ from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config as torax_pydantic_config
 from torax._src.torax_pydantic import torax_pydantic
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -630,6 +633,55 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
           'model_name': 'feedback',
           'target_average_n_e_is_f_GW': target_average_n_e_is_f_GW,
       })
+
+  def test_state_datatree_round_trip(self):
+    _, geo, provider, source = self._make_feedback_setup()
+    runtime_params = provider(t=0.5)
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0, 0.5]),
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], np.asarray(geo.rho_norm), [1.0]]
+        ),
+    )
+    stacked_state = particle_feedback_source.ParticleFeedbackState(
+        integral_term=jnp.array([0.0, 2.5e20]),
+        previous_error=jnp.array([1.0e19, -0.5e19]),
+        smoothed_derivative=jnp.array([0.0, -3.0e19]),
+        t=jnp.array([0.0, 0.5]),
+        initialized=jnp.array([True, True]),
+    )
+    tree = stacked_state.to_xr_datatree(context)
+    sliced = tree.sel(time=0.5)
+    restored = source.initial_state_from_datatree(sliced, runtime_params)
+    expected = particle_feedback_source.ParticleFeedbackState(
+        integral_term=jnp.array(2.5e20),
+        previous_error=jnp.array(-0.5e19),
+        smoothed_derivative=jnp.array(-3.0e19),
+        t=jnp.array(0.5),
+        initialized=jnp.array(True),
+    )
+    chex.assert_trees_all_close(restored, expected)
+
+  def test_initial_state_from_datatree_validation_errors(self):
+    _, _, provider, source = self._make_feedback_setup()
+    runtime_params = provider(t=0.0)
+
+    with self.subTest('none_datatree'):
+      with self.assertRaisesRegex(
+          ValueError, 'requires a non-None source state DataTree'
+      ):
+        source.initial_state_from_datatree(None, runtime_params)
+
+    with self.subTest('missing_key'):
+      incomplete_ds = xr.Dataset({output_keys.INTEGRAL_TERM: 0.0})
+      with self.assertRaisesRegex(
+          ValueError, 'Missing required variables in ParticleFeedbackState'
+      ):
+        source.initial_state_from_datatree(
+            xr.DataTree(dataset=incomplete_ds), runtime_params
+        )
 
 
 if __name__ == '__main__':
