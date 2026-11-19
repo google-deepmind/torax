@@ -47,6 +47,7 @@ from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
+from torax._src.torax_pydantic import file_restart as file_restart_config
 from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
@@ -384,6 +385,95 @@ class StateHistoryTest(parameterized.TestCase):
     xr.testing.assert_equal(
         output.concat_datatrees(tree1, tree2),
         tree_expected,
+    )
+
+  @parameterized.named_parameters(
+      (
+          'prev_ok_restart_failed',
+          sim_error_lib.SimError.NO_ERROR,
+          sim_error_lib.SimError.REACHED_MIN_DT,
+      ),
+      (
+          'prev_failed_restart_ok',
+          sim_error_lib.SimError.NAN_DETECTED,
+          sim_error_lib.SimError.NO_ERROR,
+      ),
+  )
+  def test_stitch_state_files_keeps_restarted_sim_error(
+      self,
+      prev_error: sim_error_lib.SimError,
+      restarted_error: sim_error_lib.SimError,
+  ):
+    rho_cell = np.array([0.25, 0.75])
+    prev_tree = xr.DataTree(
+        dataset=xr.Dataset(
+            coords={
+                output_keys.TIME: [0.0, 0.1],
+                output_keys.RHO_CELL_NORM: rho_cell,
+            }
+        ),
+        children={
+            output_keys.NUMERICS: xr.DataTree(
+                dataset=xr.Dataset(
+                    {
+                        output_keys.SIM_ERROR: (
+                            (),
+                            np.asarray(prev_error.value),
+                        ),
+                        output_keys.SAWTOOTH_CRASH: (
+                            output_keys.TIME,
+                            [False, False],
+                        ),
+                    },
+                    coords={output_keys.TIME: [0.0, 0.1]},
+                )
+            ),
+        },
+    )
+    restarted_tree = xr.DataTree(
+        dataset=xr.Dataset(
+            coords={
+                output_keys.TIME: [0.1, 0.2],
+                output_keys.RHO_CELL_NORM: rho_cell,
+            }
+        ),
+        children={
+            output_keys.NUMERICS: xr.DataTree(
+                dataset=xr.Dataset(
+                    {
+                        output_keys.SIM_ERROR: (
+                            (),
+                            np.asarray(restarted_error.value),
+                        ),
+                        output_keys.SAWTOOTH_CRASH: (
+                            output_keys.TIME,
+                            [False, True],
+                        ),
+                    },
+                    coords={output_keys.TIME: [0.1, 0.2]},
+                )
+            ),
+        },
+    )
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'prev.nc')
+    prev_tree.to_netcdf(nc_path)
+    restart_cfg = file_restart_config.FileRestartConfig(
+        filename=nc_path,
+        time=0.1,
+        do_restart=True,
+        stitch=True,
+    )
+    stitched = output.stitch_state_files(restart_cfg, restarted_tree)
+    numerics_ds = stitched.children[output_keys.NUMERICS].dataset
+    self.assertEqual(
+        int(numerics_ds[output_keys.SIM_ERROR].values),
+        restarted_error.value,
+    )
+    self.assertEqual(numerics_ds[output_keys.SIM_ERROR].dims, ())
+    np.testing.assert_array_equal(
+        numerics_ds[output_keys.SAWTOOTH_CRASH].values,
+        [False, False, True],
     )
 
   def test_config_is_saved(self):

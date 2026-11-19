@@ -133,6 +133,20 @@ def stitch_state_files(
   # we are uncertain if file_restart.time is the exact time of the
   # first time step in this sim output (it takes the nearest time).
   previous_datatree = previous_datatree.sel(time=slice(None, datatree.time[0]))
+  # Keep the restarted simulation's final `sim_error` rather than failing with
+  # MergeError when the previous and restarted runs have different `sim_error`
+  # values (e.g. restarting from a failed run, or a restart that fails later).
+  prev_numerics = previous_datatree.children[output_keys.NUMERICS]
+  previous_datatree[output_keys.NUMERICS] = xr.DataTree(
+      dataset=prev_numerics.dataset.assign({
+          output_keys.SIM_ERROR: (
+              datatree.children[output_keys.NUMERICS].dataset[
+                  output_keys.SIM_ERROR
+              ]
+          )
+      }),
+      children=dict(prev_numerics.children),
+  )
   return concat_datatrees(previous_datatree, datatree)
 
 
