@@ -134,6 +134,18 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         state_history.sim_error, sim_error.SimError.DID_NOT_REACH_T_FINAL
     )
 
+  @parameterized.parameters('chi', 'from_previous_dt')
+  def test_non_fixed_without_max_steps_raises_error(self, calculator_type):
+    torax_config = self._get_torax_config('test_implicit.py')
+    torax_config.update_fields(
+        {'time_step_calculator': {'calculator_type': calculator_type}}
+    )
+
+    with self.assertRaisesRegex(
+        NotImplementedError, 'max_steps must be specified when using'
+    ):
+      run_simulation.run_simulation(torax_config, progress_bar=False)
+
   @parameterized.named_parameters(
       ('with_progress_bar', True),
       ('without_progress_bar', False),
