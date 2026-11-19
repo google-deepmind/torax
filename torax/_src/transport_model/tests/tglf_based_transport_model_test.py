@@ -21,6 +21,7 @@ import jax.numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import array_typing
+from torax._src import constants
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
@@ -38,6 +39,8 @@ from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
 from torax._src.transport_model.tglf import tglf2py
+
+# pylint: disable=invalid-name
 
 
 def _get_config_and_model_inputs(
@@ -277,6 +280,108 @@ class TGLFTransportModelTest(parameterized.TestCase):
         )
     )
 
+  @parameterized.named_parameters(
+      dict(testcase_name="scaled_d", DV_effective=False),
+      dict(testcase_name="dv_effective", DV_effective=True),
+  )
+  def test_make_transport_coeffs_conserves_fluxes_in_shaped_geometry(
+      self, DV_effective: bool
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "model_name": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config_dict["transport"] = {
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+                "DV_effective": DV_effective,
+            },
+        },
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    transport_model = (
+        torax_config.transport.build_transport_model().core_transport_models[
+            "tglf_based"
+        ]
+    )
+    assert isinstance(
+        transport_model, tglf_based_transport_model.TGLFBasedTransportModel
+    )
+    tglf_params = runtime_params.transport.core_transport_model_params[
+        "tglf_based"
+    ]
+    assert isinstance(tglf_params, tglf_based_transport_model.RuntimeParams)
+    tglf_inputs = transport_model._prepare_tglf_inputs(
+        transport=tglf_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
+    )
+
+    Q_e_GB = jnp.full_like(geo.rho_face_norm, 0.5)
+    Q_i_GB = jnp.full_like(geo.rho_face_norm, 0.4)
+    Gamma_e_GB = jnp.full_like(geo.rho_face_norm, 1.6)
+    coeffs = transport_model._make_transport_coeffs(
+        electron_heat_flux_GB=Q_e_GB,
+        ion_heat_flux_GB=Q_i_GB,
+        electron_particle_flux_GB=Gamma_e_GB,
+        tglf_inputs=tglf_inputs,
+        transport=tglf_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
+    )
+
+    drho_dr = jnp.gradient(geo.rho_face, geo.r_mid_face)
+    # Precondition: shaped CHEASE geometry has dρ/dr appreciably != 1.
+    self.assertFalse(np.allclose(drho_dr[1:], 1.0, rtol=0.05))
+
+    dV_dr = (geo.vpr_face / geo.rho_b) * drho_dr
+    P_e_expected = Q_e_GB * tglf_inputs.Q_GB * dV_dr
+    P_i_expected = Q_i_GB * tglf_inputs.Q_GB * dV_dr
+    Phi_n_expected = Gamma_e_GB * tglf_inputs.GAMMA_GB * dV_dr
+
+    dT_e_drhon = (
+        core_profiles.kinetic.T_e.face_grad(two_point_mask=two_point_mask)
+        * constants.CONSTANTS.keV_to_J
+    )
+    dT_i_drhon = (
+        core_profiles.kinetic.T_i.face_grad(two_point_mask=two_point_mask)
+        * constants.CONSTANTS.keV_to_J
+    )
+    dn_e_drhon = core_profiles.kinetic.n_e.face_grad(
+        two_point_mask=two_point_mask
+    )
+
+    P_e_torax = (
+        -coeffs.chi_face_el
+        * core_profiles.kinetic.n_e.face_value()
+        * dT_e_drhon
+        * geo.g1_over_vpr_face
+    )
+    P_i_torax = (
+        -coeffs.chi_face_ion
+        * core_profiles.kinetic.n_i.face_value()
+        * dT_i_drhon
+        * geo.g1_over_vpr_face
+    )
+    Phi_n_torax = (
+        -coeffs.d_face_el * dn_e_drhon * geo.g1_over_vpr_face
+        + coeffs.v_face_el
+        * core_profiles.kinetic.n_e.face_value()
+        * geo.g0_face
+    )
+
+    np.testing.assert_allclose(P_e_torax[1:], P_e_expected[1:], rtol=1e-6)
+    np.testing.assert_allclose(P_i_torax[1:], P_i_expected[1:], rtol=1e-6)
+    np.testing.assert_allclose(Phi_n_torax[1:], Phi_n_expected[1:], rtol=1e-6)
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeTGLFBasedTransportModel(
@@ -323,7 +428,6 @@ class FakeTGLFBasedTransportModel(
     )
 
 
-# pylint: disable=invalid-name
 class TGLFBasedTransportModelConfig(
     tglf_based_transport_model.TGLFBasedTransportModelConfig
 ):

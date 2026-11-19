@@ -594,10 +594,15 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
-    # Denormalised TGLF output fluxes.
-    Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
-    Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
-    Gamma_e = electron_particle_flux_GB * tglf_inputs.GAMMA_GB  # [s^-1/m^2]
+    # Denormalised TGLF output fluxes are <F · ∇r> on the r_mid grid, which
+    # close with dV/dr. TORAX closes fluxes with dV/dρ (where ρ = rho_face), so
+    # multiply by dρ/dr to convert to ρ-grid fluxes <F · ∇ρ>.
+    drho_dr = jnp.asarray(jnp.gradient(geo.rho_face, geo.r_mid_face))
+    Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB * drho_dr  # [W/m^2]
+    Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB * drho_dr  # [W/m^2]
+    Gamma_e = (
+        electron_particle_flux_GB * tglf_inputs.GAMMA_GB * drho_dr
+    )  # [s^-1/m^2]
 
     # Total thermal power.
     dV_drho = geo.vpr_face / geo.rho_b
