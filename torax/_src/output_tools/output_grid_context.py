@@ -16,7 +16,7 @@
 
 from collections.abc import Mapping
 import enum
-from typing import Any
+from typing import Any, TypeGuard
 import chex
 import numpy as np
 from torax._src import array_typing
@@ -121,6 +121,20 @@ class OutputGridContext:
       else:
         raise KeyError(f"Missing coordinate array for dimension '{dim}'.")
     return xr.Dataset(data_vars=data_vars, coords=coords)
+
+
+def has_saved_state(datatree: xr.DataTree | None) -> TypeGuard[xr.DataTree]:
+  """Returns whether `datatree` (or any descendant) holds model state.
+
+  Restart slices come from `output.select_time_slice`, which drops the NaN
+  padding of stitched files, so any remaining data variable is saved state.
+
+  Args:
+    datatree: Time-sliced DataTree of a model's saved state, or None.
+  """
+  return datatree is not None and any(
+      node.dataset.data_vars for node in datatree.subtree
+  )
 
 
 def extend_cell_grid_to_boundaries(

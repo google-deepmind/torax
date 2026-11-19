@@ -15,6 +15,7 @@
 """Unit tests for unified state evaluation."""
 
 import dataclasses
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -29,9 +30,13 @@ from torax._src.edge import edge_state as edge_state_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import state_evaluation
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
+from torax._src.pedestal_model import pedestal_state
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
+import xarray as xr
 
 
 class StateEvaluationTest(parameterized.TestCase):
@@ -264,6 +269,110 @@ class StateEvaluationTest(parameterized.TestCase):
     self.assertIsNotNone(evaluated_state.core_profiles)
     self.assertIsNotNone(evaluated_state.core_sources)
     self.assertIsNotNone(evaluated_state.core_transport)
+
+
+@dataclasses.dataclass(frozen=True)
+class _FakeStatefulModel:
+  """Fake model whose state is a scalar, or None if stateless."""
+
+  stateless: bool = False
+
+  def initial_state(self, runtime_params):
+    del runtime_params
+    return None if self.stateless else jnp.asarray(0.0)
+
+  def initial_state_from_datatree(self, datatree, runtime_params):
+    del runtime_params
+    if 'x' not in datatree.dataset.data_vars:
+      raise ValueError('missing x')
+    return jnp.asarray(float(datatree.dataset['x'].values))
+
+
+class RestoreStatesTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.runtime_params = mock.Mock(t=0.5)
+    self.datatree = xr.DataTree(
+        children={
+            'saved': xr.DataTree(dataset=xr.Dataset({'x': 3.0})),
+            'incompatible': xr.DataTree(dataset=xr.Dataset({'y': 1.0})),
+        }
+    )
+
+  def test_restores_saved_and_cold_starts_others(self):
+    with self.assertLogs(level='WARNING') as logs:
+      states, restored = state_evaluation._restore_states(
+          {
+              'saved': _FakeStatefulModel(),
+              'incompatible': _FakeStatefulModel(),
+              'absent': _FakeStatefulModel(),
+              'stateless': _FakeStatefulModel(stateless=True),
+          },
+          self.datatree,
+          self.runtime_params,
+          kind='fake',
+      )
+    self.assertEqual(restored, {'saved'})
+    self.assertEqual(float(states['saved']), 3.0)
+    self.assertEqual(float(states['incompatible']), 0.0)
+    self.assertIsNone(states['stateless'])
+    warned = ''.join(logs.output)
+    for name in ('incompatible', 'absent'):
+      with self.subTest(name):
+        self.assertIn(f"fake '{name}'", warned)
+    self.assertNotIn("fake 'stateless'", warned)
+
+
+class RestorePedestalStateTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
+        'mode': 'internal_boundary_condition',
+        'structure_model': {'model_name': 'set_T_top_n_top'},
+        'transition_time_width': 0.1,
+        'formation_model': {'model_name': 'martin_scaling'},
+    }
+    self.sim_state, _, step_fn = run_simulation.prepare_simulation(
+        config.ToraxConfig.from_dict(config_dict)
+    )
+    self.models = step_fn.solver.models
+    self.runtime_params = step_fn.runtime_params_provider(t=self.sim_state.t)
+    geo = self.sim_state.geometry
+    context = output_grid_context.OutputGridContext(
+        times=np.array([float(self.sim_state.t)]),
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=geo.rho_norm,
+    )
+    saved_tree = self.sim_state.model_state.pedestal.to_xr_datatree(context)
+    assert saved_tree is not None
+    self.saved_dataset = saved_tree.isel(time=0).to_dataset()
+
+  def _restore(self, dataset: xr.Dataset):
+    return state_evaluation._restore_pedestal_state(
+        self.runtime_params,
+        self.sim_state.geometry,
+        self.sim_state.core_profiles,
+        self.models,
+        xr.DataTree(dataset=dataset),
+    )
+
+  def test_restores_saved_state(self):
+    restored = self._restore(self.saved_dataset)
+    self.assertIsInstance(restored, pedestal_state.IBCPedestalState)
+
+  def test_cold_starts_when_only_confinement_mode_is_saved(self):
+    # As at times from the adaptive_transport phase of a stitched file after an
+    # adaptive_transport -> IBC restart.
+    with self.assertLogs(level='WARNING') as logs:
+      restored = self._restore(
+          self.saved_dataset[[output_keys.CONFINEMENT_MODE]]
+      )
+    self.assertIsNone(restored)
+    self.assertIn('pedestal state', ''.join(logs.output))
 
 
 if __name__ == '__main__':

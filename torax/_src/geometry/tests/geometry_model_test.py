@@ -142,30 +142,6 @@ class GeometryModelTest(absltest.TestCase):
     chex.assert_trees_all_close(state_true.Phi_b, geo_t_plus_dt.Phi_b)
     self.assertAlmostEqual(float(state_true.Phi_b_dot), 2.0)
 
-  def test_initial_state_from_datatree(self):
-    config_dict = default_configs.get_default_config_dict()
-    torax_config = config.ToraxConfig.from_dict(config_dict)
-    provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = provider(t=0.0)
-    geo = (
-        circular_geometry.CircularConfig(n_rho=4)
-        .build_runtime_params(0.0)
-        .geometry
-    )
-    geo_params = geometry_runtime_params.PrescribedGeometryRuntimeParams(
-        geometry=geo,
-        initial_Phi_b_dot=jnp.asarray(1.5),
-        calc_Phi_b_dot=True,
-    )
-    runtime_params = dataclasses.replace(runtime_params, geometry=geo_params)
-    model = geometry_model.PrescribedGeometryModel()
-
-    state = model.initial_state_from_datatree(None, runtime_params)
-    chex.assert_trees_all_close(state.Phi_b, geo.Phi_b)
-    chex.assert_trees_all_close(state.Phi_b_dot, 1.5)
-
 
 if __name__ == '__main__':
   absltest.main()

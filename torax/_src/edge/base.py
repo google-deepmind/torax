@@ -218,19 +218,26 @@ class EdgeModelOutputs:
             dtype=dtype,
         )
 
+    # A NaN boundary condition is never valid for the core, whatever the saved
+    # `valid_for_core_update` flag says. Stitching can still produce one: if
+    # the impurity species differ between runs, `impurity_right_bc` is padded
+    # with NaN for the species a run did not have. (`select_time_slice` drops
+    # whole variables a run did not save, but not single species.)
+    extracted_scalars = [
+        val
+        for val in (T_e_right_bc, T_i_right_bc, n_e_right_bc)
+        if val is not None
+    ] + list(impurity_right_bc.values())
+    has_nan = any(bool(jnp.isnan(v).any()) for v in extracted_scalars)
+    valid_for_core_update = jnp.array(not has_nan, dtype=jnp.bool_)
     if output_keys.VALID_FOR_CORE_UPDATE in ds:
-      valid_for_core_update = jnp.asarray(
-          np.squeeze(ds[output_keys.VALID_FOR_CORE_UPDATE].values),
-          dtype=jnp.bool_,
+      valid_for_core_update = jnp.logical_and(
+          valid_for_core_update,
+          jnp.asarray(
+              np.squeeze(ds[output_keys.VALID_FOR_CORE_UPDATE].values),
+              dtype=jnp.bool_,
+          ),
       )
-    else:
-      extracted_scalars = [
-          val
-          for val in (T_e_right_bc, T_i_right_bc, n_e_right_bc)
-          if val is not None
-      ] + list(impurity_right_bc.values())
-      has_nan = any(bool(jnp.isnan(v).any()) for v in extracted_scalars)
-      valid_for_core_update = jnp.array(not has_nan, dtype=jnp.bool_)
 
     return cls(
         T_e_right_bc=T_e_right_bc,

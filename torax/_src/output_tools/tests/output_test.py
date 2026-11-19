@@ -47,6 +47,7 @@ from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
+from torax._src.torax_pydantic import file_restart as file_restart_config
 from torax._src.transport_model import transport_coeffs
 import xarray as xr
 
@@ -59,6 +60,43 @@ DictKey = tree_util.DictKey
 
 def _stack_pytrees(*trees):
   return jax.tree.map(lambda *xs: jnp.stack(xs), *trees)
+
+
+def _tree(times, **children) -> xr.DataTree:
+  """Returns a tree with time-indexed variables `{child: {name: values}}`."""
+  return xr.DataTree(
+      dataset=xr.Dataset(coords={output_keys.TIME: times}),
+      children={
+          child: xr.DataTree(
+              dataset=xr.Dataset({
+                  name: (output_keys.TIME, values)
+                  for name, values in variables.items()
+              })
+          )
+          for child, variables in children.items()
+      },
+  )
+
+
+def _restarted_trees() -> tuple[xr.DataTree, xr.DataTree]:
+  """Returns two trees as written before and after a restart at t=0.1."""
+  before = _tree(
+      [0.0, 0.1],
+      same={'x': [1.0, 2.0]},
+      changed={'x': [1.0, 2.0]},
+      only_first={'z': [1.0, 2.0]},
+  )
+  after = _tree(
+      [0.1, 0.2],
+      same={'x': [2.0, 3.0]},
+      changed={'x': [2.0, 3.0], 'y': [20.0, 30.0]},
+      only_second={'w': [20.0, 30.0]},
+  )
+  return before, after
+
+
+def _saved_variables(node: xr.DataTree):
+  return json.loads(node.attrs[output_keys.SAVED_VARIABLES])
 
 
 class StateHistoryTest(parameterized.TestCase):
@@ -384,6 +422,261 @@ class StateHistoryTest(parameterized.TestCase):
     xr.testing.assert_equal(
         output.concat_datatrees(tree1, tree2),
         tree_expected,
+    )
+
+  def test_concat_datatrees_non_isomorphic_children(self):
+    tree1 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.0, 0.1]}),
+        children={
+            'shared': xr.DataTree(
+                dataset=xr.Dataset(
+                    {'a': (output_keys.TIME, [1.0, 2.0])},
+                    coords={output_keys.TIME: [0.0, 0.1]},
+                )
+            ),
+            'only_first': xr.DataTree(
+                dataset=xr.Dataset(
+                    {'b': (output_keys.TIME, [10.0, 20.0])},
+                    coords={output_keys.TIME: [0.0, 0.1]},
+                )
+            ),
+        },
+    )
+    tree2 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.1, 0.2]}),
+        children={
+            'shared': xr.DataTree(
+                dataset=xr.Dataset(
+                    {'a': (output_keys.TIME, [2.0, 3.0])},
+                    coords={output_keys.TIME: [0.1, 0.2]},
+                )
+            ),
+            'nested': xr.DataTree(
+                children={
+                    'only_second': xr.DataTree(
+                        dataset=xr.Dataset(
+                            {'c': (output_keys.TIME, [100.0, 200.0])},
+                            coords={output_keys.TIME: [0.1, 0.2]},
+                        )
+                    )
+                }
+            ),
+        },
+    )
+    stitched = output.concat_datatrees(tree1, tree2)
+    np.testing.assert_allclose(
+        stitched.children['shared'].dataset['a'].values,
+        [1.0, 2.0, 3.0],
+    )
+    np.testing.assert_allclose(
+        stitched.children['only_first'].dataset['b'].values,
+        [10.0, 20.0, np.nan],
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        stitched.children['nested']
+        .children['only_second']
+        .dataset['c']
+        .values,
+        [np.nan, 100.0, 200.0],
+        equal_nan=True,
+    )
+
+  def test_concat_datatrees_missing_root_time_raises(self):
+    tree_with_time = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.0, 0.1]})
+    )
+    tree_without_time = xr.DataTree(dataset=xr.Dataset())
+    with self.assertRaisesRegex(ValueError, output_keys.TIME):
+      output.concat_datatrees(tree_with_time, tree_without_time)
+    with self.assertRaisesRegex(ValueError, output_keys.TIME):
+      output.concat_datatrees(tree_without_time, tree_with_time)
+
+  def test_concat_datatrees_single_sided_node_with_time_and_static_vars(self):
+    tree1 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.0, 0.1]})
+    )
+    tree2 = xr.DataTree(
+        dataset=xr.Dataset(coords={output_keys.TIME: [0.1, 0.2]}),
+        children={
+            'mixed': xr.DataTree(
+                dataset=xr.Dataset(
+                    {
+                        'time_var': (output_keys.TIME, [10.0, 20.0]),
+                        'static_1d': ('rho', [1.0, 2.0]),
+                        'static_scalar': ((), 42),
+                    },
+                    coords={output_keys.TIME: [0.1, 0.2]},
+                )
+            )
+        },
+    )
+    stitched = output.concat_datatrees(tree1, tree2)
+    mixed_ds = stitched.children['mixed'].dataset
+    np.testing.assert_allclose(
+        mixed_ds['time_var'].values,
+        [np.nan, 10.0, 20.0],
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(mixed_ds['static_1d'].values, [1.0, 2.0])
+    self.assertEqual(mixed_ds['static_1d'].dims, ('rho',))
+    self.assertEqual(int(mixed_ds['static_scalar'].values), 42)
+    self.assertEqual(mixed_ds['static_scalar'].dims, ())
+
+  def test_concat_datatrees_records_saved_variables(self):
+    stitched = output.concat_datatrees(*_restarted_trees())
+    with self.subTest('unchanged_node_has_no_record'):
+      self.assertNotIn(
+          output_keys.SAVED_VARIABLES, stitched.children['same'].attrs
+      )
+    with self.subTest('added_variable'):
+      self.assertEqual(
+          _saved_variables(stitched.children['changed']),
+          [[0.0, 0.1, ['x']], [0.2, 0.2, ['x', 'y']]],
+      )
+    with self.subTest('node_only_in_first'):
+      self.assertEqual(
+          _saved_variables(stitched.children['only_first']),
+          [[0.0, 0.1, ['z']], [0.2, 0.2, []]],
+      )
+    with self.subTest('node_only_in_second'):
+      self.assertEqual(
+          _saved_variables(stitched.children['only_second']),
+          [[0.0, 0.1, []], [0.2, 0.2, ['w']]],
+      )
+
+  def test_concat_datatrees_clips_saved_variables_of_restitched_tree(self):
+    # As in `stitch_state_files`: restart a stitched file at t=0.1, so its rows
+    # after t=0.1 are dropped before stitching.
+    stitched = output.concat_datatrees(*_restarted_trees())
+    restarted = _tree([0.1, 0.3], changed={'x': [2.0, 4.0]})
+    restitched = output.concat_datatrees(
+        stitched.sel(time=slice(None, 0.1)), restarted
+    )
+    self.assertEqual(
+        _saved_variables(restitched.children['changed']),
+        [[0.0, 0.3, ['x']]],
+    )
+
+  @parameterized.named_parameters(
+      ('before_restart', 0.1, {'x'}, {'z'}, set()),
+      ('after_restart', 0.2, {'x', 'y'}, set(), {'w'}),
+  )
+  def test_select_time_slice_drops_padding(
+      self, t, changed_vars, only_first_vars, only_second_vars
+  ):
+    stitched = output.concat_datatrees(*_restarted_trees())
+    sliced = output.select_time_slice(stitched, t)
+    self.assertEqual(
+        {
+            name: set(node.dataset.data_vars)
+            for name, node in sliced.children.items()
+        },
+        {
+            'same': {'x'},
+            'changed': changed_vars,
+            'only_first': only_first_vars,
+            'only_second': only_second_vars,
+        },
+    )
+
+  def test_saved_variables_survive_netcdf_round_trip(self):
+    stitched = output.concat_datatrees(*_restarted_trees())
+    path = os.path.join(self.create_tempdir().full_path, 'state.nc')
+    stitched.to_netcdf(path)
+    loaded = output.load_state_file(path)
+    self.assertEqual(
+        set(output.select_time_slice(loaded, 0.0)['changed'].dataset.data_vars),
+        {'x'},
+    )
+
+  @parameterized.named_parameters(
+      (
+          'prev_ok_restart_failed',
+          sim_error_lib.SimError.NO_ERROR,
+          sim_error_lib.SimError.REACHED_MIN_DT,
+      ),
+      (
+          'prev_failed_restart_ok',
+          sim_error_lib.SimError.NAN_DETECTED,
+          sim_error_lib.SimError.NO_ERROR,
+      ),
+  )
+  def test_stitch_state_files_keeps_restarted_sim_error(
+      self,
+      prev_error: sim_error_lib.SimError,
+      restarted_error: sim_error_lib.SimError,
+  ):
+    rho_cell = np.array([0.25, 0.75])
+    prev_tree = xr.DataTree(
+        dataset=xr.Dataset(
+            coords={
+                output_keys.TIME: [0.0, 0.1],
+                output_keys.RHO_CELL_NORM: rho_cell,
+            }
+        ),
+        children={
+            output_keys.NUMERICS: xr.DataTree(
+                dataset=xr.Dataset(
+                    {
+                        output_keys.SIM_ERROR: (
+                            (),
+                            np.asarray(prev_error.value),
+                        ),
+                        output_keys.SAWTOOTH_CRASH: (
+                            output_keys.TIME,
+                            [False, False],
+                        ),
+                    },
+                    coords={output_keys.TIME: [0.0, 0.1]},
+                )
+            ),
+        },
+    )
+    restarted_tree = xr.DataTree(
+        dataset=xr.Dataset(
+            coords={
+                output_keys.TIME: [0.1, 0.2],
+                output_keys.RHO_CELL_NORM: rho_cell,
+            }
+        ),
+        children={
+            output_keys.NUMERICS: xr.DataTree(
+                dataset=xr.Dataset(
+                    {
+                        output_keys.SIM_ERROR: (
+                            (),
+                            np.asarray(restarted_error.value),
+                        ),
+                        output_keys.SAWTOOTH_CRASH: (
+                            output_keys.TIME,
+                            [False, True],
+                        ),
+                    },
+                    coords={output_keys.TIME: [0.1, 0.2]},
+                )
+            ),
+        },
+    )
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'prev.nc')
+    prev_tree.to_netcdf(nc_path)
+    restart_cfg = file_restart_config.FileRestartConfig(
+        filename=nc_path,
+        time=0.1,
+        do_restart=True,
+        stitch=True,
+    )
+    stitched = output.stitch_state_files(restart_cfg, restarted_tree)
+    numerics_ds = stitched.children[output_keys.NUMERICS].dataset
+    self.assertEqual(
+        int(numerics_ds[output_keys.SIM_ERROR].values),
+        restarted_error.value,
+    )
+    self.assertEqual(numerics_ds[output_keys.SIM_ERROR].dims, ())
+    np.testing.assert_array_equal(
+        numerics_ds[output_keys.SAWTOOTH_CRASH].values,
+        [False, False, True],
     )
 
   def test_config_is_saved(self):

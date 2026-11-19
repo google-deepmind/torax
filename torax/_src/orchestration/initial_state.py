@@ -20,6 +20,7 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
@@ -30,11 +31,11 @@ from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_state
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import state_evaluation
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
+from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.physics import psi_calculations
@@ -99,6 +100,80 @@ def get_initial_state_and_post_processed_outputs(
   return initial_state, post_processed_outputs
 
 
+def _evaluate_initial_edge(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    evaluated_state: state_evaluation.EvaluatedState,
+    model_state: model_state_lib.ModelState,
+    edge_model: edge_base.EdgeModel | None,
+    restart_datatree: xr.DataTree | None = None,
+) -> tuple[edge_base.EdgeModelOutputs | None, model_state_lib.ModelState]:
+  """Evaluates initial edge outputs and updates `model_state.edge`."""
+  if edge_model is None:
+    return None, model_state
+  assert runtime_params.edge is not None
+  edge_params = runtime_params.edge
+
+  if restart_datatree is None:
+    edge_outputs, edge_state = edge_model(
+        edge_params,
+        runtime_params,
+        geo,
+        evaluated_state.core_profiles,
+        evaluated_state.core_sources,
+        edge_state=edge_model.initial_state(edge_params),
+    )
+    return edge_outputs, dataclasses.replace(model_state, edge=edge_state)
+
+  # File restart: restore saved edge state and /edge BCs, or cold-start.
+  edge_state_tree = state_evaluation.get_child(
+      state_evaluation.get_child(restart_datatree, output_keys.MODEL_STATE),
+      output_keys.EDGE,
+  )
+  seed_edge_state, edge_state_was_restored = (
+      state_evaluation.restore_or_cold_start(
+          edge_state_tree,
+          lambda dt: edge_model.initial_state_from_datatree(dt, edge_params),
+          lambda: edge_model.initial_state(edge_params),
+          label='edge state',
+          t=runtime_params.t,
+      )
+  )
+  # Evaluate edge_model to obtain the concrete EdgeModelOutputs PyTree
+  # structure (needed to stack initial_state with subsequent SimStates in
+  # jit_run_loop / StateHistory) and diagnostic fields at t_restart; saved
+  # /edge boundary conditions overwrite the BC fields below.
+  edge_outputs, evaluated_edge_state = edge_model(
+      edge_params,
+      runtime_params,
+      geo,
+      evaluated_state.core_profiles,
+      evaluated_state.core_sources,
+      edge_state=seed_edge_state,
+  )
+  edge_tree = restart_datatree.children.get(output_keys.EDGE)
+  if output_grid_context.has_saved_state(edge_tree):
+    try:
+      edge_outputs = edge_outputs.replace_bcs_from_datatree(edge_tree)
+    except ValueError as err:
+      logging.warning(
+          'Incompatible saved edge outputs at t=%s (%s); using freshly'
+          ' evaluated edge outputs.',
+          runtime_params.t,
+          err,
+      )
+  else:
+    logging.warning(
+        'No saved edge outputs at t=%s; using freshly evaluated edge outputs.',
+        runtime_params.t,
+    )
+  if edge_state_was_restored:
+    edge_state = seed_edge_state
+  else:
+    edge_state = evaluated_edge_state
+  return edge_outputs, dataclasses.replace(model_state, edge=edge_state)
+
+
 def _get_initial_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -121,24 +196,13 @@ def _get_initial_state(
           models=models,
       )
   )
-
-  if models.edge_model is not None:
-    assert runtime_params.edge is not None
-    seed_edge_state = models.edge_model.initial_state(runtime_params.edge)
-    edge_outputs, initial_edge_state = models.edge_model(
-        runtime_params.edge,
-        runtime_params,
-        geo,
-        evaluated_state.core_profiles,
-        evaluated_state.core_sources,
-        edge_state=seed_edge_state,
-    )
-    initial_model_state = dataclasses.replace(
-        initial_model_state,
-        edge=initial_edge_state,
-    )
-  else:
-    edge_outputs = None
+  edge_outputs, initial_model_state = _evaluate_initial_edge(
+      runtime_params=runtime_params,
+      geo=geo,
+      evaluated_state=evaluated_state,
+      model_state=initial_model_state,
+      edge_model=models.edge_model,
+  )
   return sim_state.SimState(
       t=jnp.array(
           runtime_params.time_step_calculator.t_initial,
@@ -301,7 +365,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   full_data_tree = output.load_state_file(str(file_restart.filename))
   first_time_in_file = float(full_data_tree.time.values[0])
   # Find the closest time in the given dataset.
-  data_tree = full_data_tree.sel(time=file_restart.time, method='nearest')
+  data_tree = output.select_time_slice(full_data_tree, file_restart.time)
   t_restart = data_tree.time.item()
   profiles_dataset = data_tree.children[output_keys.PROFILES].dataset
   profiles_dataset = profiles_dataset.squeeze()
@@ -315,12 +379,10 @@ def get_initial_state_and_post_processed_outputs_from_file(
     )
 
   models = step_fn.solver.models
-  if models.edge_model is not None:
-    if output_keys.EDGE not in data_tree.children:
-      raise ValueError(
-          f'Missing expected {output_keys.EDGE!r} in restart DataTree.'
-      )
-    edge_datatree = data_tree.children[output_keys.EDGE]
+  edge_datatree = data_tree.children.get(output_keys.EDGE)
+  if models.edge_model is not None and output_grid_context.has_saved_state(
+      edge_datatree
+  ):
     source_is_unstitched_restart = False
     raw_config = full_data_tree.attrs.get(output_keys.CONFIG)
     if raw_config is None and hasattr(full_data_tree, 'dataset'):
@@ -345,7 +407,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
         else edge_base.EdgeModelOutputs.from_datatree(edge_datatree)
     )
   else:
-    edge_datatree = None
     initial_edge_bcs = None
 
   runtime_params_for_init, geo_for_init = (
@@ -361,55 +422,21 @@ def get_initial_state_and_post_processed_outputs_from_file(
   solver_state = _solver_state_from_profiles_dataset(
       profiles_dataset, runtime_params_for_init, geo_for_init
   )
-  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset.squeeze()
-  model_state = models.initial_state_from_datatree(
-      data_tree.children.get(output_keys.MODEL_STATE),
-      runtime_params_for_init,
-  )
-  if (
-      output_keys.PHI_B_DOT in scalars_dataset.data_vars
-      and runtime_params_for_init.geometry.calc_Phi_b_dot
-  ):
-    phi_b_dot = jnp.asarray(
-        scalars_dataset.data_vars[output_keys.PHI_B_DOT].to_numpy(),
-        dtype=jax_utils.get_dtype(),
-    )
-    model_state = dataclasses.replace(
-        model_state,
-        geometry=geometry_state.GeometryState.from_geometry(
-            geo_for_init, Phi_b_dot=phi_b_dot
-        ),
-    )
-  evaluated_state, _ = state_evaluation.evaluate_state(
+  evaluated_state, model_state = state_evaluation.evaluate_initial_state(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       solver_state=solver_state,
       models=models,
-      explicit_model_outputs=None,
-      model_state=model_state,
+      restart_datatree=data_tree,
   )
-
-  if models.edge_model is not None:
-    assert runtime_params_for_init.edge is not None
-    assert model_state.edge is not None
-    assert edge_datatree is not None
-    # Evaluate edge_model to obtain the concrete EdgeModelOutputs PyTree
-    # structure (needed to stack initial_state with subsequent SimStates in
-    # jit_run_loop / StateHistory) and diagnostic fields at t_restart, then
-    # overwrite the boundary conditions with the exact values saved in /edge.
-    template_edge_outputs, _ = models.edge_model(
-        runtime_params_for_init.edge,
-        runtime_params_for_init,
-        geo_for_init,
-        evaluated_state.core_profiles,
-        evaluated_state.core_sources,
-        edge_state=model_state.edge,
-    )
-    edge_outputs = template_edge_outputs.replace_bcs_from_datatree(
-        edge_datatree
-    )
-  else:
-    edge_outputs = None
+  edge_outputs, model_state = _evaluate_initial_edge(
+      runtime_params=runtime_params_for_init,
+      geo=geo_for_init,
+      evaluated_state=evaluated_state,
+      model_state=model_state,
+      edge_model=models.edge_model,
+      restart_datatree=data_tree,
+  )
 
   numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()

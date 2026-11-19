@@ -16,6 +16,7 @@
 
 from collections.abc import Sequence
 import functools
+import json
 from typing import Any
 
 import os
@@ -73,6 +74,33 @@ def load_state_file(filepath: str) -> xr.DataTree:
     raise ValueError(f"File {filepath} does not exist.")
 
 
+def _saved_variable_ranges(
+    node: xr.DataTree | None, times: np.ndarray
+) -> list[list[Any]]:
+  """Returns `[t_first, t_last, names]` ranges of the variables `node` saved.
+
+  Args:
+    node: Node of one of the trees being stitched, or None if that tree lacks
+      the node (in which case it saved no variables).
+    times: The times this tree contributes to the stitched tree. Ranges are
+      clipped to them.
+  """
+  if not times.size:
+    return []
+  if node is None:
+    ranges = [[times.min(), times.max(), []]]
+  elif output_keys.SAVED_VARIABLES in node.attrs:
+    ranges = json.loads(node.attrs[output_keys.SAVED_VARIABLES])
+  else:
+    ranges = [[times.min(), times.max(), sorted(node.dataset.data_vars)]]
+  clipped = []
+  for t_first, t_last, names in ranges:
+    inside = times[(times >= t_first) & (times <= t_last)]
+    if inside.size:
+      clipped.append([float(inside.min()), float(inside.max()), names])
+  return clipped
+
+
 def concat_datatrees(
     tree1: xr.DataTree,
     tree2: xr.DataTree,
@@ -80,6 +108,11 @@ def concat_datatrees(
   """Concats two xr.DataTrees along the time dimension.
 
   For any duplicate time steps, the values from the first dataset are kept.
+  Nodes and variables present in only one DataTree (e.g. stateful models enabled
+  or disabled across a restart) are padded with NaN at the other tree's times,
+  since all nodes share the root time coordinate. Wherever there is padding, the
+  node's `saved_variables` attribute records which variables were saved over
+  which time range, so that `select_time_slice` can drop the padding again.
 
   Args:
     tree1: The first xr.DataTree to concatenate.
@@ -88,6 +121,15 @@ def concat_datatrees(
   Returns:
     A xr.DataTree containing the concatenation of the two datasets.
   """
+
+  if (
+      output_keys.TIME not in tree1.coords
+      or output_keys.TIME not in tree2.coords
+  ):
+    raise ValueError(
+        f"Both DataTrees must have a '{output_keys.TIME}' coordinate on the"
+        " root."
+    )
 
   def _concat_datasets(
       previous_ds: xr.Dataset,
@@ -103,7 +145,103 @@ def concat_datatrees(
     ds = ds.drop_duplicates(dim=output_keys.TIME, keep="first")
     return ds
 
-  return xr.map_over_datasets(_concat_datasets, tree1, tree2)
+  # `xr.map_over_datasets` requires identical tree topologies, which fails when
+  # optional groups (e.g. `/model_state/sources/*`, `/edge`, `/auxiliary/*`) are
+  # enabled or disabled across a stitched restart. Walk the union of children
+  # instead, and reindex single-sided subtrees onto the stitched time grid so
+  # `xr.DataTree` parent-child coordinate alignment is preserved (NaN-padding
+  # times when the model was inactive).
+  stitched_time = xr.concat(
+      [tree1.coords[output_keys.TIME], tree2.coords[output_keys.TIME]],
+      dim=output_keys.TIME,
+  ).drop_duplicates(dim=output_keys.TIME, keep="first")
+  times1 = tree1.coords[output_keys.TIME].values
+  times2 = tree2.coords[output_keys.TIME].values
+  new_times2 = times2[~np.isin(times2, times1)]
+
+  def _reindex(node: xr.DataTree) -> xr.Dataset:
+    """Reindexes a single-sided node's dataset onto `stitched_time`."""
+    ds = node.dataset
+    if not ds.data_vars:
+      # Empty container node: let DataTree inherit `stitched_time` from parent.
+      return xr.Dataset()
+    # `reindex` fills timestamps absent from this tree with NaN by default
+    # for time-indexed vars, and leaves non-time-indexed vars untouched while
+    # aligning the inherited `time` coordinate.
+    return ds.drop_duplicates(dim=output_keys.TIME, keep="first").reindex(
+        {output_keys.TIME: stitched_time}
+    )
+
+  def _concat_nodes(
+      node1: xr.DataTree | None, node2: xr.DataTree | None
+  ) -> xr.DataTree:
+    if node1 is not None and node2 is not None:
+      ds = _concat_datasets(node1.dataset, node2.dataset)
+    elif node1 is not None:
+      ds = _reindex(node1)
+    else:
+      assert node2 is not None
+      ds = _reindex(node2)
+    children1 = node1.children if node1 is not None else {}
+    children2 = node2.children if node2 is not None else {}
+    children = {
+        k: _concat_nodes(children1.get(k), children2.get(k))
+        for k in dict.fromkeys((*children1, *children2))
+    }
+    ds.attrs = {
+        k: v for k, v in ds.attrs.items() if k != output_keys.SAVED_VARIABLES
+    }
+    if ds.data_vars:
+      ranges = []
+      for t_first, t_last, names in _saved_variable_ranges(
+          node1, times1
+      ) + _saved_variable_ranges(node2, new_times2):
+        if ranges and ranges[-1][2] == names:
+          ranges[-1][1] = t_last
+        else:
+          ranges.append([t_first, t_last, names])
+      all_names = sorted(ds.data_vars)
+      if any(names != all_names for _, _, names in ranges):
+        ds.attrs[output_keys.SAVED_VARIABLES] = json.dumps(ranges)
+    return xr.DataTree(dataset=ds, children=children)
+
+  return _concat_nodes(tree1, tree2)
+
+
+def select_time_slice(datatree: xr.DataTree, t: float) -> xr.DataTree:
+  """Returns `datatree` at its stored time nearest `t`, without NaN padding.
+
+  In a stitched tree, a node holds NaN padding for variables it did not save at
+  a given time (see `concat_datatrees`). Those variables are dropped from the
+  returned slice, so each node holds exactly the variables saved at that time,
+  as in an unstitched output file.
+
+  Args:
+    datatree: Output DataTree, possibly stitched.
+    t: Requested time.
+  """
+  sliced = datatree.sel({output_keys.TIME: t}, method="nearest")
+  t_selected = float(sliced.coords[output_keys.TIME])
+
+  def _drop_padding(node: xr.DataTree) -> xr.DataTree:
+    ds = node.to_dataset(inherit=False)
+    if output_keys.SAVED_VARIABLES in ds.attrs:
+      ranges = json.loads(ds.attrs[output_keys.SAVED_VARIABLES])
+      saved = next(
+          (
+              names
+              for t_first, t_last, names in ranges
+              if t_first <= t_selected <= t_last
+          ),
+          [],
+      )
+      ds = ds.drop_vars([name for name in ds.data_vars if name not in saved])
+    return xr.DataTree(
+        dataset=ds,
+        children={k: _drop_padding(c) for k, c in node.children.items()},
+    )
+
+  return _drop_padding(sliced)
 
 
 def stitch_state_files(
@@ -133,6 +271,20 @@ def stitch_state_files(
   # we are uncertain if file_restart.time is the exact time of the
   # first time step in this sim output (it takes the nearest time).
   previous_datatree = previous_datatree.sel(time=slice(None, datatree.time[0]))
+  # Keep the restarted simulation's final `sim_error` rather than failing with
+  # MergeError when the previous and restarted runs have different `sim_error`
+  # values (e.g. restarting from a failed run, or a restart that fails later).
+  prev_numerics = previous_datatree.children[output_keys.NUMERICS]
+  previous_datatree[output_keys.NUMERICS] = xr.DataTree(
+      dataset=prev_numerics.dataset.assign({
+          output_keys.SIM_ERROR: (
+              datatree.children[output_keys.NUMERICS].dataset[
+                  output_keys.SIM_ERROR
+              ]
+          )
+      }),
+      children=dict(prev_numerics.children),
+  )
   return concat_datatrees(previous_datatree, datatree)
 
 

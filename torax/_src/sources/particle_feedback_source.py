@@ -37,6 +37,8 @@ from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import solver_profiles as solver_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import formulas as physics_formulas
 from torax._src.sources import base
 from torax._src.sources import core_sources
@@ -46,6 +48,7 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import override
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -241,6 +244,43 @@ class ParticleFeedbackState(source_state_lib.SourceState):
   t: array_typing.FloatScalar
   initialized: array_typing.BoolScalar
 
+  @override
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree:
+    """Builds an xr.DataTree of ParticleFeedbackState.
+
+    Args:
+      context: Output grid context for building datasets.
+
+    Returns:
+      An xr.DataTree of ParticleFeedbackState.
+    """
+    data_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.INTEGRAL_TERM: context.pack(
+            output_keys.INTEGRAL_TERM,
+            np.atleast_1d(np.asarray(self.integral_term)),
+        ),
+        output_keys.PREVIOUS_ERROR: context.pack(
+            output_keys.PREVIOUS_ERROR,
+            np.atleast_1d(np.asarray(self.previous_error)),
+        ),
+        output_keys.SMOOTHED_DERIVATIVE: context.pack(
+            output_keys.SMOOTHED_DERIVATIVE,
+            np.atleast_1d(np.asarray(self.smoothed_derivative)),
+        ),
+        output_keys.FEEDBACK_TIME: context.pack(
+            output_keys.FEEDBACK_TIME,
+            np.atleast_1d(np.asarray(self.t)),
+        ),
+        output_keys.INITIALIZED: context.pack(
+            output_keys.INITIALIZED,
+            np.atleast_1d(np.asarray(self.initialized)),
+        ),
+    }
+    return xr.DataTree(dataset=context.build_dataset(data_vars))
+
 
 def _compute_radial_profile(
     profile_params: ProfileRuntimeParams,
@@ -294,6 +334,62 @@ class ParticleFeedbackSource(generic_particle_source.GenericParticleSource):
         smoothed_derivative=zero,
         t=jnp.asarray(runtime_params.t, dtype=dtype),
         initialized=jnp.array(False),
+    )
+
+  @override
+  def initial_state_from_datatree(
+      self,
+      datatree: xr.DataTree | None,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> ParticleFeedbackState:
+    """Reconstructs ParticleFeedbackState from a time-sliced DataTree.
+
+    Args:
+      datatree: Time-sliced DataTree containing source model state, or None.
+      runtime_params: Runtime parameters at the restart time.
+
+    Returns:
+      Reconstructed ParticleFeedbackState.
+
+    Raises:
+      ValueError: If `datatree` is None or missing required variables.
+    """
+    del runtime_params
+    if datatree is None:
+      raise ValueError(
+          'ParticleFeedbackSource requires a non-None source state DataTree.'
+      )
+    required_keys = (
+        output_keys.INTEGRAL_TERM,
+        output_keys.PREVIOUS_ERROR,
+        output_keys.SMOOTHED_DERIVATIVE,
+        output_keys.FEEDBACK_TIME,
+        output_keys.INITIALIZED,
+    )
+    ds = datatree.dataset
+    missing = [k for k in required_keys if k not in ds.data_vars]
+    if missing:
+      raise ValueError(
+          'Missing required variables in ParticleFeedbackState DataTree: '
+          f'{missing}'
+      )
+    dtype = jax_utils.get_dtype()
+    return ParticleFeedbackState(
+        integral_term=jnp.asarray(
+            np.squeeze(ds[output_keys.INTEGRAL_TERM].values), dtype=dtype
+        ),
+        previous_error=jnp.asarray(
+            np.squeeze(ds[output_keys.PREVIOUS_ERROR].values), dtype=dtype
+        ),
+        smoothed_derivative=jnp.asarray(
+            np.squeeze(ds[output_keys.SMOOTHED_DERIVATIVE].values), dtype=dtype
+        ),
+        t=jnp.asarray(
+            np.squeeze(ds[output_keys.FEEDBACK_TIME].values), dtype=dtype
+        ),
+        initialized=jnp.asarray(
+            np.squeeze(ds[output_keys.INITIALIZED].values), dtype=jnp.bool_
+        ),
     )
 
   @override

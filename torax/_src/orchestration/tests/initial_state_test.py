@@ -15,6 +15,7 @@ import copy
 import dataclasses
 import functools
 import os
+from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -30,6 +31,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
+from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
@@ -745,6 +747,309 @@ class InitialStateTest(sim_test_case.SimTestCase):
     plasma_comp = runtime_params.plasma_composition
     with self.assertRaises(dataclasses.FrozenInstanceError):
       plasma_comp.main_ion_names = ()  # pyrefly: ignore[read-only]
+
+  @parameterized.named_parameters(
+      ('implicit', False),
+      ('explicit', True),
+  )
+  def test_restart_particle_feedback(self, is_explicit: bool):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
+    config_dict['numerics']['evolve_density'] = True
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.0,
+        't_final': 0.25,
+        'exact_t_final': True,
+    }
+    config_dict['sources'] = {
+        'generic_particle': {
+            'model_name': 'feedback',
+            'is_explicit': is_explicit,
+            'proportional_gain': 1e2,
+            'integral_gain': 5e2,
+            'derivative_gain': 1e1,
+            'derivative_smoothing_time_scale': 0.05,
+            'target_average_n_e': 1.2e20,
+            'S_feedforward': 1e21,
+        }
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    continuous_res = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    continuous_xr = continuous_res.simulation_output_to_xr()
+
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, f'continuous_pid_{is_explicit}.nc')
+    continuous_xr.to_netcdf(nc_path)
+
+    restart_config_dict = copy.deepcopy(config_dict)
+    restart_config_dict['time_step_calculator']['t_initial'] = 0.15
+    restart_config_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.15,
+        'do_restart': True,
+        'stitch': True,
+    }
+    restarted_config = config.ToraxConfig.from_dict(restart_config_dict)
+    restarted_res = run_simulation.run_simulation(
+        restarted_config, progress_bar=False
+    )
+    restarted_xr = restarted_res.simulation_output_to_xr()
+
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, restarted_xr, continuous_xr)
+
+  def _make_short_sim_config_dict(self, t_final: float) -> dict[str, Any]:
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'model_name': 'circular', 'n_rho': 10}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.0,
+        't_final': t_final,
+        'exact_t_final': True,
+    }
+    return config_dict
+
+  @parameterized.named_parameters(
+      ('implicit', False),
+      ('explicit', True),
+  )
+  def test_restart_enabling_particle_feedback_for_first_time(
+      self, is_explicit: bool
+  ):
+    phase1_dict = self._make_short_sim_config_dict(t_final=0.1)
+    phase1_dict['numerics']['evolve_density'] = True
+    phase1_dict['sources'] = {}
+    phase1_res = run_simulation.run_simulation(
+        config.ToraxConfig.from_dict(phase1_dict), progress_bar=False
+    )
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, f'phase1_no_pid_{is_explicit}.nc')
+    phase1_res.simulation_output_to_xr().to_netcdf(nc_path)
+
+    phase2_dict = copy.deepcopy(phase1_dict)
+    phase2_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.05,
+        't_initial': 0.1,
+        't_final': 0.25,
+        'exact_t_final': True,
+    }
+    phase2_dict['sources'] = {
+        'generic_particle': {
+            'model_name': 'feedback',
+            'is_explicit': is_explicit,
+            'proportional_gain': 1e2,
+            'integral_gain': 5e2,
+            'derivative_gain': 1e1,
+            'derivative_smoothing_time_scale': 0.05,
+            'target_average_n_e': 1.2e20,
+            'S_feedforward': 1e21,
+        }
+    }
+    phase2_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.1,
+        'do_restart': True,
+        'stitch': True,
+    }
+    with self.assertLogs(level='WARNING') as logs:
+      phase2_res = run_simulation.run_simulation(
+          config.ToraxConfig.from_dict(phase2_dict), progress_bar=False
+      )
+    self.assertTrue(
+        any("source 'generic_particle'" in msg for msg in logs.output)
+    )
+    stitched_xr = phase2_res.simulation_output_to_xr()
+    pid_ds = stitched_xr[
+        f'/{output_keys.MODEL_STATE}/{output_keys.SOURCES}/generic_particle'
+    ].dataset
+
+    # Pre-restart times are NaN-padded; t_restart is cold-started and active.
+    self.assertTrue(
+        np.all(
+            np.isnan(pid_ds['initialized'].sel(time=slice(0.0, 0.09)).values)
+        )
+    )
+    self.assertEqual(
+        float(pid_ds['initialized'].sel(time=0.1, method='nearest').values),
+        1.0,
+    )
+    self.assertNotEqual(
+        float(pid_ds['previous_error'].sel(time=0.1, method='nearest').values),
+        0.0,
+    )
+    self.assertNotEqual(
+        float(pid_ds['integral_term'].sel(time=0.25, method='nearest').values),
+        0.0,
+    )
+
+  def test_restart_enabling_power_scaling_formation_dw_dt(self):
+    phase1_dict = self._make_short_sim_config_dict(t_final=0.15)
+    phase1_dict['pedestal'] = {
+        'mode': 'internal_boundary_condition',
+        'structure_model': {'model_name': 'set_T_top_n_top'},
+        'transition_time_width': 0.1,
+        'formation_model': {
+            'model_name': 'martin_scaling',
+            'include_dW_dt_in_P_SOL': False,
+        },
+    }
+    phase1_res = run_simulation.run_simulation(
+        config.ToraxConfig.from_dict(phase1_dict), progress_bar=False
+    )
+    temp_dir = self.create_tempdir().full_path
+    nc1_path = os.path.join(temp_dir, 'phase1_no_dw_dt.nc')
+    phase1_res.simulation_output_to_xr().to_netcdf(nc1_path)
+
+    phase2_dict = copy.deepcopy(phase1_dict)
+    phase2_dict['time_step_calculator']['t_initial'] = 0.15
+    phase2_dict['time_step_calculator']['t_final'] = 0.25
+    phase2_dict['pedestal']['formation_model']['include_dW_dt_in_P_SOL'] = True
+    phase2_dict['restart'] = {
+        'filename': nc1_path,
+        'time': 0.15,
+        'do_restart': True,
+        'stitch': True,
+    }
+    phase2_config = config.ToraxConfig.from_dict(phase2_dict)
+    assert phase2_config.restart is not None
+    with self.assertLogs(level='WARNING') as logs:
+      init_sim_state, _ = (
+          initial_state.get_initial_state_and_post_processed_outputs_from_file(
+              file_restart=phase2_config.restart,
+              step_fn=run_simulation.make_step_fn(phase2_config),
+          )
+      )
+    self.assertTrue(any('pedestal formation' in msg for msg in logs.output))
+    formation_state = init_sim_state.model_state.pedestal.formation
+    assert isinstance(
+        formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    assert formation_state.W_thermal_total is not None
+    self.assertTrue(np.isfinite(float(formation_state.W_thermal_total)))
+
+  @parameterized.named_parameters(
+      (
+          'ibc_to_adaptive',
+          'internal_boundary_condition',
+          'adaptive_transport',
+          pedestal_state.AdaptiveTransportPedestalState,
+          False,
+      ),
+      (
+          'adaptive_to_ibc',
+          'adaptive_transport',
+          'internal_boundary_condition',
+          pedestal_state.IBCPedestalState,
+          True,
+      ),
+  )
+  def test_restart_switching_pedestal_mode(
+      self,
+      from_mode: str,
+      to_mode: str,
+      expected_state_cls: type[pedestal_state.PedestalState],
+      expect_warning: bool,
+  ):
+    phase1_dict = self._make_short_sim_config_dict(t_final=0.1)
+    phase1_dict['pedestal'] = {
+        'mode': from_mode,
+        'structure_model': {'model_name': 'set_T_top_n_top'},
+        'transition_time_width': 0.1,
+        'formation_model': {'model_name': 'martin_scaling'},
+    }
+    phase1_res = run_simulation.run_simulation(
+        config.ToraxConfig.from_dict(phase1_dict), progress_bar=False
+    )
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, f'phase1_{from_mode}.nc')
+    phase1_res.simulation_output_to_xr().to_netcdf(nc_path)
+
+    phase2_dict = copy.deepcopy(phase1_dict)
+    phase2_dict['time_step_calculator']['t_initial'] = 0.1
+    phase2_dict['time_step_calculator']['t_final'] = 0.2
+    phase2_dict['pedestal']['mode'] = to_mode
+    phase2_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.1,
+        'do_restart': True,
+        'stitch': True,
+    }
+    phase2_config = config.ToraxConfig.from_dict(phase2_dict)
+    assert phase2_config.restart is not None
+    def _load_restart():
+      return (
+          initial_state.get_initial_state_and_post_processed_outputs_from_file(
+              file_restart=phase2_config.restart,
+              step_fn=run_simulation.make_step_fn(phase2_config),
+          )
+      )
+
+    if expect_warning:
+      with self.assertLogs(level='WARNING') as logs:
+        init_sim_state, _ = _load_restart()
+      self.assertTrue(any('pedestal state' in msg for msg in logs.output))
+    else:
+      # No warning means the saved state was restored, not cold-started.
+      with self.assertNoLogs(level='WARNING'):
+        init_sim_state, _ = _load_restart()
+    self.assertIsInstance(
+        init_sim_state.model_state.pedestal, expected_state_cls
+    )
+
+  def test_restart_enabling_edge_model_for_first_time(self):
+    edge_config_dict = self._get_config_dict(
+        'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel.py'
+    )
+    edge_config_dict['geometry']['n_rho'] = 10
+    edge_config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt': 0.2,
+        't_initial': 0.0,
+        't_final': 0.2,
+        'exact_t_final': True,
+    }
+
+    phase1_dict = copy.deepcopy(edge_config_dict)
+    phase1_dict.pop('edge')
+    phase1_res = run_simulation.run_simulation(
+        config.ToraxConfig.from_dict(phase1_dict), progress_bar=False
+    )
+    temp_dir = self.create_tempdir().full_path
+    nc_path = os.path.join(temp_dir, 'phase1_no_edge.nc')
+    phase1_res.simulation_output_to_xr().to_netcdf(nc_path)
+
+    phase2_dict = copy.deepcopy(edge_config_dict)
+    phase2_dict['time_step_calculator']['t_initial'] = 0.2
+    phase2_dict['time_step_calculator']['t_final'] = 0.4
+    phase2_dict['restart'] = {
+        'filename': nc_path,
+        'time': 0.2,
+        'do_restart': True,
+        'stitch': True,
+    }
+    phase2_config = config.ToraxConfig.from_dict(phase2_dict)
+    assert phase2_config.restart is not None
+    with self.assertLogs(level='WARNING') as logs:
+      init_sim_state, _ = (
+          initial_state.get_initial_state_and_post_processed_outputs_from_file(
+              file_restart=phase2_config.restart,
+              step_fn=run_simulation.make_step_fn(phase2_config),
+          )
+      )
+    warned = ''.join(logs.output)
+    self.assertIn('edge state', warned)
+    self.assertIn('edge outputs', warned)
+    self.assertIsNotNone(init_sim_state.edge_outputs)
+    self.assertIsNotNone(init_sim_state.model_state.edge)
 
 
 if __name__ == '__main__':
