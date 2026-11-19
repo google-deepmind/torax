@@ -191,7 +191,11 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   Attributes:
     profile: Evaluated radial deposition profile shape parameters.
     S_feedforward: Baseline feedforward particle injection rate [particles/s].
-    target_average_n_e: Target average electron density [m^-3].
+    target_average_n_e: Target average electron density [m^-3 if
+      `target_average_n_e_is_f_GW=False`, or Greenwald fraction if
+      `target_average_n_e_is_f_GW=True`].
+    target_average_n_e_is_f_GW: Whether `target_average_n_e` is specified as a
+      Greenwald fraction (`f_GW`) [dimensionless] instead of [m^-3].
     average_type: Spatial averaging method (`LINE` or `VOLUME`).
     proportional_gain: Proportional feedback gain [m^3 / s].
     integral_gain: Integral feedback gain [m^3 / s^2].
@@ -204,7 +208,8 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
   profile: ProfileRuntimeParams
   S_feedforward: array_typing.FloatScalar
-  target_average_n_e: array_typing.FloatScalar
+  target_average_n_e: array_typing.FloatScalar | None
+  target_average_n_e_is_f_GW: bool = jax.tree.static()
   average_type: AverageType = jax.tree.static()
   proportional_gain: array_typing.FloatScalar
   integral_gain: array_typing.FloatScalar
@@ -334,7 +339,16 @@ class ParticleFeedbackSource(generic_particle_source.GenericParticleSource):
 
     dtype = jax_utils.get_dtype()
     t = runtime_params.t
-    error = source_params.target_average_n_e - current_avg_n_e
+    if source_params.target_average_n_e is None:
+      raise ValueError(
+          'ParticleFeedbackSource requires `target_average_n_e` to be set.'
+      )
+    if source_params.target_average_n_e_is_f_GW:
+      n_GW = physics_formulas.calculate_greenwald_density(solver_profiles, geo)
+      target_average_n_e = source_params.target_average_n_e * n_GW
+    else:
+      target_average_n_e = source_params.target_average_n_e
+    error = target_average_n_e - current_avg_n_e
     dt = t - source_state.t
     calc_deriv = (
         physics_formulas.calculate_time_derivative_with_exponential_smoothing
@@ -422,11 +436,16 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
   S_total = max(0, S_feedforward + S_p + S_i + S_d)
   ```
 
-  with density error `e(t) = target_average_n_e(t) - current_avg_n_e(t)` and:
-    - `S_p = proportional_gain * e(t)`
-    - `S_i = clip(S_i_prev + integral_gain * e(t) * dt, min_integral,
-      max_integral)`
-    - `S_d = derivative_gain * (de/dt)_smoothed`
+  with density error `e(t) = target_n_e(t) - current_avg_n_e(t)` (where
+  `target_n_e(t) = target_average_n_e(t) * n_GW(t)` if
+  `target_average_n_e_is_f_GW=True` and `target_average_n_e(t)` otherwise, with
+  $n_GW$ evaluated from the current timestep's plasma current and minor radius)
+  and:
+
+  - `S_p = proportional_gain * e(t)`
+  - `S_i = clip(S_i_prev + integral_gain * e(t) * dt, min_integral,
+    max_integral)`
+  - `S_d = derivative_gain * (de/dt)_smoothed`
 
   where `current_avg_n_e` is the instantaneous line- or volume-averaged electron
   density, and `(de/dt)_smoothed` is the finite-difference time derivative of
@@ -459,8 +478,15 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
       for anti-windup clamping. If `None`, unbounded below (`-inf`).
     max_integral: Optional upper bound [particles/s] on the integral term `S_i`
       for anti-windup clamping. If `None`, unbounded above (`+inf`).
-    target_average_n_e: Desired target average electron density [m^-3] for
-      feedback regulation.
+    target_average_n_e: Desired target average electron density [m^-3 if
+      `target_average_n_e_is_f_GW=False`, or Greenwald fraction if
+      `target_average_n_e_is_f_GW=True`], where $n_GW = I_p / (pi * a^2)$ is
+      evaluated from the current timestep's plasma current and minor radius.
+    target_average_n_e_is_f_GW: Whether `target_average_n_e` is specified as a
+      Greenwald fraction (`f_GW`) [dimensionless] instead of [m^-3]. When
+      `True`, the target is converted to [m^-3] at each evaluation using the
+      instantaneous Greenwald density computed from the current plasma current
+      and minor radius.
   """
 
   model_name: Annotated[Literal['feedback'], torax_pydantic.JAX_STATIC] = (
@@ -489,9 +515,19 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
   ) = torax_pydantic.ValidatedDefault(0.0)
   min_integral: torax_pydantic.TimeVaryingScalar | None = None
   max_integral: torax_pydantic.TimeVaryingScalar | None = None
-  target_average_n_e: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.77e20)
-  )
+  target_average_n_e: torax_pydantic.TimeVaryingScalar | None = None
+  target_average_n_e_is_f_GW: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if (
+        self.mode == sources_runtime_params_lib.Mode.MODEL_BASED
+        and self.target_average_n_e is None
+    ):
+      raise ValueError(
+          "target_average_n_e must be provided when mode is 'model_based'."
+      )
+    return self
 
   @pydantic.model_validator(mode='after')
   def _validate_integral_bounds(self) -> Self:
@@ -528,7 +564,12 @@ class ParticleFeedbackSourceConfig(base.SourceConfigBase):
         **vars(base_params),
         profile=self.profile.build_runtime_params(t),
         S_feedforward=self.S_feedforward.get_value(t),
-        target_average_n_e=self.target_average_n_e.get_value(t),
+        target_average_n_e=(
+            None
+            if self.target_average_n_e is None
+            else self.target_average_n_e.get_value(t)
+        ),
+        target_average_n_e_is_f_GW=self.target_average_n_e_is_f_GW,
         average_type=self.average_type,
         proportional_gain=self.proportional_gain.get_value(t),
         integral_gain=self.integral_gain.get_value(t),

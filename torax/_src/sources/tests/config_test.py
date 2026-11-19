@@ -79,7 +79,10 @@ class SourcesConfigTest(parameterized.TestCase):
       ),
       dict(
           config_dict={
-              'generic_particle': {'model_name': 'feedback'},
+              'generic_particle': {
+                  'model_name': 'feedback',
+                  'target_average_n_e': 0.77e20,
+              },
           },
           expected_sources_model=(
               particle_feedback_source.ParticleFeedbackSourceConfig
@@ -345,6 +348,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='proportional_gain',
           initial_value=1.0,
           updated_value=2.0,
+          extra_fields={'target_average_n_e': 0.77e20},
       ),
       dict(
           testcase_name='icrh_scaled_profile',

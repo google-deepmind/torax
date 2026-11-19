@@ -95,6 +95,10 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(wth_ion, 1.5 * p_ion.value[0] * volume)
     np.testing.assert_allclose(wth_tot, 1.5 * p_tot.value[0] * volume)
 
+  def test_calculate_greenwald_density(self):
+    n_GW = formulas.calculate_greenwald_density(self.core_profiles, self.geo)
+    np.testing.assert_allclose(n_GW, 1.0e20)
+
   def test_calculate_greenwald_fraction(self):
     """Test that Greenwald fraction is calculated correctly."""
     n_e_avg = 1.0e20

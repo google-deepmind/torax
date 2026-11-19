@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -22,6 +23,7 @@ import pydantic
 import torax
 from torax._src import math_utils
 from torax._src.config import build_runtime_params
+from torax._src.physics import formulas as physics_formulas
 from torax._src.sources import config as sources_config
 from torax._src.sources import formulas
 from torax._src.sources import generic_particle_source
@@ -32,6 +34,8 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config as torax_pydantic_config
 from torax._src.torax_pydantic import torax_pydantic
 
+# pylint: disable=invalid-name
+
 
 class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for ParticleFeedbackSource."""
@@ -39,12 +43,14 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
   source_config_class = particle_feedback_source.ParticleFeedbackSourceConfig
   source_name = generic_particle_source.GenericParticleSource.SOURCE_ID
   model_name = 'feedback'
+  extra_source_config_kwargs = {'target_average_n_e': 0.77e20}
 
   def _make_feedback_setup(self, **source_overrides):
     config = default_configs.get_default_config_dict()
     config['sources'] = {
         'generic_particle': {
             'model_name': 'feedback',
+            'target_average_n_e': 0.77e20,
             **source_overrides,
         }
     }
@@ -87,6 +93,118 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     assert isinstance(state, particle_feedback_source.ParticleFeedbackState)
     total_particles = math_utils.volume_integration(profile, geo)
     chex.assert_trees_all_close(total_particles, 1e20, rtol=1e-5)
+
+  def test_target_f_GW_matches_equivalent_absolute_target(self):
+    base_profiles, geo, _, _ = self._make_feedback_setup()
+    n_GW = float(
+        physics_formulas.calculate_greenwald_density(base_profiles, geo)
+    )
+    f_GW_target = 0.85
+
+    core_profiles_fgw, geo_fgw, provider_fgw, source_fgw = (
+        self._make_feedback_setup(
+            proportional_gain=10.0,
+            target_average_n_e=f_GW_target,
+            target_average_n_e_is_f_GW=True,
+            S_feedforward=0.0,
+        )
+    )
+    core_profiles_abs, geo_abs, provider_abs, source_abs = (
+        self._make_feedback_setup(
+            proportional_gain=10.0,
+            target_average_n_e=f_GW_target * n_GW,
+            target_average_n_e_is_f_GW=False,
+            S_feedforward=0.0,
+        )
+    )
+    params_fgw = provider_fgw(t=0.0)
+    params_abs = provider_abs(t=0.0)
+
+    out_fgw, _ = source_fgw.get_value(
+        runtime_params=params_fgw,
+        geo=geo_fgw,
+        solver_profiles=core_profiles_fgw,
+        source_state=source_fgw.initial_state(params_fgw),
+    )
+    out_abs, _ = source_abs.get_value(
+        runtime_params=params_abs,
+        geo=geo_abs,
+        solver_profiles=core_profiles_abs,
+        source_state=source_abs.initial_state(params_abs),
+    )
+    chex.assert_trees_all_close(
+        out_fgw.particle_source_e, out_abs.particle_source_e, rtol=1e-6
+    )
+
+  def test_target_f_GW_uses_current_state_not_config_or_initial_step(self):
+    core_profiles, geo, provider, source = self._make_feedback_setup(
+        proportional_gain=10.0,
+        target_average_n_e=1.0,
+        target_average_n_e_is_f_GW=True,
+        S_feedforward=0.0,
+    )
+    current_line_avg = float(
+        math_utils.line_average(core_profiles.kinetic.n_e.value, geo)
+    )
+    params_t0 = provider(t=0.0)
+    config_I_p = float(params_t0.profile_conditions.I_p)
+
+    # Step 0: use an I_p in solver_profiles that differs from config I_p.
+    I_p_step0 = config_I_p * 1.5
+    profiles_step0 = dataclasses.replace(
+        core_profiles,
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux,
+            I_p_profile_face=jnp.full_like(
+                core_profiles.poloidal_flux.I_p_profile_face, I_p_step0
+            ),
+        ),
+    )
+    state = source.initial_state(params_t0)
+    out_0, state = source.get_value(
+        runtime_params=params_t0,
+        geo=geo,
+        solver_profiles=profiles_step0,
+        source_state=state,
+    )
+    n_GW_step0 = (I_p_step0 * 1e-6) / (np.pi * float(geo.a_minor) ** 2) * 1e20
+    expected_S_0 = max(0.0, 10.0 * (1.0 * n_GW_step0 - current_line_avg))
+    assert out_0.particle_source_e is not None
+    chex.assert_trees_all_close(
+        math_utils.volume_integration(out_0.particle_source_e, geo),
+        expected_S_0,
+        rtol=1e-5,
+    )
+
+    # Step 1: change both current I_p and geo.a_minor; verify reference updates.
+    I_p_step1 = config_I_p * 2.0
+    a_minor_step1 = float(geo.a_minor) * 0.9
+    profiles_step1 = dataclasses.replace(
+        core_profiles,
+        poloidal_flux=dataclasses.replace(
+            core_profiles.poloidal_flux,
+            I_p_profile_face=jnp.full_like(
+                core_profiles.poloidal_flux.I_p_profile_face, I_p_step1
+            ),
+        ),
+    )
+    geo_step1 = dataclasses.replace(
+        geo, a_minor=jnp.asarray(a_minor_step1, dtype=geo.a_minor.dtype)
+    )
+    out_1, _ = source.get_value(
+        runtime_params=provider(t=0.5),
+        geo=geo_step1,
+        solver_profiles=profiles_step1,
+        source_state=state,
+    )
+    n_GW_step1 = (I_p_step1 * 1e-6) / (np.pi * a_minor_step1**2) * 1e20
+    expected_S_1 = max(0.0, 10.0 * (1.0 * n_GW_step1 - current_line_avg))
+    assert out_1.particle_source_e is not None
+    chex.assert_trees_all_close(
+        math_utils.volume_integration(out_1.particle_source_e, geo_step1),
+        expected_S_1,
+        rtol=1e-5,
+    )
 
   def test_integral_accumulates_and_clamps(self):
     base_profiles, geo, _, _ = self._make_feedback_setup()
@@ -357,6 +475,7 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     sources = sources_config.SourcesConfig.from_dict({
         'generic_particle': {
             'model_name': 'feedback',
+            'target_average_n_e': 0.77e20,
             'profile': {
                 'profile_type': 'gaussian',
                 'center': 0.2,
@@ -393,6 +512,7 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
   def test_prescribed_profile_set_grid_via_from_dict(self):
     src = particle_feedback_source.ParticleFeedbackSourceConfig.from_dict({
         'model_name': 'feedback',
+        'target_average_n_e': 0.77e20,
         'profile': {
             'profile_type': 'prescribed',
             'values': {0.0: {0.0: 1.0, 1.0: 3.0}},
@@ -413,6 +533,7 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     ):
       particle_feedback_source.ParticleFeedbackSourceConfig.from_dict({
           'model_name': 'feedback',
+          'target_average_n_e': 0.77e20,
           'min_integral': 1e22,
           'max_integral': -1e22,
       })
@@ -463,6 +584,52 @@ class ParticleFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
       ].particle_source_e
       assert particle_source_e is not None
       self.assertFalse(bool(jnp.any(jnp.isnan(particle_source_e))))
+
+  @parameterized.parameters(False, True)
+  def test_run_simulation_with_pid_f_GW_target(self, is_explicit: bool):
+    config = default_configs.get_default_config_dict()
+    config['numerics']['evolve_density'] = True
+    config['numerics']['evolve_current'] = True
+    config['profile_conditions']['I_p'] = {0.0: 15e6, 0.2: 18e6}
+    config['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': 0.0,
+        't_final': 0.2,
+        'dt': 0.1,
+    }
+    config['sources'] = {
+        'generic_particle': {
+            'model_name': 'feedback',
+            'is_explicit': is_explicit,
+            'proportional_gain': 1e2,
+            'integral_gain': 5e2,
+            'target_average_n_e': 0.85,
+            'target_average_n_e_is_f_GW': True,
+            'S_feedforward': 1e21,
+        }
+    }
+    torax_config = torax_pydantic_config.ToraxConfig.from_dict(config)
+    state_history = torax.run_simulation(torax_config, progress_bar=False)
+    self.assertEqual(state_history.sim_error, torax.SimError.NO_ERROR)
+    for core_sources in state_history.core_sources:
+      particle_source_e = core_sources.sources[
+          'generic_particle'
+      ].particle_source_e
+      assert particle_source_e is not None
+      self.assertFalse(bool(jnp.any(jnp.isnan(particle_source_e))))
+
+  @parameterized.parameters(False, True)
+  def test_missing_target_average_n_e_raises_in_model_based_mode(
+      self, target_average_n_e_is_f_GW: bool
+  ):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        "target_average_n_e must be provided when mode is 'model_based'",
+    ):
+      particle_feedback_source.ParticleFeedbackSourceConfig.from_dict({
+          'model_name': 'feedback',
+          'target_average_n_e_is_f_GW': target_average_n_e_is_f_GW,
+      })
 
 
 if __name__ == '__main__':

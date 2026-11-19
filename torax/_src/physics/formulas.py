@@ -28,6 +28,8 @@ Functions:
       pressures.
     - calculate_time_derivative_with_exponential_smoothing: Calculates raw and
       exponentially smoothed time derivatives of a scalar.
+    - calculate_greenwald_density: Calculates the Greenwald density limit from
+      the current plasma current and minor radius.
     - calculate_greenwald_fraction: Calculates the Greenwald fraction from the
       averaged electron density (can be line-averaged or volume-averaged).
     - calculate_beta_volume_avg: Calculates the volume-averaged plasma beta
@@ -218,6 +220,29 @@ def calculate_time_derivative_with_exponential_smoothing(
   return raw_derivative, smoothed_derivative
 
 
+def calculate_greenwald_density(
+    core_profiles: solver_profiles.SolverProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.FloatScalar:
+  """Calculates the Greenwald density limit [m^-3] from the current state.
+
+  Args:
+    core_profiles: SolverProfiles object containing the current poloidal flux
+      and plasma current profile.
+    geo: Geometry object.
+
+  Returns:
+    n_GW: Greenwald density limit [m^-3].
+  """
+  # gw_limit is in units of 10^20 m^-3 when I_p is in MA and a_minor is in m.
+  gw_limit = (
+      core_profiles.poloidal_flux.I_p_profile_face[-1]
+      * 1e-6
+      / (jnp.pi * geo.a_minor**2)
+  )
+  return gw_limit * 1e20
+
+
 def calculate_greenwald_fraction(
     n_e_avg: array_typing.FloatScalar,
     core_profiles: solver_profiles.SolverProfiles,
@@ -236,14 +261,7 @@ def calculate_greenwald_fraction(
   Returns:
     f_GW: Greenwald density fraction
   """
-  # gw_limit is in units of 10^20 m^-3 when I_p is in MA and a_minor is in m.
-  gw_limit = (
-      core_profiles.poloidal_flux.I_p_profile_face[-1]
-      * 1e-6
-      / (jnp.pi * geo.a_minor**2)
-  )
-  f_GW = n_e_avg / (gw_limit * 1e20)
-  return f_GW
+  return n_e_avg / calculate_greenwald_density(core_profiles, geo)
 
 
 def calculate_betas(
