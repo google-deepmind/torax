@@ -21,7 +21,7 @@ dependencies = [
     "jaxlib>=0.11.1",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    "fusion_surrogates[tglfnnukaea]==0.4.8",
+    "fusion_surrogates[tglfnnukaea]==0.4.9",
     "numpy>2",
     "setuptools;python_version>='3.12'",
     "chex>=0.1.90",
