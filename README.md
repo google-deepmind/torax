@@ -3,6 +3,8 @@
 [![Unittests][pytest-badge]][pytest-workflow]
 [![Documentation][docs-badge]][docs]
 
+[ English | [简体中文](https://github.com/google-deepmind/torax/blob/main/README.zh.md) ]
+
 TORAX is a differentiable 1D tokamak core plasma transport simulator written in
 Python and [JAX][jax] for fast forward modelling, pulse design, trajectory
 optimization, and controller design. Key design principles include:
