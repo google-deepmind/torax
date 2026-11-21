@@ -73,6 +73,17 @@ class NotAStaticDataclass:
   pass
 
 
+@dataclasses.dataclass(frozen=True)
+class HashesByValueNotAStaticDataclass:
+  """A dataclass that hashes by value but is not a static dataclass.
+
+  Its hash does not include its class id, so it passes the hash-by-id check
+  and must be caught by the nested dataclass check.
+  """
+
+  x: int = 0
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class TreeLeaf(static_dataclass.StaticDataclass):
   """A test class for building hierarchical dataclasses."""
@@ -234,6 +245,20 @@ class StaticDataclassTest(absltest.TestCase):
 
     with self.assertRaises(TypeError):
       HasBadField(not_a_static_dataclass=not_a_static_dataclass)
+
+  def test_dataclass_field_is_static_not_last_field(self):
+
+    @dataclasses.dataclass(frozen=True, eq=False)
+    class HasBadFirstField(static_dataclass.StaticDataclass):
+      not_a_static_dataclass: HashesByValueNotAStaticDataclass
+      x: int
+
+    with self.assertRaisesRegex(
+        TypeError, "not_a_static_dataclass is a dataclass but not a"
+    ):
+      HasBadFirstField(
+          not_a_static_dataclass=HashesByValueNotAStaticDataclass(), x=1
+      )
 
   def test_equivalent_trees_hash_same(self):
 
