@@ -319,7 +319,6 @@ def calculate_scaling_law_confinement_time(
   # Effective elongation definition. This is a different definition than
   # the standard definition used in geo.elongation.
   elongation = geo.area_face[-1] / (jnp.pi * geo.a_minor**2)
-  # TODO(b/317360834): extend when multiple ions are supported.
   effective_mass = core_profiles.ions.A_i
   triangularity = geo.delta_face[-1]
 

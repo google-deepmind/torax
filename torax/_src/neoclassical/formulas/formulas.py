@@ -130,8 +130,6 @@ def compute_neoclassical_intermediates(
   )
 
 
-# TODO(b/428166775): currently we have two very similar implementations for
-# nu_e_star. We should refactor this to have a single one in physics/collisions
 def _calculate_nu_e_star(
     q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
@@ -272,7 +270,3 @@ def _calculate_neoclassical_k_neo(
   denominator = 1.0 + ps_factor
 
   return (term1 - term2) / denominator
-
-
-# TODO(b/381199010): Implement alternative Sauter-based k_neo calculation.
-# See Sauter (1999) Eq. 17a-17b

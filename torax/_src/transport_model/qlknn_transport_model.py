@@ -331,7 +331,6 @@ class QLKNNTransportModel(
 
     feature_scan = model.get_model_inputs_from_qualikiz_inputs(qualikiz_inputs)
     # Clip inputs if requested.
-    # TODO(b/364218524): Consider better clipping of out-of-distribution inputs.
     feature_scan = jax.lax.cond(
         transport.clip_inputs,
         lambda: clip_inputs(
