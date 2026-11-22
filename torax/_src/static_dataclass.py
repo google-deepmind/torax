@@ -22,7 +22,38 @@ a way that works with the persistent cache. This process has many
 """
 
 import dataclasses
+import enum
+import hashlib
 from typing import Any, Mapping
+
+
+def _deterministic_hash_key(val: Any) -> Any:
+  """Converts values with randomized Python hashes into deterministic keys."""
+  if val is None:
+    return 0x4E6F6E65
+  if isinstance(val, str):
+    return int.from_bytes(
+        hashlib.sha256(val.encode("utf-8")).digest()[:8],
+        "little",
+        signed=True,
+    )
+  if isinstance(val, bytes):
+    return int.from_bytes(
+        hashlib.sha256(val).digest()[:8],
+        "little",
+        signed=True,
+    )
+  if isinstance(val, enum.Enum):
+    return (
+        _deterministic_hash_key(
+            f"{val.__class__.__module__}.{val.__class__.__qualname__}"
+        ),
+        _deterministic_hash_key(val.name),
+        _deterministic_hash_key(val.value),
+    )
+  if isinstance(val, tuple):
+    return tuple(_deterministic_hash_key(x) for x in val)
+  return val
 
 
 def _make_hashable(val: Any) -> Any:
@@ -142,7 +173,7 @@ class StaticDataclass:
 
   def _hash(self) -> int:
     """Hash function implementation."""
-    return hash(self._full_tuple())
+    return hash(_deterministic_hash_key(self._full_tuple()))
 
   def __post_init__(self):
 
