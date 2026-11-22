@@ -123,12 +123,18 @@ def _fill_global_quantities(
 ) -> None:
   """Fills `global_quantities` in-place for the IDS."""
   ids.time = times
-  ids.vacuum_toroidal_field.r0 = geometry[0].R_major
+  # r0 is a single reference radius for all slices while B_0 is given at each
+  # slice's R_major: use the input reference radius if any, and rescale B_0.
+  r0 = getattr(geometry[0], 'r0_vacuum', None)
+  if r0 is None:
+    r0 = geometry[0].R_major
+  ids.vacuum_toroidal_field.r0 = r0
   # TODO(b/335204606): Check signs of B_0 and currents once TORAX COCOS defined.
   # Currents sign are flipped due to the difference between TORAX COCOS
   # convention and IMAS one.
   ids.vacuum_toroidal_field.b0 = [
-      geometry_slice.B_0 for geometry_slice in geometry
+      geometry_slice.B_0 * geometry_slice.R_major / r0
+      for geometry_slice in geometry
   ]
   I_p = []
   v_loop = []
