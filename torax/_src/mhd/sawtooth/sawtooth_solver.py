@@ -38,6 +38,8 @@ from torax._src.solver import solver_numeric_outputs
 # b. Porcelli model with free parameters and fast ion sensitivities.
 # c. "Smooth" version that can work with forward-sensitivity-analysis and
 #    stationary-state applications without the need for averaging.
+# TODO(b/590868135): Revisit whether SawtoothSolver should be simplified/renamed
+# or formalized as a Solver abstraction.
 @dataclasses.dataclass(frozen=True, eq=False)
 class SawtoothSolver(static_dataclass.StaticDataclass):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
@@ -104,7 +106,7 @@ class SawtoothSolver(static_dataclass.StaticDataclass):
               outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
           ),
       )
-    sawtooth_models = self.models.mhd_models.sawtooth_models
+    sawtooth_models = self.models.mhd_models.discrete_sawtooth_models
     if sawtooth_models is None:
       raise ValueError('Sawtooth model is None.')
 

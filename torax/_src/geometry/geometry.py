@@ -181,6 +181,7 @@ class Geometry:
   """
 
   geometry_type: GeometryType = jax.tree.static()
+  # TODO(b/590388748): Rename rho_face_norm to rho_norm_face for consistency.
   rho_face_norm: array_typing.FloatVectorFace
   Phi: array_typing.FloatVectorCell
   Phi_face: array_typing.FloatVectorFace

@@ -21,13 +21,12 @@ from torax._src.mhd.sawtooth import trigger_base
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class SawtoothModels(static_dataclass.StaticDataclass):
-  """Container for sawtooth models.
+class DiscreteSawtoothModels(static_dataclass.StaticDataclass):
+  """Container for discrete sawtooth trigger and redistribution models.
 
-  This class is intended for use as a static argument to Jax so it is
-  immutable and hashes by value. Because this class is not polymorphic
-  it does not have to hash its class id and can just use the default
-  frozen dataclass hash method.
+  Intended for use as a static argument to JAX; inherits value- and type-aware
+  hashing and equality from `StaticDataclass`.
   """
+
   trigger_model: trigger_base.TriggerModel
   redistribution_model: redistribution_base.RedistributionModel

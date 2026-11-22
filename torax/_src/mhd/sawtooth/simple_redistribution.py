@@ -73,12 +73,10 @@ class SimpleRedistribution(
     if not runtime_params.numerics.evolve_current:
       return core_profiles_t
 
-    assert runtime_params.mhd.sawtooth is not None
-    assert isinstance(
-        runtime_params.mhd.sawtooth.redistribution_params,
-        RuntimeParams,
-    )
-    redistribution_params = runtime_params.mhd.sawtooth.redistribution_params
+    sawtooth_params = runtime_params.mhd.discrete_sawtooth
+    assert sawtooth_params is not None
+    redistribution_params = sawtooth_params.redistribution_params
+    assert isinstance(redistribution_params, RuntimeParams)
 
     mixing_radius = redistribution_params.mixing_radius_multiplier * rho_norm_q1
 

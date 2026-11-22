@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Pydantic config for sawtooth configuration."""
+
 import chex
 import pydantic
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
@@ -23,16 +24,16 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 class SawtoothConfig(torax_pydantic.ConfigBase):
-  """Pydantic config for sawtooth configuration.
+  """Pydantic config for discrete sawtooth configuration.
 
   Attributes:
     trigger_model: Configuration for the sawtooth trigger model. Currently only
       the `'simple'` model is supported.
     redistribution_model: Configuration for the sawtooth profile redistribution
       model. Currently only the `'simple'` model is supported.
-    crash_step_duration: Duration of a sawtooth crash step [s]. This is
-      how much the solver time will be bumped forward during a crash. It is
-      important that this is small enough to satisfy the assumption of timescale
+    crash_step_duration: Duration of a sawtooth crash step [s]. This is how much
+      the solver time will be bumped forward during a crash. It is important
+      that this is small enough to satisfy the assumption of timescale
       separation between the sawtooth crash and the transport timescale,
       otherwise issues may arise regarding conservation properties.
   """
@@ -47,8 +48,8 @@ class SawtoothConfig(torax_pydantic.ConfigBase):
 
   crash_step_duration: torax_pydantic.Second = 1e-5
 
-  def build_models(self):
-    return sawtooth_models.SawtoothModels(
+  def build_models(self) -> sawtooth_models.DiscreteSawtoothModels:
+    return sawtooth_models.DiscreteSawtoothModels(
         trigger_model=self.trigger_model.build_trigger_model(),
         redistribution_model=self.redistribution_model.build_redistribution_model(),
     )

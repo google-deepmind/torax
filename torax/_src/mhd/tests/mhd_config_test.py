@@ -53,7 +53,7 @@ class MHDConfigTest(parameterized.TestCase):
     )
     runtime_params = provider(t=0.0)
     self.assertIsInstance(runtime_params.mhd, mhd_runtime_params.RuntimeParams)
-    self.assertIs(runtime_params.mhd.sawtooth, None)
+    self.assertIs(runtime_params.mhd.discrete_sawtooth, None)
 
   def test_empty_mhd_config(self):
     """Tests the case where 'mhd' key exists but is an empty dict."""
@@ -64,16 +64,17 @@ class MHDConfigTest(parameterized.TestCase):
     self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
     assert isinstance(torax_config.mhd, mhd_config.MHDConfig)
     mhd_models = torax_config.mhd.build_mhd_models()
-    self.assertIs(mhd_models.sawtooth_models, None)
+    self.assertIs(mhd_models.discrete_sawtooth_models, None)
+    self.assertIs(torax_config.mhd.discrete_sawtooth, None)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = provider(t=0.0)
     self.assertIsInstance(runtime_params.mhd, mhd_runtime_params.RuntimeParams)
-    self.assertIs(runtime_params.mhd.sawtooth, None)
+    self.assertIs(runtime_params.mhd.discrete_sawtooth, None)
 
   def test_mhd_config_with_sawtooth(self):
-    """Tests the case with a valid sawtooth configuration."""
+    """Tests the case with a valid discrete sawtooth configuration."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['mhd'] = {
         'sawtooth': {
@@ -87,19 +88,19 @@ class MHDConfigTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
     self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
-    assert torax_config.mhd is not None
     self.assertIsInstance(
         torax_config.mhd.sawtooth, sawtooth_config.SawtoothConfig
     )
+    self.assertIs(torax_config.mhd.discrete_sawtooth, torax_config.mhd.sawtooth)
+    mhd_models = torax_config.mhd.build_mhd_models()
+    self.assertIsNotNone(mhd_models.discrete_sawtooth_models)
 
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = provider(t=0.0)
-    sawtooth_params = runtime_params.mhd.sawtooth
-    self.assertIsInstance(
-        sawtooth_params, sawtooth_runtime_params.RuntimeParams
-    )
+    sawtooth_params = runtime_params.mhd.discrete_sawtooth
+    assert isinstance(sawtooth_params, sawtooth_runtime_params.RuntimeParams)
     self.assertEqual(sawtooth_params.trigger_params.minimum_radius, 0.06)
 
   def test_mhd_model_under_jit(self):
@@ -120,13 +121,19 @@ class MHDConfigTest(parameterized.TestCase):
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(mhd_model)
       self.assertIsInstance(output, mhd_runtime_params.RuntimeParams)
-      self.assertEqual(output.sawtooth.trigger_params.minimum_radius, 0.06)
+      assert output.discrete_sawtooth is not None
+      self.assertEqual(
+          output.discrete_sawtooth.trigger_params.minimum_radius, 0.06
+      )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('second_jit_updates_value_without_recompile'):
       mhd_model._update_fields({'sawtooth.trigger_model.minimum_radius': 0.07})
       output = f(mhd_model)
-      self.assertEqual(output.sawtooth.trigger_params.minimum_radius, 0.07)
+      assert output.discrete_sawtooth is not None
+      self.assertEqual(
+          output.discrete_sawtooth.trigger_params.minimum_radius, 0.07
+      )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 

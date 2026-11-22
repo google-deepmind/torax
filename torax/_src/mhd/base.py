@@ -28,4 +28,6 @@ class MHDModels(static_dataclass.StaticDataclass):
   functions, so it is immutable and supports comparison and hashing by value.
   """
 
-  sawtooth_models: sawtooth_models_lib.SawtoothModels | None
+  discrete_sawtooth_models: (
+      sawtooth_models_lib.DiscreteSawtoothModels | None
+  ) = None

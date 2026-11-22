@@ -220,6 +220,39 @@ class SawtoothModelTest(parameterized.TestCase):
           self.initial_state.t + np.array(2 * _CRASH_STEP_DURATION),
       )
 
+  def test_no_sawtooth_crash_when_max_dt_less_than_crash_step_duration(self):
+    short_dt = 0.5 * _CRASH_STEP_DURATION
+    output_state, _ = self.step_fn(
+        input_state=self.initial_state,
+        previous_post_processed_outputs=self.initial_post_processed_outputs,
+        max_dt=np.array(short_dt),
+    )
+    sim_error = self.step_fn.check_for_errors(
+        output_state,
+        self.initial_post_processed_outputs,
+    )
+    np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
+    np.testing.assert_equal(
+        output_state.solver_numeric_outputs.sawtooth_crash, np.array(False)
+    )
+    np.testing.assert_allclose(output_state.dt, short_dt)
+
+  def test_sawtooth_crash_allowed_when_max_dt_equals_crash_step_duration(self):
+    output_state, _ = self.step_fn(
+        input_state=self.initial_state,
+        previous_post_processed_outputs=self.initial_post_processed_outputs,
+        max_dt=np.array(_CRASH_STEP_DURATION),
+    )
+    sim_error = self.step_fn.check_for_errors(
+        output_state,
+        self.initial_post_processed_outputs,
+    )
+    np.testing.assert_equal(sim_error, sim_error_lib.SimError.NO_ERROR)
+    np.testing.assert_equal(
+        output_state.solver_numeric_outputs.sawtooth_crash, np.array(True)
+    )
+    np.testing.assert_allclose(output_state.dt, _CRASH_STEP_DURATION)
+
 
 if __name__ == '__main__':
   absltest.main()
