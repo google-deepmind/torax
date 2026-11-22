@@ -33,6 +33,7 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
+from torax._src.physics import collisions
 from torax._src.solver import solver_numeric_outputs
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.test_utils import core_profile_helpers
@@ -275,6 +276,83 @@ class PostProcessingTest(parameterized.TestCase):
     self.assertEqual(
         post_processed_outputs.check_for_errors(), sim_error.SimError.NO_ERROR
     )
+
+  def test_electron_ion_collision_time_output(self):
+    _, pedestal_state = self.models.pedestal_model.initialize(
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        self.source_profiles,
+    )
+    input_state = sim_state.SimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=transport_coeffs.CoreTransport.zeros(self.geo),
+        core_sources=self.source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=solver_numeric_outputs.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
+        pedestal_output=(
+            pedestal_model_output_lib.IBCPedestalModelOutput.empty()
+        ),
+        model_state=model_state_lib.ModelState(
+            geometry=geometry_state.GeometryState.from_geometry(self.geo),
+            pedestal=pedestal_state,
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
+    )
+
+    previous_outputs = post_processing.PostProcessedOutputs.zeros(self.geo)
+    outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=previous_outputs,
+    )
+    log_lambda_ei = collisions.calculate_log_lambda_ei(
+        self.core_profiles.kinetic.T_e.value,
+        self.core_profiles.kinetic.n_e.value,
+    )
+    expected = collisions.calculate_tau_e(
+        self.core_profiles.kinetic.T_e.value,
+        self.core_profiles.kinetic.n_e.value,
+        self.core_profiles.ions.Z_eff,
+        log_lambda_ei,
+    )
+
+    np.testing.assert_allclose(outputs.tau_ei, expected)
+    np.testing.assert_array_equal(
+        previous_outputs.tau_ei, np.zeros_like(self.geo.rho)
+    )
+
+    stacked_outputs = jax.tree.map(lambda value: np.stack([value]), outputs)
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=np.array(self.geo.rho_face_norm),
+        rho_cell_norm=np.array(self.geo.rho_norm),
+        rho_cell_plus_boundaries_norm=output_grid_context.extend_cell_grid_to_boundaries(
+            self.geo.rho_norm, self.geo.rho_face_norm
+        ),
+    )
+    dims, values, attrs = stacked_outputs.to_output_dict(context)[
+        output_keys.TAU_EI
+    ]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+    np.testing.assert_allclose(values, np.array([expected]))
+    self.assertEqual(attrs, {'units': output_keys.Units.SECOND})
 
   def test_current_outputs(self):
     """Checks calculation of current-related outputs."""
