@@ -24,6 +24,7 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 import dataclasses
 from typing import Annotated, Final, Literal, override
 
+import chex
 import jax
 from jax import numpy as jnp
 import pydantic
@@ -93,8 +94,10 @@ class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
     return AngioniSauterModel()
 
   @override
-  def build_runtime_params(self) -> RuntimeParams:
-    base_params = super().build_runtime_params()
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
         use_shaing_ion_correction=self.use_shaing_ion_correction,
         shaing_ion_multiplier=self.shaing_ion_multiplier,

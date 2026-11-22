@@ -144,7 +144,7 @@ class RuntimeParamsProvider:
         plasma_composition=self.plasma_composition.build_runtime_params(t),
         profile_conditions=self.profile_conditions.build_runtime_params(t),
         numerics=self.numerics.build_runtime_params(t),
-        neoclassical=self.neoclassical.build_runtime_params(),
+        neoclassical=self.neoclassical.build_runtime_params(t),
         pedestal=self.pedestal.build_runtime_params(t),
         mhd=self.mhd.build_runtime_params(t),
         time_step_calculator=self.time_step_calculator.build_runtime_params(t),

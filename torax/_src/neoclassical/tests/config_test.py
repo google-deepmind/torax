@@ -90,10 +90,10 @@ class ConfigTest(parameterized.TestCase):
     )
 
     @jax.jit
-    def f(x: config.AnalyticalNeoclassicalConfig):
-      return x.build_runtime_params()
+    def f(x: config.AnalyticalNeoclassicalConfig, t: float):
+      return x.build_runtime_params(t)
 
-    output = f(neoclassical_model)
+    output = f(neoclassical_model, 0.0)
     self.assertIsInstance(
         output, config.runtime_params_lib.AnalyticalRuntimeParams
     )
