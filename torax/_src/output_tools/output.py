@@ -94,6 +94,15 @@ def concat_datatrees(
       ds: xr.Dataset,
   ) -> xr.Dataset:
     """Concats two xr.Datasets."""
+    # Pad `n_roots` if the two runs found a different number of edge roots.
+    if "n_roots" in previous_ds.sizes and "n_roots" in ds.sizes:
+      max_roots = max(previous_ds.sizes["n_roots"], ds.sizes["n_roots"])
+      if previous_ds.sizes["n_roots"] < max_roots:
+        previous_ds = previous_ds.pad(
+            n_roots=(0, max_roots - previous_ds.sizes["n_roots"])
+        )
+      if ds.sizes["n_roots"] < max_roots:
+        ds = ds.pad(n_roots=(0, max_roots - ds.sizes["n_roots"]))
     # Do a minimal concat to avoid concatting any non time indexed vars.
     ds = xr.concat([previous_ds, ds], dim=output_keys.TIME, data_vars="minimal")
     # Drop any duplicate time steps. Using "first" imposes
