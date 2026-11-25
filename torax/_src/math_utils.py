@@ -388,6 +388,127 @@ def smooth_sqrt(
   return jnp.where(x >= epsilon, safe_sqrt_x, rational_approx)
 
 
+def _smooth_lower_clip(
+    x: jax.Array,
+    bound: jax.Array,
+    margin: jax.Array,
+) -> jax.Array:
+  """One-sided C2 quintic lower clip over `[bound, bound + margin]`."""
+  # Quintic `t^3 * (6 - 8t + 3t^2)` on `t = (x - bound) / margin in [0, 1]`
+  # matches y=bound, y'=0, y''=0 at t=0 and y=x, y'=1, y''=0 at t=1.
+  safe_margin = jnp.where(margin > 0.0, margin, 1.0)
+  dx = x - bound
+  # Clip numerator before dividing so x = +/-inf yields finite AD gradients
+  # w.r.t. `margin` (avoids 0 * inf = NaN in reverse mode).
+  t = jnp.clip(dx, 0.0, safe_margin) / safe_margin
+  smooth = bound + margin * t**3 * (6.0 - 8.0 * t + 3.0 * t**2)
+  # Check `isnan(margin)` explicitly so a NaN margin propagates even when
+  # `x <= bound`.
+  return jnp.where(
+      jnp.isnan(margin),
+      margin,
+      jnp.where(dx <= 0.0, bound, jnp.where(dx >= margin, x, smooth)),
+  )
+
+
+_ArrayOrScalar = array_typing.Array | array_typing.FloatScalar
+
+
+def _unpack_clip_margins(
+    margin: _ArrayOrScalar | tuple[_ArrayOrScalar, _ArrayOrScalar],
+    dtype: jnp.dtype,
+) -> tuple[jax.Array, jax.Array]:
+  """Unpacks scalar/array or `(lower, upper)` tuple `margin`."""
+  if isinstance(margin, tuple):
+    if len(margin) != 2:
+      raise ValueError(
+          'Tuple `margin` must have length 2 as (lower_margin, upper_margin),'
+          f' got length {len(margin)}.'
+      )
+    lower_margin, upper_margin = margin
+  else:
+    lower_margin = upper_margin = margin
+  return (
+      jnp.maximum(jnp.asarray(lower_margin, dtype=dtype), 0.0),
+      jnp.maximum(jnp.asarray(upper_margin, dtype=dtype), 0.0),
+  )
+
+
+@jax.jit
+def smooth_clip(
+    x: _ArrayOrScalar,
+    min_val: _ArrayOrScalar | None = None,
+    max_val: _ArrayOrScalar | None = None,
+    *,
+    margin: _ArrayOrScalar | tuple[_ArrayOrScalar, _ArrayOrScalar],
+) -> jax.Array:
+  """Clips `x` to `[min_val, max_val]` with one-sided C2 quintic transitions.
+
+  Each active bound is smoothed within `[min_val, max_val]` (over
+  `[min_val, min_val + lower_margin]` and `[max_val - upper_margin, max_val]`),
+  preserving exact `min_val` for `x <= min_val`, exact `max_val` for
+  `x >= max_val`, and exact `x` between the transition bands. Monotone
+  (`0 <= dy/dx <= 1.512`) and C2 continuous in `x`. Non-positive margins reduce
+  that side to hard `jnp.clip`, and NaN bounds or active margins propagate as
+  NaN.
+
+  Args:
+    x: Input array. Output preserves `x`'s floating dtype (integer inputs are
+      promoted to the default float dtype; bounds and `margin` are cast to
+      match).
+    min_val: Lower clip bound (`None` or `-inf` disables lower clipping).
+    max_val: Upper clip bound (`None` or `+inf` disables upper clipping).
+    margin: Transition width inside each active bound in the units of `x`. Pass
+      a scalar/array for a shared width, or a `(lower_margin, upper_margin)`
+      2-tuple for bounds on different scales. If both bounds are finite and the
+      bands would overlap, both widths are scaled down proportionally to fit.
+
+  Returns:
+    Smoothly clipped array matching the shape of `x`.
+  """
+  x = jnp.asarray(x)
+  dtype = (
+      x.dtype
+      if jnp.issubdtype(x.dtype, jnp.floating)
+      else jnp.result_type(x, 0.0)
+  )
+  x = x.astype(dtype)
+  lower_margin, upper_margin = _unpack_clip_margins(margin, dtype)
+
+  # Only `-inf` / `+inf` disable a bound; NaN bounds stay active and propagate.
+  lower = None
+  if min_val is not None:
+    min_arr = jnp.asarray(min_val, dtype=dtype)
+    has_min = min_arr != -jnp.inf
+    lower = (has_min, jnp.where(has_min, min_arr, 0.0))
+
+  upper = None
+  if max_val is not None:
+    max_arr = jnp.asarray(max_val, dtype=dtype)
+    has_max = max_arr != jnp.inf
+    upper = (has_max, jnp.where(has_max, max_arr, 1.0))
+
+  if lower is not None and upper is not None:
+    has_min, safe_min = lower
+    has_max, safe_max = upper
+    # Scale widths down proportionally if the two transition bands overlap.
+    span = jnp.maximum(safe_max - safe_min, 0.0)
+    total = lower_margin + upper_margin
+    overlaps = has_min & has_max & (total > span)
+    scale = jnp.where(overlaps, span / jnp.where(overlaps, total, 1.0), 1.0)
+    lower_margin = lower_margin * scale
+    upper_margin = upper_margin * scale
+
+  if lower is not None:
+    has_min, safe_min = lower
+    x = jnp.where(has_min, _smooth_lower_clip(x, safe_min, lower_margin), x)
+  if upper is not None:
+    has_max, safe_max = upper
+    # Upper clip is the reflection of lower clip: -lower_clip(-x, -max_val).
+    x = jnp.where(has_max, -_smooth_lower_clip(-x, -safe_max, upper_margin), x)
+  return x
+
+
 @jax.jit(static_argnames=['log_scale'])
 def smoothstep_transition(
     x: jax.Array,
