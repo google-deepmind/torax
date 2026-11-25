@@ -110,8 +110,6 @@ class SimState:
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
   solver_numeric_outputs: solver_numeric_outputs_lib.SolverNumericOutputs
-  # TODO(b/434175938): Separate states required for models from states of the
-  # PDE system.
   time_step_calculator_state: time_step_calculator_state.TimeStepCalculatorState
   pedestal_output: pedestal_model_output_lib.PedestalModelOutput
   model_state: model_state_lib.ModelState

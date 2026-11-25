@@ -226,7 +226,6 @@ class PostProcessedOutputs:
 
   pprime: array_typing.FloatVector
   # pylint: disable=invalid-name
-  # TODO(b/434175938) Remove W_thermal terms in favor of terms from energy_state
   W_thermal_i: array_typing.FloatScalar
   W_thermal_e: array_typing.FloatScalar
   W_thermal_total: array_typing.FloatScalar
@@ -298,7 +297,6 @@ class PostProcessedOutputs:
   q95: array_typing.FloatScalar
   W_pol: array_typing.FloatScalar
   li3: array_typing.FloatScalar
-  # TODO(b/434175938) Remove dW_dt terms in favor of terms from energy_state.
   dW_thermal_dt: array_typing.FloatScalar
   dW_thermal_dt_smoothed: array_typing.FloatScalar
   dW_thermal_i_dt_smoothed: array_typing.FloatScalar

@@ -435,7 +435,7 @@ class SetTtopNtopConfig(StructureConfigBase):
       torax_pydantic.ValidatedDefault(0.7e20)
   )
   n_e_top_is_f_GW: bool = False
-  # TODO(b/434175938): Consider extending to TimeVaryingArray
+  # TODO(b/590388748): Consider extending to TimeVaryingArray.
   T_i_top: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
