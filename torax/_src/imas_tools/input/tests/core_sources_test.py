@@ -161,15 +161,19 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     available, and raise an error if none of them is filled.
     """
     core_source = imas.IDSFactory().core_sources()
-    core_source.source.resize(3)
+    core_source.source.resize(4)
     core_source.source[0].profiles_1d.resize(1)
     core_source.source[1].profiles_1d.resize(1)
     core_source.source[2].profiles_1d.resize(1)
+    core_source.source[3].profiles_1d.resize(1)
     core_source.source[0].profiles_1d[0].electrons.particles = [1.0, 2.0]
     core_source.source[1].profiles_1d[0].ion.resize(1)
     core_source.source[1].profiles_1d[0].ion[0].element.resize(1)
     core_source.source[1].profiles_1d[0].ion[0].particles = [1.0, 2.0]
     core_source.source[1].profiles_1d[0].ion[0].element[0].z_n = 1.0
+    core_source.source[3].profiles_1d[0].ion.resize(2)
+    core_source.source[3].profiles_1d[0].ion[1].element.resize(1)
+    core_source.source[3].profiles_1d[0].ion[1].element[0].z_n = 1.0
     with self.subTest(name="electrons"):
       res = core_sources._get_particle_source_profile(
           core_source.source[0].profiles_1d
@@ -180,10 +184,15 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
           core_source.source[1].profiles_1d
       )
       np.testing.assert_allclose(res[0], [1.0, 2.0])
-    with self.subTest(name="Missing profiles"):
+    with self.subTest(name="Missing ion structure"):
       with self.assertRaisesRegex(ValueError, "Expected particle source"):
         core_sources._get_particle_source_profile(
             core_source.source[2].profiles_1d
+        )
+    with self.subTest(name="Missing profiles"):
+      with self.assertRaisesRegex(ValueError, "Expected particle source"):
+        core_sources._get_particle_source_profile(
+            core_source.source[3].profiles_1d
         )
 
 

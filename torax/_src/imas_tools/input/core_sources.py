@@ -249,19 +249,19 @@ def _get_particle_source_profile(
     particles = [profile.electrons.particles for profile in profiles_1d]
   # If no electron particle source is defined, deduce it from the ions
   # particle sources (assuming quasi-neutrality).
-  elif any(ion.particles is not None for ion in profiles_1d[0].ion):
+  elif any(ion.particles.has_value for ion in profiles_1d[0].ion):
     # Sum over all ion species to get total particle source profile.
     particles = [
         sum(
             ion.particles * ion.element[0].z_n
             for ion in profile.ion
-            if ion.particles is not None
+            if ion.particles.has_value
         )
         for profile in profiles_1d
     ]
   else:
     raise ValueError(
         "Expected particle source, but none of electrons or ion particle source"
-        "is defined in the IDS."
+        " is defined in the IDS."
     )
   return particles  # pyrefly: ignore[bad-return]
