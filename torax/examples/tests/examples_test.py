@@ -37,6 +37,14 @@ class ExamplesTest(parameterized.TestCase):
     )
     self.assertIsInstance(torax_config, config.ToraxConfig)
 
+  def test_iterhybrid_predictor_corrector_step_budget(self):
+    example_path = config_loader.example_config_paths()[
+        'iterhybrid_predictor_corrector'
+    ]
+    torax_config = config_loader.build_torax_config_from_file(example_path)
+    self.assertIsNotNone(torax_config.time_step_calculator.max_steps)
+    self.assertGreater(torax_config.time_step_calculator.max_steps, 0)
+
 
 if __name__ == '__main__':
   absltest.main()
