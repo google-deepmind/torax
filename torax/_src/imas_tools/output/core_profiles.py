@@ -27,6 +27,7 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import post_processing
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import core_sources as core_sources_lib
 from torax._src.torax_pydantic import config
 
@@ -211,6 +212,11 @@ def _fill_profiles_1d(
     n_i = cp_state.kinetic.n_i.cell_plus_boundaries()
     n_impurity = cp_state.kinetic.n_impurity_total.cell_plus_boundaries()
     pressure_thermal_i = cp_state.pressure_thermal_i.cell_plus_boundaries()
+    pressure_thermal_e = cp_state.pressure_thermal_e.cell_plus_boundaries()
+    pressure_thermal_total = (
+        cp_state.pressure_thermal_total.cell_plus_boundaries()
+    )
+    pressure_total = cp_state.pressure_total.cell_plus_boundaries()
     ids.profiles_1d[i].t_i_average = T_i
     ids.profiles_1d[i].electrons.temperature = (
         cp_state.kinetic.T_e.cell_plus_boundaries() * 1e3
@@ -220,13 +226,12 @@ def _fill_profiles_1d(
     ids.profiles_1d[i].electrons.density_fast = np.zeros(
         len(ids.profiles_1d[i].grid.rho_tor_norm)
     )
-    ids.profiles_1d[i].electrons.pressure_thermal = (
-        cp_state.pressure_thermal_e.cell_plus_boundaries()
-    )
+    ids.profiles_1d[i].electrons.pressure_thermal = pressure_thermal_e
     ids.profiles_1d[i].pressure_ion_total = pressure_thermal_i
-    ids.profiles_1d[i].pressure_thermal = (
-        cp_state.pressure_thermal_total.cell_plus_boundaries()
-    )
+    ids.profiles_1d[i].pressure_thermal = pressure_thermal_total
+    # Assume isotropic pressure for now.
+    ids.profiles_1d[i].pressure_perpendicular = pressure_total
+    ids.profiles_1d[i].pressure_parallel = pressure_total
     _fill_profiles_1d_ions(
         ids,
         i,
@@ -376,7 +381,21 @@ def _fill_profiles_1d_ions(
       for impurity_fraction in core_profiles.ions.impurity_fractions.values()
   ]
   impurities = list(zip(impurity_symbols, impurity_fractions_arr, strict=True))
+  # Computes impurity quantities on cell_plus_boundaries grid
   Z_per_species = _calculate_impurity_charge_states(core_profiles)
+  n_impurity_thermal = (
+      core_profiles.n_impurity_total_thermal.cell_plus_boundaries()
+  )
+  fast_ions = core_profiles.fast_ions
+  # Subtract fast ions contribution to get the thermal main ion density.
+  n_i_fast = np.zeros_like(n_i)
+  for fast_ion in fast_ions:
+    if fast_ion.species in main_ion_fractions.keys():
+      n_i_fast += fast_ion.n.cell_plus_boundaries()
+  n_i_thermal = n_i - n_i_fast
+  total_thermal_density = n_i_thermal + n_impurity_thermal
+  ids.profiles_1d[i].n_i_thermal_total = total_thermal_density
+  # Index variables
   num_of_impurities = len(impurity_symbols)
   num_of_main_ions = len(main_ion_fractions)
   num_ions = num_of_main_ions + num_of_impurities
@@ -392,9 +411,10 @@ def _fill_profiles_1d_ions(
         frac,
         T_i,
         n_i,
-        n_impurity,
+        total_thermal_density,
         pressure_thermal_i,
         post_processed_outputs_slice,
+        fast_ions,
     )
 
   for ion in range(num_of_impurities):
@@ -403,14 +423,15 @@ def _fill_profiles_1d_ions(
         i,
         ion,
         T_i,
-        n_i,
         n_impurity,
+        total_thermal_density,
         pressure_thermal_i,
         Z_per_species,
         num_of_main_ions,
         post_processed_outputs_slice,
         geometry_slice,
         impurities,
+        fast_ions,
     )
 
 
@@ -422,9 +443,10 @@ def _fill_main_ions(
     frac: array_typing.FloatScalar,
     T_i: array_typing.FloatVector,
     n_i: array_typing.FloatVector,
-    n_impurity: array_typing.FloatVector,
+    total_thermal_density: array_typing.FloatVector,
     pressure_thermal_i: array_typing.FloatVector,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
+    fast_ions: Sequence[fast_ion_lib.FastIon],
 ) -> None:
   """Fills main ion quantities for the IDS.
 
@@ -436,7 +458,7 @@ def _fill_main_ions(
     frac: The fraction of the ion.
     T_i: The ion temperature.
     n_i: The ion density.
-    n_impurity: Total impurity particle density.
+    total_thermal_density: The total ion thermal density (main ions + impurities).
     pressure_thermal_i: The ion thermal pressure.
     post_processed_outputs_slice: The post processed outputs slice.
   """
@@ -450,16 +472,26 @@ def _fill_main_ions(
     ids.profiles_1d[i].ion[ion].label = symbol
   ids.profiles_1d[i].ion[ion].temperature = T_i
   n_species = n_i * frac  # Density of this species.
-  ids.profiles_1d[i].ion[ion].density = n_species
-  ids.profiles_1d[i].ion[ion].density_thermal = n_species
-  ids.profiles_1d[i].ion[ion].density_fast = np.zeros(
-      len(ids.profiles_1d[i].grid.rho_tor_norm)
+  # Retrieve fast ion contribution to main ion density and pressure.
+  n_species_fast, ion_pressure_fast = _extract_density_and_pressure_fast(
+      n_species, fast_ions, symbol
   )
-  # Proportion of this ion for pressure ratio computation.
-  total_ions_mixture_fraction = n_species / (n_i + n_impurity)
-  ion_pressure = total_ions_mixture_fraction * pressure_thermal_i
+  n_species_thermal = n_species - n_species_fast
+
+  ids.profiles_1d[i].ion[ion].density = n_species
+  ids.profiles_1d[i].ion[ion].density_thermal = n_species_thermal
+  ids.profiles_1d[i].ion[ion].density_fast = n_species_fast
+
+  # Calculate thermal ion pressure for this species
+  ion_pressure_thermal = (
+      n_species_thermal / total_thermal_density
+  ) * pressure_thermal_i
+
+  ion_pressure = ion_pressure_thermal + ion_pressure_fast
   ids.profiles_1d[i].ion[ion].pressure = ion_pressure
-  ids.profiles_1d[i].ion[ion].pressure_thermal = ion_pressure
+  ids.profiles_1d[i].ion[ion].pressure_thermal = ion_pressure_thermal
+  ids.profiles_1d[i].ion[ion].pressure_fast_perpendicular = ion_pressure_fast
+  ids.profiles_1d[i].ion[ion].pressure_fast_parallel = ion_pressure_fast
   ids.profiles_1d[i].ion[ion].element.resize(1)
   ids.profiles_1d[i].ion[ion].element[0].a = ion_properties.A
   ids.profiles_1d[i].ion[ion].element[0].z_n = ion_properties.Z
@@ -478,14 +510,15 @@ def _fill_impurities(
     i: int,
     ion: int,
     T_i: array_typing.FloatVector,
-    n_i: array_typing.FloatVector,
     n_impurity: array_typing.FloatVector,
+    total_thermal_density: array_typing.FloatVector,
     pressure_thermal_i: array_typing.FloatVector,
-    Z_avg_per_species: dict[str, array_typing.FloatVector],
+    Z_per_species: dict[str, array_typing.FloatVector],
     num_of_main_ions: int,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     geometry_slice: geometry_lib.Geometry,
     impurities: Sequence[tuple[str, array_typing.FloatVector]],
+    fast_ions: Sequence[fast_ion_lib.FastIon],
 ) -> None:
   """Fills impurity quantities for the IDS."""
   # TODO(b/459479939): i/1660) - We can directly use the impurity densities
@@ -494,7 +527,7 @@ def _fill_impurities(
   symbol, individual_frac = impurities[ion]
   index = num_of_main_ions + ion
   ion_properties = constants.ION_PROPERTIES_DICT[symbol]
-  ids.profiles_1d[i].ion[index].z_ion_1d = Z_avg_per_species[symbol]
+  ids.profiles_1d[i].ion[index].z_ion_1d = Z_per_species[symbol]
   # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
   # that instead of using a try-except.
   try:
@@ -504,16 +537,28 @@ def _fill_impurities(
     ids.profiles_1d[i].ion[index].label = symbol
   ids.profiles_1d[i].ion[index].temperature = T_i
   n_impurity_species = n_impurity * individual_frac
-  ids.profiles_1d[i].ion[index].density = n_impurity_species
-  ids.profiles_1d[i].ion[index].density_thermal = n_impurity_species
-  ids.profiles_1d[i].ion[index].density_fast = np.zeros(
-      len(ids.profiles_1d[i].grid.rho_tor_norm)
+  # Retrieve fast ion contribution to impurity density and pressure.
+  n_species_fast, impurity_pressure_fast = _extract_density_and_pressure_fast(
+      n_impurity_species, fast_ions, symbol
   )
-  # Proportion of this ion for pressure ratio computation.
-  total_ions_mixture_fraction = n_impurity_species / (n_i + n_impurity)
-  impurity_pressure = total_ions_mixture_fraction * pressure_thermal_i
+  n_impurity_species_thermal = n_impurity_species - n_species_fast
+
+  ids.profiles_1d[i].ion[index].density = n_impurity_species
+  ids.profiles_1d[i].ion[index].density_thermal = n_impurity_species_thermal
+  ids.profiles_1d[i].ion[index].density_fast = n_species_fast
+
+  # Calculate thermal impurity pressure for this species
+  impurity_pressure_thermal = (
+      n_impurity_species_thermal / total_thermal_density
+  ) * pressure_thermal_i
+
+  impurity_pressure = impurity_pressure_thermal + impurity_pressure_fast
   ids.profiles_1d[i].ion[index].pressure = impurity_pressure
-  ids.profiles_1d[i].ion[index].pressure_thermal = impurity_pressure
+  ids.profiles_1d[i].ion[index].pressure_thermal = impurity_pressure_thermal
+  ids.profiles_1d[i].ion[
+      index
+  ].pressure_fast_perpendicular = impurity_pressure_fast
+  ids.profiles_1d[i].ion[index].pressure_fast_parallel = impurity_pressure_fast
   ids.profiles_1d[i].ion[index].element.resize(1)
   ids.profiles_1d[i].ion[index].element[0].a = ion_properties.A
   ids.profiles_1d[i].ion[index].element[0].z_n = ion_properties.Z
@@ -527,3 +572,22 @@ def _fill_impurities(
   ids.global_quantities.ion[index].n_i_volume_average[i] = (
       math_utils.volume_average(n_impurity_cell, geometry_slice)
   )
+
+
+def _extract_density_and_pressure_fast(
+    n_species: array_typing.FloatVector,
+    fast_ions: Sequence[fast_ion_lib.FastIon],
+    symbol: str,
+) -> tuple[np.ndarray, np.ndarray]:
+  n_species_fast = np.zeros_like(n_species)
+  pressure_species_fast = np.zeros_like(n_species)
+  for fast_ion in fast_ions:
+    if fast_ion.species == symbol:
+      n_fast_ion = fast_ion.n.cell_plus_boundaries()
+      n_species_fast += n_fast_ion
+      pressure_species_fast += (
+          n_fast_ion
+          * fast_ion.T.cell_plus_boundaries()
+          * constants.CONSTANTS.keV_to_J
+      )
+  return n_species_fast, pressure_species_fast

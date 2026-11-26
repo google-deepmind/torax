@@ -12,17 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from typing import Final, Sequence
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import imas
 import numpy as np
 import torax
+from torax._src import constants
 from torax._src.imas_tools.input import core_profiles as input_core_profiles
 from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.output import core_profiles as output_core_profiles
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output_keys
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import config
 
@@ -244,6 +248,99 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         rtol=rtol,
         atol=atol,
         err_msg="Inconsistent Zeff",
+    )
+
+  def test_save_profiles_to_IMAS_with_fast_ions(self):
+    """Tests saving fast ion densities and pressures to a core_profiles IDS."""
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    config_dict["plasma_composition"]["impurity"] = {
+        "impurity_mode": "fractions",
+        "species": "He3",
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_state, post_processed_outputs, _ = (
+        run_simulation.prepare_simulation(torax_config)
+    )
+    n_cells = initial_state.geometry.rho.shape[0]
+
+    def _make_fast_ion(
+        species: str, source: str, density: float, temperature: float
+    ) -> fast_ion_lib.FastIon:
+      return fast_ion_lib.FastIon.from_arrays(
+          species=species,
+          source_name=source,
+          geo=initial_state.geometry,
+          n=np.full((n_cells,), density),
+          T=np.full((n_cells,), temperature),
+          n_right_face_constraint=density,
+          T_right_face_constraint=temperature,
+      )
+
+    fast_ion_d_nbi = _make_fast_ion("D", "NBI", density=1e18, temperature=50.0)
+    fast_ion_d_icrh = _make_fast_ion(
+        "D", "ICRH", density=2e18, temperature=100.0
+    )
+    fast_ion_he3_icrh = _make_fast_ion(
+        "He3", "ICRH", density=1e16, temperature=80.0
+    )
+    core_profiles = dataclasses.replace(
+        initial_state.core_profiles,
+        fast_ions=(fast_ion_d_nbi, fast_ion_d_icrh, fast_ion_he3_icrh),
+    )
+
+    filled_ids = output_core_profiles.core_profiles_to_IMAS(
+        torax_config,
+        [post_processed_outputs],
+        [core_profiles],
+        [initial_state.core_sources],
+        [initial_state.geometry],
+        [initial_state.t],
+    )
+    filled_ids.validate()
+
+    profiles_1d = filled_ids.profiles_1d[0]
+    ions = {str(ion.name): ion for ion in profiles_1d.ion}
+    expected_by_species = {
+        "D": (fast_ion_d_nbi, fast_ion_d_icrh),
+        "He3": (fast_ion_he3_icrh,),
+    }
+    for species, fast_ions in expected_by_species.items():
+      expected_density_fast = sum(
+          fast_ion.n.cell_plus_boundaries() for fast_ion in fast_ions
+      )
+      expected_pressure_fast = (
+          sum(
+              fast_ion.n.cell_plus_boundaries()
+              * fast_ion.T.cell_plus_boundaries()
+              for fast_ion in fast_ions
+          )
+          * constants.CONSTANTS.keV_to_J
+      )
+      ion = ions[species]
+      np.testing.assert_allclose(ion.density_fast, expected_density_fast)
+      np.testing.assert_allclose(
+          ion.density_thermal, ion.density - ion.density_fast
+      )
+      np.testing.assert_allclose(
+          ion.pressure_fast_parallel, expected_pressure_fast
+      )
+      np.testing.assert_allclose(
+          ion.pressure, ion.pressure_thermal + ion.pressure_fast_parallel
+      )
+    np.testing.assert_allclose(
+        np.sum([ion.density_thermal for ion in profiles_1d.ion], axis=0),
+        profiles_1d.n_i_thermal_total,
+    )
+    np.testing.assert_allclose(
+        np.sum([ion.pressure_thermal for ion in profiles_1d.ion], axis=0),
+        profiles_1d.pressure_ion_total,
+    )
+    expected_total_pressure = (
+        core_profiles.pressure_thermal_total.cell_plus_boundaries()
+        + core_profiles.pressure_fast_i.cell_plus_boundaries()
+    )
+    np.testing.assert_allclose(
+        profiles_1d.pressure_parallel, expected_total_pressure
     )
 
 
