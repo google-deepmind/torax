@@ -45,17 +45,21 @@ def core_sources_to_IMAS(
     active_sources.update(source.sources.keys())
     # qei source treated differently so added separately.
     active_sources.add(qei_source.QeiSource.SOURCE_ID)
-
+  active_sources = sorted(active_sources)
   ids.source.resize(len(active_sources))
 
   for source_name, source_node in zip(active_sources, ids.source, strict=True):
-    imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[source_name]
-    source_node.identifier.name = imas_name
-    # TODO(b/323504363): b/459479939 - i/2233: Add identifier in once a mapping is available
-    # in IMAS-python https://github.com/iterorganization/IMAS-Python/issues/134
+    if "generic" not in source_name:
+      imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[
+          source_name
+      ]
+      # TODO: Also map generic sources to the IMAS sources_mapping
+      source_node.identifier = imas.identifiers.core_source_identifier[
+          imas_name
+      ]
+
     source_node.profiles_1d.resize(num_times)
     source_node.global_quantities.resize(num_times)
-
     for i in range(num_times):
       t = times[i]
       geo = geometry[i]
@@ -161,7 +165,9 @@ def _fill_profiles_1d(
 ) -> None:
   """Fills 1D profiles for a source at a single time slice."""
   energy_el, energy_ion, particles_el, j_par = _compute_source_profiles(
-      core_source_state, geo, source_name,
+      core_source_state,
+      geo,
+      source_name,
   )
 
   profiles_1d_slice.electrons.energy = energy_el
@@ -183,7 +189,9 @@ def _fill_global_quantities(
 ) -> None:
   """Fills global quantities for a source at a single time slice."""
   energy_el, energy_ion, particles_el, j_par = _compute_source_profiles(
-      core_source_state, geo, source_name,
+      core_source_state,
+      geo,
+      source_name,
   )
 
   power_el = math_utils.volume_integration(energy_el, geo)

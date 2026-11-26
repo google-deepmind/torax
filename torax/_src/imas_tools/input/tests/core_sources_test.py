@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pathlib
 
 from absl.testing import absltest
 import imas
@@ -86,10 +85,9 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     was converted to DD version 4.0.0
     """
     config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
-    directory = pathlib.Path(__file__).parent
     path = "core_sources_ddv4.nc"
     ids_name = "core_sources"
-    ids_in = loader.load_imas_data(path, ids_name, directory=directory)
+    ids_in = loader.load_imas_data(path, ids_name)
     sources = core_sources.sources_from_IMAS(ids_in, None, False)
     self.assertIn("nbi", sources)
     config_dict["sources"] |= sources
