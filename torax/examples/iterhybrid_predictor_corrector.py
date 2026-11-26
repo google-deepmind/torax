@@ -174,6 +174,7 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'max_steps': 2000,
         'max_dt': 0.5,
         # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
         # likely be increased further beyond this default.
