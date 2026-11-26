@@ -227,9 +227,7 @@ def _fill_profiles_1d(
         len(ids.profiles_1d[i].grid.rho_tor_norm)
     )
     ids.profiles_1d[i].electrons.pressure_thermal = pressure_thermal_e
-    ids.profiles_1d[i].pressure_ion_total = (
-        cp_state.pressure_total_i.cell_plus_boundaries()
-    )
+    ids.profiles_1d[i].pressure_ion_total = pressure_thermal_i
     ids.profiles_1d[i].pressure_thermal = pressure_thermal_total
     # Assume isotropic pressure for now.
     ids.profiles_1d[i].pressure_perpendicular = pressure_total

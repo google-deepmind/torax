@@ -332,7 +332,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         profiles_1d.n_i_thermal_total,
     )
     np.testing.assert_allclose(
-        np.sum([ion.pressure for ion in profiles_1d.ion], axis=0),
+        np.sum([ion.pressure_thermal for ion in profiles_1d.ion], axis=0),
         profiles_1d.pressure_ion_total,
     )
     expected_total_pressure = (
