@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -20,6 +21,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
+from torax._src.output_tools import output
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.solver import jax_root_finding
@@ -29,17 +31,22 @@ from torax._src.solver import jax_root_finding
 
 class ExtendedLengyelOutputTest(parameterized.TestCase):
 
-  def setUp(self):
-    super().setUp()
+  def _make_context(
+      self, times: np.ndarray
+  ) -> output_grid_context.OutputGridContext:
     rho_cell = np.linspace(0.125, 0.875, 4)
-    self.context = output_grid_context.OutputGridContext(
-        times=np.array([0.0]),
+    return output_grid_context.OutputGridContext(
+        times=times,
         rho_face_norm=np.linspace(0.0, 1.0, 5),
         rho_cell_norm=rho_cell,
         rho_cell_plus_boundaries_norm=np.concatenate([[0.0], rho_cell, [1.0]]),
     )
 
-  def _make_outputs(
+  def setUp(self):
+    super().setUp()
+    self.context = self._make_context(np.array([0.0]))
+
+  def _make_single_step_outputs(
       self, **overrides: Any
   ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
     defaults: dict[str, Any] = dict(
@@ -64,7 +71,12 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         calculated_enrichment={'Ar': jnp.array(1.0)},
     )
     defaults.update(overrides)
-    single_step = extended_lengyel_standalone.ExtendedLengyelOutputs(**defaults)
+    return extended_lengyel_standalone.ExtendedLengyelOutputs(**defaults)
+
+  def _make_outputs(
+      self, **overrides: Any
+  ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
+    single_step = self._make_single_step_outputs(**overrides)
     return jax.tree_util.tree_map(lambda x: np.stack([x]), single_step)
 
   @parameterized.named_parameters(
@@ -340,6 +352,44 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     self.assertNotIn(output_keys.RHO_CELL_NORM, edge_node.dataset.coords)
     self.assertNotIn(output_keys.RHO_FACE_NORM, edge_node.dataset.coords)
     self.assertNotIn(output_keys.RHO_NORM, edge_node.dataset.coords)
+
+  def test_roots_varying_unique_counts_concat_datatrees_cleanly(self):
+    def _make_edge_tree(times: np.ndarray, te_guesses: list[float]):
+      roots = jax.tree_util.tree_map(
+          lambda x: jnp.repeat(jnp.expand_dims(x, 0), len(te_guesses), axis=0),
+          self._make_single_step_outputs(),
+      )
+      roots = dataclasses.replace(roots, T_e_target=jnp.asarray(te_guesses))
+      stacked = jax.tree_util.tree_map(
+          lambda x: np.repeat(x, len(times), axis=0),
+          self._make_outputs(roots=roots, multiple_roots_found=jnp.array(True)),
+      )
+      return stacked.to_xr_datatree(self._make_context(times))
+
+    # Chunk 1 has 2 unique roots out of 3 guesses; chunk 2 has 1 out of 3.
+    tree_1 = _make_edge_tree(np.array([0.0, 0.1]), [10.0, 50.0, 50.0])
+    tree_2 = _make_edge_tree(np.array([0.1, 0.2]), [20.0, 20.0, 20.0])
+
+    stitched_roots = (
+        output.concat_datatrees(tree_1, tree_2)
+        .children[extended_lengyel_standalone.ROOTS]
+        .dataset
+    )
+    np.testing.assert_allclose(
+        stitched_roots[extended_lengyel_standalone.T_E_TARGET].values,
+        [
+            [10.0, 50.0, np.nan],
+            [10.0, 50.0, np.nan],
+            [20.0, np.nan, np.nan],
+        ],
+        equal_nan=True,
+    )
+    np.testing.assert_array_equal(
+        stitched_roots[
+            extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME
+        ].values,
+        [[0, 0, -1], [0, 0, -1], [0, -1, -1]],
+    )
 
 
 if __name__ == '__main__':

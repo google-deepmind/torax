@@ -281,9 +281,10 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       ExtendedLengyelOutputs containing unique valid roots, or None if no roots
       are available (e.g. inverse mode).
       Leaves have shape (time, n_roots, ...) or (n_roots, ...) if time is
-      absent.
-      Roots are sorted by T_e_target value. Padding (nan/inf) is added if
-      fewer than max_roots are found.
+      absent, preserving the input `num_guesses` axis length for schema
+      invariance across time slices and restarts. Unique roots are sorted by
+      `T_e_target` and packed at the front, with duplicate or unused slots
+      padded (`nan` for floating-point leaves, `-1` for integer leaves).
     """
     if self.roots is None:
       return None
@@ -403,14 +404,6 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
 
       masked = jnp.where(current_mask, packed, nan_value)
       result_dict[name] = masked
-
-    n_unique_per_time = jnp.sum(final_valid_mask, axis=roots_axis)
-    max_unique = int(jnp.max(n_unique_per_time))
-    max_unique = max(max_unique, 1)
-    trim_slice = [slice(None)] * final_valid_mask.ndim
-    trim_slice[roots_axis] = slice(0, max_unique)
-    trim_slice = tuple(trim_slice)
-    result_dict = {k: v[trim_slice] for k, v in result_dict.items()}
 
     # Reconstruct SolverStatus
     if 'solver_iterations' in result_dict:

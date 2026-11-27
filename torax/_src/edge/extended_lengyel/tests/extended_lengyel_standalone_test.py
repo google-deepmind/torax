@@ -770,12 +770,15 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     self.assertIsNotNone(unique)
     self.assertIsNone(unique.roots)
 
-    self.assertEqual(unique.T_e_target.shape, (2,))
-    np.testing.assert_allclose(unique.T_e_target[:2], [5.0, 10.0], atol=1e-4)
+    self.assertEqual(unique.T_e_target.shape, (3,))
+    np.testing.assert_allclose(
+        unique.T_e_target, [5.0, 10.0, np.nan], atol=1e-4, equal_nan=True
+    )
 
     self.assertIsNotNone(unique.solver_status.physics_outcome)
     physics_outcome = unique.solver_status.physics_outcome
-    self.assertEqual(physics_outcome.shape, (2,))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(physics_outcome.shape, (3,))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
+    np.testing.assert_array_equal(physics_outcome, [0, 0, -1])
 
   def test_get_unique_roots_time_dependent(self):
     # Shape: [time, num_guesses]
@@ -836,18 +839,18 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
 
     self.assertIsNotNone(unique)
 
-    self.assertEqual(unique.T_e_target.shape, (2, 2))
+    self.assertEqual(unique.T_e_target.shape, (2, 3))
 
-    np.testing.assert_allclose(unique.T_e_target[0, :2], [5.0, 10.0], atol=1e-4)
-
-    np.testing.assert_allclose(unique.T_e_target[1, :1], [20.0], atol=1e-4)
-    self.assertTrue(jnp.isnan(unique.T_e_target[1, 1]))
-
-    self.assertIsNotNone(unique)
+    np.testing.assert_allclose(
+        unique.T_e_target[0], [5.0, 10.0, np.nan], atol=1e-4, equal_nan=True
+    )
+    np.testing.assert_allclose(
+        unique.T_e_target[1], [20.0, np.nan, np.nan], atol=1e-4, equal_nan=True
+    )
 
     physics_outcome = unique.solver_status.physics_outcome
-    self.assertEqual(physics_outcome.shape, (2, 2))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
-    self.assertEqual(physics_outcome[1, 1], -1)  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[bad-index]
+    self.assertEqual(physics_outcome.shape, (2, 3))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
+    np.testing.assert_array_equal(physics_outcome, [[0, 0, -1], [0, -1, -1]])
 
   def test_get_unique_roots_keeps_error_roots(self):
     """Test that roots with solver error=1 are kept in deduplicated output."""
