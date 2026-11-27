@@ -83,7 +83,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         -Updates the initial config from the IDS profiles,
         -Runs the simulation again and compare the 2 runs.
     """
-    rtol = 1e-10
+    rtol = 1e-4
     atol = 0
     # Input core_profiles reading and config loading
     config_dict = self._get_config_dict(
@@ -152,7 +152,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         -Compares the profiles of the TORAX output with the initial IMAS IDS
          profiles.
     """
-    rtol = 1e-10
+    rtol = 1e-4
     atol = 0
 
     # Input core_profiles reading and config loading

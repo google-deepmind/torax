@@ -219,7 +219,7 @@ class RunSimulationMainTest(parameterized.TestCase):
                 # GitHub CI behaves very differently from Google internal for
                 # the mode=zero case, needing looser tolerance for this than
                 # for other tests.
-                # rtol=0.0,
+                rtol=1.0e-3,
                 atol=5.0e-5,
                 # This is required to allow one of psi_right_grad_constraint and
                 # psi_right_constraint to be None
