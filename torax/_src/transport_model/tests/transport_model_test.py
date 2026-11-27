@@ -1347,6 +1347,59 @@ class TransportModelTest(parameterized.TestCase):
           coeffs.core_components['edge'].chi_face_ion[edge_faces], 100.0
       )
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='l_mode_empty_ibc',
+          confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+          rho_norm_top=0.5,
+          ibc_cells=[0.0, 0.0, 0.0, 0.0],
+          expected=[False, False, False, False, False],
+      ),
+      dict(
+          testcase_name='l_mode_edge_ibc',
+          confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+          rho_norm_top=0.5,
+          ibc_cells=[0.0, 0.0, 1.0, 1.0],
+          expected=[False, False, False, True, True],
+      ),
+      dict(
+          testcase_name='h_mode_single_cell_ibc',
+          confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+          rho_norm_top=0.5,
+          ibc_cells=[0.0, 0.0, 1.0, 0.0],
+          expected=[False, False, True, True, True],
+      ),
+      dict(
+          testcase_name='h_mode_with_wider_edge_ibc',
+          confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+          rho_norm_top=0.75,
+          ibc_cells=[0.0, 1.0, 1.0, 1.0],
+          expected=[False, False, True, True, True],
+      ),
+  )
+  def test_get_combined_ibc_face_mask(
+      self, confinement_mode, rho_norm_top, ibc_cells, expected
+  ):
+    geo = mock.Mock(spec=geometry.Geometry)
+    geo.rho_face_norm = jnp.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    pedestal_output = pedestal_model_output_lib.IBCPedestalModelOutput(
+        structure=pedestal_structure.PedestalStructure(
+            rho_norm_top=jnp.asarray(rho_norm_top),
+            T_i_top=jnp.asarray(4.0),
+            T_e_top=jnp.asarray(4.0),
+            n_e_top=jnp.asarray(0.6e20),
+        ),
+        confinement_mode=jnp.asarray(confinement_mode),
+    )
+    vals = jnp.array(ibc_cells)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions(
+        T_i=vals, T_e=vals, n_e=vals
+    )
+    np.testing.assert_array_equal(
+        transport_model.get_combined_ibc_face_mask(geo, pedestal_output, ibc),
+        expected,
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
