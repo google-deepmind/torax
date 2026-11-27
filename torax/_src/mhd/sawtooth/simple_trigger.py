@@ -21,8 +21,6 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import constants
-from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
@@ -32,9 +30,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class SimpleTrigger(
-    trigger_base.TriggerModel, static_dataclass.StaticDataclass
-):
+class SimpleTrigger(trigger_base.TriggerModel):
   """Simple trigger model."""
 
   def __call__(
@@ -64,37 +60,8 @@ class SimpleTrigger(
     q_face = core_profiles.poloidal_flux.q_face
     s_face = core_profiles.poloidal_flux.s_face
     rho_face_norm = geo.rho_face_norm
-    eps = constants.CONSTANTS.eps
 
-    # Find the rightmost location where q crosses 1.0.
-    # Allows for non-monotonic q profiles.
-
-    # Calculate interpolated rho_q1 for all intervals
-    q1 = q_face[:-1]
-    q2 = q_face[1:]
-    rho_norm1 = rho_face_norm[:-1]
-    rho_norm2 = rho_face_norm[1:]
-    # Handle division by zero if q1 == q2
-    dq = jnp.where(jnp.abs(q2 - q1) > eps, q2 - q1, eps)
-    # Calculate value of rho for q=1 by linearization of the q-profile
-    # in the interval. If the calculated rho is within the interval, then the
-    # q=1 surface exists for that interval.
-    potential_rho_norm_q1 = (
-        rho_norm1 + (rho_norm2 - rho_norm1) * (1.0 - q1) / dq
-    )
-    valid_interval_mask = jnp.logical_and(
-        potential_rho_norm_q1 >= rho_norm1, potential_rho_norm_q1 <= rho_norm2
-    )
-
-    # Mask out intervals where there isn't actually a crossing
-    # We set invalid rhos to 0.0, as rho_q1 must be > 0 for a valid surface
-    valid_rho_norm_q1 = jnp.where(
-        valid_interval_mask, potential_rho_norm_q1, 0.0
-    )
-
-    # The rightmost crossing corresponds to the maximum valid rho_q1
-    # For no crossings, rho_q1 = 0.0 which will not trigger the sawtooth.
-    rho_norm_q1 = jnp.max(valid_rho_norm_q1)
+    rho_norm_q1 = trigger_base.find_rho_norm_q1(q_face, rho_face_norm)
     s_at_q1 = jnp.interp(rho_norm_q1, rho_face_norm, s_face)
 
     # Check trigger conditions

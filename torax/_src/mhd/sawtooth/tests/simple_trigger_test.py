@@ -26,11 +26,13 @@ from torax._src.geometry import circular_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import simple_trigger
+from torax._src.mhd.sawtooth import trigger_base
 from torax._src.test_utils import core_profile_helpers
 
 jax.config.update('jax_enable_x64', True)
 
 _NRHO = 20
+_RHO_FACE = np.linspace(0.0, 1.0, _NRHO + 1)
 
 
 class SimpleTriggerTest(parameterized.TestCase):
@@ -147,6 +149,102 @@ class SimpleTriggerTest(parameterized.TestCase):
         core_profiles,
     )
     self.assertEqual(trigger_result, expected_trigger)
+
+
+class FindRhoNormQ1Test(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='upward_crossing',
+          q_face=0.55 + 2.0 * _RHO_FACE,
+          expected=0.225,
+      ),
+      dict(
+          testcase_name='downward_crossing',
+          q_face=1.45 - 2.0 * _RHO_FACE,
+          expected=0.225,
+      ),
+      dict(
+          testcase_name='multiple_crossings_outermost',
+          q_face=0.8 + 1.6 * np.abs(_RHO_FACE - 0.4),
+          expected=0.525,
+      ),
+  )
+  def test_find_rho_norm_q1_standard_cases(
+      self,
+      q_face: np.ndarray,
+      expected: float,
+  ):
+    result = float(
+        trigger_base.find_rho_norm_q1(
+            jnp.asarray(q_face),
+            jnp.asarray(_RHO_FACE),
+        )
+    )
+    np.testing.assert_allclose(result, expected, rtol=0.0, atol=1e-12)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='flat_q_below_1_within_eps',
+          q_face=np.full(_NRHO + 1, 1.0 - 5e-8),
+          expected=0.0,
+      ),
+      dict(
+          testcase_name='tangent_from_above',
+          q_face=1.0 + (_RHO_FACE - 0.5) ** 2,
+          expected=0.0,
+      ),
+      dict(
+          testcase_name='exact_face_hit_from_below',
+          q_face=0.5 + _RHO_FACE,
+          expected=0.5,
+      ),
+      dict(
+          testcase_name='small_slope_downward_crossing',
+          q_face=np.where(_RHO_FACE < 0.5, 1.0 + 4e-8, 1.0 - 4e-8),
+          expected=0.475,
+      ),
+  )
+  def test_find_rho_norm_q1_edge_cases(
+      self,
+      q_face: np.ndarray,
+      expected: float,
+  ):
+    result = float(
+        trigger_base.find_rho_norm_q1(
+            jnp.asarray(q_face),
+            jnp.asarray(_RHO_FACE),
+        )
+    )
+    np.testing.assert_allclose(result, expected, rtol=0.0, atol=1e-12)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='interior_crossing',
+          q_face=0.55 + 2.0 * _RHO_FACE,
+          expected_nonzero={4: -0.25, 5: -0.25},
+      ),
+      dict(
+          testcase_name='flat_q_1',
+          q_face=np.ones(_NRHO + 1),
+          expected_nonzero={},
+      ),
+  )
+  def test_find_rho_norm_q1_grad(
+      self,
+      q_face: np.ndarray,
+      expected_nonzero: dict[int, float],
+  ):
+    # In `flat_q_1`, every interval has q1 == q2 == 1.0, exercising the safe
+    # denominator so reverse-mode AD through `jnp.where` avoids 0/0 NaNs.
+    grad = jax.grad(trigger_base.find_rho_norm_q1)(
+        jnp.asarray(q_face),
+        jnp.asarray(_RHO_FACE),
+    )
+    expected_grad = np.zeros(_NRHO + 1)
+    for idx, val in expected_nonzero.items():
+      expected_grad[idx] = val
+    np.testing.assert_allclose(grad, expected_grad, rtol=0.0, atol=1e-12)
 
 
 if __name__ == '__main__':
