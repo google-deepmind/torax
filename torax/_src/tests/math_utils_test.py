@@ -563,6 +563,270 @@ class MathUtilsTest(parameterized.TestCase):
         (matrix @ rho_face)[idx], rho_face[idx], atol=5e-4
     )
 
+  def test_smooth_clip_values_and_bounds(self):
+    xs = jnp.array([-1.0, 0.0, 0.05, 0.1, 0.5, 0.9, 0.95, 1.0, 2.0])
+    clipped = math_utils.smooth_clip(xs, min_val=0.0, max_val=1.0, margin=0.1)
+    # At t = 0.5 inside the transition band: t^3 * (6 - 8t + 3t^2) = 11 / 32.
+    mid_offset = (11.0 / 32.0) * 0.1
+    expected = jnp.array([
+        0.0,
+        0.0,
+        mid_offset,
+        0.1,
+        0.5,
+        0.9,
+        1.0 - mid_offset,
+        1.0,
+        1.0,
+    ])
+    np.testing.assert_allclose(clipped, expected)
+
+  def test_smooth_clip_is_c2_and_monotone(self):
+    fn = lambda x: math_utils.smooth_clip(
+        x, min_val=0.0, max_val=1.0, margin=0.1
+    )
+    grad_fn = jax.grad(fn)
+    hess_fn = jax.grad(grad_fn)
+    grid = jnp.linspace(-0.1, 1.1, 501)
+    slopes = jax.vmap(grad_fn)(grid)
+    self.assertGreaterEqual(float(jnp.min(slopes)), -1e-12)
+    self.assertLessEqual(float(jnp.max(slopes)), 1.512 + 1e-6)
+    for pt, expected_slope in (
+        (0.0, 0.0),
+        (0.1, 1.0),
+        (0.9, 1.0),
+        (1.0, 0.0),
+    ):
+      with self.subTest(pt=pt):
+        np.testing.assert_allclose(grad_fn(pt), expected_slope, atol=1e-7)
+        np.testing.assert_allclose(
+            hess_fn(pt - 1e-9), hess_fn(pt + 1e-9), atol=1e-5
+        )
+
+  def test_smooth_clip_finite_ad_with_infinite_x_and_bounds(self):
+    setups = (
+        (0.0, 1.0, 0.1),
+        (0.0, 1.0, 10.0),
+        (0.0, jnp.inf, 0.1),
+        (-jnp.inf, 1.0, 0.1),
+        (-jnp.inf, jnp.inf, 0.1),
+    )
+    fn = lambda x, lo, hi, m: math_utils.smooth_clip(x, lo, hi, margin=m)
+    grad_all = jax.grad(fn, argnums=(0, 1, 2, 3))
+    for lo, hi, margin in setups:
+      for x_val in (-jnp.inf, jnp.inf, 0.5):
+        args = (
+            jnp.array(x_val),
+            jnp.array(lo),
+            jnp.array(hi),
+            jnp.array(margin),
+        )
+        with self.subTest(mode='rev', x=x_val, lo=lo, hi=hi, margin=margin):
+          grads = grad_all(*args)
+          self.assertTrue(all(np.isfinite(float(g)) for g in grads))
+        with self.subTest(mode='fwd', x=x_val, lo=lo, hi=hi, margin=margin):
+          _, tangent = jax.jvp(
+              fn,
+              args,
+              (jnp.array(1.0), jnp.array(1.0), jnp.array(1.0), jnp.array(1.0)),
+          )
+          self.assertTrue(np.isfinite(float(tangent)))
+
+  def test_smooth_clip_edge_cases(self):
+    xs = jnp.array([-5.0, 0.5, 5.0])
+    with self.subTest('nan_bound_or_margin_propagates'):
+      self.assertTrue(
+          np.all(np.isnan(math_utils.smooth_clip(xs, jnp.nan, 1.0, margin=0.1)))
+      )
+      self.assertTrue(
+          np.all(np.isnan(math_utils.smooth_clip(xs, 0.0, jnp.nan, margin=0.1)))
+      )
+      self.assertTrue(
+          np.all(np.isnan(math_utils.smooth_clip(xs, 0.0, 1.0, margin=jnp.nan)))
+      )
+      self.assertTrue(
+          np.all(
+              np.isnan(
+                  math_utils.smooth_clip(xs, 0.0, 1.0, margin=(jnp.nan, 0.1))
+              )
+          )
+      )
+      self.assertTrue(
+          np.all(
+              np.isnan(
+                  math_utils.smooth_clip(xs, 0.0, 1.0, margin=(0.1, jnp.nan))
+              )
+          )
+      )
+    with self.subTest('nonpositive_margin_reduces_to_hard_clip'):
+      for margin in (0.0, -0.5):
+        np.testing.assert_allclose(
+            math_utils.smooth_clip(xs, 0.0, 1.0, margin=margin),
+            jnp.clip(xs, 0.0, 1.0),
+        )
+    with self.subTest('inverted_bounds_match_jnp_clip'):
+      np.testing.assert_allclose(
+          math_utils.smooth_clip(xs, min_val=2.0, max_val=1.0, margin=0.1),
+          jnp.clip(xs, 2.0, 1.0),
+      )
+    with self.subTest('none_bounds_disable_clipping'):
+      np.testing.assert_allclose(
+          math_utils.smooth_clip(xs, min_val=0.0, margin=0.1),
+          jnp.array([0.0, 0.5, 5.0]),
+      )
+      np.testing.assert_allclose(
+          math_utils.smooth_clip(xs, max_val=1.0, margin=0.1),
+          jnp.array([-5.0, 0.5, 1.0]),
+      )
+      np.testing.assert_allclose(
+          math_utils.smooth_clip(xs, margin=0.1),
+          xs,
+      )
+    with self.subTest('narrow_interval_caps_margin_at_half_span'):
+      clipped = math_utils.smooth_clip(
+          jnp.array([-1.0, 0.0, 0.5, 1.0, 2.0]),
+          min_val=0.0,
+          max_val=1.0,
+          margin=10.0,
+      )
+      np.testing.assert_allclose(clipped, jnp.array([0.0, 0.0, 0.5, 1.0, 1.0]))
+
+  def test_smooth_clip_asymmetric_margin_tuple(self):
+    with self.subTest('different_lower_and_upper_widths'):
+      xs = jnp.array([0.0, 0.05, 0.1, 5.0, 9.0, 9.5, 10.0])
+      clipped = math_utils.smooth_clip(
+          xs, min_val=0.0, max_val=10.0, margin=(0.1, 1.0)
+      )
+      expected = jnp.array([
+          0.0,
+          (11.0 / 32.0) * 0.1,
+          0.1,
+          5.0,
+          9.0,
+          10.0 - (11.0 / 32.0) * 1.0,
+          10.0,
+      ])
+      np.testing.assert_allclose(clipped, expected)
+    with self.subTest('proportional_cap_meets_cleanly_without_overlap'):
+      # Margins (0.2, 0.8) on [0, 0.5] scale to (0.1, 0.4), meeting at x = 0.1.
+      fn = lambda x: math_utils.smooth_clip(
+          x, min_val=0.0, max_val=0.5, margin=(0.2, 0.8)
+      )
+      grad_fn = jax.grad(fn)
+      hess_fn = jax.grad(grad_fn)
+      np.testing.assert_allclose(fn(0.1), 0.1)
+      np.testing.assert_allclose(grad_fn(0.1), 1.0, atol=1e-7)
+      np.testing.assert_allclose(
+          hess_fn(0.1 - 1e-9), hess_fn(0.1 + 1e-9), atol=1e-5
+      )
+    with self.subTest('one_side_hard_other_side_smooth'):
+      xs = jnp.array([-1.0, 0.0, 0.05, 0.5, 0.9, 1.0])
+      clipped = math_utils.smooth_clip(
+          xs, min_val=0.0, max_val=1.0, margin=(0.0, 0.2)
+      )
+      expected = jnp.array(
+          [0.0, 0.0, 0.05, 0.5, 1.0 - (11.0 / 32.0) * 0.2, 1.0]
+      )
+      np.testing.assert_allclose(clipped, expected)
+    with self.subTest('invalid_tuple_length_raises'):
+      with self.assertRaisesRegex(ValueError, 'length 2'):
+        math_utils.smooth_clip(jnp.array([0.5]), 0.0, 1.0, margin=(0.1,))  # pyrefly: ignore[bad-argument-type]
+
+  def test_smooth_clip_dtypes_and_python_float(self):
+    for dtype in (jnp.float32, jnp.bfloat16):
+      with self.subTest(dtype=dtype):
+        out = math_utils.smooth_clip(
+            jnp.array([0.05, 0.5], dtype=dtype), 0.0, 1.0, margin=0.1
+        )
+        self.assertEqual(out.dtype, dtype)
+    with self.subTest('int_promoted_to_float'):
+      out = math_utils.smooth_clip(
+          jnp.array([0, 1], dtype=jnp.int32), 0.0, 1.0, margin=0.1
+      )
+      self.assertTrue(jnp.issubdtype(out.dtype, jnp.floating))
+    with self.subTest('python_float_with_disable_jit'):
+      with jax.disable_jit():
+        out = math_utils.smooth_clip(0.5, 0.0, 1.0, margin=0.1)
+      np.testing.assert_allclose(out, 0.5)
+
+  def test_smooth_abs_values_and_c2_continuity(self):
+    fn = lambda x: math_utils.smooth_abs(x, margin=0.1)
+    grad_fn = jax.grad(fn)
+    hess_fn = jax.grad(grad_fn)
+
+    with self.subTest('exact_outside_margin_and_zero_at_origin'):
+      xs = jnp.array([-0.5, -0.1, 0.0, 0.1, 0.5])
+      np.testing.assert_allclose(fn(xs), jnp.array([0.5, 0.1, 0.0, 0.1, 0.5]))
+
+    with self.subTest('interior_polynomial_value'):
+      # At u = 0.5: m * ((15/8)*u^2 - (5/4)*u^4 + (3/8)*u^6) = 0.1 * 203/512.
+      np.testing.assert_allclose(fn(0.05), 0.1 * 203.0 / 512.0, rtol=1e-6)
+
+    with self.subTest('zero_slope_at_origin'):
+      np.testing.assert_allclose(grad_fn(0.0), 0.0, atol=1e-7)
+
+    # Probe just inside +/-margin (since |x| >= margin selects the |x| branch).
+    for edge, sign in ((-0.1, -1.0), (0.1, 1.0)):
+      inner = edge - sign * 1e-8
+      with self.subTest(f'value_continuous_at_{edge}'):
+        np.testing.assert_allclose(fn(inner), 0.1, atol=1e-6)
+      with self.subTest(f'slope_continuous_at_{edge}'):
+        np.testing.assert_allclose(grad_fn(inner), sign, atol=1e-5)
+      with self.subTest(f'curvature_continuous_at_{edge}'):
+        np.testing.assert_allclose(
+            hess_fn(edge - 1e-8), hess_fn(edge + 1e-8), atol=1e-4
+        )
+
+    grid = jnp.linspace(0.0, 0.2, 201)
+    with self.subTest('even_symmetry'):
+      np.testing.assert_array_equal(fn(-grid), fn(grid))
+    with self.subTest('bounded_by_abs'):
+      vals = fn(grid)
+      self.assertGreaterEqual(float(jnp.min(vals)), 0.0)
+      self.assertLessEqual(float(jnp.max(vals - grid)), 1e-6)
+    with self.subTest('slope_bound'):
+      slopes = jax.vmap(grad_fn)(grid)
+      self.assertLessEqual(float(jnp.max(jnp.abs(slopes))), 1.348)
+
+  def test_smooth_abs_finite_ad_on_edge_inputs(self):
+    fn = lambda x, m: math_utils.smooth_abs(x, margin=m)
+    grad_both = jax.grad(fn, argnums=(0, 1))
+    for margin in (0.1, 0.0):
+      for x_val in (-jnp.inf, jnp.inf, 0.0):
+        args = (jnp.array(x_val), jnp.array(margin))
+        with self.subTest(mode='rev', x=x_val, margin=margin):
+          g0, g1 = grad_both(*args)
+          np.testing.assert_array_equal(
+              np.isfinite([float(g0), float(g1)]), True
+          )
+        with self.subTest(mode='fwd', x=x_val, margin=margin):
+          _, tangent = jax.jvp(fn, args, (jnp.array(1.0), jnp.array(1.0)))
+          self.assertTrue(np.isfinite(float(tangent)))
+
+  def test_smooth_abs_edge_cases_and_dtypes(self):
+    xs = jnp.array([-5.0, 0.5, 5.0])
+    with self.subTest('nan_margin_propagates'):
+      self.assertTrue(
+          np.all(np.isnan(math_utils.smooth_abs(xs, margin=jnp.nan)))
+      )
+    with self.subTest('nonpositive_margin_reduces_to_abs'):
+      for margin in (0.0, -0.5):
+        np.testing.assert_allclose(
+            math_utils.smooth_abs(xs, margin=margin), jnp.abs(xs)
+        )
+    for dtype in (jnp.float32, jnp.bfloat16):
+      with self.subTest(dtype=dtype):
+        out = math_utils.smooth_abs(jnp.array([-0.05], dtype=dtype), margin=0.1)
+        self.assertEqual(out.dtype, dtype)
+    with self.subTest('int_promoted_to_float'):
+      out_int = math_utils.smooth_abs(
+          jnp.array([-1, 0, 2], dtype=jnp.int32), margin=0.1
+      )
+      self.assertTrue(jnp.issubdtype(out_int.dtype, jnp.floating))
+    with self.subTest('python_float_with_disable_jit'):
+      with jax.disable_jit():
+        np.testing.assert_allclose(math_utils.smooth_abs(-0.5, margin=0.1), 0.5)
+
 
 if __name__ == '__main__':
   absltest.main()
