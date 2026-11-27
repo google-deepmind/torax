@@ -22,6 +22,9 @@ from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import (
@@ -54,14 +57,14 @@ def _get_config_and_model_inputs(
   core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
       torax_config
   )
-  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+  ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
   transport_model = torax_config.transport.build_transport_model()
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
-      two_point_mask,
+      ibc,
       transport_model.initial_state(runtime_params),
   )
 
@@ -111,7 +114,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
+    runtime_params, geo, core_profiles, _, ibc, _ = model_inputs
+    two_point_mask = ibc.get_two_point_face_mask(geo)
     qualikiz_params = runtime_params.transport.core_transport_model_params[
         'qualikiz_based'
     ]
@@ -165,7 +169,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
+    runtime_params, geo, core_profiles, _, ibc, _ = model_inputs
+    two_point_mask = ibc.get_two_point_face_mask(geo)
     qualikiz_params = runtime_params.transport.core_transport_model_params[
         'qualikiz_based'
     ]
@@ -213,9 +218,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params_uncapped, geo, core_profiles, _, two_point_mask, _ = (
-        uncapped_inputs
-    )
+    runtime_params_uncapped, geo, core_profiles, _, ibc, _ = uncapped_inputs
+    two_point_mask = ibc.get_two_point_face_mask(geo)
     runtime_params_capped = capped_inputs[0]
 
     qualikiz_params_uncapped = (

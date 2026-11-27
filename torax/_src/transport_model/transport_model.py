@@ -29,6 +29,9 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
@@ -122,7 +125,9 @@ class TransportModel(static_dataclass.StaticDataclass):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-      two_point_mask: array_typing.BoolVectorFace,
+      internal_boundary_conditions: (
+          internal_boundary_conditions_lib.InternalBoundaryConditions
+      ),
       transport_state: transport_state_lib.TransportState,
   ) -> tuple[
       transport_coeffs.TurbulentTransport, transport_state_lib.TransportState
@@ -137,7 +142,8 @@ class TransportModel(static_dataclass.StaticDataclass):
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles at the current time.
       pedestal_model_output: Output of the pedestal model.
-      two_point_mask: Boolean mask indicating the two-point model region.
+      internal_boundary_conditions: Active internal boundary conditions on the
+        cell grid.
       transport_state: Transport state carried over from the previous timestep,
         containing core and pedestal component states.
 
@@ -147,6 +153,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       individual model outputs, and updated_transport_state is the updated
       TransportState.
     """
+    two_point_mask = internal_boundary_conditions.get_two_point_face_mask(geo)
     pedestal_mask = jnp.asarray(
         pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
@@ -157,18 +164,24 @@ class TransportModel(static_dataclass.StaticDataclass):
     if isinstance(
         pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
     ):
-      core_domain_mask = jnp.where(
-          pedestal_model_output.is_active,
-          ~pedestal_mask,
-          True,
+      core_domain_mask = (
+          jnp.where(
+              pedestal_model_output.is_active,
+              ~pedestal_mask,
+              True,
+          )
+          & ~internal_boundary_conditions.get_ibc_only_face_mask()
       )
     else:
+      # Only reached when pedestal.mode == Mode.ADAPTIVE_TRANSPORT (which
+      # forbids IBCs); NoPedestal still uses IBCPedestalModelOutput.
       core_domain_mask = jnp.ones_like(pedestal_mask, dtype=bool)
 
     core_smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
         geo,
         pedestal_model_output,
+        internal_boundary_conditions,
     )
     pedestal_smoothing_matrix = _build_pedestal_smoothing_matrix(
         runtime_params.transport,
@@ -400,6 +413,9 @@ def _build_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+    internal_boundary_conditions: (
+        internal_boundary_conditions_lib.InternalBoundaryConditions
+    ),
 ) -> jax.Array:
   """Builds a smoothing matrix for the transport model."""
   # 1. Build smoothing width profile
@@ -427,18 +443,22 @@ def _build_smoothing_matrix(
   else:
     smoothing_width_profile = build_profile_fallback()
 
-  # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
-  # Zeros out smoothing_width_profile for rho >= rho_norm_top to avoid bleeding
-  # into boundary condition zone.
+  # Apply pedestal and IBC masks when in INTERNAL_BOUNDARY_CONDITION mode.
+  # Zeros out smoothing_width_profile in the pedestal (rho >= rho_norm_top) and
+  # on IBC-only faces so fixed-gradient IBC transport values do not bleed into
+  # evolved core faces.
   if isinstance(
       pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
   ):
     rho_norm_top = pedestal_model_output.rho_norm_top
-    smoothing_width_profile = jnp.where(
+    combined_ibc_mask = (
         pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
             geo.rho_face_norm, rho_norm_top
-        ),
+        )
+    ) | internal_boundary_conditions.get_ibc_only_face_mask()
+    smoothing_width_profile = jnp.where(
+        combined_ibc_mask,
         0.0,
         smoothing_width_profile,
     )

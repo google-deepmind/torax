@@ -398,9 +398,7 @@ def _evaluate_ibc_and_transport(
           pedestal_model_output=pedestal_output,
           transport_state=transport_state,
           neoclassical_transport=neoclassical_transport,
-          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
-              geo
-          ),
+          internal_boundary_conditions=internal_boundary_conditions,
           use_pereverzev=use_pereverzev,
       )
   )

@@ -20,6 +20,9 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import circular_geometry
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -80,7 +83,11 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         v_face_el_ware=jnp.zeros(self.n_face),
     )
 
-    self.mock_two_point_mask = jnp.zeros(self.n_face, dtype=bool)
+    self.empty_ibc = (
+        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(
+            self.geo
+        )
+    )
 
     # Mock runtime params.
     self.runtime_params = mock.Mock()
@@ -118,7 +125,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
             transport_model=self.transport_model,
             transport_state=self.transport_state,
             neoclassical_transport=self.neoclassical_transport,
-            two_point_mask=self.mock_two_point_mask,
+            internal_boundary_conditions=self.empty_ibc,
             runtime_params=self.runtime_params,
             geo=self.geo,
             core_profiles=self.core_profiles,
@@ -153,7 +160,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
           transport_model=self.transport_model,
           transport_state=self.transport_state,
           neoclassical_transport=self.neoclassical_transport,
-          two_point_mask=self.mock_two_point_mask,
+          internal_boundary_conditions=self.empty_ibc,
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
@@ -200,7 +207,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
           transport_model=self.transport_model,
           transport_state=self.transport_state,
           neoclassical_transport=self.neoclassical_transport,
-          two_point_mask=self.mock_two_point_mask,
+          internal_boundary_conditions=self.empty_ibc,
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
@@ -238,7 +245,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
           transport_model=self.transport_model,
           transport_state=self.transport_state,
           neoclassical_transport=self.neoclassical_transport,
-          two_point_mask=self.mock_two_point_mask,
+          internal_boundary_conditions=self.empty_ibc,
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
@@ -265,7 +272,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         transport_model=self.transport_model,
         transport_state=self.transport_state,
         neoclassical_transport=self.neoclassical_transport,
-        two_point_mask=self.mock_two_point_mask,
+        internal_boundary_conditions=self.empty_ibc,
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
@@ -281,7 +288,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         transport_model=self.transport_model,
         transport_state=self.transport_state,
         neoclassical_transport=self.neoclassical_transport,
-        two_point_mask=self.mock_two_point_mask,
+        internal_boundary_conditions=self.empty_ibc,
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
@@ -294,6 +301,40 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     np.testing.assert_allclose(
         result.total.chi_face_ion, expected_total.chi_face_ion
     )
+
+  def test_masks_pereverzev_on_ibc_only_faces(self):
+    # n_rho = 4 -> 5 faces. IBC active on cells 2 and 3 (IBC-only faces 3, 4).
+    ibc_values = jnp.array([0.0, 0.0, 2.0, 1.0])
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions(
+        T_i=ibc_values,
+        T_e=ibc_values,
+        n_e=ibc_values,
+    )
+    with mock.patch.object(
+        pereverzev_lib,
+        'calculate_pereverzev_transport',
+        return_value=self.pereverzev_transport,
+    ):
+      result, _ = transport_coefficients_builder.calculate_all_transport_coeffs(
+          transport_model=self.transport_model,
+          transport_state=self.transport_state,
+          neoclassical_transport=self.neoclassical_transport,
+          internal_boundary_conditions=ibc,
+          runtime_params=self.runtime_params,
+          geo=self.geo,
+          core_profiles=self.core_profiles,
+          pedestal_model_output=self.ibc_pedestal_output,
+          use_pereverzev=True,
+      )
+
+    # Face 2 (between evolved cell 1 and IBC cell 2) stays active; IBC-only
+    # faces 3 and 4 are zeroed across all Pereverzev channels.
+    expected_active = jnp.array([True, True, True, False, False])
+    expected = jax.tree.map(
+        lambda x: jnp.where(expected_active, x, 0.0),
+        self.pereverzev_transport,
+    )
+    jax.tree.map(np.testing.assert_allclose, result.pereverzev, expected)
 
 
 if __name__ == '__main__':

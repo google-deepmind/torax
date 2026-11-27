@@ -16,10 +16,12 @@
 
 import jax
 import jax.numpy as jnp
-from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -46,7 +48,9 @@ def calculate_all_transport_coeffs(
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     transport_state: transport_state_lib.TransportState,
     neoclassical_transport: transport_coeffs.NeoclassicalTransport,
-    two_point_mask: array_typing.BoolVectorFace,
+    internal_boundary_conditions: (
+        internal_boundary_conditions_lib.InternalBoundaryConditions
+    ),
     use_pereverzev: bool = False,
 ) -> tuple[transport_coeffs.CoreTransport, transport_state_lib.TransportState]:
   """Calculates the transport coefficients from all models and updated state.
@@ -59,7 +63,8 @@ def calculate_all_transport_coeffs(
     pedestal_model_output: Output of the pedestal model for this step.
     transport_state: Transport state carried over from the previous timestep.
     neoclassical_transport: Neoclassical transport coefficients.
-    two_point_mask: Mask for boundary faces.
+    internal_boundary_conditions: Active internal boundary conditions on the
+      cell grid.
     use_pereverzev: Whether to calculate Pereverzev transport.
 
   Returns:
@@ -70,7 +75,7 @@ def calculate_all_transport_coeffs(
       geo=geo,
       core_profiles=core_profiles,
       pedestal_model_output=pedestal_model_output,
-      two_point_mask=two_point_mask,
+      internal_boundary_conditions=internal_boundary_conditions,
       transport_state=transport_state,
   )
 
@@ -80,8 +85,8 @@ def calculate_all_transport_coeffs(
         geo,
         core_profiles,
     )
-    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
-    # coefficients in the pedestal region to zero.
+    # Zero Pereverzev-Corrigan terms where they do not affect evolved PDE rows:
+    # in the pedestal during IBC pedestal mode, and on IBC-only faces.
     if isinstance(
         pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
     ):
@@ -90,8 +95,12 @@ def calculate_all_transport_coeffs(
           geo.rho_face_norm >= pedestal_model_output.rho_norm_top,
           False,
       )
+      ibc_face_mask = (
+          internal_boundary_conditions.get_ibc_only_face_mask()
+          | pedestal_active_mask_face
+      )
       pereverzev_transport_coeffs = jax.tree.map(
-          lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+          lambda x: jnp.where(ibc_face_mask, 0.0, x),
           pereverzev_transport_coeffs,
       )
   else:

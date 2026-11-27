@@ -26,6 +26,9 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -53,14 +56,14 @@ def _get_config_and_model_inputs(
   core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
       torax_config
   )
-  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+  ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
   transport_model = torax_config.transport.build_transport_model()
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
-      two_point_mask,
+      ibc,
       transport_model.initial_state(runtime_params),
   )
 
@@ -111,7 +114,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
+    runtime_params, geo, core_profiles, _, ibc, _ = model_inputs
+    two_point_mask = ibc.get_two_point_face_mask(geo)
     tglf_params = runtime_params.transport.core_transport_model_params[
         "tglf_based"
     ]
@@ -154,7 +158,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_uncapped, geo, core_profiles, _, two_point_mask, _ = uncapped_inputs
+    runtime_uncapped, geo, core_profiles, _, ibc, _ = uncapped_inputs
+    two_point_mask = ibc.get_two_point_face_mask(geo)
     runtime_capped = capped_inputs[0]
 
     tglf_params_uncapped = (
@@ -200,15 +205,14 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_vexb_shear_is_invariant_to_rigid_toroidal_rotation(self):
     # GACODE normalizes rotation to B_pol, so rigid toroidal rotation maps onto
     # a constant omega_0 = E_r / (R B_pol) and adds no ExB shear.
-    _, (_, geo, core_profiles, _, two_point_mask, _) = (
-        _get_config_and_model_inputs({
-            "core_transport_models": {
-                "tglf_based": {
-                    "model_name": "tglf_based",
-                },
+    _, (_, geo, core_profiles, _, ibc, _) = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
             },
-        })
-    )
+        },
+    })
+    two_point_mask = ibc.get_two_point_face_mask(geo)
     tglf_config = TGLFBasedTransportModelConfig()
     transport_model = tglf_config.build_transport_model()
     tglf_params = tglf_config.build_runtime_params(t=0.0)

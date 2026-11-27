@@ -61,14 +61,37 @@ class InternalBoundaryConditions:
         n_e=jnp.where(other.n_e != 0.0, other.n_e, self.n_e),
     )
 
+  def _active_cell_mask(self) -> array_typing.BoolVectorCell:
+    """Returns True on cells where any IBC channel is active (nonzero).
+
+    Non-evolved channels may be omitted (all zero), so no single channel is
+    guaranteed to be populated.
+    """
+    return (self.T_i != 0.0) | (self.T_e != 0.0) | (self.n_e != 0.0)
+
+  def get_ibc_only_face_mask(self) -> array_typing.BoolVectorFace:
+    """Returns True on faces whose adjacent cell(s) all have an active IBC.
+
+    An internal face is True if both neighboring cells have an active IBC; a
+    grid boundary face (`rho = 0` or `rho = 1`) is True if its single adjacent
+    cell has an active IBC.
+
+    Examples (5 cells -> 6 faces):
+      IBC cells: [T, T, F, T, F] -> faces: [T, T, F, F, F, F]
+      IBC cells: [F, F, T, T, T] -> faces: [F, F, F, T, T, T]
+    """
+    padded = jnp.pad(
+        self._active_cell_mask(), pad_width=1, constant_values=True
+    )
+    return padded[:-1] & padded[1:]
+
   def get_two_point_face_mask(
       self,
       geo: geometry.Geometry,
   ) -> array_typing.BoolVectorFace:
-    """Returns boolean face mask for 2-point gradient fallback left of pinned cells."""
-    pinned_cell_mask = (self.T_i != 0.0) | (self.T_e != 0.0) | (self.n_e != 0.0)
+    """Returns face mask for 2-point gradient fallback left of IBC cells."""
     mask = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
-    return mask.at[:-1].set(pinned_cell_mask)
+    return mask.at[:-1].set(self._active_cell_mask())
 
   @classmethod
   def empty(cls, geo: geometry.Geometry) -> 'InternalBoundaryConditions':

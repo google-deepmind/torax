@@ -17,7 +17,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-import numpy as np
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -53,13 +55,12 @@ class TGLFTransportModelTest(parameterized.TestCase):
     model_call = (
         jax.jit(transport_model.__call__) if jit else transport_model.__call__
     )
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     outputs, _ = model_call(
         runtime_params,
         geo,
         core_profiles,
         pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
-        two_point_mask,
+        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo),
         transport_state=transport_model.initial_state(runtime_params),
     )
     self.assertIsNotNone(outputs.total.chi_face_ion)

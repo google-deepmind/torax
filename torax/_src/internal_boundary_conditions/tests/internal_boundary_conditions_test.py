@@ -205,6 +205,45 @@ class InternalBoundaryConditionsTest(parameterized.TestCase):
     expected = np.array([False, True, False, True, False, False])
     np.testing.assert_array_equal(mask, expected)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='empty',
+          cells=[0.0, 0.0, 0.0, 0.0, 0.0],
+          expected=[False, False, False, False, False, False],
+      ),
+      dict(
+          testcase_name='edge_band',
+          cells=[0.0, 0.0, 1.0, 1.0, 1.0],
+          expected=[False, False, False, True, True, True],
+      ),
+      dict(
+          testcase_name='single_first_cell',
+          cells=[1.0, 0.0, 0.0, 0.0, 0.0],
+          expected=[True, False, False, False, False, False],
+      ),
+      dict(
+          testcase_name='single_interior_cell',
+          cells=[0.0, 0.0, 1.0, 0.0, 0.0],
+          expected=[False, False, False, False, False, False],
+      ),
+      dict(
+          testcase_name='interior_band',
+          cells=[0.0, 1.0, 1.0, 0.0, 0.0],
+          expected=[False, False, True, False, False, False],
+      ),
+      dict(
+          testcase_name='mixed_cells',
+          cells=[1.0, 1.0, 0.0, 1.0, 0.0],
+          expected=[True, True, False, False, False, False],
+      ),
+  )
+  def test_get_ibc_only_face_mask(self, cells, expected):
+    ibc_values = jnp.array(cells)
+    ibc = internal_boundary_conditions.InternalBoundaryConditions(
+        T_i=ibc_values, T_e=ibc_values, n_e=ibc_values
+    )
+    np.testing.assert_array_equal(ibc.get_ibc_only_face_mask(), expected)
+
   def test_from_config_defaults_to_no_ibc(self):
     config_dict = default_configs.get_default_config_dict()
     torax_config = config.ToraxConfig.model_validate(config_dict)

@@ -26,6 +26,9 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
 from torax._src.pedestal_model import (
     pedestal_model_output as pedestal_model_output_lib,
 )
@@ -152,6 +155,7 @@ def _build_smoothing_matrix_for_n_rho(
       runtime_params.transport,
       geo,
       _make_pedestal_output(rho_norm_top=1.0),
+      internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo),
   )
   return matrix, geo.rho_face_norm
 
@@ -178,14 +182,14 @@ class TransportMaskingTest(parameterized.TestCase):
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     model = torax_config.transport.build_transport_model()
     coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
 
@@ -221,13 +225,13 @@ class TransportMaskingTest(parameterized.TestCase):
     )
     pedestal_output = _make_pedestal_output(rho_norm_top=1.0)
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
 
@@ -254,7 +258,7 @@ class TransportMaskingTest(parameterized.TestCase):
         geo,
         core_profiles,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=single_model.initial_state(single_runtime),
     )
 
@@ -331,14 +335,14 @@ class TransportMaskingTest(parameterized.TestCase):
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     transport_model_instance = torax_config.transport.build_transport_model()
     coeffs, _ = transport_model_instance(
         runtime_params,
         geo,
         core_profiles,
         pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
-        two_point_mask,
+        ibc,
         transport_state=transport_model_instance.initial_state(runtime_params),
     )
 
@@ -397,13 +401,13 @@ class TransportModelTest(parameterized.TestCase):
         confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
     )
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
     # Target:
@@ -447,13 +451,13 @@ class TransportModelTest(parameterized.TestCase):
         confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
     )
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
     # Target:
@@ -483,6 +487,7 @@ class TransportModelTest(parameterized.TestCase):
         runtime_params.transport,
         geo,
         pedestal_output,
+        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo),
     )
     np.testing.assert_allclose(
         matrix, np.eye(len(geo.rho_face_norm)), atol=1e-7
@@ -502,6 +507,7 @@ class TransportModelTest(parameterized.TestCase):
         runtime_params.transport,
         geo,
         pedestal_output,
+        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo),
     )
     row_sums = np.sum(matrix, axis=1)
     np.testing.assert_allclose(row_sums, np.ones_like(row_sums), atol=1e-6)
@@ -526,6 +532,7 @@ class TransportModelTest(parameterized.TestCase):
         runtime_params.transport,
         geo,
         pedestal_output,
+        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo),
     )
 
     outside_mask = (geo.rho_face_norm < 0.3) | (geo.rho_face_norm > 0.7)
@@ -563,6 +570,7 @@ class TransportModelTest(parameterized.TestCase):
         runtime_params.transport,
         geo,
         pedestal_output,
+        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo),
     )
 
     pedestal_mask = geo.rho_face_norm >= 0.8
@@ -647,13 +655,13 @@ class TransportModelTest(parameterized.TestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
     pedestal_output = _make_pedestal_output(rho_norm_top=0.95)
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
     self.assertEqual(coeffs.total.chi_face_ion.shape, geo.rho_face_norm.shape)
@@ -721,13 +729,13 @@ class TransportModelTest(parameterized.TestCase):
 
     pedestal_output = _make_pedestal_output(rho_norm_top=1.0)
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs_small, _ = model_small(
         params_small,
         geo,
         mock.ANY,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model_small.initial_state(params_small),
     )
     coeffs_large, _ = model_large(
@@ -735,7 +743,7 @@ class TransportModelTest(parameterized.TestCase):
         geo,
         mock.ANY,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model_large.initial_state(params_large),
     )
 
@@ -781,8 +789,10 @@ class TransportModelTest(parameterized.TestCase):
     ):
       config.ToraxConfig.from_dict(config_dict)
 
-  def _build_model_and_params(self, transport_config):
+  def _build_model_and_params(self, transport_config, *, n_rho=None):
     config_dict = default_configs.get_default_config_dict()
+    if n_rho is not None:
+      config_dict['geometry'] = {'model_name': 'circular', 'n_rho': n_rho}
     config_dict['transport'] = transport_config
     torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
@@ -817,13 +827,13 @@ class TransportModelTest(parameterized.TestCase):
         rho_norm_top=1.0
     )  # No pedestal restriction for this test
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
 
@@ -854,13 +864,13 @@ class TransportModelTest(parameterized.TestCase):
     model, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_top=1.0)
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
 
@@ -895,13 +905,13 @@ class TransportModelTest(parameterized.TestCase):
     model, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_top=1.0)
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
 
@@ -921,6 +931,7 @@ class TransportModelTest(parameterized.TestCase):
     mock_model = mock.MagicMock(spec=component.ComponentTransportModel)
     geo = mock.Mock(spec=geometry.Geometry)
     geo.rho_face_norm = jnp.linspace(0, 1, 10, dtype=jax_utils.get_dtype())
+    geo.n_rho = 9
 
     mock_coeffs = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones_like(geo.rho_face_norm),
@@ -975,13 +986,14 @@ class TransportModelTest(parameterized.TestCase):
     runtime_params.profile_conditions.internal_boundary_conditions = None
     core_profiles = mock.Mock()
 
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
+    expected_two_point_mask = ibc.get_two_point_face_mask(geo)
     coeffs, _ = combined_model(
         runtime_params,
         geo,
         core_profiles,
         pedestal_output,
-        two_point_mask,
+        ibc,
         transport_state=combined_model.initial_state(runtime_params),
     )
 
@@ -992,7 +1004,7 @@ class TransportModelTest(parameterized.TestCase):
     self.assertEqual(call_args[0][2], geo)
     self.assertEqual(call_args[0][3], core_profiles)
     np.testing.assert_array_equal(
-        call_args[1]['two_point_mask'], two_point_mask
+        call_args[1]['two_point_mask'], expected_two_point_mask
     )
     self.assertIsInstance(
         call_args[1]['component_state'],
@@ -1082,7 +1094,7 @@ class TransportModelTest(parameterized.TestCase):
             'prescribed': {'model_name': 'prescribed', 'chi_i': 0.5}
         },
     })
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
     ped_mask = geo.rho_face_norm >= 0.8
     output = _make_pedestal_output(
         rho_norm_top=0.8,
@@ -1094,7 +1106,7 @@ class TransportModelTest(parameterized.TestCase):
         geo,
         mock.ANY,
         output,
-        two_point_mask,
+        ibc,
         transport_state=model.initial_state(runtime_params),
     )
     np.testing.assert_allclose(
@@ -1283,6 +1295,57 @@ class TransportModelTest(parameterized.TestCase):
     # Model 1 sets -1.0 for rho > 0.5.
     expected_v_e = jnp.where(geo.rho_face_norm > 0.5, -1.0, 0.0)
     np.testing.assert_allclose(accumulated_coeffs.v_face_el, expected_v_e)
+
+  def test_ibc_edge_band_isolates_smoothing_and_masks_ibc_only_faces(self):
+    model, runtime_params, geo = self._build_model_and_params(
+        {
+            'smoothing_width': 0.15,
+            'chi_min': 0.0,
+            'core_transport_models': {
+                'core': {
+                    'model_name': 'prescribed',
+                    'rho_max': 0.8,
+                    'chi_i': 1.0,
+                },
+                'edge': {
+                    'model_name': 'prescribed',
+                    'rho_min': 0.8,
+                    'chi_i': 100.0,
+                },
+            },
+        },
+        n_rho=25,
+    )
+    # n_rho = 25 uniform grid: IBC active on cells with rho_norm >= 0.80
+    # (cells 20..24). Face 20 (0.80) borders evolved cell 19 and stays active;
+    # faces 21..25 (0.84..1.00) touch only IBC cells and are zeroed and
+    # excluded from core smoothing.
+    edge_val = jnp.where(geo.rho_norm >= 0.8, 1.0, 0.0)
+    ibc = internal_boundary_conditions_lib.InternalBoundaryConditions(
+        T_i=edge_val,
+        T_e=edge_val,
+        n_e=edge_val,
+    )
+    coeffs, _ = model(
+        runtime_params,
+        geo,
+        mock.ANY,
+        pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
+        ibc,
+        transport_state=model.initial_state(runtime_params),
+    )
+    core_faces = geo.rho_face_norm <= 0.8 + 1e-12
+    edge_faces = ~core_faces
+    with self.subTest('core_uncontaminated_by_edge_spike_or_zeros'):
+      np.testing.assert_allclose(
+          coeffs.core.chi_face_ion[core_faces], 1.0, atol=1e-12
+      )
+    with self.subTest('ibc_only_faces_zeroed'):
+      np.testing.assert_array_equal(coeffs.core.chi_face_ion[edge_faces], 0.0)
+    with self.subTest('raw_component_outputs_preserved'):
+      np.testing.assert_allclose(
+          coeffs.core_components['edge'].chi_face_ion[edge_faces], 100.0
+      )
 
 
 if __name__ == '__main__':
