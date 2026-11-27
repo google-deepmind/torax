@@ -436,13 +436,6 @@ class SimulationStepFn:
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a simulation step if a sawtooth crash is triggered."""
-    # If a sawtooth model is provided, there was no previous sawtooth crash
-    # and the max_dt is greater than the crash step duration, it will be
-    # checked to see if a sawtooth should trigger. If it does, the sawtooth
-    # model will be applied and instead of a full PDE solve, the step_fn will
-    # return early with a state following sawtooth redistribution, at a t+dt
-    # set by the sawtooth model configuration.
-
     sawtooth_params = runtime_params_t.mhd.sawtooth
     # Sawtooth params should always be provided if a sawtooth model is
     # provided.
@@ -463,12 +456,14 @@ class SimulationStepFn:
           model_state_t=model_state_t,
       )
 
-    # If a sawtooth crash is not triggered for any reason,the input
-    # state and post-processed outputs will be returned unchanged.
+    # Skip the sawtooth check and return the input state unchanged if the
+    # previous step was a sawtooth crash or if max_dt < crash_step_duration.
+    # Otherwise check whether a sawtooth triggers; if it does, apply
+    # redistribution over crash_step_duration instead of a full PDE solve.
     return jax.lax.cond(
-        jnp.logical_and(
+        jnp.logical_or(
             input_state.solver_numeric_outputs.sawtooth_crash,
-            max_dt > sawtooth_params.crash_step_duration,
+            max_dt < sawtooth_params.crash_step_duration,
         ),
         lambda *args: (input_state, previous_post_processed_outputs),
         _sawtooth_step_fn,
