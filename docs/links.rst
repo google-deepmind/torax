@@ -75,7 +75,7 @@
 .. _torax_issues_link: https://github.com/google-deepmind/torax/issues
 .. _torax_discussions_link: https://github.com/google-deepmind/torax/discussions
 .. _torax_docs_link: https://torax.readthedocs.io
-.. _torax_context_md_link: https://github.com/google-deepmind/torax/blob/main/CONTEXT.md
+.. _torax_agents_md_link: https://github.com/google-deepmind/torax/blob/main/AGENTS.md
 .. _torax_pr_276_link: https://github.com/google-deepmind/torax/pull/276
 .. _torax_commit_d73192e_link: https://github.com/google-deepmind/torax/commit/d73192ed0ea52c30fbafb01cc6e0d421550b22a4
 
@@ -156,6 +156,6 @@
 .. |torax_issues| replace:: `TORAX GitHub issues <torax_issues_link_>`__
 .. |torax_discussions| replace:: `GitHub discussions page <torax_discussions_link_>`__
 .. |torax_docs| replace:: `documentation <torax_docs_link_>`__
-.. |CONTEXT.md| replace:: `CONTEXT.md <torax_context_md_link_>`__
+.. |AGENTS.md| replace:: `AGENTS.md <torax_agents_md_link_>`__
 .. |torax_pr_276| replace:: `PR #276 <torax_pr_276_link_>`__
 .. |torax_commit_d73192e| replace:: `commit d73192e <torax_commit_d73192e_link_>`__

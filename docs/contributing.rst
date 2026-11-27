@@ -109,7 +109,7 @@ To ensure a smooth review process, please consider the following tips:
   is understood by the developer, tests are properly run, and PRs maintain
   focus. Please keep in mind that reviewing is time-consuming and PRs that do
   not adhere to these standards are likely to have longer review times.
-  See |CONTEXT.md| for a development guide that provides context for GenAI
+  See |AGENTS.md| for a development guide that provides context for GenAI
   coding tools and also serves as a useful quick-start reference for new
   developers.
 
