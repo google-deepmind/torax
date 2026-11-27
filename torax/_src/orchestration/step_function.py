@@ -98,7 +98,7 @@ class SimulationStepFn:
         which may change from time step to time step or simulation run to run.
     """
     self._solver = solver
-    if self._solver.models.mhd_models.sawtooth_models is not None:
+    if self._solver.models.mhd_models.discrete_sawtooth_models is not None:
       self._sawtooth_solver = sawtooth_solver_lib.SawtoothSolver(
           models=self._solver.models,
       )
@@ -436,17 +436,17 @@ class SimulationStepFn:
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a simulation step if a sawtooth crash is triggered."""
-    # If a sawtooth model is provided, there was no previous sawtooth crash
-    # and the max_dt is greater than the crash step duration, it will be
-    # checked to see if a sawtooth should trigger. If it does, the sawtooth
-    # model will be applied and instead of a full PDE solve, the step_fn will
-    # return early with a state following sawtooth redistribution, at a t+dt
-    # set by the sawtooth model configuration.
+    # If a sawtooth model is provided, there was no previous sawtooth crash,
+    # and max_dt is at least crash_step_duration, it will be checked to see if
+    # a sawtooth should trigger. If it does, the sawtooth model will be applied
+    # and instead of a full PDE solve, the step_fn will return early with a
+    # state following sawtooth redistribution, at a t+dt set by the sawtooth
+    # model configuration.
 
-    sawtooth_params = runtime_params_t.mhd.sawtooth
-    # Sawtooth params should always be provided if a sawtooth model is
-    # provided.
-    assert sawtooth_params is not None, 'Sawtooth params are None'
+    sawtooth_params = runtime_params_t.mhd.discrete_sawtooth
+    # Discrete sawtooth params are always provided if a discrete sawtooth
+    # solver is active.
+    assert sawtooth_params is not None
 
     def _sawtooth_step_fn():
       assert self._sawtooth_solver is not None
@@ -463,12 +463,12 @@ class SimulationStepFn:
           model_state_t=model_state_t,
       )
 
-    # If a sawtooth crash is not triggered for any reason,the input
+    # If a sawtooth crash is not triggered for any reason, the input
     # state and post-processed outputs will be returned unchanged.
     return jax.lax.cond(
-        jnp.logical_and(
+        jnp.logical_or(
             input_state.solver_numeric_outputs.sawtooth_crash,
-            max_dt > sawtooth_params.crash_step_duration,
+            max_dt < sawtooth_params.crash_step_duration,
         ),
         lambda *args: (input_state, previous_post_processed_outputs),
         _sawtooth_step_fn,

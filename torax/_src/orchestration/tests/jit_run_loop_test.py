@@ -115,6 +115,42 @@ class JitRunLoopTest(parameterized.TestCase):
 
     self.assertEqual(jit_run_loop._get_max_steps(step_fn), expected_max_steps)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='no_backtracking_doubles_budget',
+          allow_backtracking=False,
+          expected_max_steps=10,
+      ),
+      dict(
+          testcase_name='backtracking_keeps_existing_multiplier',
+          allow_backtracking=True,
+          expected_max_steps=50,
+      ),
+  )
+  def test_get_max_steps_fixed_with_sawtooth(
+      self,
+      allow_backtracking: bool,
+      expected_max_steps: int,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': 0.0,
+        't_final': 0.5,
+        'dt': 0.1,
+        'allow_backtracking': allow_backtracking,
+    }
+    config_dict['mhd'] = {
+        'sawtooth': {
+            'trigger_model': {'model_name': 'simple'},
+            'redistribution_model': {'model_name': 'simple'},
+        }
+    }
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    self.assertEqual(jit_run_loop._get_max_steps(step_fn), expected_max_steps)
+
   def test_run_loop_fixed_default_and_explicit_max_steps(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['time_step_calculator'] = {

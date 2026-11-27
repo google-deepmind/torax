@@ -36,18 +36,27 @@ class MHDConfig(torax_pydantic.ConfigBase):
 
   def build_mhd_models(self) -> base.MHDModels:
     """Builds and returns a container with instantiated MHD model objects."""
-    sawtooth_model = (
-        None if self.sawtooth is None else self.sawtooth.build_models()
+    discrete = self.discrete_sawtooth
+    return base.MHDModels(
+        discrete_sawtooth_models=(
+            discrete.build_models() if discrete is not None else None
+        ),
     )
-    return base.MHDModels(sawtooth_models=sawtooth_model)
+
+  @property
+  def discrete_sawtooth(self) -> sawtooth_config.SawtoothConfig | None:
+    """Returns the discrete sawtooth config if configured, else None."""
+    if isinstance(self.sawtooth, sawtooth_config.SawtoothConfig):
+      return self.sawtooth
+    return None
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> mhd_runtime_params.RuntimeParams:
     """Builds and returns a container with runtime params for MHD models."""
-
-    return mhd_runtime_params.RuntimeParams(**{
-        mhd_model_name: mhd_model_config.build_runtime_params(t)
-        for mhd_model_name, mhd_model_config in self.__dict__.items()
-        if mhd_model_config is not None
-    })
+    discrete = self.discrete_sawtooth
+    return mhd_runtime_params.RuntimeParams(
+        discrete_sawtooth=(
+            discrete.build_runtime_params(t) if discrete is not None else None
+        ),
+    )

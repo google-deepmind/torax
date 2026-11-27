@@ -18,6 +18,7 @@ import abc
 import dataclasses
 
 import chex
+from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -25,6 +26,47 @@ from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
+
+
+def find_rho_norm_q1(
+    q_face: array_typing.FloatVectorFace,
+    rho_face_norm: array_typing.FloatVectorFace,
+) -> array_typing.FloatScalar:
+  """Finds the outermost normalized radius of the q = 1 surface.
+
+  Uses piecewise-linear interpolation of `q_face` on each radial interval that
+  straddles `q = 1` (one endpoint strictly below 1 and the other at or above 1)
+  so that non-monotonic q profiles are supported while flat or tangent `q >= 1`
+  profiles do not produce phantom crossings. Returns `0.0` if no q = 1 crossing
+  exists.
+
+  Args:
+    q_face: Safety factor profile on the face grid [dimensionless].
+    rho_face_norm: Normalized toroidal flux coordinate on the face grid
+      [rho_norm].
+
+  Returns:
+    Outermost normalized radius where q = 1 [rho_norm], or 0.0 if absent.
+  """
+  q1 = q_face[:-1]
+  q2 = q_face[1:]
+  rho_norm1 = rho_face_norm[:-1]
+  rho_norm2 = rho_face_norm[1:]
+  # `jnp.diff` on a boolean array computes adjacent XOR, so an interval is a
+  # crossing iff one endpoint is strictly below 1 and the other is >= 1 (or NaN,
+  # propagating NaNs instead of masking them). This guarantees `q2 - q1 != 0` on
+  # every valid finite interval, avoids phantom crossings on flat `q = 1` or
+  # tangent `q >= 1` profiles, and preserves small-slope downward crossings.
+  is_crossing = jnp.diff(q_face < 1.0)
+  # Substitute a safe unit denominator on non-crossing intervals so both
+  # forward evaluation and reverse-mode autodiff (`jax.grad`) stay finite and
+  # free of spurious 1/eps spikes.
+  safe_dq = jnp.where(is_crossing, q2 - q1, 1.0)
+  potential_rho_norm_q1 = (
+      rho_norm1 + (rho_norm2 - rho_norm1) * (1.0 - q1) / safe_dq
+  )
+  valid_rho_norm_q1 = jnp.where(is_crossing, potential_rho_norm_q1, 0.0)
+  return jnp.max(valid_rho_norm_q1)
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

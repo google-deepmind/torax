@@ -20,17 +20,20 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import jax_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.geometry import circular_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import simple_trigger
+from torax._src.mhd.sawtooth import trigger_base
 from torax._src.test_utils import core_profile_helpers
 
-jax.config.update('jax_enable_x64', True)
+jax.config.update('jax_enable_x64', jax_utils.get_dtype() == jnp.float64)
 
 _NRHO = 20
+_RHO_FACE = np.linspace(0.0, 1.0, _NRHO + 1)
 
 
 class SimpleTriggerTest(parameterized.TestCase):
@@ -48,12 +51,13 @@ class SimpleTriggerTest(parameterized.TestCase):
       self, q_face: np.ndarray, s_face: np.ndarray
   ) -> core_profiles_lib.CoreProfiles:
     core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
+    dtype = jax_utils.get_dtype()
     return dataclasses.replace(
         core_profiles,
         poloidal_flux=dataclasses.replace(
             core_profiles.poloidal_flux,
-            q_face=jnp.asarray(q_face),
-            s_face=jnp.asarray(s_face),
+            q_face=jnp.asarray(q_face, dtype=dtype),
+            s_face=jnp.asarray(s_face, dtype=dtype),
         ),
     )
 
@@ -130,7 +134,7 @@ class SimpleTriggerTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         instance=True,
         mhd=mhd_runtime_params.RuntimeParams(
-            sawtooth=mock.create_autospec(
+            discrete_sawtooth=mock.create_autospec(
                 sawtooth_runtime_params.RuntimeParams,
                 instance=True,
                 trigger_params=simple_trigger.RuntimeParams(
@@ -147,6 +151,112 @@ class SimpleTriggerTest(parameterized.TestCase):
         core_profiles,
     )
     self.assertEqual(trigger_result, expected_trigger)
+
+
+class FindRhoNormQ1Test(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='upward_crossing',
+          q_face=0.55 + 2.0 * _RHO_FACE,
+          expected=0.225,
+      ),
+      dict(
+          testcase_name='downward_crossing',
+          q_face=1.45 - 2.0 * _RHO_FACE,
+          expected=0.225,
+      ),
+      dict(
+          testcase_name='multiple_crossings_outermost',
+          q_face=0.8 + 1.6 * np.abs(_RHO_FACE - 0.4),
+          expected=0.525,
+      ),
+  )
+  def test_find_rho_norm_q1_standard_cases(
+      self,
+      q_face: np.ndarray,
+      expected: float,
+  ):
+    dtype = jax_utils.get_dtype()
+    result = float(
+        trigger_base.find_rho_norm_q1(
+            jnp.asarray(q_face, dtype=dtype),
+            jnp.asarray(_RHO_FACE, dtype=dtype),
+        )
+    )
+    atol = 1e-6 if dtype == jnp.float32 else 1e-12
+    np.testing.assert_allclose(result, expected, rtol=0.0, atol=atol)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='flat_q_below_1_within_eps',
+          q_face=np.full(_NRHO + 1, 1.0 - 5e-8),
+          expected=0.0,
+      ),
+      dict(
+          testcase_name='tangent_from_above',
+          q_face=1.0 + (_RHO_FACE - 0.5) ** 2,
+          expected=0.0,
+      ),
+      dict(
+          testcase_name='exact_face_hit_from_below',
+          q_face=0.5 + _RHO_FACE,
+          expected=0.5,
+      ),
+      dict(
+          testcase_name='small_slope_downward_crossing',
+          q_face=np.where(_RHO_FACE < 0.5, 1.0 + 4e-8, 1.0 - 4e-8),
+          expected=0.475,
+          f32_expected=0.45,
+      ),
+  )
+  def test_find_rho_norm_q1_edge_cases(
+      self,
+      q_face: np.ndarray,
+      expected: float,
+      f32_expected: float | None = None,
+  ):
+    dtype = jax_utils.get_dtype()
+    result = float(
+        trigger_base.find_rho_norm_q1(
+            jnp.asarray(q_face, dtype=dtype),
+            jnp.asarray(_RHO_FACE, dtype=dtype),
+        )
+    )
+    if dtype == jnp.float32 and f32_expected is not None:
+      expected = f32_expected
+    atol = 1e-6 if dtype == jnp.float32 else 1e-12
+    np.testing.assert_allclose(result, expected, rtol=0.0, atol=atol)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='interior_crossing',
+          q_face=0.55 + 2.0 * _RHO_FACE,
+          expected_nonzero={4: -0.25, 5: -0.25},
+      ),
+      dict(
+          testcase_name='flat_q_1',
+          q_face=np.ones(_NRHO + 1),
+          expected_nonzero={},
+      ),
+  )
+  def test_find_rho_norm_q1_grad(
+      self,
+      q_face: np.ndarray,
+      expected_nonzero: dict[int, float],
+  ):
+    dtype = jax_utils.get_dtype()
+    # In `flat_q_1`, every interval has q1 == q2 == 1.0, exercising the safe
+    # denominator so reverse-mode AD through `jnp.where` avoids 0/0 NaNs.
+    grad = jax.grad(trigger_base.find_rho_norm_q1)(
+        jnp.asarray(q_face, dtype=dtype),
+        jnp.asarray(_RHO_FACE, dtype=dtype),
+    )
+    expected_grad = np.zeros(_NRHO + 1)
+    for idx, val in expected_nonzero.items():
+      expected_grad[idx] = val
+    atol = 1e-5 if dtype == jnp.float32 else 1e-12
+    np.testing.assert_allclose(grad, expected_grad, rtol=0.0, atol=atol)
 
 
 if __name__ == '__main__':

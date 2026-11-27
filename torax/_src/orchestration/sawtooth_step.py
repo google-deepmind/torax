@@ -84,9 +84,9 @@ def sawtooth_step(
   Returns:
     Returns a tuple (output_state, post_processed_outputs).
   """
-  # Asserts needed for linter.
-  assert runtime_params_t.mhd.sawtooth is not None
-  dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
+  sawtooth_params = runtime_params_t.mhd.discrete_sawtooth
+  assert sawtooth_params is not None
+  dt_crash = sawtooth_params.crash_step_duration
   (
       runtime_params_t_plus_crash_dt,
       geo_t_plus_crash_dt,

@@ -278,7 +278,16 @@ def _get_max_steps(
   tsc_config = runtime_params_provider.time_step_calculator
   if tsc_config.max_steps is not None:
     return tsc_config.max_steps
-  return tsc_config.default_max_steps
+  max_steps = tsc_config.default_max_steps
+  if (
+      runtime_params_provider.mhd.discrete_sawtooth is not None
+      and not tsc_config.allow_backtracking
+  ):
+    # Consecutive sawtooth crashes are disallowed, so at most one crash step
+    # can precede each PDE step. When `allow_backtracking=True`,
+    # `default_max_steps` already includes a 10x multiplier.
+    max_steps *= 2
+  return max_steps
 
 
 def run_loop(

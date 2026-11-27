@@ -67,10 +67,10 @@ class SimpleRedistributionTest(parameterized.TestCase):
     }
 
     torax_config = config.ToraxConfig.from_dict(config_dict)
-    assert torax_config.mhd is not None
-    assert torax_config.mhd.sawtooth is not None
+    sawtooth_config = torax_config.mhd.discrete_sawtooth
+    assert sawtooth_config is not None
 
-    redistribution_config = torax_config.mhd.sawtooth.redistribution_model
+    redistribution_config = sawtooth_config.redistribution_model
     redistribution_model = redistribution_config.build_redistribution_model()
     self.assertIsInstance(
         redistribution_model, simple_redistribution.SimpleRedistribution
@@ -146,9 +146,9 @@ class MixingRadiusClampingTest(parameterized.TestCase):
         }
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
-    assert torax_config.mhd is not None
-    assert torax_config.mhd.sawtooth is not None
-    redistribution_config = torax_config.mhd.sawtooth.redistribution_model
+    sawtooth_config = torax_config.mhd.discrete_sawtooth
+    assert sawtooth_config is not None
+    redistribution_config = sawtooth_config.redistribution_model
     redistribution_model = redistribution_config.build_redistribution_model()
     core_profiles_t, runtime_params_t, geo_t = (
         core_profile_helpers.make_initial_inputs(torax_config)

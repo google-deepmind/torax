@@ -25,4 +25,4 @@ from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 class RuntimeParams:
   """Container for the parameters of all configured MHD models."""
 
-  sawtooth: sawtooth_runtime_params.RuntimeParams | None = None
+  discrete_sawtooth: sawtooth_runtime_params.RuntimeParams | None = None

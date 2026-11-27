@@ -78,7 +78,9 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   solver: solver_config.SolverConfig = pydantic.Field()
   transport: transport_config.TransportConfig = pydantic.Field()
   pedestal: pedestal_config.PedestalConfig = pydantic.Field()
-  mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
+  mhd: mhd_config.MHDConfig = pydantic.Field(
+      default_factory=mhd_config.MHDConfig
+  )
   edge: edge_config.EdgeConfig | None = None
   time_step_calculator: time_step_calculator_config.TimeStepCalculatorConfig = (
       time_step_calculator_config.ChiTimeStepCalculatorConfig()
