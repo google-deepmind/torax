@@ -164,13 +164,8 @@ class TransportModel(static_dataclass.StaticDataclass):
     if isinstance(
         pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
     ):
-      core_domain_mask = (
-          jnp.where(
-              pedestal_model_output.is_active,
-              ~pedestal_mask,
-              True,
-          )
-          & ~internal_boundary_conditions.get_ibc_only_face_mask()
+      core_domain_mask = ~get_combined_ibc_face_mask(
+          geo, pedestal_model_output, internal_boundary_conditions
       )
     else:
       # Only reached when pedestal.mode == Mode.ADAPTIVE_TRANSPORT (which
@@ -239,7 +234,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       geo: geometry.Geometry,
       core_profiles: core_profiles_lib.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-      domain_mask: jax.Array,
+      domain_mask: array_typing.BoolVectorFace,
       smoothing_matrix: jax.Array,
       component_states: Mapping[
           str, transport_state_lib.ComponentTransportState
@@ -409,6 +404,37 @@ class TransportModel(static_dataclass.StaticDataclass):
     )
 
 
+def get_combined_ibc_face_mask(
+    geo: geometry.Geometry,
+    pedestal_model_output: pedestal_model_output_lib.IBCPedestalModelOutput,
+    internal_boundary_conditions: (
+        internal_boundary_conditions_lib.InternalBoundaryConditions
+    ),
+) -> array_typing.BoolVectorFace:
+  """Returns faces masked by an active IBC pedestal or IBC-only cells.
+
+  Both masks are needed because in SET_AT_TOP pedestal mode only one cell is
+  pinned in `internal_boundary_conditions`, so `get_ibc_only_face_mask()` does
+  not cover the pedestal faces (`rho_face_norm >= rho_norm_top`) that still
+  need to be masked.
+
+  Args:
+    geo: Geometry of the torus.
+    pedestal_model_output: IBC pedestal model output for this step.
+    internal_boundary_conditions: Active internal boundary conditions.
+
+  Returns:
+    Boolean face-grid mask (True on masked faces).
+  """
+  return (
+      pedestal_model_output.is_active
+      & pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm,
+          pedestal_model_output.rho_norm_top,
+      )
+  ) | internal_boundary_conditions.get_ibc_only_face_mask()
+
+
 def _build_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -450,13 +476,9 @@ def _build_smoothing_matrix(
   if isinstance(
       pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
   ):
-    rho_norm_top = pedestal_model_output.rho_norm_top
-    combined_ibc_mask = (
-        pedestal_model_output.is_active
-        & pedestal_model_output_lib.pedestal_face_mask(
-            geo.rho_face_norm, rho_norm_top
-        )
-    ) | internal_boundary_conditions.get_ibc_only_face_mask()
+    combined_ibc_mask = get_combined_ibc_face_mask(
+        geo, pedestal_model_output, internal_boundary_conditions
+    )
     smoothing_width_profile = jnp.where(
         combined_ibc_mask,
         0.0,

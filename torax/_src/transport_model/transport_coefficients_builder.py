@@ -90,17 +90,11 @@ def calculate_all_transport_coeffs(
     if isinstance(
         pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
     ):
-      pedestal_active_mask_face = jnp.where(
-          pedestal_model_output.is_active,
-          geo.rho_face_norm >= pedestal_model_output.rho_norm_top,
-          False,
-      )
-      ibc_face_mask = (
-          internal_boundary_conditions.get_ibc_only_face_mask()
-          | pedestal_active_mask_face
+      combined_ibc_mask = transport_model_lib.get_combined_ibc_face_mask(
+          geo, pedestal_model_output, internal_boundary_conditions
       )
       pereverzev_transport_coeffs = jax.tree.map(
-          lambda x: jnp.where(ibc_face_mask, 0.0, x),
+          lambda x: jnp.where(combined_ibc_mask, 0.0, x),
           pereverzev_transport_coeffs,
       )
   else:
