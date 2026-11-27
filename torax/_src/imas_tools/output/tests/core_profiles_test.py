@@ -72,6 +72,36 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     filled_ids.validate()
 
+  def test_b0_and_v_loop_signs_follow_imas_cocos(self):
+    """Checks B0 and v_loop are sign-flipped like Ip in the written IDS."""
+    config_dict = self._get_config_dict(
+        "test_iterhybrid_predictor_corrector.py"
+    )
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    (
+        initial_state,
+        post_processed_outputs,
+        _,
+    ) = run_simulation.prepare_simulation(torax_config)
+    filled_ids = output_core_profiles.core_profiles_to_IMAS(
+        torax_config,
+        [post_processed_outputs],
+        [initial_state.core_profiles],
+        [initial_state.core_sources],
+        [initial_state.geometry],
+        [initial_state.t],  # pyrefly: ignore[bad-argument-type]
+    )
+    # TORAX internal convention has positive B0 and Ip. IMAS (COCOS 11/17) for
+    # ITER has both negative, so that sign(q) = sign(Ip * B0) > 0.
+    b0 = np.asarray(filled_ids.vacuum_toroidal_field.b0)
+    ip = np.asarray(filled_ids.global_quantities.ip)
+    self.assertEqual(np.sign(b0[0]), -np.sign(initial_state.geometry.B_0))
+    self.assertEqual(np.sign(b0[0]), np.sign(ip[0]))
+    np.testing.assert_allclose(
+        np.asarray(filled_ids.global_quantities.v_loop)[0],
+        -1 * initial_state.core_profiles.v_loop_lcfs,
+    )
+
   def test_round_trip_with_IMAS_profiles(
       self,
   ):
