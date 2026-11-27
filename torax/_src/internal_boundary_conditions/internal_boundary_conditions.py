@@ -34,10 +34,10 @@ class InternalBoundaryConditions:
   Internal boundary conditions are set on the cell grid. They are enforced
   via direct matrix row replacement in the solver.
   Zero values in the array are ignored, i.e. they are not treated as boundary
-  conditions. This allows us to use a single object to set multiple boundary
-  conditions simultaneously. For example, setting
-  `T_e=jnp.array([0, 20, 0, 10, 0])` will set the electron temperature to 20
-  and 10 at the 2nd and 4th cells respectively.
+  conditions. All active channels (`T_i`, `T_e`, `n_e`) must be set on the same
+  radial cells so that transport and smoothing masks are consistent across
+  coupled channels. For example, setting IBCs on cells 1 and 3 sets nonzero
+  targets at indices 1 and 3 in each active channel.
 
   Attributes:
     T_i: Ion temperature boundary conditions on the cell grid.

@@ -223,6 +223,7 @@ class BuilderTest(absltest.TestCase):
                 psi_source='j',
                 internal_boundary_conditions=dict(
                     model_name='prescribed',
+                    T_i={0.0: {(0.0, 0.3): 10.0}},
                     T_e={0.0: {(0.0, 0.3): 10.0}},
                 ),
             ),

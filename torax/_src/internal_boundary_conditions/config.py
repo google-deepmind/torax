@@ -16,6 +16,7 @@
 
 from typing import Annotated, Literal
 import chex
+import numpy as np
 import pydantic
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import beta_poloidal_prime as beta_poloidal_prime_lib
@@ -167,14 +168,32 @@ class NoIBCConfig(torax_pydantic.ConfigBase):
     return ibc_runtime_params.RuntimeParams()
 
 
+def _active_locations_at_time(
+    channel_ibc: interpolated_param_2d.SparseTimeVaryingArray,
+    t: float,
+) -> set[float | tuple[float, float]]:
+  """Returns radial location keys where `channel_ibc` is nonzero at time `t`."""
+  active: set[float | tuple[float, float]] = set()
+  for location, tva in channel_ibc.values:
+    # Without a grid we cannot call `get_value(t)`, so mark each time knot as
+    # 1.0 (nonzero) or 0.0 (all zero) and linearly interpolate those flags.
+    # This is > 0 at time `t` whenever the interpolated profile is nonzero.
+    is_nonzero = [float(np.any(vals != 0.0)) for _, vals in tva.value.values()]
+    if np.interp(t, list(tva.value), is_nonzero) > 0.0:
+      active.add(location)
+  return active
+
+
 class PrescribedIBCConfig(torax_pydantic.ConfigBase):
   """Explicitly prescribes time-varying internal boundary conditions.
 
-  Configures internal boundary conditions for any subset of `T_i`, `T_e`, and
-  `n_e` using `SparseTimeVaryingArray` types. Any values of `0.0` are treated
-  as no internal boundary condition at that location. Not including a profile in
-  the dictionary means no internal boundary condition will be applied for that
-  profile.
+  Configures internal boundary conditions for `T_i`, `T_e`, and `n_e` using
+  `SparseTimeVaryingArray` types. Any values of `0.0` are treated as no internal
+  boundary condition at that location.
+
+  All provided profiles must use the same radial locations at all times. If any
+  profile has a nonzero internal boundary condition, one must be provided for
+  every evolving profile.
 
   Attributes:
     model_name: Internal boundary condition model name, set to `'prescribed'`.
@@ -201,6 +220,59 @@ class PrescribedIBCConfig(torax_pydantic.ConfigBase):
   n_e: interpolated_param_2d.SparseTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(0.0)
   )
+
+  def _active_channel_ibcs(
+      self,
+  ) -> dict[str, interpolated_param_2d.SparseTimeVaryingArray]:
+    """Returns channel -> IBC mapping for channels with any nonzero value."""
+    active: dict[str, interpolated_param_2d.SparseTimeVaryingArray] = {}
+    for channel, channel_ibc in (
+        ('T_i', self.T_i),
+        ('T_e', self.T_e),
+        ('n_e', self.n_e),
+    ):
+      for _, tva in channel_ibc.values:
+        if any(np.any(vals != 0.0) for _, vals in tva.value.values()):
+          active[channel] = channel_ibc
+          break
+    return active
+
+  @property
+  def active_channels(self) -> frozenset[str]:
+    """Channels with at least one nonzero prescribed IBC value."""
+    return frozenset(self._active_channel_ibcs())
+
+  # TODO(b/590388748): In V3, move radial locations to top-level fields on
+  # PrescribedIBCConfig so channel alignment is enforced directly by the schema
+  # instead of this after-validator.
+  @pydantic.model_validator(mode='after')
+  def _validate_matching_channel_locations(self) -> Self:
+    """Checks that all active IBC channels share the same radial locations."""
+    active_by_channel = self._active_channel_ibcs()
+    if len(active_by_channel) <= 1:
+      return self
+
+    # Collect every time knot where any active channel's IBC can change.
+    # SparseTimeVaryingArray.values holds (location, TimeVaryingArray) pairs,
+    # where TimeVaryingArray.value is a dict keyed by time [s].
+    time_knots: set[float] = set()
+    for channel_ibc in active_by_channel.values():
+      for _, tva in channel_ibc.values:
+        time_knots.update(tva.value)
+
+    ref_channel, *other_channels = active_by_channel
+    for t in sorted(time_knots):
+      ref_locs = _active_locations_at_time(active_by_channel[ref_channel], t)
+      for channel in other_channels:
+        locs = _active_locations_at_time(active_by_channel[channel], t)
+        if locs != ref_locs:
+          raise ValueError(
+              'Prescribed internal boundary conditions must use the same'
+              f' radial locations for all active channels. At t={t},'
+              f' {ref_channel} locations {sorted(ref_locs, key=str)} differ'
+              f' from {channel} locations {sorted(locs, key=str)}.'
+          )
+    return self
 
   def build_model(self) -> base_model.InternalBoundaryConditionModel:
     """Builds the internal boundary condition model."""

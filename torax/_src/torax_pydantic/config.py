@@ -563,6 +563,34 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     torax_pydantic.set_grid(self, mesh, mode='relaxed')
     return self
 
+  @pydantic.model_validator(mode='after')
+  def _validate_prescribed_ibc_channels(self) -> Self:
+    """Checks prescribed IBCs cover every evolving channel when active."""
+    ibc = self.profile_conditions.internal_boundary_conditions
+    if not isinstance(ibc, ibc_config.PrescribedIBCConfig):
+      return self
+    active_channels = ibc.active_channels
+    if not active_channels:
+      return self
+
+    evolved_flags = (
+        ('T_i', self.numerics.evolve_ion_heat),
+        ('T_e', self.numerics.evolve_electron_heat),
+        ('n_e', self.numerics.evolve_density),
+    )
+    missing = [
+        channel
+        for channel, evolved in evolved_flags
+        if evolved and channel not in active_channels
+    ]
+    if missing:
+      raise ValueError(
+          'Prescribed internal boundary conditions must be provided for all'
+          f' evolving channels. Active channels: {sorted(active_channels)};'
+          f' missing evolving channels: {missing}.'
+      )
+    return self
+
   # This is primarily used for serialization, so the importer can check which
   # version of Torax was used to generate the serialized config.
   @pydantic.computed_field

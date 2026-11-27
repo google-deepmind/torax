@@ -25,7 +25,15 @@ prescribed
 .. torax_config:: torax._src.internal_boundary_conditions.config.PrescribedIBCConfig
    :include-class-doc:
 
-For example, to specify a boundary condition for ``T_i`` at ``rho = 0.5``:
+Whenever any prescribed internal boundary condition is active, all evolved
+channels (``T_i``, ``T_e``, and ``n_e``, depending on ``numerics.evolve_*``)
+must be specified at the exact same radial locations. Pinning only a subset of
+evolved channels or pinning different channels at different radial points raises
+a validation error, since gradients in a pinned channel couple into transport
+and smoothing of the other channels.
+
+For example, to specify a boundary condition at ``rho = 0.5`` (with all kinetic
+channels evolved):
 
 .. code-block:: python
 
@@ -33,24 +41,22 @@ For example, to specify a boundary condition for ``T_i`` at ``rho = 0.5``:
       'internal_boundary_conditions': {
           'model_name': 'prescribed',
           'T_i': {0.0: {0.5: 5.0}},
+          'T_e': {0.0: {0.5: 5.0}},
+          'n_e': {0.0: {0.5: 1.0e20}},
       }
   }
 
-To specify multiple IBCs across different radial locations, specify a list:
+Multiple radial locations or ranges can be specified in the same dictionary:
 
 .. code-block:: python
 
   {
-      'internal_boundary_conditions': [
-          {
-              'model_name': 'prescribed',
-              'T_i': {0.0: {0.5: 5.0}},
-          },
-          {
-              'model_name': 'prescribed',
-              'T_i': {0.0: {0.7: 3.0}},
-          },
-      ]
+      'internal_boundary_conditions': {
+          'model_name': 'prescribed',
+          'T_i': {0.0: {0.5: 5.0, 0.7: 3.0}},
+          'T_e': {0.0: {0.5: 5.0, 0.7: 3.0}},
+          'n_e': {0.0: {0.5: 1.0e20, 0.7: 0.8e20}},
+      }
   }
 
 beta_poloidal_prime

@@ -169,7 +169,7 @@ class NoIBCTest(absltest.TestCase):
     np.testing.assert_array_equal(res.n_e, jnp.zeros(5))
 
 
-class InternalBoundaryConditionsTest(absltest.TestCase):
+class InternalBoundaryConditionsTest(parameterized.TestCase):
 
   def test_merge(self):
     ibc1 = internal_boundary_conditions.InternalBoundaryConditions(
@@ -220,6 +220,73 @@ class InternalBoundaryConditionsTest(absltest.TestCase):
     }
     with self.assertRaises(pydantic.ValidationError):
       config.ToraxConfig.model_validate(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='different_points',
+          T_i={0.0: {0.5: 5.0}},
+          T_e={0.0: {0.7: 3.0}},
+      ),
+      dict(
+          testcase_name='zero_at_different_time',
+          T_i={0.0: {0.5: 5.0}, 1.0: {0.5: 0.0}},
+          T_e={0.0: {0.5: 5.0}, 1.0: {0.5: 4.0}},
+      ),
+  )
+  def test_prescribed_ibc_rejects_mismatched_locations(self, T_i, T_e):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'same radial locations'
+    ):
+      ibc_config_lib.PrescribedIBCConfig(T_i=T_i, T_e=T_e)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='missing_evolved_T_e',
+          numerics={'evolve_ion_heat': True, 'evolve_electron_heat': True},
+          ibc={'model_name': 'prescribed', 'T_i': {0.0: {0.5: 5.0}}},
+      ),
+      dict(
+          testcase_name='missing_evolved_n_e',
+          numerics={
+              'evolve_ion_heat': True,
+              'evolve_electron_heat': True,
+              'evolve_density': True,
+          },
+          ibc={
+              'model_name': 'prescribed',
+              'T_i': {0.0: {0.5: 5.0}},
+              'T_e': {0.0: {0.5: 5.0}},
+          },
+      ),
+  )
+  def test_torax_config_rejects_missing_evolving_prescribed_ibc(
+      self, numerics, ibc
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'].update(numerics)
+    config_dict['profile_conditions']['internal_boundary_conditions'] = ibc
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'Prescribed internal boundary conditions'
+    ):
+      config.ToraxConfig.model_validate(config_dict)
+
+  def test_torax_config_allows_matching_prescribed_ibc_omitting_unevolved(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'].update({
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': False,
+    })
+    config_dict['profile_conditions']['internal_boundary_conditions'] = {
+        'model_name': 'prescribed',
+        'T_i': {0.0: {0.5: 5.0}},
+        'T_e': {0.0: {0.5: 3.0}, 1.0: {0.5: 4.0}},
+    }
+    torax_config = config.ToraxConfig.model_validate(config_dict)
+    self.assertEqual(
+        torax_config.profile_conditions.internal_boundary_conditions.model_name,
+        'prescribed',
+    )
 
 
 if __name__ == '__main__':

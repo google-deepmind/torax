@@ -15,7 +15,7 @@
 """Tests time dependent boundary conditions and sources.
 
 I_p from parameters. implicit + pereverzev-corrigan, T_i+T_e+Psi, Pei standard
-dens, pedestal, chi from QLKNN. Internal boundary conditions for T_e.
+dens, pedestal, chi from QLKNN. Internal boundary conditions for T_i and T_e.
 Includes time dependent I_p, P_total, and pedestal, mocking up current-overshoot
 and an LH transition.
 """
@@ -33,6 +33,10 @@ CONFIG = {
         'n_e_bar': 0.33820425407e20,  # f_GW=0.85 for I_p(t=0)
         'internal_boundary_conditions': {
             'model_name': 'prescribed',
+            'T_i': {
+                0.0: {(0.8, 1.0): {0.8: 2.0, 1.0: 1.0}},
+                4.0: {(0.8, 1.0): {0.8: 4.0, 1.0: 1.0}},
+            },
             'T_e': {
                 0.0: {(0.8, 1.0): {0.8: 2.0, 1.0: 1.0}},
                 4.0: {(0.8, 1.0): {0.8: 4.0, 1.0: 1.0}},
