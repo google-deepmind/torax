@@ -410,8 +410,11 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     rmid = geo.r_mid
     rmid_face = geo.r_mid_face
 
+    # QuaLiKiz normalizes all GyroBohm fluxes using electron temperature T_e
+    # see J. Citrin et al., Plasma Phys. Control. Fusion 59, 115007 (2017),
+    # and K. L. van de Plassche et al., Phys. Plasmas 27, 022310 (2020).
     chiGB = quasilinear_utils.calculate_chiGB(
-        reference_temperature=core_profiles.kinetic.T_i.face_value(),
+        reference_temperature=core_profiles.kinetic.T_e.face_value(),
         reference_magnetic_field=geo.B_0,
         reference_mass=core_profiles.ions.A_i,
         reference_length=geo.a_minor,
