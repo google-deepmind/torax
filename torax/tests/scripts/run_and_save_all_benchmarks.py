@@ -77,7 +77,9 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
     max_steps = torax_config.time_step_calculator.max_steps
     if max_steps is None:
       try:
-        max_steps = torax_config.time_step_calculator.default_max_steps
+        max_steps = torax_config.time_step_calculator.default_max_steps(
+            dynamic_sawteeth_enabled=torax_config.mhd.sawtooth is not None
+        )
       except NotImplementedError:
         existing_ref = os.path.join(test_data_dir, f'{config_name}.nc')
         if os.path.exists(existing_ref):

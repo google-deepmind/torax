@@ -93,6 +93,15 @@ class JitRunLoopTest(parameterized.TestCase):
           adaptive_dt=True,
           expected_max_steps=30,
       ),
+      dict(
+          testcase_name='fixed_no_adaptive_with_sawtooth',
+          t_initial=0.0,
+          t_final=0.5,
+          dt=0.1,
+          adaptive_dt=False,
+          with_sawtooth=True,
+          expected_max_steps=10,
+      ),
   )
   def test_get_max_steps_fixed(
       self,
@@ -101,6 +110,7 @@ class JitRunLoopTest(parameterized.TestCase):
       dt,
       adaptive_dt,
       expected_max_steps,
+      with_sawtooth=False,
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict['time_step_calculator'] = {
@@ -110,6 +120,13 @@ class JitRunLoopTest(parameterized.TestCase):
         'dt': dt,
         'allow_backtracking': adaptive_dt,
     }
+    if with_sawtooth:
+      config_dict['mhd'] = {
+          'sawtooth': {
+              'trigger_model': {'model_name': 'simple'},
+              'redistribution_model': {'model_name': 'simple'},
+          }
+      }
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 

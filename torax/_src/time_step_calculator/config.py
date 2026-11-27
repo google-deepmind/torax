@@ -88,14 +88,22 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
         allow_backtracking=self.allow_backtracking,
     )
 
-  @property
-  def default_max_steps(self) -> int:
+  def default_max_steps(
+      self,
+      *,
+      dynamic_sawteeth_enabled: bool = False,
+  ) -> int:
     """Returns the default maximum number of simulation steps.
+
+    Args:
+      dynamic_sawteeth_enabled: Whether a discrete sawtooth model is enabled,
+        used to reserve extra step slots for sawtooth crash steps.
 
     Raises:
       NotImplementedError: If a default `max_steps` cannot be determined for
         this time step calculator.
     """
+    del dynamic_sawteeth_enabled
     # TODO(b/564475000): Support max_steps heuristics for other time step
     # calculators.
     raise NotImplementedError(
@@ -203,13 +211,21 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
       torax_pydantic.ValidatedDefault(1e-1)
   )
 
-  @property
-  def default_max_steps(self) -> int:
+  def default_max_steps(
+      self,
+      *,
+      dynamic_sawteeth_enabled: bool = False,
+  ) -> int:
     """Returns the default maximum number of simulation steps."""
     min_dt_val = float(np.min(self.dt.value))
     max_steps = math.ceil((self.t_final - self.t_initial) / min_dt_val)
     if self.allow_backtracking:
       max_steps *= _BACKTRACKING_MAX_STEPS_MULTIPLIER
+    elif dynamic_sawteeth_enabled:
+      # Consecutive sawtooth crashes are disallowed, so at most one crash step
+      # can precede each PDE step. When `allow_backtracking=True`, the
+      # backtracking multiplier above already leaves ample headroom.
+      max_steps *= 2
     return max_steps
 
   def build_runtime_params(

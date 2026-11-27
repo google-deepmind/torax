@@ -278,7 +278,9 @@ def _get_max_steps(
   tsc_config = runtime_params_provider.time_step_calculator
   if tsc_config.max_steps is not None:
     return tsc_config.max_steps
-  return tsc_config.default_max_steps
+  return tsc_config.default_max_steps(
+      dynamic_sawteeth_enabled=runtime_params_provider.mhd.sawtooth is not None
+  )
 
 
 def run_loop(

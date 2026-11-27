@@ -219,7 +219,9 @@ class SimTestCase(parameterized.TestCase):
         and torax_config.time_step_calculator.max_steps is None
     ):
       try:
-        max_steps = torax_config.time_step_calculator.default_max_steps
+        max_steps = torax_config.time_step_calculator.default_max_steps(
+            dynamic_sawteeth_enabled=torax_config.mhd.sawtooth is not None
+        )
       except NotImplementedError:
         max_steps = len(ref_time) * 2
 

@@ -187,21 +187,37 @@ class ConfigTest(parameterized.TestCase):
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     self.assertIsNone(torax_config.time_step_calculator.max_steps)
     with self.assertRaises(NotImplementedError):
-      _ = torax_config.time_step_calculator.default_max_steps
+      torax_config.time_step_calculator.default_max_steps()
 
   @parameterized.named_parameters(
       dict(
           testcase_name='no_backtracking',
           allow_backtracking=False,
+          dynamic_sawteeth_enabled=False,
           expected_max_steps=3,
+      ),
+      dict(
+          testcase_name='no_backtracking_with_sawtooth',
+          allow_backtracking=False,
+          dynamic_sawteeth_enabled=True,
+          expected_max_steps=6,
       ),
       dict(
           testcase_name='with_backtracking',
           allow_backtracking=True,
+          dynamic_sawteeth_enabled=False,
+          expected_max_steps=30,
+      ),
+      dict(
+          testcase_name='with_backtracking_and_sawtooth',
+          allow_backtracking=True,
+          dynamic_sawteeth_enabled=True,
           expected_max_steps=30,
       ),
   )
-  def test_fixed_max_steps(self, allow_backtracking, expected_max_steps):
+  def test_fixed_max_steps(
+      self, allow_backtracking, dynamic_sawteeth_enabled, expected_max_steps
+  ):
     config = default_configs.get_default_config_dict()
     config['time_step_calculator'] = {
         'calculator_type': 'fixed',
@@ -213,7 +229,9 @@ class ConfigTest(parameterized.TestCase):
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     self.assertIsNone(torax_config.time_step_calculator.max_steps)
     self.assertEqual(
-        torax_config.time_step_calculator.default_max_steps,
+        torax_config.time_step_calculator.default_max_steps(
+            dynamic_sawteeth_enabled=dynamic_sawteeth_enabled
+        ),
         expected_max_steps,
     )
 
