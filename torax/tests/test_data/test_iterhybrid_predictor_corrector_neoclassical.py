@@ -19,3 +19,8 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG['neoclassical']['transport'] = {'model_name': 'angioni_sauter'}
+# Converge fixed-point iterations with backtracking to eliminate stiff
+# inner-core ITG oscillations.
+CONFIG['solver']['n_fixed_point_iterations'] = 10
+CONFIG['solver']['fixed_point_use_backtracking'] = True
+CONFIG['solver']['fixed_point_termination_criterion'] = 'tolerance'
