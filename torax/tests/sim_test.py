@@ -192,9 +192,13 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_timedependent_isotopes.py',
       ),
       # Predictor-corrector solver with tungsten.
+      # Relaxed tolerance due to stiff inner-core ITG transport amplifying
+      # cross-architecture fp64 rounding differences.
       (
           'test_iterhybrid_predictor_corrector_tungsten',
           'test_iterhybrid_predictor_corrector_tungsten.py',
+          _ALL_PROFILES,
+          1e-6,
       ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (
